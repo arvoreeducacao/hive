@@ -1,5 +1,5 @@
 import { render } from "./arrange.js";
-import { activeItems, attachSeat, bringSeatIn, blocksOf, detached, saveBlockAt, saveSpaceAt, spaceAt } from "./blocks.js";
+import { activeItems, attachSeat, bringSeatIn, blocksOf, detached, landOnBlock, moveToNewBlock, saveBlockAt, saveSpaceAt, spaceAt } from "./blocks.js";
 import { reloadConfig } from "./brand-face.js";
 import { driveBrowsers, openBrowser, openCockpit, openDevice, stopDeviceFrames } from "./chat-and-panes.js";
 import { keepStructuredUp, soakDrafts } from "./chat-stretches.js";
@@ -225,6 +225,32 @@ function stepBlock(d) {
   goToSpace(st.spaces[w].id);
 }
 
+function focusedSeatName() {
+  const it = st.open ? { kind: "session", name: st.open } : activeItems()[st.focus];
+  return it?.kind === "session" ? it.name : null;
+}
+
+function sendSeatToBlockAt(i) {
+  const name = focusedSeatName();
+  const mine = blocksOf(st.space);
+  if (!name || !(i >= 0 && i < mine.length)) return;
+  if (landOnBlock(name, st.blocks.indexOf(mine[i]))) goTo(name);
+}
+
+function stepSendSeat(d) {
+  const name = focusedSeatName();
+  if (!name) return;
+  const mine = blocksOf(st.space);
+  const at = mine.findIndex((b) => b.keys.includes(name));
+  if (at < 0) return;
+  const to = at + d;
+  if (to >= mine.length) {
+    moveToNewBlock(name);
+    return goTo(name);
+  }
+  sendSeatToBlockAt(to);
+}
+
 function stepMove(dx, dy) {
   const list = activeItems();
   const it = list[st.focus];
@@ -346,4 +372,4 @@ function pollKey(raw, now) {
   return `${Math.floor(now / beat)}|${JSON.stringify(withoutClock(raw))}`;
 }
 
-export { GRID_ROWS, POLL_STILL, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, slideCanvas, stepBlock, stepFocus, stepMove, takeKeyboard };
+export { GRID_ROWS, POLL_STILL, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };
