@@ -53,6 +53,16 @@ test("a chord ignores shift on a symbol, so , works where typing it needs shift"
   assert.equal(whichChord(ev("Comma", { shift: true })).action, "help");
 });
 
+test("shift on [ ] and alt on the digits send the focused chat to another block instead of going there", () => {
+  apply({ leader: "on" });
+  assert.equal(whichChord(ev("BracketLeft")).action, "prevBlock");
+  assert.equal(whichChord(ev("BracketRight")).action, "nextBlock");
+  assert.equal(whichChord(ev("BracketLeft", { shift: true })).action, "sendPrevBlock");
+  assert.equal(whichChord(ev("BracketRight", { shift: true })).action, "sendNextBlock");
+  assert.deepEqual(whichChord(ev("Digit2")), { action: "seat", digit: 2 });
+  assert.deepEqual(whichChord(ev("Digit2", { alt: true })), { action: "sendBlock", digit: 2 });
+});
+
 test("a chord can be moved or unbound one line at a time", () => {
   assert.deepEqual(apply({ leader: "on", "leader.new": "z", "leader.term": "off" }), []);
   assert.equal(whichChord(ev("KeyZ")).action, "new");

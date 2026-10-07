@@ -7,7 +7,7 @@ import { DEFAULT_SOUNDS, ensureAudio, openNewestSeatNotice, paintNotices, playSo
 import { $, BUILTIN_THEMES, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { closeTasks, openTasks, tasksOn } from "./tasks.js";
-import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, stepBlock, stepFocus, stepMove, takeKeyboard } from "./focus-navigation.js";
+import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
 import { closeHistory, openHistory } from "./history.js";
 import { commitKeys, disarmLeader, paintKeys } from "./leader-key.js";
 import { closeLimPop, limPopOpen, placeLimPop, pullLimits, toggleLimPop } from "./limit-chip.js";
@@ -764,6 +764,8 @@ function run(action, digit) {
     case "plane": return togglePlane();
     case "prevBlock": return stepBlock(-1);
     case "nextBlock": return stepBlock(1);
+    case "sendPrevBlock": return stepSendSeat(-1);
+    case "sendNextBlock": return stepSendSeat(1);
     case "fullscreen": {
       if (st.mirrorDev) {
         if (st.mirrorOpen) return closeMirrorChat();
@@ -809,6 +811,7 @@ function run(action, digit) {
     case "release": return releaseKeyboard();
     case "seat": return goToSeat(digit - 1);
     case "block": return goToBlockAt(digit - 1);
+    case "sendBlock": return sendSeatToBlockAt(digit - 1);
     case "space": return goToSpaceAt(digit - 1);
     case "focusLeft":
     case "focusRight":

@@ -209,7 +209,8 @@ const chordMods = (b, e) => e.altKey === !!b.alt && e.ctrlKey === !!b.ctrl && e.
   && (shiftPicksCase(b) ? e.shiftKey === !!b.shift : (!b.shift || e.shiftKey));
 
 function whichChord(e) {
-  for (const [a, b] of Object.entries(st.chords)) {
+  const shiftedFirst = Object.entries(st.chords).sort(([, x], [, y]) => !!y?.shift - !!x?.shift);
+  for (const [a, b] of shiftedFirst) {
     if (!b) continue;
     if (b.code === "Digit") {
       const m = codeOf(e).match(/^Digit([1-9])$/);

@@ -324,15 +324,15 @@ const CTRL_KEYS = {
   plane: { ctrl: true, shift: true, code: "KeyL" }
 };
 
-const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null };
+const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null };
 
 const RETIRED_ACTIONS = ["pod", "asked"];
 
 const DEFAULT_KEYS = { ...(IS_MAC ? MAC_KEYS : CTRL_KEYS), ...UNBOUND_KEYS };
 
-const DIGIT_ACTIONS = ["seat", "block", "space"];
+const DIGIT_ACTIONS = ["seat", "block", "space", "sendBlock"];
 
-const digitSpan = (a) => (a === "block" || a === "space" ? 9 : st.LIMIT);
+const digitSpan = (a) => (a === "block" || a === "space" || a === "sendBlock" ? 9 : st.LIMIT);
 
 const DEFAULT_LEADER = { ctrl: true, code: "KeyB" };
 
@@ -340,7 +340,7 @@ const DEFAULT_CHORDS = {
   new: "n", term: "t", calls: "p", prs: "g", threads: "s", usage: "u", routines: "i", meetings: "shift+g", shelf: "e", memories: "shift+m", day: "d", tasks: "shift+f", history: "h", alerts: "w", accounts: "a", kill: "x", extensions: "shift+e",
   worktrees: "k", themes: "shift+t", doctor: "shift+d", rename: "shift+r",
   seat: "digit", focusLeft: "left", focusRight: "right", focusUp: "up", focusDown: "down",
-  prevBlock: "[", nextBlock: "]", fullscreen: "f", detach: "o", type: "enter", release: "esc",
+  prevBlock: "[", nextBlock: "]", sendPrevBlock: "shift+[", sendNextBlock: "shift+]", sendBlock: "alt+digit", fullscreen: "f", detach: "o", type: "enter", release: "esc",
   reconnect: "r", sound: "v", answered: "j", copy: "c", help: ",",
   palette: "space", compose: "m", dim: "q", bar: "b", arrange: "l", plane: "y"
 };
@@ -359,7 +359,7 @@ const ACTION_GROUPS = [
   ["chats", "chats and seats", ["new", "term", "calls", "fullscreen", "detach", "rename", "reconnect", "type", "release", "copy", "archive", "kill"]],
   ["screens", "screens and panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "compose", "bar", "dim"]],
   ["talking", "talking instead of typing", ["talk"]],
-  ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "arrange", "plane", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
+  ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
   ["notices", "notices", ["sound", "answered"]]
 ];
 
@@ -405,6 +405,9 @@ const ACTION_SAID = {
   space: "workspace (1…9)",
   prevBlock: "previous block, then the workspace before",
   nextBlock: "next block, then the workspace after",
+  sendPrevBlock: "send the focused chat to the previous block",
+  sendNextBlock: "send the focused chat to the next block",
+  sendBlock: "send the focused chat to block (1…9)",
   arrange: "the floors — every workspace at once, and every block inside it",
   plane: "the plane \u2014 every seat on one field, and you place them",
   focusLeft: "focus the tile on the left",
