@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hive</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0C0C0C; --line: #262626; --line-2: #3A3A3A;
+    --txt: #EDEBE7; --txt-2: #9C988F; --txt-3: #6E6A63;
+    --green: #4EA96F; --terra: #CD694A;
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--txt); font-family: var(--sans); font-size: 14px;
+    -webkit-font-smoothing: antialiased; -webkit-app-region: drag;
+    display: grid; place-items: center; user-select: none;
+  }
+  main { width: 320px; }
+  .brand { font-size: 15px; letter-spacing: .02em; }
+  .brand span { font-family: var(--mono); font-size: 11px; color: var(--txt-3); margin-left: 8px; }
+  ol { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 12px; }
+  li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--txt-3); }
+  li .mk { font-family: var(--mono); font-size: 11px; width: 14px; color: var(--txt-3); }
+  li.done { color: var(--txt-2); }
+  li.done .mk { color: var(--green); }
+  li.now { color: var(--txt); }
+  li.now .mk { color: var(--txt-2); }
+  li.failed { color: var(--terra); }
+  li.failed .mk { color: var(--terra); }
+  .bar { margin-top: 3px; height: 2px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 40%; background: var(--line-2); border-radius: 2px; animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+  .elapsed { font-family: var(--mono); font-size: 10px; color: var(--txt-3); margin-left: auto; }
+  .warn { margin-top: 20px; font-size: 12px; line-height: 1.6; color: var(--terra); font-family: var(--mono); }
+  .warn b { display: block; color: var(--txt-2); font-weight: 400; margin-top: 6px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">Hive<span>starting</span></div>
+  <ol id="steps"></ol>
+  <div class="bar" id="bar"><i></i></div>
+  <div class="warn" id="warn" hidden></div>
+</main>
+<script>
+  const MARKS = { done: "ok", now: ">", waiting: "", failed: "x" };
+  let view = { steps: [], error: "" };
+  let since = Date.now();
+  let current = "";
+
+  function paint() {
+    const list = document.getElementById("steps");
+    list.textContent = "";
+    for (const s of view.steps) {
+      const li = document.createElement("li");
+      li.className = s.situation;
+      const mk = document.createElement("span");
+      mk.className = "mk";
+      mk.textContent = MARKS[s.situation] || "";
+      const name = document.createElement("span");
+      name.textContent = s.label;
+      li.append(mk, name);
+      if (s.situation === "now") {
+        const t = document.createElement("span");
+        t.className = "elapsed";
+        t.id = "elapsed";
+        li.append(t);
+      }
+      list.append(li);
+    }
+    const failed = Boolean(view.error);
+    document.getElementById("bar").hidden = failed || !view.steps.some((s) => s.situation === "now");
+    const warn = document.getElementById("warn");
+    warn.hidden = !failed;
+    if (failed) {
+      warn.textContent = view.error;
+      const hint = document.createElement("b");
+      hint.textContent = "quit the app, sort it out and open it again";
+      warn.append(hint);
+    }
+    count();
+  }
+
+  function count() {
+    const target = document.getElementById("elapsed");
+    if (!target) return;
+    const s = Math.floor((Date.now() - since) / 1000);
+    target.textContent = s >= 3 ? `${s}s` : "";
+  }
+
+  window.hiveBoot = function (next) {
+    view = next || view;
+    const now = (view.steps.find((s) => s.situation === "now") || {}).name || "";
+    if (now !== current) { current = now; since = Date.now(); }
+    paint();
+  };
+
+  setInterval(count, 1000);
+  paint();
+</script>
+</body>
+</html>

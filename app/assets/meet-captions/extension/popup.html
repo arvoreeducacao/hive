@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Aveia</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+  <header><img src="icons/icon-48.png" alt="" width="32" height="32"><h1>Aveia</h1></header>
+  <p class="lead" id="lead"></p>
+  <section aria-labelledby="aveia-title">
+    <h2 id="aveia-title">Aveia</h2>
+    <p id="aveia-say"></p>
+    <p class="acts"><a class="btn go" id="aveia-connect" target="_blank" rel="noopener noreferrer"></a><button class="btn ghost" id="aveia-out" type="button"></button></p>
+  </section>
+  <section aria-labelledby="hive-title">
+    <h2 id="hive-title">Hive</h2>
+    <p id="hive-say"></p>
+  </section>
+  <section aria-labelledby="language-title">
+    <h2 id="language-title"><label for="language-pick" id="language-label"></label></h2>
+    <p id="language-say"></p>
+    <p class="acts"><select id="language-pick"></select></p>
+  </section>
+  <details>
+    <summary id="local-title"></summary>
+    <p id="local-say"></p>
+    <p class="acts"><button class="btn ghost" id="local-allow" type="button"></button></p>
+  </details>
+</main>
+<script src="aveia-origin.js"></script>
+<script src="caption-language.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

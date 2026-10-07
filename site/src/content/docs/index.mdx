@@ -1,0 +1,48 @@
+---
+title: Hive
+description: Run a fleet of coding agents and watch all of them at once.
+template: splash
+hero:
+  tagline: |
+    Every session is a seat: a tile on a wall, with a real terminal behind it.
+    You open one on a repository and a branch, tell it what you want, and it
+    works.
+  actions:
+    - text: What Hive is
+      link: /start/what-hive-is/
+      icon: right-arrow
+    - text: Run your own server
+      link: /guides/run-your-own/
+      variant: minimal
+---
+
+import { CardGrid } from '@astrojs/starlight/components'
+import HiveCard from '../../components/HiveCard.astro'
+
+<CardGrid>
+  <HiveCard title="A seat is a session" icon="term">
+    A tile on the wall, and a real terminal behind it. Seats read each other's
+    screens and ask each other questions.
+  </HiveCard>
+  <HiveCard title="It finds you" icon="phone">
+    When a seat stops and needs you, your phone buzzes — and you can answer from
+    there. Closing the laptop does not stop the work.
+  </HiveCard>
+  <HiveCard title="Nothing listens on your machine" icon="globe">
+    Desktop and phone only dial out. One server holds the sessions and the
+    state; clients are screen and keyboard.
+  </HiveCard>
+  <HiveCard title="No bearer tokens" icon="lock">
+    Identity is an Ed25519 key. Every request carries its own signature, bound
+    to the fingerprint of the server it is addressed to.
+  </HiveCard>
+</CardGrid>
+
+## Where to go next
+
+- New here? [What Hive is](/start/what-hive-is/) explains the shape in a page.
+- Want it running? [Install](/start/install/), then
+  [your first seat](/start/first-seat/).
+- Hosting it yourself? [Run your own server](/guides/run-your-own/).
+- Building a client? The [HTTP API](/reference/http-api/) and
+  [the stream](/reference/stream/) are the contract.

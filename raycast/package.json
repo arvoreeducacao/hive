@@ -1,0 +1,62 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "hive",
+  "title": "Hive",
+  "description": "Open a Hive chat, jump to one, answer it, or open a page from the shelf without leaving what you are doing.",
+  "icon": "icon.png",
+  "author": "arvoreeducacao",
+  "license": "MIT",
+  "categories": [
+    "Developer Tools",
+    "Productivity"
+  ],
+  "commands": [
+    {
+      "name": "new-chat",
+      "title": "New Hive Chat",
+      "subtitle": "Hive",
+      "description": "Open a chat that starts working on the mission you write.",
+      "mode": "view",
+      "icon": "icon.png"
+    },
+    {
+      "name": "go-to-chat",
+      "title": "Go to Hive Chat",
+      "subtitle": "Hive",
+      "description": "See the chats waiting on you, jump to one, or answer it from here.",
+      "mode": "view",
+      "icon": "icon.png"
+    },
+    {
+      "name": "open-shelf",
+      "title": "Open from Hive Shelf",
+      "subtitle": "Hive",
+      "description": "Find a page on the shelf by its title and open it in Hive.",
+      "mode": "view",
+      "icon": "icon.png"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "socket",
+      "title": "Hive socket",
+      "description": "Where the Hive app listens on this Mac.",
+      "type": "textfield",
+      "required": false,
+      "default": "~/.hive/hive.sock"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.93.0"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3"
+  },
+  "scripts": {
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "test": "node --test tests/*.test.mjs"
+  }
+}

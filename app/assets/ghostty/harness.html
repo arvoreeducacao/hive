@@ -1,0 +1,34 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  body { margin: 0; background: #0A0A0A; }
+  #host { position: relative; width: 900px; height: 480px; }
+  #host canvas { display: block; width: 100%; height: 100%; cursor: text; }
+  #host [role="scrollbar"] { position: absolute; top: 4px; right: 1px; bottom: 4px; z-index: 1; width: 8px; }
+  #host [role="scrollbar"] > div { position: absolute; left: 1px; right: 1px; top: 0; border-radius: 3px; background: #2A2A2A; }
+</style>
+<div id="host"></div>
+<script type="module">
+import { GhosttyTerm } from "/assets/ghostty/term.mjs";
+const THEME = {
+  background: "#0A0A0A", foreground: "#EDEBE7", cursor: "#CD694A", selectionBackground: "#3B2C24",
+  black: "#15161E", red: "#F7768E", green: "#4EA96F", yellow: "#E0AF68",
+  blue: "#7AA2F7", magenta: "#BB9AF7", cyan: "#7DCFFF", white: "#C6C1B8",
+  brightBlack: "#4C463E", brightRed: "#F7768E", brightGreen: "#9ECE6A", brightYellow: "#E0AF68",
+  brightBlue: "#7AA2F7", brightMagenta: "#BB9AF7", brightCyan: "#7DCFFF", brightWhite: "#FFFDF9"
+};
+const term = new GhosttyTerm({ theme: THEME, fontFamily: "monospace", fontSize: 13, scrollback: 5000 });
+window.osc52 = "";
+term.parser.registerOscHandler(52, (p) => { window.osc52 = p; });
+term.open(document.getElementById("host"));
+const esc = "";
+term.write(`${esc}[1;32m✔ ghostty no hive${esc}[0m — libghostty-vt em WASM\r\n\r\n`);
+for (let i = 0; i < 8; i++) term.write(`${esc}[3${i}mansi ${i}${esc}[0m  ${esc}[9${i}mbright ${i}${esc}[0m\r\n`);
+term.write(`\r\n${esc}[1mbold${esc}[0m ${esc}[3mitalic${esc}[0m ${esc}[4munderline${esc}[0m ${esc}[7minverse${esc}[0m\r\n`);
+term.write("┌──────────────┐\r\n│ box drawing  │\r\n└──────────────┘\r\n");
+term.write(`uma imagem: /tmp/shot.png e um link https://example.com\r\n`);
+term.write(`${esc}]52;c;${btoa("clipboard via OSC52")}`);
+term.write(`${esc}[38;2;205;105;74mtruecolor #CD694A${esc}[0m\r\n$ `);
+window.termReady = () => !!term.surface && term.cols > 0;
+window.termProbe = () => ({ cols: term.cols, rows: term.rows, osc52: window.osc52, tracking: term.modes.mouseTrackingMode });
+</script>

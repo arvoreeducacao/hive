@@ -1,0 +1,25 @@
+name: hive
+
+services:
+  hive:
+    build:
+      context: ../..
+      dockerfile: infra/docker/workspace.Dockerfile
+    image: hive:local
+    init: true
+    environment:
+      HIVE_SERVER_NAME: ${HIVE_SERVER_NAME:-hive}
+      HIVE_SERVER_URL: ${HIVE_SERVER_URL:-http://127.0.0.1:8791}
+      HIVE_SSH_PUBKEY: ${HIVE_SSH_PUBKEY:-}
+      HIVE_OWNER_KEY: ${HIVE_OWNER_KEY:-}
+      HIVE_SEAT_WINDOWS: ${HIVE_SEAT_WINDOWS:-1}
+      TMUX_TMPDIR: /workspace/hive/tmux
+      PORT: "8791"
+    ports:
+      - "${HIVE_BIND:-127.0.0.1}:${HIVE_PORT:-8791}:8791"
+    volumes:
+      - workspace:/workspace
+    restart: unless-stopped
+
+volumes:
+  workspace:

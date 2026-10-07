@@ -1,0 +1,12 @@
+---
+import HiveIcon from './HiveIcon.astro'
+const { title, icon } = Astro.props
+---
+
+<article class="card sl-flex">
+  <p class="title sl-flex">
+    <span class="icon"><HiveIcon name={icon} /></span>
+    <span>{title}</span>
+  </p>
+  <div class="body"><slot /></div>
+</article>

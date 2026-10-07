@@ -1,0 +1,180 @@
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/assets/fonts/inter-normal-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: Inter; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/assets/fonts/inter-normal-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+body:where(.experience-raycast) {
+  color-scheme: dark;
+  --bg: #040506; --panel: #07080A; --panel-2: #111214; --panel-3: #1B1C1E; --well: #131416;
+  --line: #1B1C1E; --line-2: #2F3031; --line-3: #363739;
+  --txt: #FFFFFF; --txt-2: #9C9C9D; --txt-3: #7C7D7E;
+  --accent: #E6E6E6; --accent-d: #454647; --accent-hi: #FFFFFF; --accent-bg: #1D1E20; --signal: #FF6363;
+  --green: #59D499; --yellow: #FFC531; --blue: #56C2FF; --violet: #9C9C9D;
+  --term: #E6E6E6; --term-dim: #9C9C9D; --term-bg: #07080A;
+  --green-hi: color-mix(in srgb, var(--green) 70%, var(--txt)); --green-d: color-mix(in srgb, var(--green) 30%, var(--bg));
+  --red: var(--signal); --red-d: color-mix(in srgb, var(--signal) 40%, var(--bg));
+  --slack: var(--blue); --slack-2: var(--blue);
+  --mine: var(--panel-3); --mine-line: var(--line-2);
+  --r1: 6px; --r2: 8px; --r3: 12px; --r4: 16px;
+  --e1: inset 0 1px 0 color-mix(in srgb, var(--txt) 5%, transparent), 0 0 0 1px color-mix(in srgb, var(--txt) 8%, transparent), inset 0 -1px 0 rgba(0,0,0,.2);
+  --e2: inset 0 1px 0 color-mix(in srgb, var(--txt) 5%, transparent), 0 0 0 1px color-mix(in srgb, var(--txt) 25%, transparent), inset 0 -1px 0 rgba(0,0,0,.2);
+  --hair: 0 0 0 0 transparent;
+  --keycap: 0 1.5px .5px 2.5px rgba(0,0,0,.4), 0 0 .5px 1px rgb(0,0,0), inset 0 2px 1px 1px rgba(0,0,0,.25), inset 0 1px 1px 1px color-mix(in srgb, var(--txt) 20%, transparent);
+  --float-bg: var(--panel-2); --float-line: var(--line-3);
+  --float-e: 0 4px 40px 8px rgba(0,0,0,.4), 0 0 0 .5px rgba(0,0,0,.8), inset 0 .5px 0 color-mix(in srgb, var(--txt) 30%, transparent);
+  --rc-kbreathe-1: color-mix(in srgb, var(--signal) 14%, transparent); --rc-kbreathe-2: color-mix(in srgb, var(--signal) 16%, transparent);
+  --rc-kbreathe-3: color-mix(in srgb, var(--signal) 26%, transparent); --rc-kbreathe-4: color-mix(in srgb, var(--signal) 30%, transparent);
+  --rc-kknock-1: color-mix(in srgb, var(--signal) 30%, transparent); --rc-kknock-2: color-mix(in srgb, var(--signal) 26%, transparent);
+  --rc-kknock-3: color-mix(in srgb, var(--signal) 58%, transparent); --rc-kknock-4: color-mix(in srgb, var(--signal) 50%, transparent);
+  --rc-updbreathe-1: color-mix(in srgb, var(--green) 0%, transparent); --rc-updbreathe-2: color-mix(in srgb, var(--green) 13%, transparent);
+  background: var(--bg);
+  font-feature-settings: "calt", "kern", "liga", "ss03";
+}
+@keyframes kbreathe {
+  0%, 100% { box-shadow: 0 0 0 1px var(--rc-kbreathe-1, rgba(205,105,74,.14)), 0 0 20px var(--rc-kbreathe-2, rgba(205,105,74,.16)), var(--e2), var(--hair); }
+  50% { box-shadow: 0 0 0 1px var(--rc-kbreathe-3, rgba(205,105,74,.26)), 0 0 34px var(--rc-kbreathe-4, rgba(205,105,74,.3)), var(--e2), var(--hair); }
+}
+@keyframes kknock {
+  0%, 100% { box-shadow: 0 0 0 1px var(--rc-kknock-1, rgba(205,105,74,.3)), 0 0 24px var(--rc-kknock-2, rgba(205,105,74,.26)), var(--e2), var(--hair); }
+  50% { box-shadow: 0 0 0 2px var(--rc-kknock-3, rgba(205,105,74,.58)), 0 0 46px var(--rc-kknock-4, rgba(205,105,74,.5)), var(--e2), var(--hair); }
+}
+@keyframes updbreathe { 0%, 100% { box-shadow: 0 0 0 0 var(--rc-updbreathe-1, rgba(78, 169, 111, 0)); } 50% { box-shadow: 0 0 0 4px var(--rc-updbreathe-2, rgba(78, 169, 111, .13)); } }
+:where(body.experience-raycast) :where(:focus-visible:not(textarea, input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), [contenteditable])) { outline: 2px solid var(--accent); outline-offset: 2px; }
+:where(body.experience-raycast) ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+:where(body.experience-raycast) ::-webkit-scrollbar-track, :where(body.experience-raycast) ::-webkit-scrollbar-corner { background: transparent; }
+:where(body.experience-raycast) ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--txt) 14%, transparent); border-radius: 9999px; }
+:where(body.experience-raycast) ::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--txt) 24%, transparent); }
+:where(body.experience-raycast) .rc-key { display: inline-grid; place-items: center; box-sizing: border-box; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; background: var(--panel-3); box-shadow: var(--keycap); font: 400 11px/1 var(--mono); color: var(--txt-2); white-space: nowrap; }
+html > body:where(.experience-raycast.look-dimension) kbd.rc-key { border: 0; border-radius: 5px; padding: 0 5px; background: var(--panel-3); font-size: 11px; line-height: 1; color: var(--txt-2); }
+:where(body.experience-raycast) .rc-badge { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; height: 20px; padding: 0 6px; border-radius: var(--r1); background: var(--panel-3); color: var(--txt); font-size: 12px; font-weight: 500; white-space: nowrap; }
+:where(body.experience-raycast) .rc-badge.mono { font-family: var(--mono); font-size: 11px; font-weight: 400; letter-spacing: .017em; color: var(--txt-2); }
+:where(body.experience-raycast) .rc-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: none; box-sizing: border-box; background: var(--txt-3); }
+:where(body.experience-raycast) .rc-dot.needs { background: var(--signal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 12%, transparent); }
+:where(body.experience-raycast) .rc-dot.answered { background: var(--blue); }
+:where(body.experience-raycast) .rc-dot.working { background: var(--yellow); box-shadow: 0 0 0 3px color-mix(in srgb, var(--yellow) 12%, transparent); }
+:where(body.experience-raycast) .rc-dot.done { background: var(--green); }
+:where(body.experience-raycast) .rc-dot.ready { background: transparent; box-shadow: inset 0 0 0 1.5px var(--txt-2); }
+:where(body.experience-raycast) .rc-dot.stalled { background: transparent; box-shadow: inset 0 0 0 1.5px var(--yellow); }
+:where(body.experience-raycast) .rc-dot.idle { background: var(--txt-3); }
+:where(body.experience-raycast) #finish { scrollbar-width: auto; }
+:where(body.experience-raycast) #btrade .row .dot.working { background: var(--yellow); }
+:where(body.experience-raycast) #btrade .row .dot.needs { background: var(--signal); }
+:where(body.experience-raycast) #arrange .a-card.taking { background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%), var(--panel); }
+:where(body.experience-raycast) #arrange .a-chip[data-state="needs"] { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) .hist-where.cloud { border-color: color-mix(in srgb, var(--blue) 30%, transparent); }
+:where(body.experience-raycast) .hist-where.local { border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+:where(body.experience-raycast) .hist-revive.down:hover { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) .kn .kn-acts .yes { border-color: color-mix(in srgb, var(--green) 35%, transparent); }
+:where(body.experience-raycast) .item.here[data-state="needs"] { border-left-color: var(--signal); }
+:where(body.experience-raycast) .item[data-state="needs"] .name { color: var(--signal); }
+:where(body.experience-raycast) .strip-edge { box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 40%, transparent); }
+:where(body.experience-raycast) .pdraw { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+:where(body.experience-raycast) .pgroup.needs { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) .pgroup.needs b, :where(body.experience-raycast) .pgroup.needs i { color: var(--signal); }
+:where(body.experience-raycast) .pcard { box-shadow: var(--e1); }
+:where(body.experience-raycast) .pcard[data-state="needs"] { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) .pcard[data-state="needs"] .pc-top svg { color: var(--signal); }
+:where(body.experience-raycast) .pcard[data-state="needs"] .pc-state { color: var(--signal); }
+:where(body.experience-raycast) #plane-world.dense-pill .pcard[data-state="needs"] .pc-top { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) #plane-world.dense-pill .pnode.live > .tile[data-state="needs"] .t-head { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) #plane-map i.needs { background: var(--signal); }
+:where(body.experience-raycast) #plane-map .vp { background: color-mix(in srgb, var(--accent) 9%, transparent); }
+:where(body.experience-raycast) .tile.spawning { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) .tile.opening { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) .tile { box-shadow: var(--e1); }
+:where(body.experience-raycast) .tile.focused { box-shadow: var(--e2); }
+:where(body.experience-raycast) .tile[data-state="needs"] { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) .tile.typing { box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 30%, transparent), 0 0 30px color-mix(in srgb, var(--blue) 18%, transparent), var(--e2), var(--hair); }
+:where(body.experience-raycast) .fronts .fr-row[data-state="needs"] .fr-st { color: var(--signal); }
+:where(body.experience-raycast) .s-at { background: color-mix(in srgb, var(--blue) 9%, transparent); }
+:where(body.experience-raycast) .side { scrollbar-width: auto; }
+:where(body.experience-raycast) .where[data-where="cloud"] { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) .t-canopy.live i { box-shadow: 0 0 6px color-mix(in srgb, var(--green) 60%, transparent); }
+:where(body.experience-raycast) .t-canopy.held i { box-shadow: 0 0 6px color-mix(in srgb, var(--yellow) 60%, transparent); }
+:where(body.experience-raycast) .t-device.live i { box-shadow: 0 0 6px color-mix(in srgb, var(--green) 60%, transparent); }
+:where(body.experience-raycast) [data-state="needs"] .label { color: var(--signal); }
+:where(body.experience-raycast) [data-state="working"] .label { color: var(--yellow); }
+:where(body.experience-raycast) .sv-scroll { scrollbar-width: auto; }
+:where(body.experience-raycast) .md .md-diff .add { background: color-mix(in srgb, var(--green) 11%, transparent); color: color-mix(in srgb, var(--green) 60%, var(--txt)); }
+:where(body.experience-raycast) .md .md-diff .del { background: color-mix(in srgb, var(--red) 10%, transparent); color: color-mix(in srgb, var(--red) 60%, var(--txt)); }
+:where(body.experience-raycast) .sv-q { border: 1px solid color-mix(in srgb, var(--signal) 55%, var(--panel)); background: color-mix(in srgb, var(--signal) 6%, var(--panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 16%, transparent), 0 0 24px color-mix(in srgb, var(--signal) 16%, transparent), var(--e1); }
+:where(body.experience-raycast) .sv-queue { scrollbar-width: auto; }
+:where(body.experience-raycast) .sv-subs .sublist { scrollbar-width: auto; }
+:where(body.experience-raycast) .cap.needs { color: color-mix(in srgb, var(--signal) 35%, var(--txt)); border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); background: color-mix(in srgb, var(--signal) 10%, var(--panel)); }
+:where(body.experience-raycast) .errand.needs { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
+:where(body.experience-raycast) .chip[data-state="merged"] { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) .pr-joblog .ln.bad { color: color-mix(in srgb, var(--red) 50%, var(--txt)); background: color-mix(in srgb, var(--red) 9%, transparent); box-shadow: inset 2px 0 0 color-mix(in srgb, var(--red) 55%, transparent); }
+:where(body.experience-raycast) .pr-joblog .cut { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+:where(body.experience-raycast) #btn-prs.hot { background: color-mix(in srgb, var(--red) 10%, transparent); }
+:where(body.experience-raycast) .cell[data-n="1"] { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+:where(body.experience-raycast) .cell[data-n="2"] { background: color-mix(in srgb, var(--accent) 48%, transparent); }
+:where(body.experience-raycast) .cell[data-n="3"] { background: color-mix(in srgb, var(--accent) 70%, transparent); }
+:where(body.experience-raycast) .limit .fill { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+:where(body.experience-raycast) .bars .col i { background: color-mix(in srgb, var(--accent) 62%, transparent); }
+:where(body.experience-raycast) .wt-badge.warn { border-color: color-mix(in srgb, var(--yellow) 35%, transparent); }
+:where(body.experience-raycast) .wt-size .track i { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+:where(body.experience-raycast) .pt-pill.old { border-color: color-mix(in srgb, var(--yellow) 34%, transparent); }
+:where(body.experience-raycast) .pt-pill.ok { border-color: color-mix(in srgb, var(--green) 30%, transparent); }
+:where(body.experience-raycast) .pt-pill.cloud { border-color: color-mix(in srgb, var(--blue) 30%, transparent); }
+:where(body.experience-raycast) .acct { border: 1px solid color-mix(in srgb, var(--yellow) 30%, transparent); }
+:where(body.experience-raycast) #nudge .nd-acts .yes { border-color: color-mix(in srgb, var(--green) 35%, transparent); background: color-mix(in srgb, var(--green) 7%, transparent); }
+:where(body.experience-raycast) .w-form input:focus, :where(body.experience-raycast) .w-form select:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+:where(body.experience-raycast) .w-face button.mug:focus-visible { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+:where(body.experience-raycast) .w-face .again:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
+:where(body.experience-raycast) .facepick .opt:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+:where(body.experience-raycast) .brand .mug:focus-visible { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent); }
+:where(body.experience-raycast) .w-check[data-ok="true"] .dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent); }
+:where(body.experience-raycast) button.said { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+:where(body.experience-raycast) .w-flight[data-state="needs"] { border-color: var(--signal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--signal) 12%, transparent); }
+:where(body.experience-raycast) .w-flight[data-state="needs"] .head b { color: var(--signal); }
+:where(body.experience-raycast) .w-dots button[data-done="true"] { border-color: color-mix(in srgb, var(--green) 34%, transparent); }
+:where(body.experience-raycast) .w-dots button[aria-current="step"] { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+:where(body.experience-raycast) #btn-update.upd:hover { background: color-mix(in srgb, var(--green) 16%, transparent); }
+:where(body.experience-raycast) #btn-update.upd.held { border-color: color-mix(in srgb, var(--yellow) 42%, transparent); background: color-mix(in srgb, var(--yellow) 10%, transparent); }
+:where(body.experience-raycast) #btn-update.upd.held:hover { background: color-mix(in srgb, var(--yellow) 17%, transparent); }
+:where(body.experience-raycast) .relpop .rp-why { background: color-mix(in srgb, var(--yellow) 7%, transparent); border: 1px solid color-mix(in srgb, var(--yellow) 26%, transparent); }
+:where(body.experience-raycast) .wn-lead .tag { border: 1px solid color-mix(in srgb, var(--green) 34%, transparent); }
+:where(body.experience-raycast) .pal-row .rn em { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+:where(body.experience-raycast) .pal-row .tag { border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 8%, var(--panel)); }
+:where(body.experience-raycast) .pal-row .rn mark { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+:where(body.experience-raycast) .pv-line.on { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+:where(body.experience-raycast) #composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 18%, transparent), 0 0 22px color-mix(in srgb, var(--blue) 14%, transparent), var(--e2), var(--hair); }
+:where(body.experience-raycast) #composer:focus-within .to { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 7%, transparent); }
+:where(body.experience-raycast) #composer.mission:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 12%, transparent), var(--e2), var(--hair); }
+:where(body.experience-raycast) .tile.aiming { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 20%, transparent), 0 0 24px color-mix(in srgb, var(--blue) 13%, transparent), var(--e2), var(--hair); }
+:where(body.experience-raycast) #cmp-controls.cloud #n-where, :where(body.experience-raycast) #cmp-controls.cloud #n-repo, :where(body.experience-raycast) #cmp-controls.cloud #n-branch { background-color: color-mix(in srgb, var(--accent) 8%, transparent); }
+:where(body.experience-raycast) #cmp-suggest { scrollbar-width: auto; }
+:where(body.experience-raycast) .t-chips .c.cloud, :where(body.experience-raycast) .t-where .c.cloud { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 8%, var(--panel)); }
+:where(body.experience-raycast) #rail .item[data-state="needs"] { background: color-mix(in srgb, var(--signal) 10%, transparent); }
+:where(body.experience-raycast) [data-state="needs"] .t-pill { background: var(--signal); color: var(--bg); box-shadow: 0 0 14px color-mix(in srgb, var(--signal) 40%, transparent); }
+:where(body.experience-raycast) [data-state="needs"] .t-pill .label { color: var(--bg); }
+:where(body.experience-raycast) [data-state="working"] .t-pill { background: color-mix(in srgb, var(--yellow) 10%, var(--panel)); color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 30%, var(--panel)); }
+:where(body.experience-raycast) [data-state="working"] .t-pill .label { color: var(--yellow); }
+:where(body.experience-raycast) [data-state="done"] .t-pill { background: color-mix(in srgb, var(--green) 10%, var(--panel)); border-color: color-mix(in srgb, var(--green) 30%, var(--panel)); }
+:where(body.experience-raycast) [data-state="answered"] .t-pill { background: color-mix(in srgb, var(--blue) 10%, var(--panel)); color: var(--blue); border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) [data-state="answered"] .t-pill .label { color: var(--blue); }
+:where(body.experience-raycast) .tile[data-state="answered"] { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 16%, transparent), 0 0 20px color-mix(in srgb, var(--blue) 10%, transparent), var(--e2), var(--hair); }
+:where(body.experience-raycast) [data-state="stalled"] .t-pill { background: var(--panel-3); color: var(--yellow); border-color: color-mix(in srgb, var(--yellow) 45%, var(--panel)); }
+:where(body.experience-raycast) [data-state="stalled"] .t-pill .label { color: var(--yellow); }
+:where(body.experience-raycast) .tile.spawning .t-pill { background: color-mix(in srgb, var(--blue) 8%, var(--panel)); border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }
+:where(body.experience-raycast) .tile.typing .t-pill, :where(body.experience-raycast) .tile.typing[data-state] .t-pill { background: color-mix(in srgb, var(--blue) 8%, var(--panel)); border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); box-shadow: 0 0 12px color-mix(in srgb, var(--blue) 26%, transparent); }
+:where(body.experience-raycast) .sv-tool .tdiff .add { background: color-mix(in srgb, var(--green) 11%, transparent); color: color-mix(in srgb, var(--green) 60%, var(--txt)); }
+:where(body.experience-raycast) .sv-tool .tdiff .del { background: color-mix(in srgb, var(--red) 10%, transparent); color: color-mix(in srgb, var(--red) 60%, var(--txt)); }
+@media (prefers-reduced-motion: reduce) {
+  :where(body.experience-raycast) .tile[data-state="needs"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 24%, transparent), var(--e2), var(--hair); }
+}
+body:where(.experience-raycast).no-motion .tile[data-state="needs"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 24%, transparent), var(--e2), var(--hair); }
+:where(body.experience-raycast) .kb-bar .ask:hover, :where(body.experience-raycast) .kb-bar .ask:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+body:where(.experience-raycast).look-dimension .item.here[data-state="needs"] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 45%, transparent); }
+body:where(.experience-raycast).look-dimension .tile[data-state="working"] .t-pill svg, body:where(.experience-raycast).look-dimension .tile[data-state="working"] .t-pill .label { color: var(--yellow); }
+body:where(.experience-raycast).look-dimension .tile[data-state="answered"] .t-pill svg, body:where(.experience-raycast).look-dimension .tile[data-state="answered"] .t-pill .label { color: var(--blue); }
+body:where(.experience-raycast).look-dimension .tile[data-state="stalled"] .t-pill svg, body:where(.experience-raycast).look-dimension .tile[data-state="stalled"] .t-pill .label { color: var(--yellow); }
+body:where(.experience-raycast).look-dimension .tile[data-state="needs"] .t-pill svg, body:where(.experience-raycast).look-dimension .tile.typing[data-state="needs"] .t-pill svg { color: var(--signal); }
+body:where(.experience-raycast).look-dimension .sv-composer textarea, body:where(.experience-raycast).look-dimension .sv-ink { scrollbar-width: auto; }
+body:where(.experience-raycast).look-dimension #rail .item[data-state="needs"] { background: color-mix(in srgb, var(--signal) 12%, transparent); }
+body:where(.experience-raycast).look-dimension #rail .item[data-state="working"] > svg { color: var(--yellow) !important; }
+body:where(.experience-raycast).look-dimension #rail .item[data-state="answered"] > svg { color: var(--blue) !important; }
+body:where(.experience-raycast).look-dimension #rail .item[data-state="stalled"] > svg { color: var(--yellow) !important; }
+body:where(.experience-raycast).look-dimension #rail .item[data-state="needs"] > svg { color: var(--signal) !important; }
+body:where(.experience-raycast) #status-strip.fail .dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--red) 16%, transparent); }
+:where(body.experience-raycast) #btn-update.upd { background: color-mix(in srgb, var(--green) 10%, transparent); }
+:where(body.experience-raycast) :is(#rail-list, .th-msgs, .xterm-viewport, .pal-list, .pal-prev, .side, #mirror, .mirror-talk)::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+:where(body.experience-raycast) :is(#rail-list, .th-msgs, .xterm-viewport, .pal-list, .pal-prev, .side, #mirror, .mirror-talk)::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--txt) 14%, transparent); border-radius: 9999px; }
+:where(body.experience-raycast) :is(#rail-list, .th-msgs, .xterm-viewport, .pal-list, .pal-prev, .side, #mirror, .mirror-talk)::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--txt) 24%, transparent); }

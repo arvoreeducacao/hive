@@ -1,0 +1,317 @@
+:where(body.experience-raycast) .tile.spawning { border-style: solid; box-shadow: var(--rc-shadow); border-color: var(--rc-edge); }
+:where(body.experience-raycast) .tile.opening { border-style: solid; border-color: var(--rc-edge); }
+:where(body.experience-raycast) .tile { --ring-in: inset 0 1px 0 color-mix(in srgb, var(--txt) 5%, transparent), inset 0 -1px 0 rgba(0,0,0,.2); --rc-shadow: var(--e1); --rc-edge: transparent; --rc-card: var(--panel); position: relative; border: 1px solid var(--rc-edge); transition: box-shadow 160ms var(--ease); border-radius: var(--r4); background: var(--rc-card); box-shadow: var(--rc-shadow); }
+:where(body.experience-raycast) .tile.focused { --rc-shadow: var(--e2); border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
+:where(body.experience-raycast) .tile[data-state="needs"] { --rc-shadow: var(--ring-in), 0 0 0 1px color-mix(in srgb, var(--signal) 55%, transparent); box-shadow: var(--rc-shadow); border-color: var(--rc-edge); animation: var(--rc-motion, none); }
+:where(body.experience-raycast) .tile.typing { --rc-shadow: var(--ring-in), 0 0 0 1px color-mix(in srgb, var(--blue) 55%, transparent); box-shadow: var(--rc-shadow); border-color: var(--rc-edge); }
+:where(body.experience-raycast) .tile.dropping { --rc-edge: var(--blue); border-color: var(--rc-edge); }
+:where(body.experience-raycast) .tile.landing { --rc-edge: var(--accent); border-color: var(--rc-edge); }
+:where(body.experience-raycast) .tile.open.reviewing, :where(body.experience-raycast) .tile.open.threading, :where(body.experience-raycast) .tile.open.arting { --rc-card: var(--bg); }
+:where(body.experience-raycast) .t-tags > button { all: unset; cursor: pointer; flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: var(--r2); color: var(--txt-2); transition: color 140ms var(--ease), background 140ms var(--ease); }
+:where(body.experience-raycast) .t-tags > button svg { width: 14px; height: 14px; }
+:where(body.experience-raycast) .t-tags > button:hover, :where(body.experience-raycast) .t-tags > button:focus-visible { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) .t-tags > button[hidden], :where(body.experience-raycast) .t-tags > .t-min { display: none; }
+:where(body.experience-raycast) .t-close:hover, :where(body.experience-raycast) .t-close:focus-visible { color: var(--txt); }
+:where(body.experience-raycast) .tile.folded .side { padding-bottom: 0; }
+:where(body.experience-raycast) .t-head { gap: 8px; height: 48px; padding: 0 8px 0 16px; container-type: inline-size; }
+:where(body.experience-raycast) .t-dot { flex: none; }
+:where(body.experience-raycast) .t-dot.opening { width: 12px; height: 12px; background: transparent; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--txt) 15%, transparent); border-top: 1.5px solid var(--txt); animation: attspin 750ms linear infinite; }
+:where(body.experience-raycast) .t-dot.failed { width: 14px; height: 14px; color: var(--yellow); }
+:where(body.experience-raycast) .t-ident { min-width: 6ch; flex: 0 1 auto; }
+:where(body.experience-raycast) .t-name { font-size: 14px; font-weight: 500; letter-spacing: .014em; }
+:where(body.experience-raycast) .t-say { flex: none; font-family: var(--mono); font-size: 11px; letter-spacing: .017em; color: var(--txt-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+:where(body.experience-raycast) .t-say.hi { color: var(--txt); }
+:where(body.experience-raycast) .t-say:empty { display: none; }
+:where(body.experience-raycast) .t-hchips { flex: 0 1000 auto; display: flex; align-items: center; gap: 4px; min-width: 0; margin-left: auto; overflow: hidden; }
+:where(body.experience-raycast) .t-hchips:not(:has(> :not([hidden]))) { display: none; }
+:where(body.experience-raycast) .t-hchips > :is(.c, .t-live, .t-canopy, .t-device, .t-page) { all: unset; box-sizing: border-box; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 4px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r1); background: var(--panel-3); font-family: var(--mono); font-size: 11px; letter-spacing: .01em; color: var(--txt-2); white-space: nowrap; overflow: hidden; }
+:where(body.experience-raycast) .t-hchips > [hidden] { display: none; }
+:where(body.experience-raycast) .t-hchips svg { width: 12px; height: 12px; flex: none; }
+:where(body.experience-raycast) .t-canopy svg, :where(body.experience-raycast) .t-page svg, :where(body.experience-raycast) .t-device svg { width: 10px; height: 10px; }
+:where(body.experience-raycast) .t-hchips > * > :is(.tx, span) { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:where(body.experience-raycast) .t-hchips b { font-weight: 400; color: var(--txt); }
+:where(body.experience-raycast) .t-hchips i { width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); flex: none; }
+:where(body.experience-raycast) .t-hchips .c.main { background: transparent; box-shadow: inset 0 0 0 1px var(--panel-3); }
+:where(body.experience-raycast) .t-hchips .c.pr.bad svg { color: var(--signal); }
+:where(body.experience-raycast) .t-hchips .c[data-copy], :where(body.experience-raycast) .t-hchips > button { cursor: pointer; }
+:where(body.experience-raycast) .t-hchips .c[data-copy]:hover, :where(body.experience-raycast) .t-hchips > button:hover, :where(body.experience-raycast) .t-hchips > :focus-visible { color: var(--txt); background: color-mix(in srgb, var(--txt) 9%, transparent); }
+:where(body.experience-raycast) .t-hchips .c[data-memory]:not([data-memory="demand"]) { cursor: pointer; }
+:where(body.experience-raycast) .t-hchips .c[data-memory]:not([data-memory="demand"]):hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 9%, transparent); }
+:where(body.experience-raycast) .t-hchips .c.memory.login { box-shadow: inset 0 0 0 1px var(--accent-d); }
+:where(body.experience-raycast) .t-hchips .c[data-said] .tx { display: none; }
+:where(body.experience-raycast) .t-hchips .c[data-said]::after { content: attr(data-said); color: var(--txt); }
+:where(body.experience-raycast) .t-hchips .t-live b { font-variant-numeric: tabular-nums; }
+:where(body.experience-raycast) .t-hchips .t-live .tx:not(:empty)::before { content: "· "; }
+@container (max-width: 420px) {
+  :where(body.experience-raycast) .t-hchips > :is(.c, .t-live, .t-canopy, .t-device, .t-page) { flex: none; padding: 0 4px; }
+  :where(body.experience-raycast) .t-hchips > * > :is(.tx, span:not(.team-av)) { display: none; }
+  :where(body.experience-raycast) .t-tags > button { width: 24px; }
+}
+:where(body.experience-raycast) .t-key { flex: none; }
+:where(body.experience-raycast) .t-key[hidden] { display: none; }
+:where(body.experience-raycast) .t-pill { padding: 0; border-radius: 0; border: 0; }
+:where(body.experience-raycast) .t-state .label { font-family: var(--mono); font-size: 11px; letter-spacing: .017em; color: var(--txt-2); font-weight: inherit; text-transform: none; }
+:where(body.experience-raycast) .well.structured { background: transparent; }
+:where(body.experience-raycast) .sv-scroll { gap: var(--chat-gap, 12px); padding: 16px 16px 8px; }
+:where(body.experience-raycast) .sv-msg { font-size: 14px; letter-spacing: .006em; color: color-mix(in srgb, var(--txt) 78%, transparent); }
+:where(body.experience-raycast) .sv-msg :is(b, strong) { color: var(--txt); font-weight: 600; }
+:where(body.experience-raycast) .sv-user { max-width: min(85%, 560px); font-size: 14px; line-height: var(--chat-line, 1.45); background: var(--panel-3); border: 0; border-radius: 12px 12px 4px 12px; padding: 8px 12px; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 10%, transparent); }
+:where(body.experience-raycast) .sv-work { border-radius: var(--r2); }
+:where(body.experience-raycast) .sv-work > summary { min-height: auto; height: 28px; margin: 0 -8px; padding: 0 8px; font-size: 13px; color: var(--txt-2); border-radius: var(--r2); }
+:where(body.experience-raycast) .sv-work > summary::before, :where(body.experience-raycast) .sv-work[open] > summary::before { content: none; }
+:where(body.experience-raycast) .sv-work > summary:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) .sv-work .wchev { flex: none; width: 12px; height: 12px; color: var(--txt-3); transform: rotate(-90deg); transition: transform 140ms var(--ease); }
+:where(body.experience-raycast) .sv-work[open] > summary .wchev { transform: none; }
+:where(body.experience-raycast) .sv-work .wbad { font-family: var(--mono); font-size: 10.5px; line-height: 18px; padding: 0 5px; border-radius: var(--r1); color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+:where(body.experience-raycast) .sv-work .wms { font-family: var(--mono); font-size: 11px; color: var(--txt-3); }
+:where(body.experience-raycast) .sv-work.bad:not([open]) > summary::before { content: none; }
+:where(body.experience-raycast) .sv-work .wbody { gap: 2px; margin: 2px 0 4px 6px; padding: 0 0 0 12px; box-shadow: inset 1px 0 0 var(--panel-3); }
+:where(body.experience-raycast) .sv-tool { font-size: 13px; border: 0; background: none; font-family: inherit; border-radius: 0; }
+:where(body.experience-raycast) .sv-tool summary { height: 32px; margin: 0 -8px; padding: 0 8px; border-radius: var(--r2); transition: background 140ms var(--ease); }
+:where(body.experience-raycast) .sv-tool summary:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) .sv-tool:is([open], .running) > summary { background: color-mix(in srgb, var(--txt) 9%, transparent); }
+:where(body.experience-raycast) .sv-tool .tico { box-sizing: border-box; width: 20px; height: 20px; padding: 4px; border-radius: var(--r1); background: var(--panel-3); color: color-mix(in srgb, var(--txt) 90%, transparent); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) .sv-tool .tname { min-width: 4ch; font-weight: 500; color: var(--txt); }
+:where(body.experience-raycast) .sv-tool .tsrv { font-family: var(--mono); line-height: 18px; border-radius: var(--r1); color: var(--txt-2); background: var(--panel-3); letter-spacing: inherit; border: 0; }
+:where(body.experience-raycast) .sv-tool[data-kind] .tico { color: color-mix(in srgb, var(--txt) 90%, transparent); }
+:where(body.experience-raycast) .sv-tool.running .tico { animation: none; }
+:where(body.experience-raycast) .sv-tool .tspin { display: block; box-sizing: border-box; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--txt) 15%, transparent); border-top: 1.5px solid var(--txt); animation: attspin 750ms linear infinite; }
+:where(body.experience-raycast) .sv-tool .targ { font-family: var(--mono); font-size: 11.5px; }
+:where(body.experience-raycast) .sv-tool .tlink a { font-family: var(--mono); line-height: 18px; border-radius: var(--r1); background: var(--panel-3); letter-spacing: inherit; border: 0; }
+:where(body.experience-raycast) .sv-tool .tlink a:hover { color: var(--txt); }
+:where(body.experience-raycast) .sv-tool .tstat { display: grid; place-items: center; min-width: 16px; color: var(--txt-2); }
+:where(body.experience-raycast) .sv-tool .tstat svg { width: 12px; height: 12px; }
+:where(body.experience-raycast) .sv-tool .tms { font-family: var(--mono); font-size: 11px; display: inline; }
+:where(body.experience-raycast) .sv-tool .tstat.ok { color: var(--txt-2); }
+:where(body.experience-raycast) .sv-tool .tstat.bad { font-family: var(--mono); font-size: 10.5px; line-height: 18px; padding: 0 5px; border-radius: var(--r1); color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+:where(body.experience-raycast) .sv-tool:has(> summary .tstat.bad) .tico { color: var(--yellow); background: color-mix(in srgb, var(--yellow) 12%, transparent); }
+:where(body.experience-raycast) .sv-tool .tbody { margin: 4px 0 2px 28px; padding: 8px 12px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); font-family: var(--mono); font-size: 11.5px; line-height: 1.65; border-top: 0; }
+:where(body.experience-raycast) .sv-tool .tshots { gap: 8px; margin: 4px 0 2px 28px; padding: 0; border-top: 0; }
+:where(body.experience-raycast) .sv-tool .tshots img { max-height: 162px; border-radius: var(--r2); box-shadow: 0 0 0 1px var(--line-3); border: 0; }
+:where(body.experience-raycast) .sv-tool .tdiff { margin: 4px 0 2px 28px; padding: 8px 0; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); border-top: 0; }
+:where(body.experience-raycast) .sv-tool .tsub { margin: 2px 0 0 28px; font-family: var(--mono); font-size: 11px; padding: 0; border-top: 0; }
+:where(body.experience-raycast) .sv-activity { position: static; left: auto; bottom: auto; z-index: auto; max-width: none; padding: 0; border: 0; border-radius: 0; background: none; font-family: inherit; font-size: inherit; line-height: inherit; white-space: inherit; pointer-events: auto; align-items: center; gap: 8px; min-width: 0; overflow: hidden; color: var(--txt-2); }
+:where(body.experience-raycast) .sv-activity.on { display: inline-flex; }
+:where(body.experience-raycast) .sv-activity .pulse { align-self: auto; animation: none; background: var(--yellow); }
+:where(body.experience-raycast) .sv-activity.asks .pulse { background: var(--signal); }
+:where(body.experience-raycast) .sv-activity .verb { color: var(--txt-2); }
+:where(body.experience-raycast) .sv-activity.tool .verb { flex: none; color: var(--txt); }
+:where(body.experience-raycast) .sv-activity .clock { font-variant-numeric: tabular-nums; }
+:where(body.experience-raycast) .sv:has(.sv-suggest:not([hidden])) .sv-composer:not(.ready) .sv-activity.on { display: inline-flex; }
+:where(body.experience-raycast) .sv:has(.sv-activity.on) .sv-queue.on { margin-bottom: 8px; }
+:where(body.experience-raycast) .sv:has(.sv-activity.on):not(:has(.sv-queue.on)) .sv-subs.on { margin-bottom: 8px; }
+:where(body.experience-raycast) .sv-tool.running { border-color: currentColor; }
+:where(body.experience-raycast) .sv-tool.running .tstat { color: var(--txt-2); animation: none; }
+:where(body.experience-raycast) .sv-tool.running .tstat.bad { color: var(--yellow); }
+:where(body.experience-raycast) .sv-composer { margin: 0 var(--sv-bar) 0 0; gap: normal; padding: 0; border: 0; border-radius: 0; background: none; transition: unset; box-shadow: none; }
+:where(body.experience-raycast) .sv-box { display: grid; gap: 8px; margin: 4px 12px 12px; padding: 8px 8px 8px 12px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: inset 0 1px 2px rgba(0,0,0,.45), inset 0 0 0 1px color-mix(in srgb, var(--txt) 4%, transparent); transition: box-shadow 140ms var(--ease); }
+:where(body.experience-raycast) .sv-composer:focus-within .sv-box, :where(body.experience-raycast) .tile.focused .sv-box { box-shadow: inset 0 1px 2px rgba(0,0,0,.45), inset 0 0 0 1px color-mix(in srgb, var(--txt) 14%, transparent); }
+:where(body.experience-raycast) .sv-line { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
+:where(body.experience-raycast) .sv-composer textarea { line-height: 20px; padding: 0; min-height: 20px; transition: unset; }
+:where(body.experience-raycast) .sv-composer textarea::placeholder { color: var(--txt-2); }
+:where(body.experience-raycast) .sv-composer textarea:placeholder-shown { white-space: nowrap; overflow: hidden; }
+:where(body.experience-raycast) .sv-well { flex: 1; padding: 2px 0; }
+:where(body.experience-raycast) .sv-ink { line-height: 20px; padding: 0; transition: unset; }
+:where(body.experience-raycast) .sv-foot { gap: 8px; height: 36px; min-width: 0; padding: 0 12px 0 16px; border-top: 1px solid var(--panel-3); font-family: var(--mono); font-size: 11px; letter-spacing: .017em; color: var(--txt-3); white-space: nowrap; interpolate-size: inherit; animation: none; }
+:where(body.experience-raycast) .sv-when { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+:where(body.experience-raycast) .sv-when:empty, :where(body.experience-raycast) .sv-activity.on ~ .sv-when { display: none; }
+:where(body.experience-raycast) .sv-keys, :where(body.experience-raycast) .sv-halt { display: none; align-items: center; gap: 6px; flex: none; }
+:where(body.experience-raycast) .sv-composer.ready .sv-keys { display: inline-flex; }
+:where(body.experience-raycast) .sv-composer.ready :is(.sv-activity, .sv-when) { display: none; }
+:where(body.experience-raycast) .sv-foot .rc-key { min-width: 18px; height: 18px; padding: 0 4px; font-size: 10px; }
+:where(body.experience-raycast) .sv-keys .rc-key + .rc-key { margin-left: 4px; }
+:where(body.experience-raycast) .sv-halt { all: unset; cursor: pointer; display: none; align-items: center; gap: 6px; margin-left: auto; color: var(--txt); }
+:where(body.experience-raycast) .tile[data-state="stalled"] .sv-halt { display: inline-flex; }
+:where(body.experience-raycast) .tile[data-state="stalled"] .sv-pick, :where(body.experience-raycast) .tile[data-state="stalled"] .sv-ctx.on { --rc-pick: none; display: none; }
+:where(body.experience-raycast) .sv-ctx { gap: 6px; color: var(--txt-2); font-family: inherit; font-size: inherit; }
+:where(body.experience-raycast) button.sv-ctx { gap: 6px; color: var(--txt-2); border-radius: var(--r1); font-family: inherit; font-size: inherit; }
+:where(body.experience-raycast) button.sv-ctx::before { content: "|"; margin-right: 2px; color: var(--line-3); }
+:where(body.experience-raycast) button.sv-ctx:hover .pct { color: var(--txt); }
+:where(body.experience-raycast) .sv-ctx .bar { width: 24px; height: 3px; background: var(--panel-3); }
+:where(body.experience-raycast) .sv-ctx .bar i { background: var(--txt-2); }
+:where(body.experience-raycast) .sv-ctx.hot .bar i { background: var(--yellow); }
+:where(body.experience-raycast) .sv-ctx.hot .pct { color: var(--yellow); }
+:where(body.experience-raycast) .sv-pick { margin-left: auto; overflow: clip; overflow-clip-margin: 2px; }
+:where(body.experience-raycast) .sv-pick .sv-pill { min-width: 0; }
+:where(body.experience-raycast) .sv-ctx.on { flex: none; }
+@container (max-width: 640px) {
+  :where(body.experience-raycast) .sv-composer.ready .sv-keys { display: none; }
+}
+@container (max-width: 470px) {
+  :where(body.experience-raycast) .sv-pill .dim, :where(body.experience-raycast) .sv-pick .sv-pill-effort, :where(body.experience-raycast) .sv-pick .sv-pill-account { display: none; }
+}
+@container (max-width: 360px) {
+  :where(body.experience-raycast) .sv-foot { gap: 8px; }
+  :where(body.experience-raycast) .sv-pill { padding: 0 6px; gap: 6px; }
+  :where(body.experience-raycast) .sv-ctx { gap: 6px; }
+  :where(body.experience-raycast) .sv-ctx .bar { width: 24px; }
+}
+@container (max-width: 310px) {
+  :where(body.experience-raycast) .sv-foot { gap: 8px; }
+  :where(body.experience-raycast) .sv-pill { padding: 0 6px; }
+  :where(body.experience-raycast) .sv-ctx .bar { width: 24px; }
+}
+:where(body.experience-raycast) .sv-pill { height: 24px; padding: 0 6px; border-radius: var(--r1); font-size: 11px; }
+:where(body.experience-raycast) .sv-pill:hover, :where(body.experience-raycast) .sv-pill.open { background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) .sv-pill-model .txt { color: var(--txt-2); }
+:where(body.experience-raycast) .sv-pill .mark { width: 12px; height: 12px; color: var(--txt-2); }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-pick { display: var(--rc-pick, flex); }
+:where(body.experience-raycast) .sv-mirror .sv-pick { --rc-pick: none; }
+:where(body.experience-raycast) .sv-btns { flex: none; margin-left: 0; }
+:where(body.experience-raycast) .sv-btns button { width: 24px; height: 24px; border-radius: var(--r1); transition: background 120ms var(--ease), color 120ms var(--ease); }
+:where(body.experience-raycast) .sv-btns svg { width: 14px; height: 14px; }
+:where(body.experience-raycast) .sv-send { background: var(--panel-3); }
+:where(body.experience-raycast) .sv-composer.ready .sv-send { color: var(--bg); }
+:where(body.experience-raycast) .sv-btns .sv-stop { box-shadow: inset 0 0 0 1px var(--line-2); border: 0; }
+:where(body.experience-raycast) .sv-stop:hover { color: var(--txt); box-shadow: inset 0 0 0 1px var(--line-3); }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) { grid-template-columns: none; align-items: normal; column-gap: normal; row-gap: normal; margin: 0 var(--sv-bar) 0 0; padding: 0; box-shadow: none; animation: none; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-attach { display: none; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-attach.on { display: flex; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) textarea { min-height: 20px; height: auto !important; padding: 0; font-size: 14px; white-space: revert; overflow: revert; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) textarea:placeholder-shown { white-space: nowrap; overflow: hidden; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns .sv-send { width: 24px; opacity: 1; transform: none; visibility: visible; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-foot { animation: none; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns button { width: 24px; height: 24px; }
+:where(body.experience-raycast) .t-tags { display: none; flex: none; gap: normal; }
+:where(body.experience-raycast) .tile.spawning .t-state, :where(body.experience-raycast) .tile.spawning .t-chips { display: flex; }
+:where(body.experience-raycast) .tile.aiming { --rc-edge: color-mix(in srgb, var(--blue) 30%, var(--panel)); --rc-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 20%, transparent), 0 0 24px color-mix(in srgb, var(--blue) 13%, transparent), var(--e2), var(--hair); border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
+:where(body.experience-raycast) .tile.draft { --rc-edge: var(--accent-d); --rc-shadow: var(--e1); }
+:where(body.experience-raycast) .tile.draft.focused { --rc-edge: var(--accent); }
+:where(body.experience-raycast) .tile.spawning .t-pill .gl, :where(body.experience-raycast) .tile.spawning.bad .t-pill .gl { animation: none; }
+:where(body.experience-raycast) .tile.spawning.bad .t-pill { background: none; color: inherit; border-color: transparent; }
+:where(body.experience-raycast) .tile[data-state="needs"].just-needs { --rc-motion: kknock 700ms ease-in-out 2; animation: var(--rc-motion); }
+:where(body.experience-raycast) .tile.born { --rc-motion: kin 210ms var(--ease); }
+:where(body.experience-raycast) .tile.gone, :where(body.experience-raycast) .tile.gone[data-state="needs"] { --rc-motion: kout 210ms var(--ease) forwards; animation: var(--rc-motion); }
+:where(body.experience-raycast) .tile[data-state="answered"] { border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
+:where(body.experience-raycast) .t-tags .t-web, :where(body.experience-raycast) .t-tags .t-phone, :where(body.experience-raycast) .t-tags .t-edit { display: grid; }
+:where(body.experience-raycast) .tile:hover .t-tags, :where(body.experience-raycast) .t-head:focus-within .t-tags, :where(body.experience-raycast) .tile.open .t-tags { display: flex; }
+:where(body.experience-raycast) .tile:hover .t-key, :where(body.experience-raycast) .t-head:focus-within .t-key, :where(body.experience-raycast) .tile.open .t-key { display: none; }
+@media (hover: none) {
+  :where(body.experience-raycast) .t-tags { display: flex; }
+  :where(body.experience-raycast) .t-key { display: none; }
+}
+:where(body.experience-raycast) .t-pill .label { font-size: 11px; font-weight: inherit; letter-spacing: .017em; }
+:where(body.experience-raycast) .t-pill .gl { color: var(--txt-2); }
+:where(body.experience-raycast) [data-state] .t-pill, :where(body.experience-raycast) .tile.spawning .t-pill, :where(body.experience-raycast) .tile.typing .t-pill, :where(body.experience-raycast) .tile.typing[data-state] .t-pill { background: none; color: inherit; border-color: transparent; box-shadow: none; }
+:where(body.experience-raycast) [data-state] .t-pill .label, :where(body.experience-raycast) .tile.spawning .t-pill .label, :where(body.experience-raycast) .tile.typing .t-pill .label { color: var(--txt-2); }
+:where(body.experience-raycast) .tile.typing[data-state="needs"] .t-pill .label { color: var(--txt); }
+:where(body.experience-raycast) [data-state] .t-pill svg, :where(body.experience-raycast) .tile.typing .t-pill svg { animation: none; }
+:where(body.experience-raycast) [data-state="needs"] .t-pill .gl { color: var(--signal); }
+:where(body.experience-raycast) [data-state="working"] .t-pill .gl, :where(body.experience-raycast) [data-state="stalled"] .t-pill .gl { color: var(--yellow); }
+:where(body.experience-raycast) [data-state="done"] .t-pill .gl { color: var(--green); }
+:where(body.experience-raycast) [data-state="answered"] .t-pill .gl, :where(body.experience-raycast) .tile.typing .t-pill .gl { color: var(--blue); }
+:where(body.experience-raycast) [data-state="needs"] .t-pill .label { color: var(--txt); }
+:where(body.experience-raycast) .tile.typing .t-pill svg { color: var(--blue); }
+body:where(.experience-raycast).typing-on .tile:not(.typing) .t-pill { box-shadow: none; }
+body:where(.experience-raycast).no-dim.typing-on .tile:not(.typing) .t-pill { box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  :where(body.experience-raycast) .tile, :where(body.experience-raycast) .tile.born, :where(body.experience-raycast) .tile.gone, :where(body.experience-raycast) .tile[data-state="needs"], :where(body.experience-raycast) .tile[data-state="needs"].just-needs, :where(body.experience-raycast) .t-pill svg, :where(body.experience-raycast) .t-dot, :where(body.experience-raycast) .spawn .bar i, :where(body.experience-raycast) .pal-sheet, :where(body.experience-raycast) .spawn .step .blink { animation: none; }
+  :where(body.experience-raycast) .tile[data-state="needs"] { box-shadow: var(--rc-shadow); }
+}
+body:where(.experience-raycast).no-motion .tile[data-state="needs"] { box-shadow: var(--rc-shadow); }
+
+body:where(.experience-raycast).look-dimension .t-tags > button { color: var(--txt-2); border-radius: var(--r2); }
+body:where(.experience-raycast).look-dimension .t-tags > button:hover, body:where(.experience-raycast).look-dimension .t-tags > button:focus-visible { color: var(--txt); }
+body:where(.experience-raycast).look-dimension .t-rename { border-radius: 3px; }
+body:where(.experience-raycast).look-dimension .t-name { font-weight: 500; font-size: 14px; line-height: inherit; }
+body:where(.experience-raycast).look-dimension .t-state .label { font-weight: inherit; }
+body:where(.experience-raycast).look-dimension .sv-user { border-radius: 12px 12px 4px 12px; }
+body:where(.experience-raycast).look-dimension .sv-tool .tsrv, body:where(.experience-raycast).look-dimension .sv-tool .tlink a { border-radius: var(--r1); }
+body:where(.experience-raycast).look-dimension .sv-tool .tshots img { border-radius: var(--r2); }
+body:where(.experience-raycast).look-dimension .sv-composer { border-radius: 0; }
+body:where(.experience-raycast).look-dimension button.sv-ctx { border-radius: var(--r1); }
+body:where(.experience-raycast).look-dimension .sv-ctx .bar, body:where(.experience-raycast).look-dimension .sv-ctx .bar i { border-radius: 2px; }
+body:where(.experience-raycast).look-dimension .sv-pill { border-radius: var(--r1); }
+body:where(.experience-raycast).look-dimension .t-pill .label { font-weight: inherit; }
+body:where(.experience-raycast).look-dimension .tile { border-color: var(--rc-edge); background: var(--rc-card); box-shadow: var(--rc-shadow); border-radius: var(--r4); }
+body:where(.experience-raycast).look-dimension .tile::before { content: none; }
+body:where(.experience-raycast).look-dimension .tile.focused { border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
+body:where(.experience-raycast).look-dimension .tile[data-state="needs"] { border-color: var(--rc-edge); animation: var(--rc-motion, none); background: var(--rc-card); }
+body:where(.experience-raycast).look-dimension .tile.typing { border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
+body:where(.experience-raycast).look-dimension .tile.spawning, body:where(.experience-raycast).look-dimension .tile.opening { border-style: solid; border-color: var(--rc-edge); background: var(--rc-card); }
+body:where(.experience-raycast).look-dimension .t-head { padding: 0 8px 0 16px; gap: 8px; background: var(--panel); }
+body:where(.experience-raycast).look-dimension .t-tags { gap: normal; }
+body:where(.experience-raycast).look-dimension .t-hchips > .t-live { color: var(--txt-2); border-color: currentColor; background: var(--panel-3); font-family: var(--mono); font-size: 11px; }
+body:where(.experience-raycast).look-dimension .t-state { padding: 0 13px; gap: 8px; row-gap: 6px; }
+:where(body.experience-raycast) .t-chips .c, :where(body.experience-raycast) .t-where .c { --rc-c-fg: var(--txt-3); --rc-c-bg: var(--panel-2); --rc-c-line: var(--line); }
+:where(body.experience-raycast) .t-chips .c.model, :where(body.experience-raycast) .t-where .c.model { --rc-c-fg: var(--txt-2); --rc-c-bg: var(--panel-3); }
+:where(body.experience-raycast) .t-chips .c.local, :where(body.experience-raycast) .t-where .c.local { --rc-c-fg: var(--yellow); --rc-c-line: #3F3520; --rc-c-bg: #1B180F; }
+:where(body.experience-raycast) .t-chips .c.cloud, :where(body.experience-raycast) .t-where .c.cloud { --rc-c-fg: var(--blue); --rc-c-line: color-mix(in srgb, var(--blue) 30%, var(--panel)); --rc-c-bg: color-mix(in srgb, var(--blue) 8%, var(--panel)); }
+:where(body.experience-raycast) .t-chips .c.tree { --rc-c-fg: var(--txt-3); --rc-c-bg: var(--panel-3); }
+:where(body.experience-raycast) .t-chips .c.lent { --rc-c-fg: var(--accent); --rc-c-line: var(--accent-d); --rc-c-bg: var(--accent-bg); }
+body:where(.experience-raycast).look-dimension .t-chips .c, body:where(.experience-raycast).look-dimension .t-where .c, body:where(.experience-raycast).look-dimension .t-chips .c.local, body:where(.experience-raycast).look-dimension .t-chips .c.cloud, body:where(.experience-raycast).look-dimension .t-where .c.local, body:where(.experience-raycast).look-dimension .t-where .c.cloud { color: var(--rc-c-fg); border-color: var(--rc-c-line); background: var(--rc-c-bg); border-radius: var(--r1); }
+body:where(.experience-raycast).look-dimension .when { font-size: 10px; }
+body:where(.experience-raycast).look-dimension .summary { padding: 9px 13px 10px; border-top: 0; line-height: 1.5; }
+body:where(.experience-raycast).look-dimension .t-chips, body:where(.experience-raycast).look-dimension .t-chips:empty { padding: 7px 13px 0; }
+body:where(.experience-raycast).look-dimension .tile .t-pill, body:where(.experience-raycast).look-dimension .tile[data-state] .t-pill, body:where(.experience-raycast).look-dimension .tile.typing .t-pill, body:where(.experience-raycast).look-dimension .tile.typing[data-state] .t-pill, body:where(.experience-raycast).look-dimension .tile.spawning .t-pill, body:where(.experience-raycast).look-dimension .tile.spawning.bad .t-pill { justify-content: normal; padding: 0; line-height: inherit; color: inherit; }
+body:where(.experience-raycast).look-dimension .tile .t-pill .label, body:where(.experience-raycast).look-dimension .tile[data-state] .t-pill .label, body:where(.experience-raycast).look-dimension .tile.typing .t-pill .label, body:where(.experience-raycast).look-dimension .tile.spawning .t-pill .label { color: var(--txt-2); font-weight: inherit; font-size: 11px; letter-spacing: .017em; text-transform: none; line-height: inherit; }
+body:where(.experience-raycast).look-dimension .tile[data-state="working"] .t-pill .label, body:where(.experience-raycast).look-dimension .tile[data-state="answered"] .t-pill .label, body:where(.experience-raycast).look-dimension .tile[data-state="stalled"] .t-pill .label, body:where(.experience-raycast).look-dimension .tile[data-state="done"] .t-pill .label, body:where(.experience-raycast).look-dimension .tile.typing .t-pill .label, body:where(.experience-raycast).look-dimension .tile.spawning .t-pill .label { color: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .tile[data-state="working"] .t-pill svg { animation: none; }
+body:where(.experience-raycast).look-dimension .tile.spawning .t-pill svg { color: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .tile[data-state="needs"] .t-pill, body:where(.experience-raycast).look-dimension .tile.typing[data-state="needs"] .t-pill { padding: 0; border: 0; border-radius: 0; color: inherit; }
+body:where(.experience-raycast).look-dimension .tile[data-state="needs"] .t-pill .label, body:where(.experience-raycast).look-dimension .tile.typing[data-state="needs"] .t-pill .label { color: var(--txt); font-family: var(--mono); font-size: 11px; font-weight: inherit; letter-spacing: .017em; text-transform: none; }
+body:where(.experience-raycast).look-dimension .tile.typing[data-state="needs"] .t-pill svg { color: var(--blue); }
+body:where(.experience-raycast).look-dimension .sv-scroll { padding: 16px 16px 8px; gap: var(--chat-gap, 12px); }
+body:where(.experience-raycast).look-dimension .sv-msg { font-size: 14px; color: color-mix(in srgb, var(--txt) 78%, transparent); }
+body:where(.experience-raycast).look-dimension .sv-user { max-width: min(85%, 560px); padding: 8px 12px; font-size: 14px; line-height: var(--chat-line, 1.45); background: var(--panel-3); border: 0; box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 10%, transparent); }
+body:where(.experience-raycast).look-dimension .sv-tool { border: 0; border-radius: 0; background: none; font-family: inherit; font-size: 13px; color: inherit; }
+body:where(.experience-raycast).look-dimension .sv-tool summary { padding: 0 8px; }
+body:where(.experience-raycast).look-dimension .sv-tool .tname { color: var(--txt); }
+body:where(.experience-raycast).look-dimension .sv-tool .tstat { color: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .sv-tool .tstat.bad { color: var(--yellow); }
+body:where(.experience-raycast).look-dimension .sv-tool .tsrv { color: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .sv-tool .tlink a { color: var(--blue); }
+body:where(.experience-raycast).look-dimension .sv-tool .tlink a:hover { color: var(--txt); }
+body:where(.experience-raycast).look-dimension .sv-tool .tdiff { background: color-mix(in srgb, var(--txt) 5%, transparent); border-top-color: currentColor; }
+body:where(.experience-raycast).look-dimension .sv-tool.running { border-color: currentColor; }
+body:where(.experience-raycast).look-dimension .sv-tool .tsrv, body:where(.experience-raycast).look-dimension .sv-tool .tlink a { border-color: currentColor; }
+body:where(.experience-raycast).look-dimension .sv-tool .tbody, body:where(.experience-raycast).look-dimension .sv-tool .tshots, body:where(.experience-raycast).look-dimension .sv-tool .tsub { border-top-color: currentColor; }
+body:where(.experience-raycast).look-dimension .sv-composer { display: grid; grid-template-columns: none; align-items: normal; gap: normal; margin: 0 var(--sv-bar) 0 0; padding: 0; border: 0; background: none; box-shadow: none; font-size: inherit; color: inherit; }
+body:where(.experience-raycast).look-dimension .sv-composer .sv-attach { grid-column: auto; }
+body:where(.experience-raycast).look-dimension .sv-composer:is(:focus-within, .ready, :has(.sv-attach.on)) { grid-template-columns: none; padding: 0; gap: normal; }
+body:where(.experience-raycast).look-dimension .sv-composer:is(:focus-within, .ready, :has(.sv-attach.on)) .sv-foot { justify-self: auto; }
+body:where(.experience-raycast).look-dimension .sv-composer .sv-attach .att { border-color: var(--line-2); background: var(--well); border-radius: 4px; }
+body:where(.experience-raycast).look-dimension .sv-composer .sv-attach .att.command { border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: color-mix(in srgb, var(--accent) 10%, var(--well)); }
+body:where(.experience-raycast).look-dimension .sv-composer:focus-within, body:where(.experience-raycast).look-dimension .sv-composer.ready { border-color: currentColor; background: none; box-shadow: none; }
+body:where(.experience-raycast).look-dimension .sv-foot { justify-self: auto; flex: initial; gap: 8px; }
+body:where(.experience-raycast).look-dimension .sv-composer textarea, body:where(.experience-raycast).look-dimension .sv-ink { font-size: 14px; line-height: 20px; padding: 0; scrollbar-gutter: stable; }
+body:where(.experience-raycast).look-dimension .sv-composer textarea { min-height: 20px; }
+body:where(.experience-raycast).look-dimension .sv-ink { min-height: auto; }
+body:where(.experience-raycast).look-dimension .sv-composer:is(:focus-within, .ready, :has(.sv-attach.on)) textarea { min-height: 20px; }
+body:where(.experience-raycast).look-dimension .sv-composer textarea::placeholder { color: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .sv-pick { margin: 0 0 0 auto; gap: 2px; }
+body:where(.experience-raycast).look-dimension .sv-pill { height: 24px; padding: 0 6px; font-size: 11px; }
+body:where(.experience-raycast).look-dimension .sv-pill:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); }
+body:where(.experience-raycast).look-dimension .sv-pill .dim { font-family: inherit; font-size: inherit; color: var(--txt-3); }
+body:where(.experience-raycast).look-dimension .sv-ctx { font-family: inherit; font-size: inherit; color: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .sv-ctx .pct { font-family: inherit; font-size: inherit; color: inherit; }
+body:where(.experience-raycast).look-dimension .sv-ctx.warm .pct, body:where(.experience-raycast).look-dimension .sv-ctx.hot .pct { color: var(--yellow); }
+body:where(.experience-raycast).look-dimension button.sv-ctx:hover .pct { color: var(--txt); }
+body:where(.experience-raycast).look-dimension .sv-ctx .bar { width: 24px; height: 3px; background: var(--panel-3); }
+body:where(.experience-raycast).look-dimension .sv-ctx .bar i { background: var(--txt-2); }
+body:where(.experience-raycast).look-dimension .sv-ctx.warm .bar i, body:where(.experience-raycast).look-dimension .sv-ctx.hot .bar i { background: var(--yellow); }
+body:where(.experience-raycast).look-dimension .sv-btns { gap: 6px; }
+body:where(.experience-raycast).look-dimension .sv-btns button { width: 24px; height: 24px; }
+body:where(.experience-raycast).look-dimension .sv-btns svg { width: 14px; height: 14px; }
+body:where(.experience-raycast).look-dimension .sv-send { background: none; color: inherit; }
+body:where(.experience-raycast).look-dimension .sv-composer.ready .sv-send { background: var(--accent); color: var(--bg); }
+body:where(.experience-raycast).look-dimension .sv-pill-model { max-width: 24ch; }
+body:where(.experience-raycast).look-dimension .sv-composer:is(:focus-within, .ready, :has(.sv-attach.on)) .sv-pill-effort, body:where(.experience-raycast).look-dimension .sv-composer:is(:focus-within, .ready, :has(.sv-attach.on)) .sv-pill-account, body:where(.experience-raycast).look-dimension .sv-composer:not(:focus-within):not(.ready):not(:has(.sv-attach.on)) .sv-pill-effort { display: var(--rc-pill, inline-flex); }
+:where(body.experience-raycast) .sv-pill[hidden] { --rc-pill: none; }
+@container (max-width: 470px) {
+  :where(body.experience-raycast) .sv-pick .sv-pill-effort, :where(body.experience-raycast) .sv-pick .sv-pill-account { --rc-pill: none; }
+}
+:where(body.experience-raycast) .well { --rc-well-line: var(--line); }
+:where(body.experience-raycast) .tile.open .well { --rc-well-line: currentColor; }
+:where(body.experience-raycast) .tile.open.threading .well, :where(body.experience-raycast) .tile.open.arting .well { --rc-well-line: var(--line); }
+:where(body.experience-raycast) .tile.draft .well { --rc-well-line: var(--line-2); }
+:where(body.experience-raycast) .tile.mirror.open .well { --rc-well-line: currentColor; }
+body:where(.experience-raycast).look-dimension .tile .well { background: var(--well); border-top-color: var(--rc-well-line); }
+body:where(.experience-raycast).look-dimension .tile .well.structured { background: transparent; border-top-color: var(--rc-well-line); }
+body:where(.experience-raycast).look-dimension .tile.open .side { background: none; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) textarea:where(.look-dimension *) { font-size: 14px; min-height: 20px; height: auto !important; padding: 0; }
+body:where(.experience-raycast).look-dimension .tile[data-state="working"]::after { content: none; }
+body:where(.experience-raycast).look-dimension .sv-composer:not(:focus-within):not(.ready) textarea { overflow: revert; white-space: revert; }
+body:where(.experience-raycast).look-dimension .t-tags > button { border-color: currentColor; }
+body:where(.experience-raycast).look-dimension .tile.open .side { border-top-color: currentColor; }
+body:where(.experience-raycast).look-dimension .sv-btns .sv-stop { border-color: currentColor; }

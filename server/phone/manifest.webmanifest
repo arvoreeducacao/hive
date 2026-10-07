@@ -1,0 +1,14 @@
+{
+  "name": "Hive",
+  "short_name": "Hive",
+  "start_url": "/phone/",
+  "scope": "/phone/",
+  "display": "standalone",
+  "background_color": "#0C0C0C",
+  "theme_color": "#0C0C0C",
+  "icons": [
+    { "src": "/phone/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/phone/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/phone/icon-180.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

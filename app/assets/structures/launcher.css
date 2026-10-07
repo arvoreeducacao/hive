@@ -1,0 +1,102 @@
+body.experience-raycast[data-structure="launcher"] { --lx-hair: color-mix(in srgb, var(--txt) 7%, transparent); --lx-fill: color-mix(in srgb, var(--txt) 5%, transparent); --lx-pick: color-mix(in srgb, var(--txt) 9%, transparent); grid-template-rows: auto minmax(0, 1fr) auto; background: var(--bg); }
+body.experience-raycast[data-structure="launcher"] #rail, body.experience-raycast[data-structure="launcher"] #status-strip, body.experience-raycast[data-structure="launcher"] #canvas { display: none; }
+body.experience-raycast[data-structure="launcher"] #shell { grid-template-columns: minmax(0, 1fr); background: transparent; }
+body.experience-raycast[data-structure="launcher"] #stage { background: transparent; }
+body.experience-raycast[data-structure="launcher"] #top { height: 36px; border-bottom: 0; background: color-mix(in srgb, var(--bg) 45%, transparent); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--txt) 5%, transparent); z-index: 2; }
+body.experience-raycast[data-structure="launcher"] #top #rail-toggle, body.experience-raycast[data-structure="launcher"] #top #mode, body.experience-raycast[data-structure="launcher"] #top #blocks, body.experience-raycast[data-structure="launcher"] #top #strip, body.experience-raycast[data-structure="launcher"] #top #btn-plane-top { display: none; }
+body.experience-raycast[data-structure="launcher"] #top .right { margin-left: auto; }
+body.experience-raycast[data-structure="launcher"] #foot { border-top: 0; background: transparent; position: relative; z-index: 1; }
+
+body.experience-raycast[data-structure="launcher"] #structure-root.lx { display: grid; grid-template-rows: minmax(0, 724px) auto; grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: center; gap: 20px; padding: 28px 32px 8px; overflow: hidden; }
+body.experience-raycast[data-structure="launcher"] #structure-root.lx.lx-away { display: none; }
+body.experience-raycast[data-structure="launcher"] #structure-root.lx [hidden] { display: none !important; }
+
+body.experience-raycast[data-structure="launcher"] .lx-atmo { position: fixed; inset: 0; z-index: -1; pointer-events: none; background:
+  radial-gradient(55% 60% at 14% -6%, color-mix(in srgb, var(--signal) 20%, transparent), transparent 70%),
+  radial-gradient(40% 50% at 96% 108%, color-mix(in srgb, var(--blue) 16%, transparent), transparent 72%),
+  radial-gradient(30% 30% at 50% 50%, color-mix(in srgb, var(--txt) 2.5%, transparent), transparent 80%),
+  var(--bg); }
+body.experience-raycast[data-structure="launcher"] .lx-atmo::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(118deg, color-mix(in srgb, var(--txt) 3.5%, transparent) 0 1px, transparent 1px 36px); -webkit-mask-image: radial-gradient(70% 80% at 18% 0%, #000, transparent 70%); mask-image: radial-gradient(70% 80% at 18% 0%, #000, transparent 70%); }
+body.experience-raycast[data-structure="launcher"] .lx-atmo::after { content: ""; position: absolute; left: -10%; top: -30%; width: 46%; height: 90%; background: linear-gradient(118deg, transparent 30%, color-mix(in srgb, var(--signal) 10%, transparent) 48%, transparent 66%); filter: blur(24px); }
+
+body.experience-raycast[data-structure="launcher"] .lx-win { position: relative; z-index: 1; display: flex; flex-direction: column; width: min(1120px, 100%); height: 100%; min-height: 0; border-radius: 14px; background: color-mix(in srgb, var(--panel) 88%, transparent); backdrop-filter: blur(48px) saturate(140%); -webkit-backdrop-filter: blur(48px) saturate(140%); box-shadow: 0 0 0 1px color-mix(in srgb, var(--txt) 9%, transparent), 0 40px 120px rgba(0, 0, 0, .55), inset 0 1px 0 color-mix(in srgb, var(--txt) 6%, transparent); overflow: hidden; }
+body.experience-raycast[data-structure="launcher"] #structure-root[data-mode="full"] .lx-win { width: 100%; max-width: 1600px; }
+body.experience-raycast[data-structure="launcher"] #structure-root[data-mode="full"] { grid-template-rows: minmax(0, 1fr) auto; align-content: stretch; gap: 12px; padding: 16px 24px 10px; }
+
+body.experience-raycast[data-structure="launcher"] .lx-cmd { flex: none; display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 16px 0 24px; box-shadow: inset 0 -1px 0 var(--lx-hair); }
+body.experience-raycast[data-structure="launcher"] .lx-q { all: unset; flex: 1; min-width: 0; height: 100%; font-family: var(--sans); font-size: 20px; letter-spacing: .01em; color: var(--txt); caret-color: var(--txt); }
+body.experience-raycast[data-structure="launcher"] .lx-q:focus, body.experience-raycast[data-structure="launcher"] .lx-q:focus-visible { outline: none; }
+body.experience-raycast[data-structure="launcher"] .lx-q::placeholder { color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-ask { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; border-radius: var(--r2); background: var(--lx-fill); font-size: 13px; color: var(--txt-2); cursor: pointer; }
+body.experience-raycast[data-structure="launcher"] .lx-ask:hover { background: var(--lx-pick); color: var(--txt); }
+body.experience-raycast[data-structure="launcher"] .lx-ask svg { width: 14px; height: 14px; }
+body.experience-raycast[data-structure="launcher"] .lx-win .rc-key { height: 18px; min-width: 18px; font-size: 10px; padding: 0 4px; }
+
+body.experience-raycast[data-structure="launcher"] .lx-crumbs { flex: none; display: none; align-items: center; gap: 8px; height: 56px; padding: 0 16px 0 20px; box-shadow: inset 0 -1px 0 var(--lx-hair); font-size: 14px; color: var(--txt-2); }
+body.experience-raycast[data-structure="launcher"] #structure-root[data-mode="full"] .lx-crumbs { display: flex; }
+body.experience-raycast[data-structure="launcher"] #structure-root[data-mode="full"] .lx-cmd, body.experience-raycast[data-structure="launcher"] #structure-root[data-mode="full"] .lx-list { display: none; }
+body.experience-raycast[data-structure="launcher"] .lx-back { all: unset; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 8px 0 4px; border-radius: var(--r2); color: var(--txt-2); cursor: pointer; }
+body.experience-raycast[data-structure="launcher"] .lx-back:hover { background: var(--lx-fill); color: var(--txt); }
+body.experience-raycast[data-structure="launcher"] .lx-sl { color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-crumb { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+body.experience-raycast[data-structure="launcher"] .lx-crumb b { font-weight: 500; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="launcher"] .lx-grow { flex: 1; min-width: 0; }
+body.experience-raycast[data-structure="launcher"] .lx-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r2); background: var(--lx-fill); }
+body.experience-raycast[data-structure="launcher"] .lx-seg:empty { display: none; }
+body.experience-raycast[data-structure="launcher"] .lx-seg button { all: unset; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--txt-2); cursor: pointer; }
+body.experience-raycast[data-structure="launcher"] .lx-seg button.on { background: color-mix(in srgb, var(--txt) 10%, transparent); color: var(--txt); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 8%, transparent); }
+body.experience-raycast[data-structure="launcher"] .lx-seg .n { font-family: var(--mono); font-size: 10px; color: var(--txt-3); }
+
+body.experience-raycast[data-structure="launcher"] .lx-body { flex: 1; display: flex; min-height: 0; }
+body.experience-raycast[data-structure="launcher"] .lx-list { flex: none; width: 380px; padding: 8px; box-shadow: inset -1px 0 0 var(--lx-hair); overflow-y: auto; overscroll-behavior: contain; }
+body.experience-raycast[data-structure="launcher"] .lx-sec { display: flex; align-items: center; gap: 8px; height: 28px; padding: 8px 12px 0; font-size: 12px; font-weight: 500; color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-sec .n { font-family: var(--mono); font-size: 11px; font-weight: 400; color: color-mix(in srgb, var(--txt-3) 80%, transparent); }
+body.experience-raycast[data-structure="launcher"] .lx-sec.needs { color: var(--signal); }
+body.experience-raycast[data-structure="launcher"] .lx-row { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: 100%; height: 40px; padding: 0 12px; border-radius: var(--r2); font-size: 14px; white-space: nowrap; cursor: pointer; }
+body.experience-raycast[data-structure="launcher"] .lx-row:hover { background: var(--lx-fill); }
+body.experience-raycast[data-structure="launcher"] .lx-row.sel { background: var(--lx-pick); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 4%, transparent); }
+body.experience-raycast[data-structure="launcher"] .lx-row .t { flex: 0 1 auto; min-width: 0; max-width: 62%; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--txt); }
+body.experience-raycast[data-structure="launcher"] .lx-row .t::first-letter, body.experience-raycast[data-structure="launcher"] .lx-aside b::first-letter { text-transform: uppercase; }
+body.experience-raycast[data-structure="launcher"] .lx-row .s { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-row .acc { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-row .acc.warn { color: var(--yellow); }
+body.experience-raycast[data-structure="launcher"] .lx-row.quiet .t { font-weight: 400; color: var(--txt-2); }
+body.experience-raycast[data-structure="launcher"] .lx-ic { flex: none; display: grid; place-items: center; width: 14px; }
+body.experience-raycast[data-structure="launcher"] .lx-circle { width: 22px; height: 22px; margin-left: -4px; border-radius: 50%; background: var(--panel-3); color: var(--txt-2); }
+body.experience-raycast[data-structure="launcher"] .lx-circle svg { width: 12px; height: 12px; }
+body.experience-raycast[data-structure="launcher"] .lx-none { margin: 0; padding: 20px 12px; font-size: 13px; color: var(--txt-3); }
+
+body.experience-raycast[data-structure="launcher"] .lx-detail { flex: 1; display: grid; min-width: 0; min-height: 0; }
+body.experience-raycast[data-structure="launcher"] .lx-host { display: grid; min-width: 0; min-height: 0; }
+body.experience-raycast[data-structure="launcher"] .lx-host > .tile, body.experience-raycast[data-structure="launcher"] .lx-host > .tile.focused { min-width: 0; min-height: 0; border: 0; border-radius: 0; outline: none; background: transparent; box-shadow: none; }
+body.experience-raycast[data-structure="launcher"] .lx-host > .tile::before, body.experience-raycast[data-structure="launcher"] .lx-host > .tile::after { display: none; }
+body.experience-raycast[data-structure="launcher"] .lx-host > .tile > .side, body.experience-raycast[data-structure="launcher"] .lx-host > .tile > .well { background: transparent; }
+body.experience-raycast[data-structure="launcher"] .lx-aside { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px; text-align: center; font-size: 13px; color: var(--txt-2); }
+body.experience-raycast[data-structure="launcher"] .lx-aside b { font-size: 16px; font-weight: 500; color: var(--txt); }
+body.experience-raycast[data-structure="launcher"] .lx-circle.big { display: grid; place-items: center; width: 44px; height: 44px; margin: 0 0 4px; }
+body.experience-raycast[data-structure="launcher"] .lx-circle.big svg { width: 20px; height: 20px; }
+body.experience-raycast[data-structure="launcher"] .lx-press { font-family: var(--mono); font-size: 11px; color: var(--txt-3); }
+
+body.experience-raycast[data-structure="launcher"] .lx-bar { flex: none; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 8px 0 16px; background: color-mix(in srgb, var(--txt) 2.5%, transparent); box-shadow: inset 0 1px 0 var(--lx-hair); font-size: 13px; color: var(--txt-2); }
+body.experience-raycast[data-structure="launcher"] .lx-who { display: inline-flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
+body.experience-raycast[data-structure="launcher"] .lx-who b { font-weight: 500; color: var(--txt); }
+body.experience-raycast[data-structure="launcher"] .lx-who .mono { overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 11px; color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-logo { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; background: var(--signal); color: #fff; }
+body.experience-raycast[data-structure="launcher"] .lx-logo svg { width: 11px; height: 11px; }
+body.experience-raycast[data-structure="launcher"] .lx-call { all: unset; display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 6px 0 10px; border-radius: 9999px; background: color-mix(in srgb, var(--signal) 8%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 20%, transparent); font-size: 12px; color: var(--txt); white-space: nowrap; cursor: pointer; }
+body.experience-raycast[data-structure="launcher"] .lx-call .rc-dot { width: 6px; height: 6px; }
+body.experience-raycast[data-structure="launcher"] .lx-act { all: unset; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 10px; border-radius: var(--r2); font-weight: 500; color: var(--txt); white-space: nowrap; cursor: pointer; }
+body.experience-raycast[data-structure="launcher"] .lx-act:hover { background: var(--lx-fill); }
+body.experience-raycast[data-structure="launcher"] .lx-acts { font-weight: 400; color: var(--txt-2); }
+body.experience-raycast[data-structure="launcher"] .lx-vbar { width: 1px; height: 16px; margin: 0 2px; background: var(--line-2); }
+
+body.experience-raycast[data-structure="launcher"] .lx-hints { position: relative; z-index: 1; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 24px; font-size: 12px; color: var(--txt-3); }
+body.experience-raycast[data-structure="launcher"] .lx-hints > span { display: inline-flex; align-items: center; gap: 4px; }
+body.experience-raycast[data-structure="launcher"] .lx-hints > span .rc-key:last-of-type { margin-right: 4px; }
+body.experience-raycast[data-structure="launcher"] .lx-hints .rc-key { height: 18px; min-width: 18px; font-size: 10px; padding: 0 4px; }
+
+@media (max-width: 860px) {
+  body.experience-raycast[data-structure="launcher"] #structure-root.lx { padding: 12px 12px 6px; }
+  body.experience-raycast[data-structure="launcher"] .lx-list { width: 260px; }
+  body.experience-raycast[data-structure="launcher"] .lx-ask span, body.experience-raycast[data-structure="launcher"] .lx-hints { display: none; }
+}

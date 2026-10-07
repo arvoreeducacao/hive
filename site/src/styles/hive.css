@@ -1,0 +1,279 @@
+:root,
+:root[data-theme='light'],
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0b0b0b;
+  --panel: #141413;
+  --panel-2: #1b1b1a;
+  --panel-3: #232221;
+  --well: #080808;
+  --line: #282726;
+  --line-2: #3a3835;
+  --line-3: #4e4b47;
+  --txt: #f2efea;
+  --txt-2: #a6a099;
+  --txt-3: #948e85;
+  --accent: #cd694a;
+  --accent-d: #6e3826;
+  --accent-hi: #e5866a;
+  --accent-bg: #2a150f;
+  --violet: #9b8cc4;
+  --green: #4ea96f;
+  --yellow: #e0af68;
+  --blue: #7dcfff;
+  --r1: 6px;
+  --r2: 10px;
+  --r3: 14px;
+  --ease: cubic-bezier(0.22, 0.68, 0.36, 1);
+
+  --sl-font:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --sl-font-mono: Hack, ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace;
+
+  --sl-color-accent-low: var(--accent-bg);
+  --sl-color-accent: var(--accent);
+  --sl-color-accent-high: var(--accent-hi);
+
+  --sl-color-white: var(--txt);
+  --sl-color-gray-1: var(--txt);
+  --sl-color-gray-2: var(--txt-2);
+  --sl-color-gray-3: var(--txt-3);
+  --sl-color-gray-4: var(--line-3);
+  --sl-color-gray-5: var(--line-2);
+  --sl-color-gray-6: var(--panel-2);
+  --sl-color-gray-7: var(--panel-3);
+  --sl-color-black: var(--bg);
+
+  --sl-color-bg: var(--bg);
+  --sl-color-bg-nav: var(--panel);
+  --sl-color-bg-sidebar: transparent;
+  --sl-color-bg-inline-code: var(--panel-3);
+  --sl-color-hairline: var(--line);
+  --sl-color-hairline-light: var(--line);
+  --sl-color-hairline-shade: var(--line);
+
+  --sl-color-text: var(--txt-2);
+  --sl-color-text-accent: var(--accent-hi);
+  --sl-color-text-invert: var(--bg);
+
+  --sl-color-backdrop-overlay: rgba(8, 8, 8, 0.72);
+  --sl-shadow-md: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.35);
+  --sl-shadow-lg: 0 22px 60px rgba(0, 0, 0, 0.55);
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(255, 255, 255, 0.028), transparent 58%),
+    radial-gradient(90% 60% at 88% 106%, rgba(205, 105, 74, 0.05), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sidebar-content .large {
+  font-family: var(--sl-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+  font-weight: 500;
+}
+
+.sidebar-content a {
+  border-radius: var(--r1);
+  color: var(--txt-2);
+}
+
+.sidebar-content a[aria-current='page'],
+.sidebar-content a[aria-current='page']:hover {
+  background: var(--accent-bg);
+  color: var(--accent-hi);
+  box-shadow: inset 0 0 0 1px var(--accent-d);
+}
+
+.right-sidebar h2,
+starlight-toc h2 {
+  font-family: var(--sl-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+}
+
+header.header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent),
+    var(--panel);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.site-title {
+  font-weight: 620;
+  letter-spacing: -0.01em;
+  color: var(--txt);
+}
+
+.sl-markdown-content h1,
+.sl-markdown-content h2,
+.sl-markdown-content h3,
+.sl-markdown-content h4,
+.content-panel h1 {
+  color: var(--txt);
+  letter-spacing: -0.015em;
+}
+
+.sl-markdown-content strong {
+  color: var(--txt);
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--accent-hi);
+  text-underline-offset: 0.2em;
+}
+
+.sl-markdown-content code:not(:where(.not-content *)) {
+  font-size: 0.875em;
+  border: 1px solid var(--line);
+  border-radius: var(--r1);
+  padding: 0.15em 0.4em;
+  color: var(--txt);
+}
+
+.sl-markdown-content :is(table, pre):not(:where(.not-content *)) {
+  border-radius: var(--r2);
+}
+
+.content-panel .sl-markdown-content table:not(:where(.not-content *)) {
+  display: table;
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+@media (max-width: 50rem) {
+  .content-panel .sl-markdown-content table:not(:where(.not-content *)) {
+    display: block;
+    overflow-x: auto;
+  }
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 0.55rem 0.85rem;
+}
+
+.sl-markdown-content th:not(:where(.not-content *)) {
+  font-family: var(--sl-font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--txt-3);
+  font-weight: 500;
+  background: var(--panel-2);
+}
+
+.sl-markdown-content tr:last-child :is(th, td):not(:where(.not-content *)) {
+  border-bottom: 0;
+}
+
+.expressive-code .frame pre,
+.sl-markdown-content pre:not(:where(.not-content *)) {
+  border: 1px solid var(--line);
+  background: var(--well);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.card .title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+  font-size: var(--sl-text-h5);
+  font-weight: 600;
+  line-height: var(--sl-line-height-headings);
+  letter-spacing: -0.01em;
+  color: var(--txt);
+}
+
+.card .icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-d);
+  border-radius: var(--r1);
+}
+
+.card .body {
+  margin: 0;
+  font-size: var(--sl-text-body-sm);
+  line-height: 1.65;
+  color: var(--txt-2);
+}
+
+.action.primary {
+  border-radius: var(--r1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.action.minimal {
+  color: var(--txt-2);
+}
+
+.action.minimal:hover {
+  color: var(--txt);
+}
+
+.hero h1 {
+  letter-spacing: -0.03em;
+}
+
+.hero .tagline {
+  color: var(--txt-2);
+}
+
+.starlight-aside {
+  border-radius: var(--r2);
+  border-inline-start-width: 2px;
+}
+
+.starlight-aside--note {
+  --sl-color-asides-text-accent: var(--accent-hi);
+  --sl-color-asides-border: var(--accent-d);
+  background: var(--accent-bg);
+}
+
+.pagination-links a {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+}
+
+.pagination-links a span {
+  color: var(--txt);
+}
+
+site-search button[data-open-modal] {
+  border-radius: var(--r1);
+  background: var(--panel-2);
+  border-color: var(--line);
+}

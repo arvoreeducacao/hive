@@ -1,0 +1,112 @@
+body.experience-raycast[data-structure="stage"] #rail { display: none; }
+body.experience-raycast[data-structure="stage"] #shell { grid-template-columns: minmax(0, 1fr); }
+body.experience-raycast[data-structure="stage"] #stage:has(> #structure-root:not([hidden])) > #canvas { display: none; }
+
+body.experience-raycast[data-structure="stage"] #structure-root { overflow: hidden; }
+body.experience-raycast[data-structure="stage"] .stg { position: absolute; inset: 0; display: grid; grid-template-columns: 224px minmax(0, 1fr) 184px; column-gap: 16px; padding: 12px 8px 8px; box-sizing: border-box; isolation: isolate; }
+body.experience-raycast[data-structure="stage"] .stg.no-ctx { grid-template-columns: 224px minmax(0, 1fr) 0; }
+body.experience-raycast[data-structure="stage"] .stg::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(760px 520px at 56% 50%, color-mix(in srgb, var(--blue) 14%, transparent), transparent 70%),
+    radial-gradient(520px 360px at 70% 96%, color-mix(in srgb, var(--blue) 9%, transparent), transparent 70%),
+    radial-gradient(380px 300px at 6% 8%, color-mix(in srgb, var(--signal) 6%, transparent), transparent 70%); }
+
+body.experience-raycast[data-structure="stage"] .stg-wing { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding-bottom: 8px; }
+body.experience-raycast[data-structure="stage"] .stg-wing::-webkit-scrollbar { width: 0; }
+body.experience-raycast[data-structure="stage"] .stg-eye { flex: none; display: flex; align-items: center; gap: 6px; height: 20px; padding: 0 8px; margin-top: 8px; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); white-space: nowrap; }
+body.experience-raycast[data-structure="stage"] .stg-eye:first-child { margin-top: 0; }
+body.experience-raycast[data-structure="stage"] .stg-eye .t { overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="stage"] .stg-eye .rc-dot { width: 6px; height: 6px; box-shadow: none; }
+body.experience-raycast[data-structure="stage"] .stg-eye .rc-key { margin-left: auto; height: 18px; min-width: 18px; font-size: 10px; text-transform: none; letter-spacing: 0; }
+
+body.experience-raycast[data-structure="stage"] .stg-stack { flex: none; position: relative; padding: 0 0 8px; border-radius: 12px; }
+body.experience-raycast[data-structure="stage"] .stg-stack.cur { background: color-mix(in srgb, var(--txt) 2.5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 9%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-deck { position: relative; height: 146px; perspective: 900px; perspective-origin: 160% 45%; }
+body.experience-raycast[data-structure="stage"] .stg-deck.tall { height: 166px; }
+body.experience-raycast[data-structure="stage"] .stg-deck.tall > .stg-mini { top: 32px; }
+body.experience-raycast[data-structure="stage"] .stg-bare { height: 28px; display: flex; align-items: center; padding: 0 10px; font-size: 11px; color: var(--txt-3); border: 1px dashed color-mix(in srgb, var(--signal) 36%, transparent); border-radius: 8px; margin: 4px 8px 0; }
+
+body.experience-raycast[data-structure="stage"] .stg-mini { all: unset; box-sizing: border-box; position: absolute; top: 14px; left: 26px; width: 192px; height: 124px; display: block; border-radius: 10px; background: var(--panel); box-shadow: var(--keycap), 0 10px 24px rgba(0, 0, 0, .5); overflow: hidden; cursor: pointer; transform-origin: 100% 50%; transform: rotateY(-20deg); transition: transform 280ms var(--ease), box-shadow 160ms var(--ease); }
+body.experience-raycast[data-structure="stage"] .stg-mini:hover, body.experience-raycast[data-structure="stage"] .stg-mini:focus-visible { transform: rotateY(-8deg) translateX(-4px); box-shadow: var(--keycap), 0 0 0 1px color-mix(in srgb, var(--txt) 22%, transparent), 0 14px 30px rgba(0, 0, 0, .55); }
+body.experience-raycast[data-structure="stage"] .stg-mini.b1 { transform: translate(-12px, -15px) rotateY(-20deg) scale(.95); opacity: .8; }
+body.experience-raycast[data-structure="stage"] .stg-mini.b2 { transform: translate(-22px, -29px) rotateY(-20deg) scale(.9); opacity: .55; }
+body.experience-raycast[data-structure="stage"] .stg-mini.b1:hover, body.experience-raycast[data-structure="stage"] .stg-mini.b2:hover { opacity: 1; }
+body.experience-raycast[data-structure="stage"] .stg-mini.hole { background: transparent; box-shadow: none; border: 1px dashed color-mix(in srgb, var(--signal) 42%, transparent); transform: translate(-14px, -11px) rotateY(-20deg) scale(.94); cursor: default; }
+body.experience-raycast[data-structure="stage"] .stg-trail { position: absolute; left: 8px; top: 18px; width: 10px; height: 96px; border-left: 1px dashed color-mix(in srgb, var(--signal) 40%, transparent); border-top: 1px dashed color-mix(in srgb, var(--signal) 40%, transparent); border-radius: 8px 0 0 0; pointer-events: none; }
+body.experience-raycast[data-structure="stage"] .stg-mini-top { display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 8px; border-bottom: 1px solid color-mix(in srgb, var(--txt) 6%, transparent); font: 500 8px/1 var(--sans); color: var(--txt); white-space: nowrap; }
+body.experience-raycast[data-structure="stage"] .stg-mini-top .t { overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="stage"] .stg-mini-top .rc-dot { width: 5px; height: 5px; box-shadow: none; }
+body.experience-raycast[data-structure="stage"] .stg-mini-top .k { margin-left: auto; font: 400 7px/1 var(--mono); color: var(--txt-3); }
+body.experience-raycast[data-structure="stage"] .stg-mini-body { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px 0 14px; max-height: 84px; overflow: hidden; }
+body.experience-raycast[data-structure="stage"] .stg-mini-body .p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; font: 400 6.5px/1.4 var(--sans); color: var(--txt-2); }
+body.experience-raycast[data-structure="stage"] .stg-mini-body .p.q { -webkit-line-clamp: 2; color: var(--txt); }
+body.experience-raycast[data-structure="stage"] .stg-mini-body i { display: block; flex: none; height: 3px; border-radius: 2px; background: color-mix(in srgb, var(--txt) 10%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-mini-body i.tool { width: 100%; height: 8px; background: color-mix(in srgb, var(--yellow) 6%, transparent); box-shadow: inset 0 0 0 .5px color-mix(in srgb, var(--yellow) 30%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-mini-comp { position: absolute; left: 10px; right: 10px; bottom: 6px; height: 10px; border-radius: 3px; background: var(--well); }
+
+body.experience-raycast[data-structure="stage"] .stg-lbl { display: flex; align-items: baseline; gap: 6px; padding: 0 10px; font-size: 12px; font-weight: 500; color: var(--txt); white-space: nowrap; overflow: hidden; }
+body.experience-raycast[data-structure="stage"] .stg-lbl .n { font: 400 11px/1 var(--mono); color: var(--txt-2); }
+body.experience-raycast[data-structure="stage"] .stg-who { display: flex; flex-wrap: wrap; gap: 2px 10px; padding: 4px 10px 0; font-size: 11px; color: var(--txt-2); }
+body.experience-raycast[data-structure="stage"] .stg-who .from { white-space: nowrap; }
+body.experience-raycast[data-structure="stage"] .stg-who-one { all: unset; display: inline-flex; align-items: center; gap: 5px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; border-radius: 4px; }
+body.experience-raycast[data-structure="stage"] .stg-who-one span { overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="stage"] .stg-who-one:hover { color: var(--txt); }
+body.experience-raycast[data-structure="stage"] .stg-who-one:focus-visible { box-shadow: 0 0 0 1px var(--line-2); }
+body.experience-raycast[data-structure="stage"] .stg-who .rc-dot { width: 6px; height: 6px; box-shadow: none; }
+
+body.experience-raycast[data-structure="stage"] .stg-stack.pop { padding-top: 2px; background: linear-gradient(180deg, color-mix(in srgb, var(--signal) 7%, transparent), transparent 85%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 16%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-stack.pop .stg-mini { left: 18px; top: 12px; transform: rotateY(-8deg); box-shadow: var(--keycap), 0 0 0 1px color-mix(in srgb, var(--signal) 55%, transparent), 0 14px 30px rgba(0, 0, 0, .55), 0 0 28px color-mix(in srgb, var(--signal) 16%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-stack.pop.fresh .stg-mini { animation: rc-stg-jump 420ms var(--ease) both; }
+body.experience-raycast[data-structure="stage"] .stg-stack.pop .stg-mini:hover { transform: rotateY(0) translateX(-2px); }
+body.experience-raycast[data-structure="stage"] .stg-selo { position: absolute; top: 2px; left: 196px; z-index: 2; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; background: var(--signal); color: var(--bg); box-shadow: 0 0 0 4px color-mix(in srgb, var(--signal) 18%, transparent), 0 4px 10px rgba(0, 0, 0, .5); pointer-events: none; }
+body.experience-raycast[data-structure="stage"] .stg-selo svg { width: 13px; height: 13px; }
+
+body.experience-raycast[data-structure="stage"] .stg-stage { position: relative; min-width: 0; min-height: 0; display: grid; }
+body.experience-raycast[data-structure="stage"] .stg-host { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); perspective: 1400px; }
+body.experience-raycast[data-structure="stage"] .stg-host > .tile { min-height: 0; box-shadow: var(--e2, none), 0 30px 80px rgba(0, 0, 0, .45); }
+body.experience-raycast[data-structure="stage"] .stg-host.swap > .tile { animation: rc-stg-land 400ms var(--ease) both; transform-origin: 0 50%; }
+
+body.experience-raycast[data-structure="stage"] .stg-ctx { min-height: 0; overflow-y: auto; scrollbar-width: none; display: flex; flex-direction: column; }
+body.experience-raycast[data-structure="stage"] .stg-ctx::-webkit-scrollbar { width: 0; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .sec { display: flex; flex-direction: column; gap: 5px; padding: 12px 8px 12px 10px; border-bottom: 1px solid var(--line); min-width: 0; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .sec:last-child { border-bottom: 0; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .sec.act { cursor: pointer; border-radius: 8px; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .sec.act:hover { background: color-mix(in srgb, var(--txt) 3%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-ctx .eye { display: flex; align-items: center; gap: 6px; font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); }
+body.experience-raycast[data-structure="stage"] .stg-ctx .eye svg { width: 12px; height: 12px; flex: none; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .eye .rc-key { margin-left: auto; height: 18px; min-width: 18px; font-size: 10px; text-transform: none; letter-spacing: 0; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .v { font-size: 13px; color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .v.mono { font: 400 11.5px/1.4 var(--mono); }
+body.experience-raycast[data-structure="stage"] .stg-ctx .d { font-size: 12px; line-height: 1.4; color: var(--txt-2); overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .d.mono { font: 400 11px/1.4 var(--mono); color: var(--txt-3); white-space: nowrap; }
+body.experience-raycast[data-structure="stage"] .stg-ctx .plus { color: var(--green); }
+body.experience-raycast[data-structure="stage"] .stg-ctx .minus { color: var(--signal); opacity: .8; }
+body.experience-raycast[data-structure="stage"] .stg-pr { all: unset; display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12px; color: var(--txt-2); cursor: pointer; white-space: nowrap; border-radius: 4px; }
+body.experience-raycast[data-structure="stage"] .stg-pr b { font: 500 12px/1.4 var(--mono); color: var(--txt); }
+body.experience-raycast[data-structure="stage"] .stg-pr span { overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="stage"] .stg-pr .rc-dot { width: 6px; height: 6px; box-shadow: none; }
+body.experience-raycast[data-structure="stage"] .stg-pr:hover b { text-decoration: underline; }
+body.experience-raycast[data-structure="stage"] .stg-page { position: relative; height: 84px; border-radius: 8px; background: var(--panel-2); box-shadow: var(--keycap); overflow: hidden; transform: perspective(500px) rotateY(14deg); transform-origin: 0 50%; }
+body.experience-raycast[data-structure="stage"] .stg-page .u { height: 14px; padding: 0 6px; display: flex; align-items: center; background: color-mix(in srgb, var(--txt) 4%, transparent); font: 400 7px/14px var(--mono); color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="stage"] .stg-page .g { position: absolute; left: 8px; right: 8px; top: 22px; bottom: 8px; display: grid; grid-template-columns: 18px 1fr 1fr 1fr; gap: 4px; }
+body.experience-raycast[data-structure="stage"] .stg-page .g i { border-radius: 3px; background: color-mix(in srgb, var(--txt) 7%, transparent); }
+body.experience-raycast[data-structure="stage"] .stg-page .g i:first-child { background: color-mix(in srgb, var(--txt) 4%, transparent); }
+
+@keyframes rc-stg-land { from { transform: translateX(-56px) rotateY(10deg) scale(.94); opacity: .4; } }
+@keyframes rc-stg-jump { from { transform: translate(-10px, 26px) rotateY(-20deg) scale(.92); opacity: .3; } }
+
+@media (prefers-reduced-motion: reduce) {
+  body.experience-raycast[data-structure="stage"] .stg-host.swap > .tile, body.experience-raycast[data-structure="stage"] .stg-stack.pop.fresh .stg-mini { animation: none; }
+  body.experience-raycast[data-structure="stage"] .stg-mini { transition: none; }
+}
+
+@media (max-width: 1120px) {
+  body.experience-raycast[data-structure="stage"] .stg { grid-template-columns: 200px minmax(0, 1fr) 0; column-gap: 12px; }
+  body.experience-raycast[data-structure="stage"] .stg-ctx { display: none; }
+  body.experience-raycast[data-structure="stage"] .stg-mini { left: 12px; }
+  body.experience-raycast[data-structure="stage"] .stg-selo { left: 172px; }
+}
+
+body.experience-raycast[data-structure="stage"] .stg-host > .tile:not(.open) .sv-scroll, body.experience-raycast[data-structure="stage"] .stg-host > .tile:not(.open) .sv-composer { padding-left: max(16px, calc((100% - 680px) / 2)); padding-right: max(16px, calc((100% - 680px) / 2)); }
+body.experience-raycast[data-structure="stage"] .stg-host > .tile:not(.open) .sv-subs { margin-left: max(12px, calc((100% - 692px) / 2)); margin-right: max(12px, calc((100% - 692px) / 2)); }
+body.experience-raycast[data-structure="stage"] .stg-host > .tile:not(.open) .sv-msg { font-size: 15px; line-height: 1.62; }

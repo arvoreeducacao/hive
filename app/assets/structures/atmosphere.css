@@ -1,0 +1,136 @@
+body.experience-raycast[data-structure="atmosphere"] { background: #040506; }
+body.experience-raycast[data-structure="atmosphere"] #rail,
+body.experience-raycast[data-structure="atmosphere"] #canvas,
+body.experience-raycast[data-structure="atmosphere"] #rail-toggle,
+body.experience-raycast[data-structure="atmosphere"] #top .lights,
+body.experience-raycast[data-structure="atmosphere"] #strip .seats,
+body.experience-raycast[data-structure="atmosphere"] #strip .plane-sw,
+body.experience-raycast[data-structure="atmosphere"] #btn-alone,
+body.experience-raycast[data-structure="atmosphere"] #btn-plane-top,
+body.experience-raycast[data-structure="atmosphere"] #clock,
+body.experience-raycast[data-structure="atmosphere"] #lim-again,
+body.experience-raycast[data-structure="atmosphere"] #lim-resets > .pipe:last-child { display: none !important; }
+body.experience-raycast[data-structure="atmosphere"] #shell { grid-template-columns: minmax(0, 1fr); }
+
+body.experience-raycast[data-structure="atmosphere"] #structure-root { position: fixed; inset: 0; z-index: 1; overflow: hidden; isolation: isolate; color: #fff; font-family: Inter, var(--sans); }
+
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none;
+  background:
+    radial-gradient(ellipse 64% 62% at 58% 42%, rgba(4, 63, 150, 0.7) 0%, rgba(6, 18, 37, 0.25) 62%, rgba(4, 5, 6, 0) 86%),
+    radial-gradient(ellipse 40% 45% at 12% 10%, rgba(20, 60, 163, 0.35) 0%, rgba(4, 5, 6, 0) 70%),
+    radial-gradient(ellipse 90% 50% at 50% 110%, rgba(7, 16, 32, 0.9) 0%, rgba(4, 5, 6, 0) 70%),
+    #040506; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky i { position: absolute; display: block; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .stars { inset: 0; opacity: 0.22;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.9) 0.6px, rgba(255, 255, 255, 0) 1.2px), radial-gradient(rgba(255, 255, 255, 0.6) 0.5px, rgba(255, 255, 255, 0) 1px);
+  background-size: 173px 151px, 97px 113px; background-position: 11px 23px, 61px 7px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .ray { width: 110px; height: 170vh; top: -35vh; border-radius: 120px; transform: rotate(34deg); filter: blur(44px); mix-blend-mode: screen;
+  background: linear-gradient(180deg, rgba(255, 99, 99, 0) 4%, rgba(255, 99, 99, 0.8) 30%, rgba(255, 150, 120, 0.95) 48%, rgba(255, 99, 99, 0.75) 66%, rgba(255, 99, 99, 0) 96%); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .ray.thin { width: 18px; filter: blur(4px); opacity: 0.7; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .ray.line { width: 3px; filter: blur(0.5px); opacity: 0.5; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .ray.wide { width: 240px; filter: blur(70px); opacity: 0.7; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .ray.cool { background: linear-gradient(180deg, rgba(99, 161, 255, 0) 0%, rgba(99, 161, 255, 0.45) 50%, rgba(99, 161, 255, 0) 100%); filter: blur(60px); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .halo { left: 30%; top: 10%; width: 50vw; height: 50vw; border-radius: 50%; opacity: 0; filter: blur(70px); background: radial-gradient(circle, rgba(255, 99, 99, 0.32) 0%, rgba(255, 99, 99, 0) 70%); transition: opacity 320ms ease; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-sky .vignette { inset: 0; background: radial-gradient(ellipse 80% 75% at 50% 45%, rgba(4, 5, 6, 0) 62%, rgba(4, 5, 6, 0.55) 100%); }
+
+body.experience-raycast[data-structure="atmosphere"] #top { position: fixed; z-index: 30; top: 16px; left: 0; right: 0; width: max-content; max-width: calc(100vw - 32px); height: 44px; margin: 0 auto; padding: 0 6px 0 14px; box-sizing: border-box; border: 0; border-radius: 9999px;
+  background: rgba(7, 8, 10, 0.42); -webkit-backdrop-filter: blur(48px) saturate(160%); backdrop-filter: blur(48px) saturate(160%);
+  box-shadow: rgba(255, 255, 255, 0.12) 0 0 0 1px inset, rgba(255, 255, 255, 0.08) 0 1px 0 inset, rgba(0, 0, 0, 0.35) 0 12px 32px; transition: opacity 220ms ease; }
+body.experience-raycast[data-structure="atmosphere"] #top #strip { background: transparent; box-shadow: none; }
+body.experience-raycast[data-structure="atmosphere"] #top #f-label { max-width: 220px; }
+body.experience-raycast[data-structure="atmosphere"] #blocks .ws-one.on,
+body.experience-raycast[data-structure="atmosphere"] #blocks button[data-i].on { border-radius: 9999px; }
+body.experience-raycast[data-structure="atmosphere"] #status-strip { position: fixed; z-index: 29; bottom: 54px; left: calc(88px + clamp(280px, 27.2vw, 392px)); right: auto; width: max-content; max-width: calc(100vw - 116px - clamp(280px, 27.2vw, 392px)); margin: 0; border-radius: 12px; overflow: hidden; background: rgba(7, 8, 10, 0.5); -webkit-backdrop-filter: blur(40px); backdrop-filter: blur(40px); }
+body.experience-raycast[data-structure="atmosphere"] #foot { position: fixed; z-index: 30; right: 40px; bottom: 14px; left: auto; height: 28px; padding: 0; border: 0; background: transparent; color: rgba(255, 255, 255, 0.62); }
+body.experience-raycast[data-structure="atmosphere"] #foot .grow { flex: 0 0 16px; }
+
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero { position: absolute; z-index: 5; left: 56px; top: 104px; width: var(--atmo-hero-w, 392px); transition: opacity 220ms ease, filter 220ms ease; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .eyebrow { font: 400 10px/1.4 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: #9c9c9d; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero h1 { margin: 16px 0 0; font-size: 56px; font-weight: 400; line-height: 1.04; letter-spacing: 0.2px; color: #fff; text-wrap: balance; text-shadow: 0 2px 30px rgba(4, 5, 6, 0.6); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .lead { margin: 16px 0 0; font-size: 15px; line-height: 1.5; color: #9c9c9d; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .lead button { all: unset; cursor: pointer; color: #fff; font-weight: 500; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .lead button:hover { text-decoration: underline; text-underline-offset: 3px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .lead button:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px; border-radius: 4px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .cta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; border-radius: 8px; font: 500 13px/1 Inter, var(--sans); letter-spacing: 0.008em; white-space: nowrap; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn.primary { background: #e6e6e6; color: #454647; box-shadow: rgba(0, 0, 0, 0.03) 0 7px 3px, rgba(0, 0, 0, 0.25) 0 4px 4px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn.primary:hover { background: #fff; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn.ghost { color: #e6e6e6; box-shadow: rgba(255, 255, 255, 0.14) 0 0 0 1px inset; background: rgba(7, 8, 10, 0.3); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn.ghost:hover, body.experience-raycast[data-structure="atmosphere"] .atmo-btn[aria-pressed="true"] { background: rgba(255, 255, 255, 0.08); color: #fff; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.6); outline-offset: 2px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn .rc-key { min-width: 18px; height: 18px; font-size: 10px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-btn.primary .rc-key { background: rgba(0, 0, 0, 0.08); box-shadow: none; color: #454647; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .tally { display: flex; flex-wrap: wrap; gap: 4px 0; margin-top: 24px; font: 400 12px/1.4 var(--mono); letter-spacing: 0.017em; color: #9c9c9d; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .tally span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .tally span + span::before { content: "|"; padding: 0 10px 0 4px; color: #6a6b6c; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .tally b { color: #fff; font-weight: 400; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-hero .tally .rc-dot { width: 6px; height: 6px; }
+
+body.experience-raycast[data-structure="atmosphere"] .atmo-stack { position: absolute; z-index: 4; font: 400 10px/1 var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: #9c9c9d; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-stack[hidden] { display: none; }
+
+body.experience-raycast[data-structure="atmosphere"] .atmo-keys { position: absolute; z-index: 6; left: 56px; bottom: 20px; display: flex; align-items: center; gap: 16px; font: 400 12px/1 var(--mono); letter-spacing: 0.017em; color: #9c9c9d; white-space: nowrap; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-keys span { display: inline-flex; align-items: center; gap: 6px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-keys .rc-key { min-width: 18px; height: 18px; font-size: 10px; }
+
+body.experience-raycast[data-structure="atmosphere"] .atmo-wins { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win { position: absolute; display: grid; min-width: 0; min-height: 0; border-radius: 16px; overflow: hidden; pointer-events: auto;
+  background: rgba(10, 13, 20, 0.55); -webkit-backdrop-filter: blur(40px) saturate(150%); backdrop-filter: blur(40px) saturate(150%);
+  box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset, rgba(255, 255, 255, 0.14) 0 0 0 1px, rgba(0, 0, 0, 0.2) 0 -1px 0 inset, rgba(0, 0, 0, 0.45) 0 24px 64px;
+  transition: transform 260ms cubic-bezier(.2, .8, .2, 1), filter 260ms ease, opacity 260ms ease; transform-origin: 50% 40%; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.lg { background: rgba(8, 10, 16, 0.7); -webkit-backdrop-filter: blur(56px) saturate(160%); backdrop-filter: blur(56px) saturate(160%);
+  box-shadow: rgba(255, 255, 255, 0.05) 0 1px 0 inset, rgba(255, 255, 255, 0.25) 0 0 0 1px, rgba(0, 0, 0, 0.2) 0 -1px 0 inset, rgba(0, 0, 0, 0.55) 0 40px 100px 10px, rgba(255, 99, 99, 0.14) 0 0 140px 20px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.md { background: rgba(10, 13, 22, 0.42); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.sm { background: rgba(10, 13, 20, 0.48); border-radius: 12px; transform-origin: 50% 0; transform: translateY(0) scale(calc(1 - var(--depth, 0) * 0.04)); filter: brightness(calc(1 - var(--depth, 0) * 0.22)); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.eq { background: rgba(8, 10, 16, 0.62); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win:not(.front):not(.eq) { cursor: pointer; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win:not(.front):not(.eq) > .tile { pointer-events: none; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win:not(.front):not(.eq):hover { box-shadow: rgba(255, 255, 255, 0.06) 0 1px 0 inset, rgba(255, 255, 255, 0.3) 0 0 0 1px, rgba(0, 0, 0, 0.45) 0 24px 64px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.sm:hover { filter: none; }
+
+body.experience-raycast[data-structure="atmosphere"] .atmo-win > .tile { width: 100%; height: 100%; border: 0; border-radius: inherit; background: transparent; box-shadow: none; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win > .tile .t-head { background: transparent; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win > .tile .well,
+body.experience-raycast[data-structure="atmosphere"] .atmo-win > .tile .sv,
+body.experience-raycast[data-structure="atmosphere"] .atmo-win > .tile .sv-scroll { background: transparent; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.lg > .tile .t-head .t-ident { font-size: 15px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win[data-state="needs"].front { box-shadow: rgba(255, 255, 255, 0.05) 0 1px 0 inset, rgba(255, 99, 99, 0.35) 0 0 0 1px, rgba(0, 0, 0, 0.55) 0 40px 100px 10px, rgba(255, 99, 99, 0.18) 0 0 140px 20px; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.md > .tile .sv-composer,
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.md > .tile .sv-suggest,
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.md > .tile .sv-queue { display: none; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.md > .tile .well { -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 44px); mask-image: linear-gradient(180deg, transparent 0, #000 44px); }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.sm > .tile { grid-template-rows: 48px 0; }
+body.experience-raycast[data-structure="atmosphere"] .atmo-win.sm > .tile > :not(.side) { visibility: hidden; }
+
+body.experience-raycast[data-structure="atmosphere"] #structure-root:has(.atmo-win.lg:focus-within) .atmo-win:not(.front) { transform: scale(0.88); filter: blur(5px) brightness(0.55) saturate(0.8); opacity: 0.8; }
+body.experience-raycast[data-structure="atmosphere"] #structure-root:has(.atmo-win.lg:focus-within) .atmo-hero { opacity: 0.32; filter: blur(2px); }
+body.experience-raycast[data-structure="atmosphere"] #structure-root:has(.atmo-win.lg:focus-within) .atmo-sky .halo { opacity: 1; }
+body.experience-raycast[data-structure="atmosphere"]:has(#structure-root .atmo-win.lg:focus-within) #top { opacity: 0.55; }
+body.experience-raycast[data-structure="atmosphere"] #structure-root.spread .atmo-hero { opacity: 0; pointer-events: none; }
+body.experience-raycast[data-structure="atmosphere"] #structure-root.spread .atmo-stack { display: none; }
+
+body.experience-raycast[data-structure="atmosphere"].lean #top,
+body.experience-raycast[data-structure="atmosphere"].lean #status-strip,
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-win { -webkit-backdrop-filter: none; backdrop-filter: none; }
+body.experience-raycast[data-structure="atmosphere"].lean #top { background: rgba(14, 16, 22, 0.94); }
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-win { background: rgba(12, 14, 20, 0.92); }
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-win.lg { background: rgba(10, 12, 18, 0.96); box-shadow: rgba(255, 255, 255, 0.05) 0 1px 0 inset, rgba(255, 255, 255, 0.22) 0 0 0 1px, rgba(0, 0, 0, 0.5) 0 24px 60px; }
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-sky .ray,
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-sky .halo { display: none; }
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-sky::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(124deg, rgba(4, 5, 6, 0) 46%, rgba(255, 99, 99, 0.16) 56%, rgba(255, 140, 110, 0.22) 61%, rgba(255, 99, 99, 0.1) 68%, rgba(4, 5, 6, 0) 80%); }
+body.experience-raycast[data-structure="atmosphere"].lean #structure-root:has(.atmo-win.lg:focus-within) .atmo-win:not(.front) { filter: brightness(0.5); transform: none; }
+body.experience-raycast[data-structure="atmosphere"].lean #structure-root:has(.atmo-win.lg:focus-within) .atmo-hero { filter: none; }
+body.experience-raycast[data-structure="atmosphere"].lean .atmo-win.sm { filter: none; opacity: calc(1 - var(--depth, 0) * 0.25); }
+
+body.experience-raycast[data-structure="atmosphere"].no-motion .atmo-win,
+body.experience-raycast[data-structure="atmosphere"].no-motion .atmo-hero,
+body.experience-raycast[data-structure="atmosphere"].no-motion #top,
+body.experience-raycast[data-structure="atmosphere"].no-motion .atmo-sky .halo { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  body.experience-raycast[data-structure="atmosphere"] .atmo-win,
+  body.experience-raycast[data-structure="atmosphere"] .atmo-hero,
+  body.experience-raycast[data-structure="atmosphere"] #top,
+  body.experience-raycast[data-structure="atmosphere"] .atmo-sky .halo { transition: none; }
+  body.experience-raycast[data-structure="atmosphere"] #structure-root:has(.atmo-win.lg:focus-within) .atmo-win:not(.front) { transform: none; }
+}

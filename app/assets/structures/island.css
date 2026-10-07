@@ -1,0 +1,116 @@
+body.experience-raycast[data-structure="island"] { grid-template-rows: minmax(0, 1fr); }
+body.experience-raycast[data-structure="island"] #top, body.experience-raycast[data-structure="island"] #rail, body.experience-raycast[data-structure="island"] #foot, body.experience-raycast[data-structure="island"] #status-strip, body.experience-raycast[data-structure="island"] #canvas { display: none; }
+body.experience-raycast[data-structure="island"] #shell { grid-row: 1; grid-template-columns: minmax(0, 1fr); }
+body.experience-raycast[data-structure="island"] #stage { background: radial-gradient(1100px 520px at 50% -12%, color-mix(in srgb, var(--txt) 3.5%, transparent), transparent 62%), var(--bg); }
+body.experience-raycast[data-structure="island"] #composer { width: min(712px, calc(100% - 32px)); margin-left: auto; margin-right: auto; }
+
+body.experience-raycast[data-structure="island"] #structure-root { --il-col: 712px; display: flex; flex-direction: column; overflow: hidden; }
+body.experience-raycast[data-structure="island"] #structure-root.il-plane { display: none; }
+
+body.experience-raycast[data-structure="island"] .il-halo { display: none; position: absolute; top: -40px; left: 50%; width: 640px; height: 140px; transform: translateX(-50%); background: radial-gradient(closest-side, color-mix(in srgb, var(--signal) 13%, transparent), transparent); z-index: 39; pointer-events: none; }
+body.experience-raycast[data-structure="island"] .il-calling .il-halo { display: block; }
+body.experience-raycast[data-structure="island"] .il-open .il-halo { width: min(1100px, 100%); height: 300px; top: -80px; }
+
+body.experience-raycast[data-structure="island"] .il-island { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 40; max-width: calc(100% - 32px); border-radius: 9999px; background: black; box-shadow: 0 0 0 1px color-mix(in srgb, var(--txt) 10%, transparent), inset 0 1px 0 color-mix(in srgb, var(--txt) 10%, transparent), 0 14px 36px rgba(0, 0, 0, 0.7); color: var(--txt); transition: border-radius 160ms var(--ease); }
+body.experience-raycast[data-structure="island"] .il-bar { display: flex; align-items: center; gap: 14px; height: 40px; padding: 0 8px 0 16px; white-space: nowrap; cursor: pointer; overflow: hidden; }
+body.experience-raycast[data-structure="island"] .il-island.open { width: min(920px, calc(100% - 32px)); max-height: calc(100% - 24px); overflow-y: auto; padding: 14px 16px 16px; border-radius: 30px; }
+body.experience-raycast[data-structure="island"] .il-island.open .il-bar { display: none; }
+body.experience-raycast[data-structure="island"] .il-panel[hidden] { display: none; }
+
+body.experience-raycast[data-structure="island"] .il-fleet { display: flex; align-items: center; gap: 7px; }
+body.experience-raycast[data-structure="island"] .il-fleet .il-gap { width: 6px; }
+body.experience-raycast[data-structure="island"] .il-fleet .rc-dot { margin: 0; padding: 0; border: 0; appearance: none; cursor: pointer; }
+body.experience-raycast[data-structure="island"] .il-fleet .rc-dot.cur { outline: 1.5px solid var(--txt); outline-offset: 3px; }
+body.experience-raycast[data-structure="island"] .il-sep { flex: none; width: 1px; height: 16px; background: color-mix(in srgb, var(--txt) 12%, transparent); }
+body.experience-raycast[data-structure="island"] .il-ask { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 500; letter-spacing: 0.008em; color: var(--txt); }
+body.experience-raycast[data-structure="island"] .il-ask.calm { font-weight: 400; color: var(--txt-2); }
+body.experience-raycast[data-structure="island"] .il-ask .who { overflow: hidden; text-overflow: ellipsis; max-width: 260px; font-weight: 400; color: var(--txt-2); }
+body.experience-raycast[data-structure="island"] .il-prs { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--txt-2); }
+body.experience-raycast[data-structure="island"] .il-prs .bad { width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); }
+
+body.experience-raycast[data-structure="island"] .il-ihead { display: flex; align-items: center; gap: 14px; height: 32px; padding: 0 4px 0 6px; }
+body.experience-raycast[data-structure="island"] .il-ihead .count { font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--txt-3); white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-ihead .il-keys { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt-3); white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-ihead .il-keys .rc-key { margin-left: 2px; }
+
+body.experience-raycast[data-structure="island"] .il-needs { margin-top: 12px; padding: 18px 20px 16px; border-radius: 22px; background: linear-gradient(180deg, color-mix(in srgb, var(--signal) 11%, transparent), color-mix(in srgb, var(--signal) 3.5%, transparent) 70%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 24%, transparent), inset 0 1px 0 color-mix(in srgb, var(--txt) 4%, transparent); }
+body.experience-raycast[data-structure="island"] .il-needs .top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+body.experience-raycast[data-structure="island"] .il-needs .name { all: unset; cursor: pointer; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; font-weight: 500; color: var(--txt); }
+body.experience-raycast[data-structure="island"] .il-needs .name:hover { text-decoration: underline; text-underline-offset: 3px; }
+body.experience-raycast[data-structure="island"] .il-badge { flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border-radius: 6px; background: color-mix(in srgb, var(--signal) 18%, transparent); color: var(--signal); font-size: 12px; font-weight: 500; white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-needs .when { margin-left: auto; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--txt-3); white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-needs .q { margin: 12px 0 6px; max-width: 760px; font-size: 16px; line-height: 1.6; color: var(--txt); }
+body.experience-raycast[data-structure="island"] .il-needs .ctx { max-width: 780px; font-size: 13px; line-height: 1.55; color: var(--txt-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+body.experience-raycast[data-structure="island"] .il-sugg { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+body.experience-raycast[data-structure="island"] .il-pill { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 9999px; background: rgba(0, 0, 0, 0.35); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 12%, transparent); font-size: 12px; color: var(--txt-2); }
+body.experience-raycast[data-structure="island"] .il-pill:hover, body.experience-raycast[data-structure="island"] .il-pill:focus-visible { color: var(--txt); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 24%, transparent); }
+body.experience-raycast[data-structure="island"] .il-reply { display: flex; align-items: center; gap: 10px; margin-top: 10px; height: 48px; padding: 0 8px 0 16px; border-radius: 14px; background: rgba(0, 0, 0, 0.55); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 14%, transparent); }
+body.experience-raycast[data-structure="island"] .il-reply:focus-within { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 28%, transparent); }
+body.experience-raycast[data-structure="island"] .il-in { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; color: var(--txt); font: 400 15px/1 var(--sans); }
+body.experience-raycast[data-structure="island"] .il-in:focus-visible { outline: none; }
+body.experience-raycast[data-structure="island"] .il-in::placeholder { color: var(--txt-3); }
+body.experience-raycast[data-structure="island"] .il-send { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 6px 0 12px; border-radius: 8px; background: var(--accent); color: var(--accent-d); font-size: 13px; font-weight: 500; white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-send .rc-key { min-width: 18px; height: 18px; background: var(--accent-d); color: var(--accent); box-shadow: none; }
+body.experience-raycast[data-structure="island"] .il-hint { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.02em; color: var(--txt-3); }
+body.experience-raycast[data-structure="island"] .il-hint .dotsep { margin: 0 6px; opacity: 0.5; }
+body.experience-raycast[data-structure="island"] .il-said { margin-top: 8px; font-family: var(--mono); font-size: 11px; color: var(--green); }
+body.experience-raycast[data-structure="island"] .il-said.bad { color: var(--signal); }
+body.experience-raycast[data-structure="island"] .il-said[hidden] { display: none; }
+
+body.experience-raycast[data-structure="island"] .il-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+body.experience-raycast[data-structure="island"] .il-cell { all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; min-width: 0; min-height: 112px; padding: 14px 16px; border-radius: 18px; background: color-mix(in srgb, var(--txt) 3.5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 6%, transparent); }
+body.experience-raycast[data-structure="island"] .il-cell:hover { background: color-mix(in srgb, var(--txt) 5%, transparent); }
+body.experience-raycast[data-structure="island"] .il-cell.here { background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 20%, transparent); }
+body.experience-raycast[data-structure="island"] .il-cell.picked { box-shadow: inset 0 0 0 1.5px var(--txt); }
+body.experience-raycast[data-structure="island"] .il-cell .h { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 500; color: var(--txt); }
+body.experience-raycast[data-structure="island"] .il-cell .h .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-cell .h .rc-key { margin-left: auto; }
+body.experience-raycast[data-structure="island"] .il-cell .st { margin: 4px 0 8px 16px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.02em; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.experience-raycast[data-structure="island"] .il-cell .ph { margin-left: 16px; font-size: 13px; line-height: 1.5; color: var(--txt-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+body.experience-raycast[data-structure="island"] .il-cell.prs { justify-content: space-between; }
+body.experience-raycast[data-structure="island"] .il-cell.prs .big { font-size: 28px; font-weight: 500; line-height: 1; color: var(--txt); }
+body.experience-raycast[data-structure="island"] .il-cell.prs .row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--txt-2); }
+body.experience-raycast[data-structure="island"] .il-cell.prs .row svg { width: 14px; height: 14px; }
+body.experience-raycast[data-structure="island"] .il-cell.prs .row .rc-key { margin-left: auto; }
+
+body.experience-raycast[data-structure="island"] .il-ifoot { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 14px; padding: 0 6px; }
+body.experience-raycast[data-structure="island"] .il-block { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--txt-3); }
+body.experience-raycast[data-structure="island"] .il-block.on, body.experience-raycast[data-structure="island"] .il-block:hover { color: var(--txt); }
+
+body.experience-raycast[data-structure="island"] .il-veil { display: none; position: absolute; inset: 0; z-index: 30; background: rgba(0, 0, 0, 0.62); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+body.experience-raycast[data-structure="island"] .il-open .il-veil { display: block; }
+
+body.experience-raycast[data-structure="island"] .il-col { flex: 1; min-height: 0; display: flex; flex-direction: column; width: min(var(--il-col), calc(100% - 32px)); margin: 0 auto; padding-top: 88px; transition: width 200ms var(--ease); }
+body.experience-raycast[data-structure="island"] .il-col:has(> .il-seat > .tile.open) { width: calc(100% - 24px); padding-top: 64px; }
+body.experience-raycast[data-structure="island"] .il-head { flex: none; padding: 0 16px 20px; }
+body.experience-raycast[data-structure="island"] .il-head .eyebrow { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.073em; text-transform: uppercase; color: var(--txt-3); }
+body.experience-raycast[data-structure="island"] .il-title { margin: 10px 0; font-size: 28px; font-weight: 500; letter-spacing: 0.2px; line-height: 1.2; color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-meta { display: flex; align-items: center; gap: 10px; min-width: 0; font-family: var(--mono); font-size: 12px; letter-spacing: 0.017em; color: var(--txt-3); white-space: nowrap; }
+body.experience-raycast[data-structure="island"] .il-meta .w { color: var(--txt-2); }
+body.experience-raycast[data-structure="island"] .il-meta .pipe { flex: none; width: 1px; height: 12px; background: var(--panel-3); }
+body.experience-raycast[data-structure="island"] .il-meta .sp { flex: 1; }
+body.experience-raycast[data-structure="island"] .il-tool { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px 0 8px; border-radius: 6px; font-family: var(--sans); font-size: 12px; color: var(--txt-3); }
+body.experience-raycast[data-structure="island"] .il-tool svg { width: 13px; height: 13px; }
+body.experience-raycast[data-structure="island"] .il-tool:hover, body.experience-raycast[data-structure="island"] .il-tool:focus-visible { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+body.experience-raycast[data-structure="island"] .il-empty { display: grid; gap: 6px; padding-top: 18vh; text-align: center; font-size: 13px; color: var(--txt-3); }
+body.experience-raycast[data-structure="island"] .il-empty b { font-size: 18px; font-weight: 500; color: var(--txt); }
+
+body.experience-raycast[data-structure="island"] .il-seat { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+body.experience-raycast[data-structure="island"] .il-seat > .tile:not(.open) { grid-template-rows: minmax(0, 1fr); border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+body.experience-raycast[data-structure="island"] .il-seat > .tile:not(.open) > .side { display: none; }
+body.experience-raycast[data-structure="island"] .il-seat > .tile:not(.open) .well.structured .sv-msg { font-size: 16px; line-height: 1.7; color: color-mix(in srgb, var(--txt) 88%, transparent); }
+body.experience-raycast[data-structure="island"] .il-seat > .tile:not(.open) .sv-composer { padding-bottom: 24px; }
+body.experience-raycast[data-structure="island"] .il-seat > .tile.open { border-radius: 16px; }
+body.experience-raycast[data-structure="island"] .il-seat > .tile:not(.open) > .well { border: 0; background: transparent; }
+body.experience-raycast[data-structure="island"] .il-seat > .tile:not(.open) .sv-foot { border-top: 0; }
+body.experience-raycast[data-structure="island"] .il-col:has(> .il-seat > .tile.open) .il-head { display: none; }
+@media (max-width: 760px) {
+  body.experience-raycast[data-structure="island"] .il-grid { grid-template-columns: minmax(0, 1fr); }
+  body.experience-raycast[data-structure="island"] .il-cell { min-height: 0; }
+  body.experience-raycast[data-structure="island"] .il-ihead .il-keys, body.experience-raycast[data-structure="island"] .il-ask .who, body.experience-raycast[data-structure="island"] .il-hint { display: none; }
+  body.experience-raycast[data-structure="island"] .il-island.open { width: calc(100% - 16px); max-width: none; padding: 12px; border-radius: 24px; }
+  body.experience-raycast[data-structure="island"] .il-needs { padding: 14px 14px 12px; }
+  body.experience-raycast[data-structure="island"] .il-col { width: calc(100% - 16px); padding-top: 68px; }
+  body.experience-raycast[data-structure="island"] .il-title { font-size: 22px; }
+  body.experience-raycast[data-structure="island"] .il-tool > span:not(.rc-key) { display: none; }
+}

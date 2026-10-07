@@ -1,0 +1,119 @@
+name: ci
+permissions:
+  contents: read
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    name: tests (${{ matrix.shard }}/4)
+    steps:
+      - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: node comes from the runner, so no pull can rate-limit a stranger's first pull request
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            app/package-lock.json
+      - name: the seats live in tmux, so the runner needs one to open them
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+      - run: npm ci --no-audit --no-fund --omit=dev
+        working-directory: server
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - run: npm run build
+        working-directory: app
+      - run: node --test --test-force-exit --test-concurrency=2 --test-timeout=120000 --test-shard=${{ matrix.shard }}/4 app/usage/tests/*.test.mjs app/manifest/tests/*.test.mjs app/tests/*.test.js app/tests/*.test.mjs server/tests/*.test.mjs infra/tests/*.test.mjs
+  without-the-deployment:
+    runs-on: ubuntu-latest
+    name: tests without the deployment folder
+    steps:
+      - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+      - name: the tree is published without any deployment folder or what its export leaves behind, so the suite has to pass without them
+        run: |
+          left="$RUNNER_TEMP/left-behind"
+          : > "$left"
+          for folder in */; do
+            [ -f "${folder}hive.defaults" ] || continue
+            echo "${folder%/}" >> "$left"
+            if [ -f "${folder}scripts/export-public.mjs" ]; then
+              EXPORT="$PWD/${folder}scripts/export-public.mjs" node --input-type=module -e 'const { LEFT_BEHIND } = await import(process.env.EXPORT); console.log(LEFT_BEHIND.join("\n"))' >> "$left"
+            fi
+          done
+          sort -u "$left" | xargs -r git rm -rq --ignore-unmatch --
+          if ls */hive.defaults >/dev/null 2>&1; then echo "a deployment folder is still here"; exit 1; fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            app/package-lock.json
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+      - run: npm ci --no-audit --no-fund --omit=dev
+        working-directory: server
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - run: npm run build
+        working-directory: app
+      - run: node --test --test-force-exit --test-concurrency=2 --test-timeout=120000 app/usage/tests/*.test.mjs app/manifest/tests/*.test.mjs app/tests/*.test.js app/tests/*.test.mjs server/tests/*.test.mjs infra/tests/*.test.mjs
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck ships with the runner, so this needs no registry either
+        run: shellcheck -S error infra/scripts/*.sh infra/docker/*.sh
+  compose:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the lean runner has no compose plugin, so bring one
+        env:
+          COMPOSE_VERSION: v2.39.2
+        run: |
+          case "$(uname -m)" in
+            aarch64|arm64) arch=aarch64 ;;
+            *) arch=x86_64 ;;
+          esac
+          mkdir -p "$HOME/.docker/cli-plugins"
+          curl -fsSL -o "$HOME/.docker/cli-plugins/docker-compose" \
+            "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${arch}"
+          chmod +x "$HOME/.docker/cli-plugins/docker-compose"
+          docker compose version
+      - name: one command puts a hive up on a machine that never heard of us
+        working-directory: infra/docker
+        run: |
+          docker compose up -d --build
+          for i in $(seq 1 90); do
+            docker compose exec -T hive node -e "fetch('http://127.0.0.1:8791/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" && break
+            if [ "$i" = "90" ]; then echo "the door never answered:"; docker compose logs; exit 1; fi
+            sleep 2
+          done
+          docker compose exec -T hive sh -lc 'command -v claude && command -v git && tmux has-session -t hive'
+          docker compose logs hive | grep -qE 'server: [0-9]+ seat\(s\) back' \
+            || { echo "the box came up without bringing its seats back"; docker compose logs hive; exit 1; }
+          docker compose exec -T hive sh -lc 'test ! -e /workspace/npm-global/bin/hive' \
+            || { echo "a command line is back on the volume"; exit 1; }
+          docker compose exec -T hive mkdir -p /app/server/tests
+          for one in seats.test.mjs seats-door.test.mjs; do
+            docker compose cp "../../server/tests/$one" "hive:/app/server/tests/$one"
+          done
+          docker compose exec -T hive node --test --test-timeout=120000 \
+            /app/server/tests/seats.test.mjs /app/server/tests/seats-door.test.mjs
+          docker compose exec -T hive sh -lc '
+            cat /workspace/hive/boot.log 2>/dev/null || true
+            ! grep -qE "step=(missing-tool|claude-on-volume|tmux|sshd|server)" /workspace/hive/boot.log 2>/dev/null
+          '
+          docker compose down -v

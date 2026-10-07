@@ -1,0 +1,79 @@
+body.experience-raycast[data-structure="map"] #shell { grid-template-columns: minmax(0, 1fr); }
+body.experience-raycast[data-structure="map"] #rail { display: none; }
+body.experience-raycast[data-structure="map"] #structure-root { z-index: 7; pointer-events: none; }
+body.experience-raycast[data-structure="map"] #structure-root > * { pointer-events: auto; }
+
+body.experience-raycast[data-structure="map"] #plane { margin: 0; border-radius: 0; box-shadow: none; background-image: radial-gradient(circle, color-mix(in srgb, var(--txt) 8%, transparent) 1px, transparent 1.4px); background-size: 18px 18px; background-position: 9px 9px; }
+body.experience-raycast[data-structure="map"] #plane::after { content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none; opacity: 0; transition: opacity 380ms var(--ease); background: radial-gradient(ellipse 58% 62% at 50% 52%, transparent 55%, color-mix(in srgb, var(--bg) 70%, transparent) 100%); }
+body.experience-raycast[data-structure="map"] #plane:has(> #plane-world.dense-full)::after { opacity: 1; }
+body.experience-raycast[data-structure="map"] #plane-back, body.experience-raycast[data-structure="map"] #plane-world .pgroup { display: none; }
+
+body.experience-raycast[data-structure="map"] #plane { --mp-inv: 1; }
+body.experience-raycast[data-structure="map"] #plane-world { --mp-u: 1; }
+body.experience-raycast[data-structure="map"] #plane-world.dense-card { --mp-u: var(--mp-inv); }
+body.experience-raycast[data-structure="map"] #plane-world.dense-pill { --mp-u: var(--pk); }
+body.experience-raycast[data-structure="map"] .mp-area { position: absolute; border-radius: calc(20px * var(--mp-u)); background: color-mix(in srgb, var(--txt) 1.6%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 7.5%, transparent); pointer-events: none; }
+body.experience-raycast[data-structure="map"] .mp-area b, body.experience-raycast[data-structure="map"] .mp-area i { position: absolute; top: calc(-11px * var(--mp-inv)); display: inline-flex; align-items: center; height: calc(22px * var(--mp-inv)); padding: 0 calc(8px * var(--mp-inv)); border-radius: calc(6px * var(--mp-inv)); background: var(--bg); box-shadow: inset 0 0 0 calc(1px * var(--mp-inv)) color-mix(in srgb, var(--txt) 9%, transparent); font-family: var(--mono); font-style: normal; font-weight: 400; font-size: calc(11px * var(--mp-inv)); white-space: nowrap; }
+body.experience-raycast[data-structure="map"] .mp-area b { left: calc(16px * var(--mp-inv)); letter-spacing: .05em; text-transform: uppercase; color: var(--txt); }
+body.experience-raycast[data-structure="map"] .mp-area i { right: calc(16px * var(--mp-inv)); color: var(--txt-3); }
+body.experience-raycast[data-structure="map"] .mp-area.here { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 12%, transparent); }
+body.experience-raycast[data-structure="map"] .mp-area.needs { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 40%, transparent); }
+body.experience-raycast[data-structure="map"] .mp-area.needs i { color: var(--signal); }
+
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot { --mp-ring: var(--txt-3); position: relative; width: calc(20px * var(--mp-u)); height: calc(20px * var(--mp-u)); border-radius: 50%; background: var(--panel-3, var(--panel)); box-shadow: 0 0 0 calc(2px * var(--mp-u)) var(--mp-ring); }
+body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot { width: 18px; height: 18px; box-shadow: 0 0 0 2px var(--mp-ring); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot::after, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot::after { content: ""; position: absolute; inset: 32%; border-radius: 50%; background: var(--mp-ring); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.needs, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.needs { --mp-ring: var(--signal); box-shadow: 0 0 0 calc(2px * var(--mp-u)) var(--mp-ring), 0 0 0 calc(6px * var(--mp-u)) color-mix(in srgb, var(--signal) 10%, transparent), 0 0 calc(22px * var(--mp-u)) calc(2px * var(--mp-u)) color-mix(in srgb, var(--signal) 45%, transparent); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.answered, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.answered { --mp-ring: var(--blue); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.done, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.done { --mp-ring: var(--green); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.ready, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.ready { --mp-ring: var(--txt-2); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.idle, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.idle { --mp-ring: color-mix(in srgb, var(--txt) 22%, transparent); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.stalled, body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.working, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.stalled, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.working { --mp-ring: var(--yellow); box-shadow: none; }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.stalled::before, body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.working::before, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.stalled::before, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.working::before { content: ""; position: absolute; inset: -2px; border-radius: 50%; background: conic-gradient(from 30deg, var(--yellow) 0 66%, color-mix(in srgb, var(--yellow) 14%, transparent) 66% 100%); -webkit-mask: radial-gradient(circle, transparent calc(50% - 2.5px), #000 calc(50% - 2px)); mask: radial-gradient(circle, transparent calc(50% - 2.5px), #000 calc(50% - 2px)); animation: rc-mp-turn 2.4s linear infinite; }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top .rc-dot.stalled::before, body.experience-raycast[data-structure="map"] #plane-world .pnode.live .t-dot.stalled::before { animation: none; background: none; -webkit-mask: none; mask: none; border: 2px dashed var(--yellow); box-sizing: border-box; }
+@keyframes rc-mp-turn { to { transform: rotate(1turn); } }
+@media (prefers-reduced-motion: reduce) { body.experience-raycast[data-structure="map"] #plane-world .rc-dot.working::before, body.experience-raycast[data-structure="map"] #plane-world .t-dot.working::before { animation: none; } }
+
+body.experience-raycast[data-structure="map"] #plane-world .pnode.live > .pcard { position: absolute; inset: 0; }
+body.experience-raycast[data-structure="map"] #plane-world.dense-full .pnode.live > .pcard { display: none; }
+body.experience-raycast[data-structure="map"] #plane-world:not(.dense-full) .pnode.live > .tile { visibility: hidden; }
+body.experience-raycast[data-structure="map"] #plane-world .pcard { border-radius: calc(12px * var(--mp-u)); background: var(--panel); }
+body.experience-raycast[data-structure="map"] #plane-world.dense-card .pcard { gap: calc(10px * var(--mp-u)); padding: calc(14px * var(--mp-u)); }
+body.experience-raycast[data-structure="map"] #plane-world.dense-card .pc-name { font-size: calc(14px * var(--mp-u)); }
+body.experience-raycast[data-structure="map"] #plane-world.dense-card .pc-when { font-size: calc(11px * var(--mp-u)); }
+body.experience-raycast[data-structure="map"] #plane-world.dense-card .pc-sum { font-size: calc(13px * var(--mp-u)); line-height: 1.5; -webkit-line-clamp: 4; flex: 0 1 auto; min-height: 0; color: var(--txt-2); -webkit-mask: linear-gradient(to bottom, #000 calc(100% - 1.4em), transparent); mask: linear-gradient(to bottom, #000 calc(100% - 1.4em), transparent); }
+body.experience-raycast[data-structure="map"] #plane-world .pcard[data-state="needs"] { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 5%, transparent), 0 0 0 1px color-mix(in srgb, var(--signal) 60%, transparent), 0 0 0 calc(6px * var(--mp-u)) color-mix(in srgb, var(--signal) 7%, transparent), 0 0 calc(80px * var(--mp-u)) calc(6px * var(--mp-u)) color-mix(in srgb, var(--signal) 16%, transparent); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-top { gap: calc(12px * var(--mp-u)); }
+body.experience-raycast[data-structure="map"] #plane-world .pcard[data-state="needs"] .pc-state { color: var(--signal); }
+body.experience-raycast[data-structure="map"] #plane-world .pc-state { font-family: var(--mono); font-size: calc(11px * var(--mp-u)); color: var(--txt-2); }
+body.experience-raycast[data-structure="map"] #plane-world.dense-pill .pc-top .rc-dot { width: calc(12px * var(--pk)); height: calc(12px * var(--pk)); }
+body.experience-raycast[data-structure="map"] #plane-world .pnode.live > .tile[data-state="needs"] { box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 60%, transparent), 0 0 0 6px color-mix(in srgb, var(--signal) 7%, transparent), 0 0 80px 6px color-mix(in srgb, var(--signal) 16%, transparent); }
+
+body.experience-raycast[data-structure="map"] #plane-top .pt-name { height: 32px; padding: 0 12px; border-radius: 10px; }
+body.experience-raycast[data-structure="map"] #plane-hud { left: 50%; bottom: 18px; transform: translateX(-50%); gap: 4px; height: 44px; padding: 0 8px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--line-3), 0 12px 32px color-mix(in srgb, #000 35%, transparent); }
+body.experience-raycast[data-structure="map"] #plane-hud button { height: 32px; padding: 0 10px; border-radius: 8px; }
+body.experience-raycast[data-structure="map"] #plane-hud button#plane-out, body.experience-raycast[data-structure="map"] #plane-hud button#plane-in { width: 32px; padding: 0; justify-content: center; }
+body.experience-raycast[data-structure="map"] #plane-map { border-radius: 10px; }
+body.experience-raycast[data-structure="map"] #plane-map i.needs { box-shadow: 0 0 0 2px color-mix(in srgb, var(--signal) 25%, transparent); }
+
+body.experience-raycast[data-structure="map"] .mp-call { all: unset; position: absolute; left: 50%; top: 14px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 10px; height: 36px; padding: 0 6px 0 14px; border-radius: 12px; background: color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter: blur(48px); -webkit-backdrop-filter: blur(48px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 35%, transparent), 0 0 40px color-mix(in srgb, var(--signal) 12%, transparent); font-size: 12.5px; color: var(--txt-2); white-space: nowrap; cursor: pointer; }
+body.experience-raycast[data-structure="map"] .mp-call[hidden] { display: none; }
+body.experience-raycast[data-structure="map"] .mp-call:hover, body.experience-raycast[data-structure="map"] .mp-call:focus-visible { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--signal) 60%, transparent), 0 0 40px color-mix(in srgb, var(--signal) 18%, transparent); }
+body.experience-raycast[data-structure="map"] .mp-call .mp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal); box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 18%, transparent); }
+body.experience-raycast[data-structure="map"] .mp-call .mp-name { max-width: 280px; overflow: hidden; text-overflow: ellipsis; font-weight: 500; color: var(--txt); }
+body.experience-raycast[data-structure="map"] .mp-call .mp-more { font-family: var(--mono); font-size: 11px; color: var(--signal); }
+body.experience-raycast[data-structure="map"] .mp-call .mp-more[hidden] { display: none; }
+body.experience-raycast[data-structure="map"] .mp-call .mp-go { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 8px; border-radius: 8px; background: color-mix(in srgb, var(--txt) 7%, transparent); font-size: 12px; color: var(--txt); }
+body.experience-raycast[data-structure="map"] .mp-call .rc-key, body.experience-raycast[data-structure="map"] .mp-hint .rc-key { min-width: 18px; height: 18px; padding: 0 4px; font-size: 10px; }
+body.experience-raycast[data-structure="map"]:has(#plane-world.dense-full) .mp-call.here { display: none; }
+
+body.experience-raycast[data-structure="map"] .mp-hint { position: absolute; right: 16px; top: 14px; display: none; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 10px; background: color-mix(in srgb, var(--panel) 72%, transparent); backdrop-filter: blur(48px); -webkit-backdrop-filter: blur(48px); box-shadow: inset 0 0 0 1px var(--line-3); font-size: 12px; color: var(--txt-2); white-space: nowrap; pointer-events: none; }
+body.experience-raycast[data-structure="map"] .mp-hint .rc-key + .rc-key, body.experience-raycast[data-structure="map"] .mp-hint .rc-key:not(:first-child) { margin-left: 8px; }
+body.experience-raycast[data-structure="map"]:has(#plane:not([hidden]) > #plane-world.dense-full) #structure-root.reading .mp-hint { display: flex; }
+
+@media (max-width: 760px) {
+  body.experience-raycast[data-structure="map"] .mp-call { top: 56px; max-width: calc(100% - 32px); }
+  body.experience-raycast[data-structure="map"] .mp-call .mp-name { max-width: 140px; }
+  body.experience-raycast[data-structure="map"] .mp-hint, body.experience-raycast[data-structure="map"] #plane-map { display: none; }
+  body.experience-raycast[data-structure="map"] #plane-hud { max-width: calc(100% - 32px); overflow-x: auto; }
+}

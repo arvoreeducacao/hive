@@ -1,0 +1,19 @@
+{
+  "manifest_version": 2,
+  "name": "Aveia",
+  "short_name": "Aveia",
+  "version": "2.0.1",
+  "description": "Grava reuniões do Google Meet pelas legendas, no Aveia e no Hive.",
+  "homepage_url": "__AVEIA_ORIGIN__",
+  "browser_specific_settings": { "gecko": { "id": "meet-captions@hive.dev", "strict_min_version": "115.0", "data_collection_permissions": { "required": ["personalCommunications", "websiteContent"] } } },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "browser_action": { "default_title": "Aveia", "default_popup": "popup.html", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png" } },
+  "options_ui": { "page": "popup.html", "browser_style": false },
+  "permissions": ["storage", "nativeMessaging", "https://meet.google.com/*", "__AVEIA_ORIGIN__/*"],
+  "optional_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": { "scripts": ["aveia-origin.js", "destinations.js", "caption-language.js", "background.js"], "persistent": true },
+  "content_scripts": [
+    { "matches": ["https://meet.google.com/*"], "js": ["caption-parse.js", "caption-language.js", "content.js"], "run_at": "document_idle" },
+    { "matches": ["__AVEIA_ORIGIN__/*"], "js": ["aveia-origin.js", "aveia-connect.js"], "run_at": "document_start" }
+  ]
+}

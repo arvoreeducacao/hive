@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Aveia",
+  "short_name": "Aveia",
+  "version": "2.0.1",
+  "description": "Grava reuniões do Google Meet pelas legendas, no Aveia e no Hive.",
+  "homepage_url": "__AVEIA_ORIGIN__",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvG2cSiKcDV23dFbLl6m/V5WUlyfA094aK0UuUpVQ9TRhuqGwK60NbnoVUYKcyIWt/IBsr/Dyc0tkkLHVnjwKoPRvPk8o1RYJ5AOmyXcLWvCQYXEhDvnYRwVkFH+Ln1RcaYgA665cX7HJx97M7Z85WEDNujmo2/PrOxloa5UUD29LKQXsAE/v73U6gWFcOjUB3cWsVvO00G8gKeoU5ZuI5SQ80V9WmFVn6D/x2Qo3sxFYssFA2b/h9yyVHjF9I2vutymTlOVzbqGkYSqOx77q2qgAgnvGWK2S/YodBn/YXxlufZYN/nINor+NN6VI6J3xKVV2qTGgsENDXQfTBvzuCwIDAQAB",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "action": { "default_title": "Aveia", "default_popup": "popup.html", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png" } },
+  "options_ui": { "page": "popup.html", "open_in_tab": false },
+  "permissions": ["storage", "nativeMessaging"],
+  "optional_permissions": ["scripting"],
+  "host_permissions": ["https://meet.google.com/*", "__AVEIA_ORIGIN__/*"],
+  "optional_host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    { "matches": ["https://meet.google.com/*"], "js": ["caption-parse.js", "caption-language.js", "content.js"], "run_at": "document_idle" },
+    { "matches": ["__AVEIA_ORIGIN__/*"], "js": ["aveia-origin.js", "aveia-connect.js"], "run_at": "document_start" }
+  ]
+}

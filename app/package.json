@@ -1,0 +1,155 @@
+{
+  "name": "hive",
+  "version": "1.0.0",
+  "description": "Mosaic of the Claude Code sessions in the hive, with a real terminal in every tile.",
+  "main": "main.js",
+  "scripts": {
+    "server": "node build.mjs && node ./server.mjs",
+    "onboarding:try": "HIVE_HOME=$(mktemp -d /tmp/hive-sandbox.XXXX) HIVE_SANDBOX=1 HIVE_NO_SWEEP=1 PORT=8791 sh -c 'node build.mjs && node ./server.mjs'",
+    "app": "node build.mjs && electron .",
+    "icon": "node assets/icon.mjs",
+    "stamp": "node main/stamp.mjs",
+    "build": "node build.mjs",
+    "deps:server": "npm --prefix ../server ci --no-audit --no-fund --omit=dev",
+    "package": "npm run deps:server && npm run stamp && npm run build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac --dir",
+    "package-release": "npm run deps:server && npm run stamp && npm run build && electron-builder --mac zip dmg --arm64 --publish never",
+    "pty-linux": "mkdir -p node_modules/node-pty/prebuilds/linux-$(node -p process.arch) && cp node_modules/node-pty/build/Release/pty.node node_modules/node-pty/prebuilds/linux-$(node -p process.arch)/",
+    "package-linux": "npm run deps:server && npm run stamp && npm run build && npm run pty-linux && electron-builder --linux dir",
+    "package-release-linux": "npm run deps:server && npm run stamp && npm run build && npm run pty-linux && electron-builder --linux AppImage rpm --x64 --publish never",
+    "package-rpm": "npm run deps:server && npm run stamp && npm run build && npm run pty-linux && electron-builder --linux rpm --x64 --publish never",
+    "package-win": "npm run deps:server && npm run stamp && npm run build && electron-builder --win dir",
+    "package-release-win": "npm run deps:server && npm run stamp && npm run build && electron-builder --win nsis --x64 --publish never"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/arvoreeducacao/hive",
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-serialize": "^0.14.0",
+    "@xterm/addon-web-links": "^0.12.0",
+    "@xterm/headless": "^6.0.0",
+    "@xterm/xterm": "^6.0.0",
+    "highlight.js": "^11.12.0",
+    "jsonc-parser": "^3.3.1",
+    "koffi": "^3.3.0",
+    "monaco-editor": "^0.56.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "blobatar": "^2.0.0",
+    "electron": "^44.4.2",
+    "electron-builder": "^26.0.22",
+    "esbuild": "^0.28.2",
+    "esbuild-plugin-solid": "^0.6.0",
+    "happy-dom": "^20.12.2",
+    "solid-js": "^1.9.15"
+  },
+  "build": {
+    "appId": "dev.hive.app",
+    "publish": {
+      "provider": "github",
+      "owner": "arvoreeducacao",
+      "repo": "hive"
+    },
+    "productName": "Hive",
+    "asar": false,
+    "npmRebuild": false,
+    "files": [
+      "main.js",
+      "build.json",
+      "boot.html",
+      "app.html",
+      "server.mjs",
+      "autopush.mjs",
+      "package.json",
+      "assets/**",
+      "!node_modules/node-pty/build/**",
+      "!node_modules/monaco-editor/{esm,dev,min-maps}/**",
+      "!node_modules/monaco-editor/min/vs/language/**",
+      "!node_modules/monaco-editor/min/vs/assets/{ts,css,html,json}.worker-*.js",
+      "!node_modules/monaco-editor/min/vs/nls/lang/**",
+      "usage/**",
+      "doctor/**",
+      "manifest/**",
+      "lib/**",
+      "routes/**",
+      "extensions/**",
+      "main/**"
+    ],
+    "protocols": [
+      {
+        "name": "Hive",
+        "schemes": [
+          "hive"
+        ]
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "../server",
+        "to": "server",
+        "filter": [
+          "*.mjs",
+          "engine/*.mjs",
+          "gateway/*.mjs",
+          "peer/*.mjs",
+          "sync/*.mjs",
+          "phone/*",
+          "package.json",
+          "package-lock.json"
+        ]
+      },
+      {
+        "from": "../server/node_modules",
+        "to": "server/node_modules"
+      },
+      {
+        "from": "../infra/scripts/setup.sh",
+        "to": "setup/setup.sh"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Hive uses the microphone only when you press the microphone button in a chat or record a meeting, to turn what is said into text. The sound is transcribed on this machine and never leaves it.",
+        "NSAudioCaptureUsageDescription": "Hive listens to the computer's sound only while you record a meeting, to write down the other side of the call. The sound is transcribed on this machine and never leaves it."
+      },
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "icon": "assets/icon.icns",
+      "target": "dir",
+      "artifactName": "${productName}-${arch}.${ext}"
+    },
+    "linux": {
+      "category": "Development",
+      "maintainer": "Árvore Educação",
+      "icon": "assets/icon.png",
+      "target": "dir",
+      "artifactName": "${productName}-${arch}.${ext}"
+    },
+    "rpm": {
+      "fpm": [
+        "--rpm-rpmbuild-define=_build_id_links none"
+      ]
+    },
+    "win": {
+      "icon": "assets/icon.png",
+      "target": "nsis",
+      "artifactName": "${productName}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "artifactName": "${productName}-${arch}.${ext}"
+    }
+  },
+  "allowScripts": {
+    "electron@44.4.2": true,
+    "node-pty@1.1.0": true,
+    "electron-winstaller@5.4.0": true
+  }
+}

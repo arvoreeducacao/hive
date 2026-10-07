@@ -1,0 +1,24 @@
+:root { color-scheme: light; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; background: #faf8f3; color: #23261f; font: 400 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+main { padding: 16px; }
+header { display: flex; align-items: center; gap: 10px; }
+h1 { margin: 0; font: 500 20px/1.2 Georgia, "Times New Roman", serif; }
+h2 { margin: 0 0 2px; font-size: 14px; font-weight: 600; }
+p { margin: 0; }
+.lead { margin-top: 6px; color: #565b4e; font-size: 13px; }
+section { margin-top: 10px; padding: 12px; border: 1px solid #d9d5c9; border-radius: 12px; background: #fff; }
+section p { color: #4a4f43; font-size: 13px; overflow-wrap: anywhere; }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.acts:empty, [hidden] { display: none !important; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 14px; border: 0; border-radius: 18px; font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+.btn.go { background: #48652f; color: #fff; }
+.btn.go:hover { background: #3b5426; }
+.btn.ghost { background: transparent; color: #23261f; border: 1px solid #8a8f80; }
+.btn.ghost:hover { background: #ece8dd; }
+:focus-visible { outline: 3px solid #1a73e8; outline-offset: 2px; }
+select { min-height: 36px; max-width: 100%; padding: 0 8px; border: 1px solid #8a8f80; border-radius: 8px; background: #fff; color: #23261f; font: inherit; cursor: pointer; }
+label { cursor: pointer; }
+details { margin-top: 12px; font-size: 13px; color: #4a4f43; }
+summary { cursor: pointer; border-radius: 4px; }
+details p { margin-top: 6px; }
