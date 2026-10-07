@@ -52,7 +52,7 @@ function svSubUnpin(e, id) {
   return svConvSubUnpin(e, id);
 }
 
-const TASK_DONE = /^(completed|failed|cancell?ed|killed|error|timed_out)$/i;
+const TASK_DONE = /^(completed|failed|cancell?ed|killed|stopped|error|timed_out)$/i;
 
 function svSubTask(e, ev) {
   if (!e.subs?.size) return;
@@ -76,6 +76,10 @@ function svSubTask(e, ev) {
     const alive = new Set((ev.tasks || []).map((t) => String(t.task_id)));
     for (const [id, item] of [...e.subs]) if (item.dataset.task && !alive.has(item.dataset.task)) svSubUnpin(e, id);
   }
+}
+
+function svSubsOfAnEndedProcess(e) {
+  for (const id of [...(e.subs?.keys() || [])]) svSubUnpin(e, id);
 }
 
 function svSubUnpinTask(e, taskId) {
@@ -367,4 +371,4 @@ document.addEventListener("keydown", (ev) => {
   }
 }, true);
 
-export { closeLiveList, liveListModel, openLiveList, AGENT_TOOL, ARTIFACT_TOOL, ART_WEBVIEW, ASYNC_LAUNCH, DIFF_HUNK, IMAGE_NOTE_ONLY, SHELF_TOOL, SUB_LOG_MAX, SUB_STALE, TASK_DONE, artClock, artFileOf, artifactFace, artifactIndexAt, artifactIndexOf, artifactPublish, artifactSaid, artifactTag, diffLines, keepArtifact, openArtifact, paintArtRow, paintSubs, repaintToolDiffs, shelfPageOf, shelfPaneIndex, svArtLanded, svArtRow, svSubAsync, svSubCall, svSubEcho, svSubLanded, svSubPin, svSubStep, svSubTask, svSubUnpin, svSubUnpinTask, svToolCard, svToolResult, tookLabel };
+export { closeLiveList, liveListModel, openLiveList, AGENT_TOOL, ARTIFACT_TOOL, ART_WEBVIEW, ASYNC_LAUNCH, DIFF_HUNK, IMAGE_NOTE_ONLY, SHELF_TOOL, SUB_LOG_MAX, SUB_STALE, TASK_DONE, artClock, artFileOf, artifactFace, artifactIndexAt, artifactIndexOf, artifactPublish, artifactSaid, artifactTag, diffLines, keepArtifact, openArtifact, paintArtRow, paintSubs, repaintToolDiffs, shelfPageOf, shelfPaneIndex, svArtLanded, svArtRow, svSubAsync, svSubCall, svSubEcho, svSubLanded, svSubPin, svSubStep, svSubTask, svSubUnpin, svSubUnpinTask, svSubsOfAnEndedProcess, svToolCard, svToolResult, tookLabel };

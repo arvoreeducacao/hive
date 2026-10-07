@@ -16,7 +16,7 @@ import { expandMentions, expandPeople, personSays, seatLabel, seatSays, splitPee
 import { chatOfThread, closeFinish, finishOn, goToPr } from "./seat-menu.js";
 import { paintPageChrome, pullShelf, shelfOnScreen, shelfVersionsOf } from "./shelf.js";
 import { paintActivity, refreshContext, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine } from "./structured-seats.js";
-import { ART_WEBVIEW, artClock, artifactIndexAt, shelfPageOf, svSubCall, svSubEcho, svSubLanded, svSubTask, svSubUnpin, svToolCard, svToolResult, tookLabel } from "./subagents-dock.js";
+import { ART_WEBVIEW, artClock, artifactIndexAt, shelfPageOf, svSubCall, svSubEcho, svSubLanded, svSubTask, svSubUnpin, svSubsOfAnEndedProcess, svToolCard, svToolResult, tookLabel } from "./subagents-dock.js";
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, closeThreadPanel, exitReview, openThreadOf, prsOnScreen, pullPrs } from "./thread.js";
 import { ARTIFACT_LINK, toolSays, trimBody } from "./tool-face.js";
@@ -2999,6 +2999,7 @@ function svEvent(e, ev) {
   }
   if (ev.type === "system") {
     if (ev.subtype === "init") {
+      svSubsOfAnEndedProcess(e);
       if (ev.agent) e.agent = ev.agent;
       if (ev.model) e.model = ev.model;
       if (typeof ev.effort === "string") e.effort = ev.effort;

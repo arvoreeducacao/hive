@@ -6,7 +6,7 @@ await views();
 
 const {
   AGENT_TOOL, ASYNC_LAUNCH, SUB_LOG_MAX, SUB_STALE,
-  paintSubs, svSubAsync, svSubCall, svSubEcho, svSubLanded, svSubPin, svSubTask, svSubUnpin
+  paintSubs, svSubAsync, svSubCall, svSubEcho, svSubLanded, svSubPin, svSubTask, svSubUnpin, svSubsOfAnEndedProcess
 } = await app("subagents-dock");
 const { svConvSeed } = await app("conversation-model");
 const { getStructured } = await app("chat-stretches");
@@ -259,7 +259,7 @@ test("the notification that the task landed takes the pin down", () => {
 });
 
 test("a task that failed or was killed is just as over as one that completed", () => {
-  for (const status of ["failed", "cancelled", "killed", "timed_out"]) {
+  for (const status of ["failed", "cancelled", "killed", "stopped", "timed_out"]) {
     const e = seat();
     svSubPin(e, call("t1", { description: "one" }));
     svSubTask(e, { type: "system", subtype: "task_notification", tool_use_id: "t1", status });
@@ -329,5 +329,15 @@ test("a seat with no dock in it is left alone", () => {
   e.host.querySelector(".sv-subs").remove();
   svSubPin(e, call("t1", { description: "one" }));
   assert.doesNotThrow(() => paintSubs(e));
+  structPool.delete(e.name);
+});
+
+test("a chat whose process starts again keeps no pin of a task that died with the old one", () => {
+  const e = seat();
+  svSubPin(e, call("t1", { description: "one" }));
+  svSubPin(e, call("t2", { description: "two" }));
+  svSubTask(e, started("t1", "task-a"));
+  svSubsOfAnEndedProcess(e);
+  assert.equal(pinned(e), 0);
   structPool.delete(e.name);
 });
