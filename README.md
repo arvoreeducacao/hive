@@ -4,6 +4,11 @@
 
 Run a fleet of coding agents and watch all of them at once.
 
+> **Early access.** This repository is private for now and has no releases yet:
+> you build the app from source, as below. It has been run from a clean checkout
+> on Linux; macOS and Windows builds from source have not been tried here yet.
+> Anything that breaks or reads wrong, tell the person who invited you.
+
 Every session is a **seat**: a tile on a wall, with a real terminal behind it. You
 open a seat on a repository and a branch, tell it what you want, and it works.
 Seats read each other's screens and ask each other questions. When one stops and
@@ -40,16 +45,45 @@ to put it on a machine that has an address.
 
 ## Getting the app
 
-Builds are attached to each entry in [Releases](../../releases):
+There are no prebuilt downloads yet, so the app comes from this checkout.
 
-| Where | What to take |
+**What the machine needs**
+
+| Tool | Why |
 |---|---|
-| macOS, Apple silicon | `Hive-arm64.dmg` |
-| Linux, x86_64 | `Hive-x86_64.AppImage` or `Hive-x86_64.rpm` |
-| Windows, x64 | `Hive-x64.exe` — seats run in PowerShell and native ptys, no tmux or WSL; needs [Git for Windows](https://gitforwindows.org), the GitHub CLI (`winget install --id GitHub.cli -e`) and the Claude Code CLI |
-| Phone | nothing to install: open `https://<your server>/phone/` and type the code the desktop app shows under **who gets in** |
+| Node.js 22 or newer, with npm | builds and runs the app |
+| git | the seats work on repositories |
+| tmux | every local seat lives in a tmux window (not needed on Windows) |
+| the GitHub CLI, `gh`, signed in (`gh auth login`) | the pull request panel, reviews and merges |
+| at least one agent CLI, signed in | the seats themselves: the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) by default, or Codex, Kimi, Kiro, Cursor or OpenCode |
 
-To build it yourself: `cd app && npm ci && npm run deps:server && npm run app`. The second install is the server's, which the app starts on its own; without it a chat has no agent to talk to.
+**Build and open it**
+
+```
+cd app
+npm ci
+npm run deps:server
+npm run app
+```
+
+The second install is the server's, which the app starts on its own. Skip it and
+the app opens, but a chat has no agent to talk to.
+
+**The first run** walks you through four steps, about five minutes:
+
+1. **hello**: your name, and the folder your work lives in. Point it at a folder
+   that holds your repositories; a seat opens on one of them.
+2. **your machine**: it checks the tools above and says what is missing.
+3. **your key**: it makes the Ed25519 key that identifies this machine.
+4. **first flight**: your first chat. Write what you want and press enter.
+
+Everything the app keeps sits in `~/.hive`. Your agent's own login stays where
+that agent keeps it; the hive never asks for it.
+
+**What you will not find here.** The phone, a server in the cloud and inviting
+other people all need a server you host yourself (above, and
+[docs/run-your-own.md](docs/run-your-own.md)). On the app alone, everything runs on
+your machine and nothing is reachable from outside.
 
 ## What holds it together
 
@@ -82,6 +116,8 @@ way in: what the phone can do, the desktop app can do, over the same routes.
 | `server/phone/` | the phone page, served by the server at `/phone/` |
 | `infra/docker/` | the image, the boot script, the compose file |
 | `docs/` | running your own |
+| `site/` | the documentation site |
+| `raycast/` | a Raycast extension that opens and answers chats from anywhere on the Mac |
 
 ## Extensions
 
@@ -94,7 +130,8 @@ install, Linear first, live in
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md). Found something that looks like a hole?
-[SECURITY.md](SECURITY.md) first, please, not an issue.
+[SECURITY.md](SECURITY.md) first, please, not an issue. While this repository is
+private, send it straight to the person who invited you.
 
 ## License
 
