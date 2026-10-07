@@ -25,11 +25,12 @@ test("the doctor calls a machine ready with codex, kimi, kiro, cursor or opencod
   assert.match(binaries, /cursor: "cursor-agent"/);
 });
 
-test("a hub is recognised by its AGENTS.md as much as by its CLAUDE.md", () => {
+test("a hub is recognised by its AGENTS.md as much as by its CLAUDE.md, and a plain folder of repositories is accepted too", () => {
   assert.match(server, /const HUB_MARKERS = \["hub\.yaml", "CLAUDE\.md", "AGENTS\.md"\];/);
   const looks = cut(server, "function hubLooks(path)", "async function localClaude");
-  assert.match(looks, /HUB_MARKERS\.some/);
-  assert.match(looks, /no hub\.yaml, CLAUDE\.md or AGENTS\.md there/);
+  assert.match(looks, /instructions: HUB_MARKERS\.some/);
+  assert.doesNotMatch(looks, /no hub\.yaml, CLAUDE\.md or AGENTS\.md there/, "a folder without instructions is still refused");
+  assert.equal((looks.match(/ok: false/g) || []).length, 2, "only a bad path or a missing folder may refuse the workspace");
   const guess = cut(server, "function guessHub()", "const HUB_MARKERS");
   assert.match(guess, /HUB_MARKERS\.some/);
 });

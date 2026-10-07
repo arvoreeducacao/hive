@@ -12,7 +12,7 @@ import { toClipboard } from "./terminal-history.js";
 import { closePrs, exitReview, prsOnScreen } from "./thread.js";
 import { startTour } from "./tour.js";
 import { closeUsage, usageOnScreen } from "./usage.js";
-import { HEX, W_STEPS, brandKey, check, copyBox, facePicker, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, rollAvatar, wAct, wAllEssential, wAvatar, wDone, wFirstOpen, wGo, wLocked, wNext, wPull, wSkipped, wb, welcomeOn } from "./welcome.js";
+import { HEX, W_STEPS, brandKey, check, copyBox, facePicker, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, rollAvatar, wAct, wAllEssential, wAvatar, wDone, wFirstOpen, wGo, wLocked, wNext, wPrev, wPull, wSkipped, wb, welcomeOn } from "./welcome.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
 
 st.mugPlayer = null;
@@ -302,6 +302,19 @@ async function saveAvatar({ quiet = false } = {}) {
   return written;
 }
 
+function nameNote(s) {
+  const echo = `<span id="w-dev-echo">${esc(wb.dev || phrase("name"))}</span>`;
+  if (s?.machine?.wantsCluster) return `${phrase("Becomes")} <code>ws-${echo}</code> ${phrase("on the cluster and the branch prefix of everything you open.")}`;
+  return `${phrase("Becomes the prefix of every branch you open:")} <code>${echo}/-/…</code>.`;
+}
+
+function hubNote(s) {
+  const look = s.hubLooks || {};
+  if (!look.ok) return esc(look.why || "");
+  if (s.wantsServer) return look.env ? phrase("found it, with a .env") : phrase("found it — no .env yet, the server will need one");
+  return look.instructions ? phrase("found it — chats open here and read the instructions it holds") : phrase("found it — chats open here, next to your repositories");
+}
+
 function pageHello() {
   const s = wb.s;
   return `<div class="w-page">
@@ -317,8 +330,8 @@ function pageHello() {
           <button type="button" class="again" data-w="face-strip">${phrase("take it all off")}</button>
         </div>
         <div class="w-fields">
-          <div><label for="w-dev">${phrase("your name in the hive")}</label><input id="w-dev" value="${esc(wb.dev)}" spellcheck="false" autocomplete="off" placeholder="${phrase("short, lowercase")}" /><p class="note${wb.nameWrong ? " bad" : ""}" id="w-dev-note">${wb.nameWrong ? phrase("the name needs 2 to 30 characters: lowercase letters, digits and hyphens") : `${phrase("Becomes")} <code>ws-<span id="w-dev-echo">${esc(wb.dev || phrase("name"))}</span></code> ${phrase("on the cluster and the branch prefix of everything you open.")} ${phrase("The face is yours too — click it to change; the team sees it next to your name.")}`}</p></div>
-          <div><label for="w-hub">${phrase("where your workspace lives on this machine")}</label><input id="w-hub" value="${esc(wb.hub)}" spellcheck="false" autocomplete="off" placeholder="${phrase("/Users/you/workspace")}" /><p class="note ${s?.hubLooks?.ok ? "good" : "bad"}" id="w-hub-note">${s ? (s.hubLooks.ok ? (s.hubLooks.env ? phrase("found it, with a .env") : phrase("found it — no .env yet, the server will need one")) : esc(s.hubLooks.why)) : phrase("checking…")}</p></div>
+          <div><label for="w-dev">${phrase("your name in the hive")}</label><input id="w-dev" value="${esc(wb.dev)}" spellcheck="false" autocomplete="off" placeholder="${phrase("short, lowercase")}" /><p class="note${wb.nameWrong ? " bad" : ""}" id="w-dev-note">${wb.nameWrong ? phrase("the name needs 2 to 30 characters: lowercase letters, digits and hyphens") : `${nameNote(s)} ${phrase("The face is yours too — click it to change; the team sees it next to your name.")}`}</p></div>
+          <div><label for="w-hub">${phrase("where your workspace lives on this machine")}</label><input id="w-hub" value="${esc(wb.hub)}" spellcheck="false" autocomplete="off" placeholder="${phrase("/Users/you/workspace")}" /><p class="note ${s?.hubLooks?.ok ? "good" : "bad"}" id="w-hub-note">${s ? hubNote(s) : phrase("checking…")}</p></div>
         </div>
         <div class="w-picker facepick${wb.facePicker ? " on" : ""}" id="w-picker">${wb.facePicker ? facePicker() : ""}</div>
       </div>
@@ -372,10 +385,10 @@ function pageSetup() {
   return `<div class="w-page">
     ${icon("setup")}
     <h2>${phrase("One click makes your key and your config.")}</h2>
-    <p class="lead">${phrase("Generates an ed25519 key at")} <code>~/.hive/key-${esc(wb.dev)}</code> ${phrase("and writes")} <code>~/.hive/config</code> ${phrase("with your name, your server and where the hub lives. Nothing is installed on your PATH: the app carries what it runs.")}</p>
+    <p class="lead">${phrase("Generates an ed25519 key at")} <code>~/.hive/key-${esc(wb.dev)}</code> ${phrase("and writes")} <code>~/.hive/config</code> ${wb.s?.wantsServer ? phrase("with your name, your server and where the hub lives. Nothing is installed on your PATH: the app carries what it runs.") : phrase("with your name and where your workspace lives. Nothing is installed on your PATH: the app carries what it runs.")}</p>
     <div class="w-checks">
       ${check(own.key, "signing key", own.key ? phrase("already at ~/.hive") : phrase("will be generated — the private half never leaves this machine"))}
-      ${check(own.config, "config", own.config ? phrase("already written") : wb.hub ? `${phrase("will point at")} <code>${esc(wb.hub)}</code> ${phrase("and")} <code>ws-${esc(wb.dev)}-0</code>` : phrase("no hub folder yet — go back to the first step and pick one"))}
+      ${check(own.config, "config", own.config ? phrase("already written") : wb.hub ? `${phrase("will point at")} <code>${esc(wb.hub)}</code>` : phrase("no hub folder yet — go back to the first step and pick one"))}
       ${wb.setupError ? check(false, "last try", `<span role="alert">${esc(wb.setupError)}</span>`) : ""}
     </div>
   </div>`;
@@ -525,11 +538,6 @@ function wPrimary() {
   return p(phrase("Continue"), "next");
 }
 
-function wPrev() {
-  const i = W_STEPS.findIndex((x) => x.id === wb.step);
-  return i > 0 ? W_STEPS[i - 1].id : null;
-}
-
 const W_PAGES = { hello: pageHello, machine: pageMachine, setup: pageSetup, server: pageServer, authorize: pageAuthorize, login: pageLogin, flight: pageFlight };
 
 const wHtml = {};
@@ -593,7 +601,10 @@ async function wRun(action, el) {
   if (action === "setup") {
     wb.setupError = "";
     const d = await wAct("setup", { name: wb.dev, hub: wb.hub });
-    if (d?.ok) return wGo(wNext());
+    if (d?.ok) {
+      document.dispatchEvent(new Event("hive:machine-changed"));
+      return wGo(wNext());
+    }
     wb.setupError = d?.error || phrase("the app did not answer — try again in a moment");
     return wPaint();
   }
@@ -719,4 +730,4 @@ function welcomeKeys(e) {
   }
 }
 
-export { PLAY_LOOK, REST_WALK, W_PAGES, aimFace, avatarPulse, clampAim, closeWelcome, fleetFeeling, flightAlive, flightCard, followPointer, followReach, follower, hadKeyboard, lentFace, lentFlash, lentPlayers, markCopied, mugBreath, mugFace, mugMood, mugPlay, mugRest, openWelcome, orbited, pageAuthorize, pageFlight, pageHello, pageLogin, pageMachine, pageServer, pageSetup, restTimer, saveAvatar, seenDevs, teamFlash, teamPlayers, teamWaiting, wForget, wHtml, wPaint, wPrev, wPrimary, wRun, wSet, waitingPlayer, welcomeKeys };
+export { PLAY_LOOK, REST_WALK, W_PAGES, aimFace, avatarPulse, clampAim, closeWelcome, fleetFeeling, flightAlive, flightCard, followPointer, followReach, follower, hadKeyboard, lentFace, lentFlash, lentPlayers, markCopied, mugBreath, mugFace, mugMood, mugPlay, mugRest, openWelcome, orbited, pageAuthorize, pageFlight, pageHello, pageLogin, pageMachine, pageServer, pageSetup, restTimer, saveAvatar, seenDevs, teamFlash, teamPlayers, teamWaiting, wForget, wHtml, wPaint, wPrimary, wRun, wSet, waitingPlayer, welcomeKeys };

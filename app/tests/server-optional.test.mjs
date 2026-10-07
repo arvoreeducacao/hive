@@ -10,8 +10,8 @@ const APP = fileURLToPath(new URL("..", import.meta.url));
 const server = readFileSync(join(APP, "server.mjs"), "utf8");
 
 const { $ } = await app("core");
-const { W_SERVER_STEPS, wSkipped, wb } = await app("welcome");
-const { pageAuthorize, pageMachine, pageServer, wPaint, wPrimary } = await app("avatars");
+const { W_SERVER_STEPS, wFirstOpen, wGo, wNext, wPrev, wSkipped, wb } = await app("welcome");
+const { pageAuthorize, pageHello, pageMachine, pageServer, wPaint, wPrimary } = await app("avatars");
 
 const dep = (name, over = {}) => ({ name, ok: true, why: "", install: `brew install ${name}`, path: "/usr/bin/" + name, ...over });
 
@@ -113,6 +113,42 @@ test("a local-only setup can leave the server step, not wait forever for an answ
   assert.equal(wPrimary().action, "recheck", "a server that was asked for still has to actually answer");
   wb.s = { wantsServer: true, server: { wanted: true, answers: true } };
   assert.equal(wPrimary().action, "next");
+});
+
+test("after the key a local-only setup goes straight to the first flight, and back skips the server too", () => {
+  $("welcome").hidden = false;
+  wb.ready = true;
+  wb.s = { wantsServer: false, machine: machine(), setup: { ok: true }, server: { wanted: false }, signature: {}, claudeOnServer: {}, sandbox: false };
+  wb.step = "setup";
+  assert.equal(wNext(), "flight", "Continue walked into the server steps of a machine that has no server");
+  wb.step = "flight";
+  assert.equal(wPrev(), "setup", "Back walked into the server steps of a machine that has no server");
+  assert.equal(wFirstOpen(), "flight");
+  wGo("server");
+  assert.equal(wb.step, "flight", "a skipped step was opened anyway");
+  wb.s = { ...wb.s, wantsServer: true, server: { wanted: true, answers: false } };
+  wb.step = "setup";
+  assert.equal(wNext(), "server", "a person who wants a server still meets it after the key");
+  wb.step = "flight";
+  assert.equal(wPrev(), "server", "login stays locked until the server answers");
+  $("welcome").hidden = true;
+});
+
+test("the first page talks about a cluster and a .env only to the person who has them", () => {
+  wb.dev = "ada";
+  wb.nameWrong = false;
+  wb.s = { wantsServer: false, machine: machine({ wantsCluster: false }), hubLooks: { ok: true, instructions: false, env: false } };
+  const local = pageHello();
+  assert.doesNotMatch(local, /cluster/, "a person with no cluster is told their name becomes something on one");
+  assert.match(local, /Becomes the prefix of every branch you open:/);
+  assert.doesNotMatch(local, /\.env/, "a person with no server is told the server will need a .env");
+  assert.match(local, /found it — chats open here, next to your repositories/);
+  wb.s = { ...wb.s, hubLooks: { ok: true, instructions: true, env: false } };
+  assert.match(pageHello(), /found it — chats open here and read the instructions it holds/);
+  wb.s = { wantsServer: true, machine: machine({ wantsCluster: true }), hubLooks: { ok: true, instructions: false, env: false } };
+  const team = pageHello();
+  assert.match(team, /on the cluster and the branch prefix/);
+  assert.match(team, /found it — no \.env yet, the server will need one/);
 });
 
 test("the rail draws no step the person can never finish", () => {

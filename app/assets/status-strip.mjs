@@ -988,6 +988,7 @@ if (typeof document !== "undefined") {
     drawLine();
     tell();
   });
+  document.addEventListener("hive:machine-changed", () => pull(false));
   pull(false);
   clock = setInterval(() => pull(false), EVERY);
   footClock = setInterval(() => {

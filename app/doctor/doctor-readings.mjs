@@ -99,7 +99,6 @@ export const fixes = {
   runSetup: (ctx) => ({ label: setupLabel(ctx, "prepare this machine"), command: setupCommand(ctx, ctx.dev || "<your-name>") }),
   pointHub: (ctx) => ({ label: setupLabel(ctx, "run setup again, so this machine learns where things are"), command: setupCommand(ctx, `${ctx.dev || "<your-name>"} ${ctx.hub || "<path-to-your-workspace>"}`) }),
   killLeftovers: (_ctx, pids = []) => ({ label: "stop the processes those chats left behind", command: `kill ${pids.join(" ")}` }),
-  fixPath: () => ({ label: "put ~/.local/bin on PATH", command: `grep -qs '.local/bin' ~/.zshrc || echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc` }),
   installDeps: (ctx, packages) => {
     const winget = onWindows(ctx) ? wingetCommand(packages) : "";
     if (winget) return { label: "install the missing tools", command: winget, shell: NATIVE };
@@ -246,20 +245,20 @@ export function checkConfig(data, ctx) {
     return item(id, title, ctx.dev ? "warn" : "fail", detail, fixes.runSetup(ctx));
   }
   const config = readConfig(data.text);
-  const missing = ["HIVE_DEV", "HIVE_POD", "HIVE_HUB"].filter((key) => !config[key]);
+  const wanted = ctx.onACluster ? ["HIVE_DEV", "HIVE_POD", "HIVE_HUB"] : ["HIVE_DEV", "HIVE_HUB"];
+  const missing = wanted.filter((key) => !config[key]);
   if (missing.length) return item(id, title, "fail", `missing from the config: ${missing.join(", ")}`, fixes.runSetup(ctx));
   if (!data.hubExists) return item(id, title, "warn", `HIVE_HUB points at ${shorten(config.HIVE_HUB, ctx.home)}, which does not exist`, fixes.pointHub(ctx));
-  return item(id, title, "ok", `HIVE_DEV=${config.HIVE_DEV} HIVE_POD=${config.HIVE_POD} HIVE_HUB=${shorten(config.HIVE_HUB, ctx.home)}`);
+  const pod = config.HIVE_POD ? ` HIVE_POD=${config.HIVE_POD}` : "";
+  return item(id, title, "ok", `HIVE_DEV=${config.HIVE_DEV}${pod} HIVE_HUB=${shorten(config.HIVE_HUB, ctx.home)}`);
 }
 
 export function checkKey(data, ctx) {
   const id = "key";
-  const title = "signing key and PATH";
+  const title = "signing key";
   if (!ctx.dev) return item(id, title, "fail", "no HIVE_DEV, so there is no way to tell which key is yours", fixes.runSetup(ctx));
   if (!data.keyExists) return item(id, title, "fail", `no key at ${shorten(data.path, ctx.home)}`, fixes.runSetup(ctx));
-  if (!data.onPath && !onWindows(ctx)) return item(id, title, "warn", `key is there, but ${shorten(data.bin, ctx.home)} is not on PATH`, fixes.fixPath(ctx));
-  if (onWindows(ctx)) return item(id, title, "ok", `key ${shorten(data.path, ctx.home)} present — nothing of the hive lives on PATH here`);
-  return item(id, title, "ok", `key ${shorten(data.path, ctx.home)} present and ${shorten(data.bin, ctx.home)} on PATH`);
+  return item(id, title, "ok", `key ${shorten(data.path, ctx.home)} present — nothing of the hive lives on PATH`);
 }
 
 export function checkDeps(missing, ctx, wanted = []) {
@@ -587,6 +586,7 @@ export function checkCloudDoor(data, ctx) {
   const id = "cloud-door";
   const title = "door to the server";
   if (!ctx.dev) return item(id, title, "fail", "no HIVE_DEV, so there is no door address to ask", fixes.runSetup(ctx));
+  if (!ctx.serverUrl) return item(id, title, "skip", "no server address — every chat runs on this machine");
   const host = String(data?.url || "").replace(/^https?:\/\//, "") || `hive-${ctx.dev}`;
   if (data?.ok) return item(id, title, "ok", `${host} answers, and names the key the seats sign for`);
   const why = String(data?.error || "it said nothing about why");

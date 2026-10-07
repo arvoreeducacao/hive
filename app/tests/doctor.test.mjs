@@ -175,16 +175,27 @@ test("config missing keys, and a HIVE_HUB that points nowhere", () => {
   assert.equal(readings.checkConfig({ exists: true, text: CONFIG, hubExists: true }, ctx).state, "ok");
 });
 
+test("a machine with no cluster is not asked for HIVE_POD, and its config reads without an empty one", () => {
+  const local = { ...ctx, pod: "", onACluster: false };
+  const seen = readings.checkConfig({ exists: true, text: "HIVE_DEV=ada\nHIVE_HUB=/hub\n", hubExists: true }, local);
+  assert.equal(seen.state, "ok", "every local-only machine was told its config is unreadable");
+  assert.equal(seen.detail, "HIVE_DEV=ada HIVE_HUB=/hub");
+  const short = readings.checkConfig({ exists: true, text: "HIVE_DEV=ada\n", hubExists: false }, local);
+  assert.equal(short.state, "fail");
+  assert.match(short.detail, /missing from the config: HIVE_HUB$/);
+  assert.match(readings.checkConfig({ exists: true, text: CONFIG, hubExists: true }, ctx).detail, /HIVE_POD=ws-ada-0/);
+});
+
 test("the config reader takes export and quotes", () => {
   assert.deepEqual(readings.readConfig('export HIVE_DEV="ada"\n# a comment\nHIVE_HUB=/a/b\n'), { HIVE_DEV: "ada", HIVE_HUB: "/a/b" });
 });
 
-test("key and PATH", () => {
-  assert.equal(readings.checkKey({ keyExists: false, path: ctx.key, bin: ctx.bin, onPath: true }, ctx).state, "fail");
-  const offPath = readings.checkKey({ keyExists: true, path: ctx.key, bin: ctx.bin, onPath: false }, ctx);
-  assert.equal(offPath.state, "warn");
-  assert.match(offPath.fix.command, /\.zshrc/);
-  assert.equal(readings.checkKey({ keyExists: true, path: ctx.key, bin: ctx.bin, onPath: true }, ctx).state, "ok");
+test("the key check asks for the key and nothing on PATH, since the app carries what it runs", () => {
+  assert.equal(readings.checkKey({ keyExists: false, path: ctx.key }, ctx).state, "fail");
+  const seen = readings.checkKey({ keyExists: true, path: ctx.key }, ctx);
+  assert.equal(seen.state, "ok", "a machine with the key was still sent to put ~/.local/bin on PATH");
+  assert.equal(seen.fix, null);
+  assert.equal(readings.fixes.fixPath, undefined);
 });
 
 test("missing dependencies turn into an install command", () => {
@@ -958,6 +969,13 @@ test("the door check tells a door that was never opened from one that stopped an
   const nameless = readings.checkCloudDoor({ url: "", ok: false, error: "" }, { ...ctx, dev: "" });
   assert.equal(nameless.state, "fail");
   assert.match(nameless.detail, /no HIVE_DEV/);
+});
+
+test("a hive with no server address is not warned about a door it never had", () => {
+  const local = { ...ctx, serverUrl: "", onACluster: false };
+  const seen = readings.checkCloudDoor({ url: "", ok: false, error: "this hive has no server address — put one in HIVE_SERVER_URL" }, local);
+  assert.equal(seen.state, "skip");
+  assert.equal(seen.fix, null);
 });
 
 test("opening a door is never applied unattended — it changes a shared production balancer", () => {

@@ -223,7 +223,6 @@ export async function buildContext(options = {}) {
     home,
     hub,
     repo,
-    bin: join(home, ".local/bin"),
     configPath,
     hasConfig,
     configText,
@@ -317,11 +316,9 @@ export async function runChecks(ctx, options = {}) {
   const checks = [
     { id: "config", title: "~/.hive/config", timeout: T.local, run: async () =>
       readings.checkConfig({ exists: ctx.hasConfig, text: ctx.configText, path: ctx.configPath, hubExists: ctx.hubExists }, ctx) },
-    { id: "key", title: "signing key and PATH", timeout: T.local, run: async () => readings.checkKey({
+    { id: "key", title: "signing key", timeout: T.local, run: async () => readings.checkKey({
       keyExists: ctx.key ? await exists(ctx.key) : false,
-      path: ctx.key,
-      bin: ctx.bin,
-      onPath: (ctx.paths || []).includes(ctx.bin)
+      path: ctx.key
     }, ctx) },
     { id: "deps", title: "dependencies on PATH", timeout: T.local, run: async () => {
       const wanted = depsWanted(ctx);

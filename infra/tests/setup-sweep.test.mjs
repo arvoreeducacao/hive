@@ -120,6 +120,7 @@ test("a machine missing the tools it needs is still swept before it is told what
   mkdirSync(bin, { recursive: true });
   mkdirSync(hub, { recursive: true });
   writeFileSync(join(bin, "hive"), "from an older setup\n");
+  writeFileSync(join(bin, "door.mjs"), "from an older setup\n");
   const r = spawnSync(BASH, [SETUP, "tester", hub], {
     env: machineWithoutTmux(home),
     encoding: "utf8"
@@ -127,6 +128,22 @@ test("a machine missing the tools it needs is still swept before it is told what
   assert.notEqual(r.status, 0, "a machine without tmux was told everything is fine");
   assert.match(r.stderr, /missing dependencies/);
   assert.equal(existsSync(join(bin, "hive")), false, "the leftover survived because the script gave up before sweeping it");
+  assert.equal(existsSync(join(bin, "door.mjs")), false, "the leftover survived because the script gave up before sweeping it");
+});
+
+test("a command of the person's own that happens to be called hive survives setup", () => {
+  const home = mkdtempSync(join(tmpdir(), "hive-sweep-"));
+  const bin = join(home, ".local", "bin");
+  const hub = join(home, "workspace");
+  mkdirSync(join(bin, "lib"), { recursive: true });
+  mkdirSync(hub, { recursive: true });
+  writeFileSync(join(bin, "hive"), "#!/bin/sh\necho my own launcher\n");
+  writeFileSync(join(bin, "lib", "keep.mjs"), "not ours\n");
+  const r = spawnSync("bash", [SETUP, "tester", hub], { env: machineWithTheTools(home), encoding: "utf8" });
+  assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
+  assert.equal(readFileSync(join(bin, "hive"), "utf8"), "#!/bin/sh\necho my own launcher\n", "setup deleted a hive that no older setup ever wrote");
+  assert.equal(existsSync(join(bin, "lib", "keep.mjs")), true);
+  assert.doesNotMatch(r.stdout, /removed the old hive command/);
 });
 
 test("the address and the pod name come from the deployment's own hook, never from setup", () => {

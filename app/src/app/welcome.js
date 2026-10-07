@@ -40,6 +40,8 @@ function wDone(id, s = wb.s) {
   return false;
 }
 
+const wReachable = (id) => !wSkipped(id) && !wLocked(id);
+
 function wLocked(id) {
   const i = W_STEPS.findIndex((x) => x.id === id);
   if (i <= 0) return false;
@@ -50,7 +52,7 @@ function wLocked(id) {
 }
 
 function wFirstOpen() {
-  return W_STEPS.find((x) => !wDone(x.id) && !wLocked(x.id))?.id || "flight";
+  return W_STEPS.find((x) => !wDone(x.id) && wReachable(x.id))?.id || "flight";
 }
 
 function wAllEssential(s) {
@@ -109,12 +111,18 @@ function wAutoAdvance(before) {
 
 function wNext() {
   const i = W_STEPS.findIndex((x) => x.id === wb.step);
-  for (let j = i + 1; j < W_STEPS.length; j++) if (!wLocked(W_STEPS[j].id)) return W_STEPS[j].id;
+  for (let j = i + 1; j < W_STEPS.length; j++) if (wReachable(W_STEPS[j].id)) return W_STEPS[j].id;
   return "flight";
 }
 
+function wPrev() {
+  const i = W_STEPS.findIndex((x) => x.id === wb.step);
+  for (let j = i - 1; j >= 0; j--) if (wReachable(W_STEPS[j].id)) return W_STEPS[j].id;
+  return null;
+}
+
 function wGo(id) {
-  if (wLocked(id)) return;
+  if (!wReachable(id)) return;
   if (id !== "hello") wb.ready = true;
   wb.step = id;
   wb.login = null;
@@ -319,4 +327,4 @@ function paintBrandAvatar() {
   followPointer(slot, me);
 }
 
-export { HEX, ICON, W_ESSENTIAL, W_SERVER_STEPS, W_STEPS, WEAR_SLOT_WORD, WEAR_WORD, brandKey, cfgFaceSolid, check, copyBox, dressedKey, faceChoiceKey, facePicker, facePickerViewModel, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, paintSettingsFace, rollAvatar, settingsFaceViewModel, toggleSettingsFace, wAct, wAllEssential, wAutoAdvance, wAvatar, wDone, wDressed, wFetch, wFirstOpen, wGo, wLocked, wNext, wPull, wSkipped, wWear, wb, welcomeOn };
+export { HEX, ICON, W_ESSENTIAL, W_SERVER_STEPS, W_STEPS, WEAR_SLOT_WORD, WEAR_WORD, brandKey, cfgFaceSolid, check, copyBox, dressedKey, faceChoiceKey, facePicker, facePickerViewModel, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, paintSettingsFace, rollAvatar, settingsFaceViewModel, toggleSettingsFace, wAct, wAllEssential, wAutoAdvance, wAvatar, wDone, wDressed, wFetch, wFirstOpen, wGo, wLocked, wNext, wPrev, wPull, wReachable, wSkipped, wWear, wb, welcomeOn };

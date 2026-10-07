@@ -6206,9 +6206,7 @@ function hubLooks(path) {
   const { path: folder, why } = hubPathFrom(path, homedir());
   if (why) return { ok: false, why };
   if (!folder || !existsSync(folder)) return { ok: false, why: "that folder does not exist" };
-  const hub = HUB_MARKERS.some((file) => existsSync(join(folder, file)));
-  if (!hub) return { ok: false, why: `no hub.yaml, CLAUDE.md or AGENTS.md there — is this the ${HUB_FOLDER} checkout?` };
-  return { ok: true, env: existsSync(join(folder, ".env")) };
+  return { ok: true, instructions: HUB_MARKERS.some((file) => existsSync(join(folder, file))), env: existsSync(join(folder, ".env")) };
 }
 
 async function localClaude() {
@@ -6337,6 +6335,7 @@ async function runSetup(name, typedHub) {
   loadConfig();
   invalidateOnboarding();
   invalidatePod();
+  doctor?.invalidateDoctor();
   const pub = readFileSync(join(HIVE_HOME, `key-${dev}.pub`), "utf8").trim();
   return { ok: true, dev, line: `${dev} ${pub}`, message: "key generated and hive installed" };
 }
@@ -6368,7 +6367,7 @@ HH:MM [done] verdict`;
 
 async function startFirstFlight(model) {
   if (await firstFlightAlive()) return { ok: true, name: FIRST_FLIGHT, already: true };
-  const bodyLike = { name: FIRST_FLIGHT, prompt: firstFlightMission(DEV || "you"), where: "local", model: model || "" };
+  const bodyLike = { name: FIRST_FLIGHT, prompt: firstFlightMission(DEV || "you"), where: "local", model: model || "", structured: true, agent: "claude" };
   const job = openJob(bodyLike);
   runJob(job, bodyLike);
   invalidateOnboarding();

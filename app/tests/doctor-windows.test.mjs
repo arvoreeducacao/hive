@@ -111,13 +111,13 @@ test("the setup a windows machine is told to run is a path its shell can read, a
   assert.equal(asPosixPath("C:\\a\\b"), "C:/a/b");
 });
 
-test("a windows machine is not told to put a folder on PATH that the hive stopped using", () => {
+test("no machine is told to put a folder on PATH that the hive stopped using", () => {
   const data = { keyExists: true, path: "C:\\Users\\leo\\.hive\\key-leo", bin: "C:\\Users\\leo\\.local\\bin", onPath: false };
   const seen = readings.checkKey(data, { ...windows, dev: "leo" });
   assert.equal(seen.state, "ok");
   assert.equal(seen.fix, null);
   const unix = readings.checkKey({ ...data, path: "/home/ada/.hive/key-ada", bin: "/home/ada/.local/bin" }, { ...linux, dev: "ada" });
-  assert.equal(unix.state, "warn", "on unix the warning is still the one that was there");
+  assert.equal(unix.state, "ok", "unix stopped using that folder too");
 });
 
 test("the setup script no longer sends a windows machine after tmux, which no seat there uses", () => {

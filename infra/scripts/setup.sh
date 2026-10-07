@@ -23,20 +23,26 @@ elif command -v pacman >/dev/null 2>&1; then
   PM=pacman
 fi
 
-LEFTOVERS="hive hive-top.py door.mjs peer.mjs peer-cli.mjs peer-mcp.mjs protocol.mjs
+OLD_CLI_FILES="hive-top.py door.mjs peer.mjs peer-cli.mjs peer-mcp.mjs protocol.mjs
 doctor/doctor.mjs doctor/doctor-runner.mjs doctor/doctor-readings.mjs doctor/doctor-core.mjs
 lib/device.mjs lib/pod-exec.mjs lib/cloud-door.mjs lib/env.mjs lib/pair.mjs
 bridge/browser-bridge.mjs bridge/browser-bridge-pod.mjs bridge/browser-bridge-protocol.mjs
 peer/peer.mjs peer/peer-cli.mjs peer/peer-mcp.mjs engine/protocol.mjs engine/paths.mjs"
+old_cli=""
+for leftover in $OLD_CLI_FILES; do
+  if [ -e "$BIN/$leftover" ]; then old_cli=1; break; fi
+done
 swept=""
-for leftover in $LEFTOVERS; do
-  [ -e "$BIN/$leftover" ] || continue
-  rm -f "$BIN/$leftover"
-  swept=1
-done
-for folder in doctor lib bridge peer engine; do
-  rmdir "$BIN/$folder" 2>/dev/null || true
-done
+if [ -n "$old_cli" ]; then
+  for leftover in hive $OLD_CLI_FILES; do
+    [ -e "$BIN/$leftover" ] || continue
+    rm -f "$BIN/$leftover"
+    swept=1
+  done
+  for folder in doctor lib bridge peer engine; do
+    rmdir "$BIN/$folder" 2>/dev/null || true
+  done
+fi
 [ -n "$swept" ] && echo "removed the old hive command from $BIN — nothing lives on your PATH any more, the app carries what it runs"
 
 REQUIRED="tmux git gh"
