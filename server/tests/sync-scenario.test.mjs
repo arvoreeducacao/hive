@@ -299,7 +299,7 @@ test("a phone asks the Mac for a new chat in an envelope the broker cannot read,
   mac.stream?.stop();
 
   const late = await phone.askBirth(mac.fingerprint, { prompt: "outra missão", where: "local" });
-  assert.equal(late.online, false, "the phone learns the Mac is not listening right now");
+  assert.equal(late.online, false, "the phone learns the computer is not listening right now");
   const macAgain = await Device.fromIdentity({ name: "mac", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: macStore, fetchImpl: localFetch(broker), lean: true });
   await macAgain.enroll("http://sync/sync");
   const againHeard = [];

@@ -44,21 +44,21 @@ of your other chats, as on the desktop. Swipe in from the left edge to go back,
 the way the phone's own apps do.
 
 The **+** opens a new, empty chat with the usual message box: the first thing
-you write is the mission, and Mac or cloud is a switch in the header. The mission
-travels to the Mac sealed for its key alone, the Mac opens the chat and names it
+you write is the mission, and computer or cloud is a switch in the header. The mission
+travels to the computer sealed for its key alone, the computer opens the chat and names it
 as it does from the desktop, and the empty screen becomes that chat as soon as
-it starts. This needs the Hive open on the Mac; the page says so when it is not.
+it starts. This needs the Hive open on the computer; the page says so when it is not.
 
 Above the message box, three pills say what the chat runs on — model, effort
-and, for a chat on the Mac, the login — and tapping one changes it, the same
+and, for a chat on the computer, the login — and tapping one changes it, the same
 way the desktop does: the phone asks the chat for its catalogue, the chat
 applies the choice and says so in the thread. A new chat has the same pills
 before it starts, with model and login (or the repository, in the cloud)
-offered by the Mac.
+offered by the computer.
 
 The `@` and `!` menus, and a link to a page on the shelf, work the same way:
-the phone asks the Mac — for the files in the chat's directory, for who is on
-the team, for the page — in an envelope sealed for the Mac, and the Mac answers
+the phone asks the computer — for the files in the chat's directory, for who is on
+the team, for the page — in an envelope sealed for the computer, and the computer answers
 in one sealed for the phone. A shelf page opens inside the app, in a frame that
 cannot reach the phone's keys.
 

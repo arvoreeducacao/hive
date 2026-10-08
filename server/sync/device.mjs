@@ -436,7 +436,7 @@ export class Device {
     if (this.asks.has(id)) {
       held.timer = setTimeout(() => {
         this.asks.delete(id);
-        held.reject(new Error(said.online ? "the Mac did not answer in time" : "your Mac is not listening right now"));
+        held.reject(new Error(said.online ? "the computer did not answer in time" : "your computer is not listening right now"));
       }, timeoutMs);
     }
     return answer;

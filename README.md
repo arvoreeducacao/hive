@@ -5,14 +5,14 @@
 Run a fleet of coding agents and watch all of them at once.
 
 > **Early access.** This repository is private for now and has no releases yet:
-> you build the app from source, as below. It has been run from a clean checkout
-> on Linux; macOS and Windows builds from source have not been tried here yet.
-> Anything that breaks or reads wrong, tell the person who invited you.
+> you build the app from source, as below, on Linux, macOS or Windows. Anything
+> that breaks or reads wrong, tell the person who invited you.
 
 Every session is a **seat**: a tile on a wall, with a real terminal behind it. You
 open a seat on a repository and a branch, tell it what you want, and it works.
 Seats read each other's screens and ask each other questions. When one stops and
-needs you, the phone shows it first, and you can answer from there.
+needs you, its tile says so, and with a server of your own the phone shows it
+too and you can answer from there.
 
 The agent is the Claude Code CLI by default. Codex runs as a first-class seat too, through its app-server, with the same tile: streamed text, tool cards, questions you answer from the app, interrupt and resume. OpenCode works one turn at a time. Kimi Code CLI runs the same way through `kimi acp` (Agent Client Protocol): streamed text and thinking, tool cards, stop, resume, `/model`, `/compact` and `/context`. Kiro CLI too, through `kiro-cli acp`, with `/effort` and a real `/mcp` on top. Cursor CLI as well, through `cursor-agent acp`, signed in with the CLI's own login. Whatever the agent, the seat comes back after a restart, sits in the archives, revives on the same agent and takes the hive's autocompact ceiling (see [the same hive, whatever the provider](docs/run-your-own.md#the-same-hive-whatever-the-provider)).
 
@@ -73,9 +73,11 @@ the app opens, but a chat has no agent to talk to.
 
 1. **hello**: your name, and the folder your work lives in. Point it at a folder
    that holds your repositories; a seat opens on one of them.
-2. **your machine**: it checks the tools above and says what is missing.
+2. **your machine**: it checks the tools above and, for anything missing, gives
+   the install command for your system.
 3. **your key**: it makes the Ed25519 key that identifies this machine.
-4. **first flight**: your first chat. Write what you want and press enter.
+4. **first flight**: opens your first chat, which introduces itself and asks you
+   a question. Answer it, and you are in.
 
 Everything the app keeps sits in `~/.hive`. Your agent's own login stays where
 that agent keeps it; the hive never asks for it.
@@ -117,7 +119,7 @@ way in: what the phone can do, the desktop app can do, over the same routes.
 | `infra/docker/` | the image, the boot script, the compose file |
 | `docs/` | running your own |
 | `site/` | the documentation site |
-| `raycast/` | a Raycast extension that opens and answers chats from anywhere on the Mac |
+| `raycast/` | a Raycast extension that opens and answers chats without switching to the app |
 
 ## Extensions
 

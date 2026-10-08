@@ -156,11 +156,11 @@ of it. The desktop app's **my phone** switch is what makes a machine's chats
 travel there. Pairing a phone turns it on.
 
 A chat asked for from the phone goes the same way in reverse: the mission is
-sealed for the Mac's key and left at `/sync/births`, the Mac opens the chat as
+sealed for the computer's key and left at `/sync/births`, the computer opens the chat as
 the desktop would and answers, sealed for the phone, with the chat's name. The
 server holds the two envelopes for half an hour and reads neither.
 
-The same envelope carries every question the phone has for the Mac: a page on
+The same envelope carries every question the phone has for the computer: a page on
 the shelf, the files in a chat's directory, who is on the team. They go through
 `/sync/asks`; the answer can be as big as a page and is fetched, sealed, by the
 device that asked. Nothing in it is readable on the server.

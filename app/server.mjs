@@ -123,6 +123,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import pty from "node-pty";
 import { KEY_BYTES, createNativeRoom, whereExe, pickWhere } from "./lib/native-room.mjs";
 import { bashOnWindows } from "./doctor/fix-shell.mjs";
+import { installCommand } from "./doctor/installer.mjs";
 import { HighlightJS as hljs } from "highlight.js/lib/core";
 import hlBash from "highlight.js/lib/languages/bash";
 import hlCss from "highlight.js/lib/languages/css";
@@ -6146,10 +6147,10 @@ export const SETUP_IN_A_BUNDLE = "../setup/setup.sh";
 const SETUP_SH = [SETUP_IN_A_CHECKOUT, SETUP_IN_A_BUNDLE].map((one) => join(HERE, one)).find(existsSync) || join(HERE, SETUP_IN_A_CHECKOUT);
 
 const DEPS = [
-  { name: "tmux", why: "every session lives in a tmux window", install: "brew install tmux", posixOnly: true },
-  { name: "kubectl", why: "reaches a server hosted on kubernetes", install: "brew install kubectl", forCluster: true },
-  { name: "aws", why: `the credential for a server on that cluster, profile ${AWS_PROFILE}`, install: "brew install awscli", forCluster: true },
-  { name: "gh", why: "the PR panel, reviews and merges", install: "brew install gh" },
+  { name: "tmux", why: "every session lives in a tmux window", install: installCommand("tmux"), posixOnly: true },
+  { name: "kubectl", why: "reaches a server hosted on kubernetes", install: installCommand("kubectl"), forCluster: true },
+  { name: "aws", why: `the credential for a server on that cluster, profile ${AWS_PROFILE}`, install: installCommand("awscli"), forCluster: true },
+  { name: "gh", why: "the PR panel, reviews and merges", install: installCommand("gh") },
   { name: "claude", why: "the sessions themselves — or codex, kimi, kiro, cursor or opencode, whichever the seats run on", install: "npm install -g @anthropic-ai/claude-code", forSeats: true }
 ];
 
@@ -6827,7 +6828,7 @@ const phoneBridge = createPhoneBridge({
       }
       return { agents, models, defaultAgent: (agents.find((agent) => agent.ready) || agents[0])?.id || "claude" };
     }
-    return { error: "this Mac does not answer that" };
+    return { error: "this computer does not answer that" };
   },
   log: (line) => console.log(`hive: ${line}`)
 });

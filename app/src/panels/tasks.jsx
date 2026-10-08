@@ -670,7 +670,7 @@ function TasksWindow(props) {
           <span class="pw-crumb"><Icon id="i-list" /><span>{m().head.title}</span><span aria-hidden="true">›</span><span class="pw-mono">{m().form.title}</span></span>
           <span class="pw-grow"></span>
           <button type="button" class="pw-act" onClick={() => props.actions.cancelForm()}>{m().form.cancelSay}<Keys keys={["esc"]} /></button>
-          <button type="button" class="pw-go" disabled={m().foot.busy} onClick={() => props.actions.saveForm()}>{m().form.saveSay}<Keys keys={["⌘", "↵"]} /></button>
+          <button type="button" class="pw-go" disabled={m().foot.busy} onClick={() => props.actions.saveForm()}>{m().form.saveSay}<Keys keys={m().form.saveKeys} /></button>
         </div>
       </Show>
     </>

@@ -347,7 +347,7 @@ function openAsk(picked, said, re) {
   asking = { picked, re: re || "" };
   const card = askCard();
   card.querySelector(".__hive_ask_at").textContent = picked.elAt || picked.selector || picked.tag || "";
-  card.querySelector(".__hive_ask_hint").textContent = said.length ? (askLook?.reply || "responder") : (askLook?.keys || "⌘↵ envia");
+  card.querySelector(".__hive_ask_hint").textContent = said.length ? (askLook?.reply || "responder") : (askLook?.keys || (/Mac/.test(navigator.platform) ? "⌘↵ envia" : "ctrl+↵ envia"));
   doorsOfAsk(card);
   card.querySelector("textarea").value = "";
   paintThread(said);

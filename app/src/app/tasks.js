@@ -313,7 +313,8 @@ function formOf() {
     members: people.map((key) => ({ key, say: key === st.tasks.me ? phrase("you") : key, on: form.members.has(key), face: devFaceOf(key) })),
     warn: phrase("The group lives in the team's repo: everyone who uses the hive sees that it exists. Its tasks only show up for the people in it."),
     cancelSay: phrase("cancel"),
-    saveSay: form.id ? phrase("save the group") : phrase("create group")
+    saveSay: form.id ? phrase("save the group") : phrase("create group"),
+    saveKeys: [...capsOf({ meta: true, code: "Enter" }).slice(0, -1), "↵"]
   };
 }
 

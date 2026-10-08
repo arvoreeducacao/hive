@@ -8,7 +8,7 @@ const $ = (id) => document.getElementById(id);
 const IC_AGENT = '<svg viewBox="0 0 16 16" width="16" height="16"><path d="M8 1.9 13.4 5v6L8 14.1 2.6 11V5Z" fill="none" stroke="#9C988F" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.9" fill="#CD694A"/></svg>';
 const GROUPS = [["needs", "waiting on you", true], ["working", "on the way", false], ["done", "came back, nobody looked", false], ["asleep", "asleep", false]];
 const PILL = { needs: "answer", working: "working", done: "done", asleep: "asleep" };
-const WHERE = { mac: "Mac", pod: "cloud", phone: "phone" };
+const WHERE = { mac: "computer", pod: "cloud", phone: "phone" };
 const SEEN_KEY = "hive-phone-seen";
 const LANGUAGE_KEY = "hive-phone-language";
 const PUSHED = new Set(["seatScreen", "settingsScreen", "draftScreen", "pageScreen"]);
@@ -25,11 +25,11 @@ const PT_BR = {
   "8 letters": "8 letras",
   "this device": "este aparelho",
   "come in": "entrar",
-  "the code comes from your Hive on the Mac, under \"who gets in\". It works once and closes after five wrong tries. Once in, this device signs every request with a key that never leaves it, and every chat arrives sealed with a key only your devices hold.": "o código sai do seu Hive no Mac, em \"quem entra\". Vale uma vez e fecha em cinco erros. Depois de entrar, este aparelho assina cada pedido com uma chave que nunca sai daqui, e cada chat chega fechado com uma chave que só os seus aparelhos têm.",
+  "the code comes from your Hive on the computer, under \"who gets in\". It works once and closes after five wrong tries. Once in, this device signs every request with a key that never leaves it, and every chat arrives sealed with a key only your devices hold.": "o código sai do seu Hive no computador, em \"quem entra\". Vale uma vez e fecha em cinco erros. Depois de entrar, este aparelho assina cada pedido com uma chave que nunca sai daqui, e cada chat chega fechado com uma chave que só os seus aparelhos têm.",
   "settings": "ajustes",
   "no network · showing what you already had": "sem rede · mostrando o que você já tinha",
   "no chat has arrived yet": "nenhum chat chegou ainda",
-  "open the Hive on the Mac with \"my phone\" on: it hands over the keys of the open chats in a few seconds": "abra o Hive no Mac com \"meu celular\" ligado: ele entrega as chaves dos chats abertos em alguns segundos",
+  "open the Hive on the computer with \"my phone\" on: it hands over the keys of the open chats in a few seconds": "abra o Hive no computador com \"meu celular\" ligado: ele entrega as chaves dos chats abertos em alguns segundos",
   "back": "voltar",
   "end to end": "ponta a ponta",
   "envelopes": "envelopes",
@@ -51,7 +51,7 @@ const PT_BR = {
   "and {n} other chats came back": "e outros {n} chats voltaram",
   "it is waiting on you": "está esperando você",
   "leave this device": "sair deste aparelho",
-  "erases the keys and the copy of the chats from here. To take the device out for good, revoke it on the Mac under \"who gets in\".": "apaga as chaves e a cópia dos chats daqui. Para tirar o aparelho de vez, revogue no Mac em \"quem entra\".",
+  "erases the keys and the copy of the chats from here. To take the device out for good, revoke it on the computer under \"who gets in\".": "apaga as chaves e a cópia dos chats daqui. Para tirar o aparelho de vez, revogue no computador em \"quem entra\".",
   "erase everything here": "apagar tudo daqui",
   "waiting on you": "espera você",
   "on the way": "a caminho",
@@ -60,6 +60,7 @@ const PT_BR = {
   "answer": "responder",
   "working": "trabalhando",
   "done": "feito",
+  "computer": "computador",
   "cloud": "nuvem",
   "phone": "celular",
   "now": "agora",
@@ -77,7 +78,7 @@ const PT_BR = {
   "1 open · 1 waiting on you": "1 aberto · espera você",
   "no recent message": "sem mensagem recente",
   "closed": "encerrado",
-  "the start of this conversation stayed on the Mac: only what happened after it arrives here": "o começo desta conversa ficou no Mac: aqui só chega o que aconteceu depois",
+  "the start of this conversation stayed on the computer: only what happened after it arrives here": "o começo desta conversa ficou no computador: aqui só chega o que aconteceu depois",
   "the turn ended with an error: {e}": "o turno terminou com erro: {e}",
   "turn finished": "turno terminou",
   "the chat did not take it: {e}": "o chat não recebeu: {e}",
@@ -90,7 +91,7 @@ const PT_BR = {
   "you, from here": "você, daqui",
   "another device of yours": "outro aparelho seu",
   "the chat called: {t}": "o chat chamou: {t}",
-  "you, from the Mac": "você, pelo Mac",
+  "you, from the computer": "você, pelo computador",
   "the chat showed": "o chat mostrou",
   "a picture this device cannot open": "imagem que este aparelho não abre",
   "question": "pergunta",
@@ -106,10 +107,10 @@ const PT_BR = {
   "agent": "agente",
   "copy": "copiar",
   "copied": "copiado",
-  "that opens on the Mac": "isso abre no Mac",
+  "that opens on the computer": "isso abre no computador",
   "online": "online",
   "away": "fora",
-  "this device was taken out of the Hive on the Mac": "este aparelho foi tirado do Hive no Mac",
+  "this device was taken out of the Hive on the computer": "este aparelho foi tirado do Hive no computador",
   "this browser does not give notices": "este navegador não avisa",
   "notices on": "avisos ligados",
   "notices blocked by the system": "avisos bloqueados no sistema",
@@ -122,26 +123,26 @@ const PT_BR = {
   "{n} events, the last one:": "{n} eventos, o último:",
   "new chat": "chat novo",
   "what should this chat do?": "o que esse chat deve fazer?",
-  "write it below and send: the Mac opens the chat and names it": "escreva embaixo e mande: o Mac abre o chat e dá nome a ele",
+  "write it below and send: the computer opens the chat and names it": "escreva embaixo e mande: o computador abre o chat e dá nome a ele",
   "the mission": "a missão",
-  "opening on the Mac…": "abrindo no Mac…",
-  "your Mac is not listening right now: open the Hive there first": "seu Mac não está ouvindo agora: abra o Hive lá primeiro",
+  "opening on the computer…": "abrindo no computador…",
+  "your computer is not listening right now: open the Hive there first": "seu computador não está ouvindo agora: abra o Hive lá primeiro",
   "the chat did not open: {e}": "o chat não abriu: {e}",
   "chat opened: {n}": "chat aberto: {n}",
-  "the Mac is taking its time; the chat shows up in the list when it opens": "o Mac está demorando; o chat aparece na lista quando abrir",
+  "the computer is taking its time; the chat shows up in the list when it opens": "o computador está demorando; o chat aparece na lista quando abrir",
   "the command list arrives with the chat's first turn": "a lista de comandos chega com o primeiro turno do chat",
   "no other chat to mention": "nenhum outro chat pra mencionar",
   "searching the chat's directory…": "buscando no diretório do chat…",
   "nothing with that name in the chat's directory": "nada com esse nome no diretório do chat",
-  "asking the Mac who is on the team…": "perguntando ao Mac quem está no time…",
+  "asking the computer who is on the team…": "perguntando ao computador quem está no time…",
   "nobody on the team by that name": "ninguém no time com esse nome",
-  "your Mac is not listening right now": "seu Mac não está ouvindo agora",
+  "your computer is not listening right now": "seu computador não está ouvindo agora",
   "up to {n} pictures in one message": "no máximo {n} imagens por mensagem",
   "that is not a picture": "isso não é uma imagem",
   "page": "página",
-  "fetching from the Mac…": "buscando no Mac…",
+  "fetching from the computer…": "buscando no computador…",
   "the page did not come: {e}": "a página não veio: {e}",
-  "this browser cannot show pages; open it on the Mac": "este navegador não mostra páginas; abra no Mac",
+  "this browser cannot show pages; open it on the computer": "este navegador não mostra páginas; abra no computador",
   "model": "modelo",
   "effort": "esforço",
   "account": "conta",
@@ -149,17 +150,17 @@ const PT_BR = {
   "auto": "auto",
   "default": "padrão",
   "asking the chat what it can run…": "perguntando ao chat o que ele roda…",
-  "asking the Mac what it can run…": "perguntando ao Mac o que ele roda…",
+  "asking the computer what it can run…": "perguntando ao computador o que ele roda…",
   "which model": "qual modelo",
   "how hard should it think": "quanto esforço",
   "which login": "qual conta",
   "which repository": "qual repositório",
   "this model has no levels": "este modelo não tem níveis",
-  "no login on the Mac for this agent": "nenhuma conta no Mac pra este agente",
+  "no login on the computer for this agent": "nenhuma conta no computador pra este agente",
   "the chat did not answer in time": "o chat não respondeu a tempo",
   "changed: {v}": "trocado: {v}",
   "the account default": "o padrão da conta",
-  "which repository? (as the Mac knows it)": "qual repositório? (como o Mac conhece)"
+  "which repository? (as the computer knows it)": "qual repositório? (como o computador conhece)"
 };
 
 let language = "en";
@@ -443,7 +444,7 @@ async function providerList() {
   if (providers.data && Date.now() - providers.at < 5 * 60 * 1000) return providers.data;
   if (providers.job) return providers.job;
   const mac = macOnline();
-  if (!mac) throw new Error(t("your Mac is not listening right now"));
+  if (!mac) throw new Error(t("your computer is not listening right now"));
   providers.job = device.ask(mac.fingerprint, "providers", {}, { timeoutMs: 40000 }).then((said) => {
     providers = { at: Date.now(), data: said, job: null };
     return said;
@@ -496,7 +497,7 @@ async function pickForSeat(kind) {
   const seatId = shown;
   const on = runsOn(device.replica.get(seatId));
   const titles = { model: t("which model"), effort: t("how hard should it think"), account: t("which login") };
-  pickerWaiting(titles[kind], kind === "account" ? t("asking the Mac what it can run…") : t("asking the chat what it can run…"));
+  pickerWaiting(titles[kind], kind === "account" ? t("asking the computer what it can run…") : t("asking the chat what it can run…"));
   try {
     if (kind === "account") {
       const [known, said] = await Promise.all([catalogOf(seatId).catch(() => null), providerList()]);
@@ -504,7 +505,7 @@ async function pickForSeat(kind) {
       const found = (said.agents || []).find((one) => one.id === agent);
       const accounts = (found?.accounts || []).filter((one) => one.loggedIn !== false).map((one) => ({ value: one.name, label: one.name }));
       if (shown !== seatId) return;
-      openPicker({ title: titles.account, meta: found?.label || agent, items: accounts, current: on.account || known?.current?.account || "", none: t("no login on the Mac for this agent"), onPick: (account) => switchSeat(seatId, { op: "setAccount", account }, account) });
+      openPicker({ title: titles.account, meta: found?.label || agent, items: accounts, current: on.account || known?.current?.account || "", none: t("no login on the computer for this agent"), onPick: (account) => switchSeat(seatId, { op: "setAccount", account }, account) });
       return;
     }
     const known = await catalogOf(seatId);
@@ -551,22 +552,22 @@ function paintDraftPills(said) {
 
 async function pickForDraft(kind) {
   if (kind === "repo") {
-    const repo = window.prompt(t("which repository? (as the Mac knows it)"), draftPick.repo || "");
+    const repo = window.prompt(t("which repository? (as the computer knows it)"), draftPick.repo || "");
     if (repo !== null) { draftPick.repo = repo.trim(); paintDraftPills(providers.data); }
     return;
   }
-  pickerWaiting(kind === "model" ? t("which model") : t("which login"), t("asking the Mac what it can run…"));
+  pickerWaiting(kind === "model" ? t("which model") : t("which login"), t("asking the computer what it can run…"));
   try {
     const said = await providerList();
     const agent = draftAgent(said);
     const found = (said.agents || []).find((one) => one.id === agent);
     if (kind === "model") {
       const items = (said.models?.[agent] || []).map((one) => ({ value: one.value, label: one.value === "default" ? t("the account default") : one.label || one.value, group: one.group || "", hint: one.value !== one.label ? one.value : "" }));
-      openPicker({ title: t("which model"), meta: found?.label || agent, items, current: draftPick.model, none: found?.why || t("asking the Mac what it can run…"), onPick: (model) => { draftPick.model = model === "default" ? "" : model; draftPick.agent = agent; paintDraftPills(said); } });
+      openPicker({ title: t("which model"), meta: found?.label || agent, items, current: draftPick.model, none: found?.why || t("asking the computer what it can run…"), onPick: (model) => { draftPick.model = model === "default" ? "" : model; draftPick.agent = agent; paintDraftPills(said); } });
       return;
     }
     const accounts = (found?.accounts || []).filter((one) => one.loggedIn !== false).map((one) => ({ value: one.name, label: one.name }));
-    openPicker({ title: t("which login"), meta: found?.label || agent, items: accounts, current: draftPick.account || accounts[0]?.value || "", none: t("no login on the Mac for this agent"), onPick: (account) => { draftPick.account = account; draftPick.agent = agent; paintDraftPills(said); } });
+    openPicker({ title: t("which login"), meta: found?.label || agent, items: accounts, current: draftPick.account || accounts[0]?.value || "", none: t("no login on the computer for this agent"), onPick: (account) => { draftPick.account = account; draftPick.agent = agent; paintDraftPills(said); } });
   } catch (wrong) {
     closePicker();
     toast(wrong.message);
@@ -818,7 +819,7 @@ function paintThread() {
   const rows = rowsOf(held);
   const answered = new Set(rows.filter((one) => one.value?.type === "question-closed" || one.value?.type === "plan-closed").map((one) => one.value.id));
   const nodes = [];
-  if (held?.gapBefore) nodes.push({ key: "gap", kind: "note", text: t("the start of this conversation stayed on the Mac: only what happened after it arrives here") });
+  if (held?.gapBefore) nodes.push({ key: "gap", kind: "note", text: t("the start of this conversation stayed on the computer: only what happened after it arrives here") });
   let steps = null;
   const flush = () => { if (steps) { nodes.push(steps); steps = null; } };
   for (const row of rows) {
@@ -855,7 +856,7 @@ function paintThread() {
   paintToBottom();
   const working = seat && !seat.closedAt && seat.online && stateOf(seat, held) === "working";
   $("stop").classList.toggle("on", !!working);
-  $("seatMeta").textContent = seat?.closedAt ? t("closed") : `${t(WHERE[seat?.runnerKind] || "Mac")} · ${seat?.online ? t("online") : t("away")}`;
+  $("seatMeta").textContent = seat?.closedAt ? t("closed") : `${t(WHERE[seat?.runnerKind] || "computer")} · ${seat?.online ? t("online") : t("away")}`;
   const last = held?.events.at(-1)?.seq || 0;
   if (last && (seen[shown] || 0) < last) { seen[shown] = last; try { localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); } catch {} }
   paintPills();
@@ -930,7 +931,7 @@ function renderNode(node) {
     div.className = "bub me";
     div.textContent = row.said ? withoutShots(v.text) : v.text;
     picturesInto(div, shown, row.pictures || []);
-    div.appendChild(whoLine(v.from ? v.from : row.said === "here" ? t("you, from here") : row.said === "other" ? t("another device of yours") : t("you, from the Mac"), row.at));
+    div.appendChild(whoLine(v.from ? v.from : row.said === "here" ? t("you, from here") : row.said === "other" ? t("another device of yours") : t("you, from the computer"), row.at));
     return div;
   }
   if (v.type === "shot") {
@@ -1008,7 +1009,7 @@ function renderNode(node) {
       copy.onclick = (event) => { event.stopPropagation(); navigator.clipboard?.writeText(copy.parentElement.querySelector("pre")?.textContent || "").then(() => toast(t("copied"))); };
     }
     for (const link of div.querySelectorAll("a.md-shelf")) { link.onclick = (event) => { event.preventDefault(); openPage(link.dataset.slug, link.dataset.tab, Number(link.dataset.v) || 0); }; }
-    for (const link of div.querySelectorAll("a.md-shot")) { link.onclick = (event) => { event.preventDefault(); toast(t("that opens on the Mac")); }; }
+    for (const link of div.querySelectorAll("a.md-shot")) { link.onclick = (event) => { event.preventDefault(); toast(t("that opens on the computer")); }; }
     div.appendChild(whoLine(t("agent"), row.at));
     return div;
   }
@@ -1074,7 +1075,7 @@ function openSeat(id, { replace = false } = {}) {
 
 function paintDraft() {
   const mac = macOnline();
-  $("draftMeta").textContent = mac ? `${mac.name} · ${t("online")}` : t("your Mac is not listening right now: open the Hive there first");
+  $("draftMeta").textContent = mac ? `${mac.name} · ${t("online")}` : t("your computer is not listening right now: open the Hive there first");
   $("whereMac").classList.toggle("on", whereWanted === "local");
   $("whereCloud").classList.toggle("on", whereWanted === "cloud");
   paintDraftPills(providers.data);
@@ -1158,10 +1159,10 @@ async function openPage(slug, tab, v, { push = true } = {}) {
   frame.removeAttribute("srcdoc");
   note.hidden = false;
   note.className = "pagenote";
-  note.textContent = t("fetching from the Mac…");
+  note.textContent = t("fetching from the computer…");
   show("pageScreen");
   const mac = macOnline();
-  if (!mac) { note.className = "pagenote bad"; note.textContent = t("your Mac is not listening right now: open the Hive there first"); return; }
+  if (!mac) { note.className = "pagenote bad"; note.textContent = t("your computer is not listening right now: open the Hive there first"); return; }
   try {
     const page = await device.ask(mac.fingerprint, "shelf", { slug: wanted.slug, tab: wanted.tab, v: wanted.v }, { timeoutMs: PAGE_WAIT_MS });
     if (pageShown !== wanted) return;
@@ -1181,7 +1182,7 @@ async function openPage(slug, tab, v, { push = true } = {}) {
 function attach() {
   device.listen((note) => {
     if (note.kind === "state") { streamUp = note.up; paintHeader(); }
-    if (note.kind === "revoked") { toast(t("this device was taken out of the Hive on the Mac")); }
+    if (note.kind === "revoked") { toast(t("this device was taken out of the Hive on the computer")); }
     if (note.kind === "seat-reborn" && note.seat === shown) { $("thread").innerHTML = ""; }
     if (note.kind === "seat-gone" && note.seat === shown) { shown = ""; if (whereAmI().screen === "seat") history.back(); else show("fleet"); }
     if (note.kind === "birth-done") landBirth(note);
@@ -1242,7 +1243,7 @@ async function peopleList() {
   if (Date.now() - people.at < PEOPLE_FRESH_MS) return people.list;
   if (people.job) return people.job;
   const mac = macOnline();
-  if (!mac) throw new Error(t("your Mac is not listening right now"));
+  if (!mac) throw new Error(t("your computer is not listening right now"));
   people.job = device.ask(mac.fingerprint, "people", {}, { timeoutMs: 8000 }).then((said) => {
     people = { at: Date.now(), list: (said.people || []).filter((one) => one.name && !one.mine), job: null };
     return people.list;
@@ -1311,7 +1312,7 @@ function paintSuggest() {
       return items.length ? chipsInto(box, mark, items.map((one) => one.name), start, before, hints) : noneChip(box, t("nobody on the team by that name"));
     };
     if (Date.now() - people.at < PEOPLE_FRESH_MS) return paint(people.list);
-    noneChip(box, t("asking the Mac who is on the team…"));
+    noneChip(box, t("asking the computer who is on the team…"));
     peopleList().then((list) => { if (!box.hidden && $("typed").value.slice(0, $("typed").selectionStart ?? undefined).endsWith(`~${q}`)) paint(list); }).catch((wrong) => noneChip(box, wrong.message));
     return;
   }
@@ -1321,7 +1322,7 @@ function paintSuggest() {
   clearTimeout(fileSearch.timer);
   fileSearch.timer = setTimeout(async () => {
     const mac = macOnline();
-    if (!mac) return noneChip(box, t("your Mac is not listening right now"));
+    if (!mac) return noneChip(box, t("your computer is not listening right now"));
     const seat = device.seats.get(shown);
     try {
       const said = await device.ask(mac.fingerprint, "files", { seat: shown, where: seat?.runnerKind === "pod" ? "cloud" : "local", q }, { timeoutMs: 8000 });
@@ -1517,14 +1518,14 @@ $("draftCompose").onsubmit = async (event) => {
   await device.refreshPeople().catch(() => {});
   const mac = macOnline();
   paintDraft();
-  if (!mac) { pendingBirth = null; restDraft(); draftNote(t("your Mac is not listening right now: open the Hive there first"), true); return; }
+  if (!mac) { pendingBirth = null; restDraft(); draftNote(t("your computer is not listening right now: open the Hive there first"), true); return; }
   $("draftHint").hidden = true;
   const bubble = document.createElement("div");
   bubble.className = "bub me waiting";
   bubble.textContent = prompt;
   bubble.appendChild(whoLine(t("you, from here"), Date.now()));
   $("draftThread").appendChild(bubble);
-  const note = draftNote(t("opening on the Mac…"));
+  const note = draftNote(t("opening on the computer…"));
   try {
     const said = providers.data;
     const mission = { prompt, where: whereWanted, agent: draftAgent(said) };
@@ -1539,7 +1540,7 @@ $("draftCompose").onsubmit = async (event) => {
     pendingBirth.timer = setTimeout(() => {
       if (!pendingBirth || pendingBirth.id !== asked.id) return;
       restDraft();
-      note.textContent = t("the Mac is taking its time; the chat shows up in the list when it opens");
+      note.textContent = t("the computer is taking its time; the chat shows up in the list when it opens");
     }, BIRTH_WAIT_MS);
   } catch (wrong) {
     pendingBirth = null;

@@ -241,7 +241,7 @@ test("the query is part of what the signature covers", async () => {
   assert.equal(withQuery.status, 401, "assinar sem query e mandar com query tem que ser recusado");
 });
 
-test("the phone asks for the fleet and gets what runs on the pod and what runs on the Mac", async () => {
+test("the phone asks for the fleet and gets what runs on the pod and what runs on the computer", async () => {
   const mac = await pair("mac", "mac do joao");
   const phone = await pair("phone", "iPhone");
 

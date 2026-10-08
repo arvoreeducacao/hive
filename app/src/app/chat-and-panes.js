@@ -1134,7 +1134,7 @@ function bornWebFrame(yard, name, t) {
   });
   frame.addEventListener("dom-ready", () => {
     try { frame.send("hive-quote-label", phrase("quote")); } catch {}
-    try { frame.send("hive-ask-look", { next: experienceNext(), chat: phrase("add to the chat"), page: phrase("comment on the page"), reply: phrase("reply"), keys: phrase("⌘↵ adds") }); } catch {}
+    try { frame.send("hive-ask-look", { next: experienceNext(), chat: phrase("add to the chat"), page: phrase("comment on the page"), reply: phrase("reply"), keys: phrase("{chord}↵ adds", { chord: applePlatform() ? "⌘" : "ctrl+" }) }); } catch {}
     PINS_HELD.delete(frameKey(name, frame));
     FACES_HELD.delete(frameKey(name, frame));
     HERE_EL.delete(frameKey(name, frame));

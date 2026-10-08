@@ -251,7 +251,7 @@
       <div class="field"><label data-t>this device</label><input id="name" autocomplete="off" placeholder="iPhone"></div>
       <button class="btn" id="pairBtn" data-t>come in</button>
       <div class="why" id="pairWhy"></div>
-      <div class="fine" data-t>the code comes from your Hive on the Mac, under "who gets in". It works once and closes after five wrong tries. Once in, this device signs every request with a key that never leaves it, and every chat arrives sealed with a key only your devices hold.</div>
+      <div class="fine" data-t>the code comes from your Hive on the computer, under "who gets in". It works once and closes after five wrong tries. Once in, this device signs every request with a key that never leaves it, and every chat arrives sealed with a key only your devices hold.</div>
     </form>
   </section>
 
@@ -260,7 +260,7 @@
     <div class="big"><h1>Chats</h1><div class="sub" id="fleetSub"></div></div>
     <div class="banner" id="offline" hidden data-t>no network · showing what you already had</div>
     <div class="list scroll" id="list"></div>
-    <div class="empty" id="noSeats" hidden><svg viewBox="0 0 24 24" width="40" height="40"><path d="M12 2.5 20.2 7.25v9.5L12 21.5 3.8 16.75v-9.5Z" fill="none" stroke="#F2EFEA" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 7.2 16.2 9.6v4.8L12 16.8 7.8 14.4V9.6Z" fill="#CD694A" opacity=".9"/></svg><div class="t" data-t>no chat has arrived yet</div><div class="s" data-t>open the Hive on the Mac with "my phone" on: it hands over the keys of the open chats in a few seconds</div></div>
+    <div class="empty" id="noSeats" hidden><svg viewBox="0 0 24 24" width="40" height="40"><path d="M12 2.5 20.2 7.25v9.5L12 21.5 3.8 16.75v-9.5Z" fill="none" stroke="#F2EFEA" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 7.2 16.2 9.6v4.8L12 16.8 7.8 14.4V9.6Z" fill="#CD694A" opacity=".9"/></svg><div class="t" data-t>no chat has arrived yet</div><div class="s" data-t>open the Hive on the computer with "my phone" on: it hands over the keys of the open chats in a few seconds</div></div>
     <button class="fab" id="newChat" data-t-aria-label="new chat" data-t-title="new chat"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
   </section>
 
@@ -292,13 +292,13 @@
     <div class="settings scroll">
       <div class="card"><div class="t" id="setPerson"></div><div class="s" id="setHost"></div><code id="setKey"></code><div class="s" id="setWhy" hidden></div></div>
       <div class="card"><div class="t" data-t>notices</div><div class="s" data-t>when a chat stops, this device tells you, if you let it. On an iPhone it only rings with the app closed once you add the Hive to the home screen.</div><button class="btn ghost" id="notify" data-t>let it tell me</button><div class="s" id="notifyWhy"></div><div class="seg" id="notifyWhen" hidden><button type="button" id="notifyBoth" data-t>ended or asked</button><button type="button" id="notifyAsked" data-t>only when it asks</button></div></div>
-      <div class="card"><div class="t" data-t>leave this device</div><div class="s" data-t>erases the keys and the copy of the chats from here. To take the device out for good, revoke it on the Mac under "who gets in".</div><button class="btn ghost" id="forget" data-t>erase everything here</button></div>
+      <div class="card"><div class="t" data-t>leave this device</div><div class="s" data-t>erases the keys and the copy of the chats from here. To take the device out for good, revoke it on the computer under "who gets in".</div><button class="btn ghost" id="forget" data-t>erase everything here</button></div>
     </div>
   </section>
 
   <section class="screen pushed" id="draftScreen">
-    <div class="top"><button class="back" id="draftBack" data-t-aria-label="back">‹</button><div class="head"><div class="t" data-t>new chat</div><div class="s"><span class="cap" id="draftMeta"></span></div></div><span class="grow"></span><div class="seg small"><button type="button" class="on" id="whereMac">Mac</button><button type="button" id="whereCloud" data-t>cloud</button></div></div>
-    <div class="thread scroll" id="draftThread"><div class="hint" id="draftHint"><div class="t" data-t>what should this chat do?</div><div class="s" data-t>write it below and send: the Mac opens the chat and names it</div></div></div>
+    <div class="top"><button class="back" id="draftBack" data-t-aria-label="back">‹</button><div class="head"><div class="t" data-t>new chat</div><div class="s"><span class="cap" id="draftMeta"></span></div></div><span class="grow"></span><div class="seg small"><button type="button" class="on" id="whereMac" data-t>computer</button><button type="button" id="whereCloud" data-t>cloud</button></div></div>
+    <div class="thread scroll" id="draftThread"><div class="hint" id="draftHint"><div class="t" data-t>what should this chat do?</div><div class="s" data-t>write it below and send: the computer opens the chat and names it</div></div></div>
     <form class="compose" id="draftCompose"><div class="box blank" id="draftBox"><textarea id="draftTyped" rows="1" data-t-placeholder="the mission" autocomplete="off"></textarea><div class="bar"><div class="pills" id="draftPills"><button type="button" class="pl" id="draftModel"></button><button type="button" class="pl" id="draftAccount"></button><button type="button" class="pl" id="draftRepo" hidden></button></div><span class="right"><button class="send" id="draftSend" data-t-aria-label="send"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="#0C0C0C" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12.5v-9M4.5 7 8 3.5 11.5 7"/></svg></button></span></div></div></form>
   </section>
 

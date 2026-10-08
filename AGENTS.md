@@ -3,7 +3,7 @@
 ## Never kill a server by name
 
 A `pkill -f "node server.mjs"` matches every hive on this machine: the one behind
-`/Applications/Hive.app` that runs your own session, and the dev servers of every
+the installed Hive app that runs your own session, and the dev servers of every
 other seat working in a worktree. Killing them is how a session takes the whole
 fleet down with it.
 

@@ -5,8 +5,9 @@ sidebar:
   order: 2
 ---
 
-Builds are attached to each entry in
-[Releases](https://github.com/arvoreeducacao/hive/releases).
+There are no builds in
+[Releases](https://github.com/arvoreeducacao/hive/releases) yet: for now, build
+the desktop app yourself, below. Once releases exist, this is what to take:
 
 | Where | What to take |
 | --- | --- |

@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { readFile, access } from "node:fs/promises";
 import { constants } from "node:fs";
+import { installerFor } from "./installer.mjs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,7 @@ export const TIMEOUTS = { local: 3000, cluster: 9000, node: 4000, probe: 12000, 
 const asSeconds = (ms) => `${Math.max(1, Math.round(ms / 1000))}s`;
 
 export const REPO_MARK = "infra/scripts/setup.sh";
+
 
 /* the copy the bundle carries, which is deliberately not under REPO_MARK: an app
    that was installed rather than cloned still has a setup to run */
@@ -232,7 +234,7 @@ export async function buildContext(options = {}) {
     bundledSetup: (await exists(bundledSetupIn(HERE))) ? bundledSetupIn(HERE) : "",
     key,
     publicKey,
-    packageManager: process.platform === "darwin" ? "brew install" : process.platform === "win32" ? "winget install" : "sudo apt-get install -y",
+    packageManager: installerFor(),
     platform: process.platform,
     paths: pathDirs(env),
     androidSdk: sdkRootOf(env, home),
