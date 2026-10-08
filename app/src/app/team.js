@@ -26,6 +26,7 @@ st.myBlob = false;
 st.mirrorDev = "";
 
 const knocked = new Map();
+const knockRefused = new Map();
 
 const KNOCK_HOLD = 45000;
 
@@ -54,12 +55,13 @@ function paceTeam() {
 
 async function askForKeyboard(dev, seat) {
   knocked.set(`${dev}/${seat}`, Date.now());
+  knockRefused.delete(`${dev}/${seat}`);
   render();
   const r = await fetch("/api/team/knock", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ dev, seat })
   }).then((x) => x.json()).catch(() => ({ error: phrase("the cluster did not answer") }));
-  if (r.error) { knocked.delete(`${dev}/${seat}`); render(); return; }
+  if (r.error) { knocked.delete(`${dev}/${seat}`); knockRefused.set(`${dev}/${seat}`, r.error); render(); return; }
 }
 
 async function giveKeyboardBack(dev, seat) {
@@ -530,8 +532,9 @@ function mirrorKbModel(seat, row) {
   if (row.knocks === false) return { mine: false, face: mirrorFace(row.dev), who: String(row.dev), say: phrase("is not taking keyboard asks right now"), act: null };
   const holding = knockHolds(row.dev, seat.name);
   const asked = knockedAt(row.dev, seat.name) > 0;
+  const refused = knockRefused.get(`${row.dev}/${seat.name}`);
   return {
-    mine: false, face: mirrorFace(row.dev), who: String(row.dev), say: phrase("has the keyboard of this seat"),
+    mine: false, face: mirrorFace(row.dev), who: String(row.dev), say: refused ? phrase("has the keyboard · your ask did not leave: {why}", { why: refused }) : phrase("has the keyboard of this seat"),
     act: {
       kind: "knock", dev: row.dev, seat: seat.name, give: undefined, knock: seat.name, quiet: holding, off: holding,
       label: holding ? phrase("asked — waiting") : asked ? phrase("ask again") : phrase("ask for the keyboard")

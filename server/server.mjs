@@ -978,9 +978,15 @@ export function nameTheServerDir(env = process.env, here = dirname(fileURLToPath
   return env.HIVE_SERVER_DIR;
 }
 
+export function nameTheStateDir(env = process.env) {
+  if (!env.HIVE_STATE_DIR) env.HIVE_STATE_DIR = stateDirOf(env);
+  return env.HIVE_STATE_DIR;
+}
+
 const runAsCli = process.argv[1] && basename(process.argv[1]) === "server.mjs";
 if (runAsCli) {
   nameTheServerDir();
+  nameTheStateDir();
   const broker = createBroker({ log: (line) => console.log(line) });
   const door = doorOf();
   listenOn(broker.http, door).then(async () => {

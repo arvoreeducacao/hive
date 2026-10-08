@@ -4567,8 +4567,25 @@ function sweepKeyboards() {
   for (const [seat, lent] of keyboards) if (!grantLive(lent, now)) { keyboards.delete(seat); dropLive(seat); }
 }
 
+async function keyboardOnTheServer(seat, dev, lending) {
+  const server = await serverFor();
+  if (!server) return { ok: false, error: "no server answering here" };
+  const to = await peerKeyOf(dev);
+  if (!to) return { ok: false, error: `${dev} is not paired with this server` };
+  return server.client.post(lending ? "/api/grants" : "/api/grants/take", lending ? { seat, to, forMs: GRANT_MS } : { seat, to });
+}
+
 function lendKeyboard(seat, to) {
   keyboards.set(seat, { with: to, until: Date.now() + GRANT_MS, turns: keyboards.get(seat)?.turns || [] });
+  return keyboardOnTheServer(seat, to, true).catch((wrong) => ({ ok: false, error: String(wrong?.message || wrong) }));
+}
+
+function takeKeyboardBack(seat) {
+  const held = keyboards.get(seat);
+  keyboards.delete(seat);
+  dropLive(seat);
+  if (!held?.with) return Promise.resolve({ ok: true });
+  return keyboardOnTheServer(seat, held.with, false).catch((wrong) => ({ ok: false, error: String(wrong?.message || wrong) }));
 }
 
 /* a seat deep in a run of tools can have nothing but tool traffic in its last pages,
@@ -4746,7 +4763,7 @@ async function takeNote(kind, note) {
     if (!knock) return;
     if (knock.kind === "bye") {
       const held = keyboards.get(knock.seat);
-      if (held && held.with === knock.from) { keyboards.delete(knock.seat); dropLive(knock.seat); }
+      if (held && held.with === knock.from) await takeKeyboardBack(knock.seat);
       return;
     }
     if (knock.kind === "yes") { teamMoved = true; return; }
@@ -6642,6 +6659,7 @@ registerTeamRoutes(on, {
   knocksWaiting,
   peerTakesKnocks,
   lendKeyboard,
+  takeKeyboardBack,
   noteToPeer,
   onPeerSeat,
   owing,

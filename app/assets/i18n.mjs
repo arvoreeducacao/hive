@@ -1310,6 +1310,7 @@ export const PT_BR = {
   "open the review inside this chat": "abrir a revisão dentro deste chat",
   "Claude is logged in on the server — {plan} account.": "O Claude está logado no servidor, conta {plan}.",
   "Claude is logged in on the server.": "O Claude está logado no servidor.",
+  "has the keyboard · your ask did not leave: {why}": "está com o teclado · seu pedido não saiu: {why}",
   "{n} of {m}": "{n} de {m}",
   "peek": "espiar",
   "could not reach the cluster": "não deu pra falar com o cluster",

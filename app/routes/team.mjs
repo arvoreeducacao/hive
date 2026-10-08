@@ -12,6 +12,7 @@ export function registerTeamRoutes(on, context) {
     keyboards,
     knocksWaiting,
     lendKeyboard,
+    takeKeyboardBack = async (seat) => { keyboards.delete(seat); dropLive(seat); },
     noteToPeer,
     keepOwed = () => {},
     now = Date.now,
@@ -69,17 +70,17 @@ export function registerTeamRoutes(on, context) {
     }
     if (!asked.ok) return json({ ok: true, lent: false });
     if (!isSeatName(seat)) return json({ error: "that seat has a name I cannot address" }, 400);
-    lendKeyboard(seat, from);
+    const granted = await lendKeyboard(seat, from);
     await refreshLentTurns();
     publishPanel().then(() => tellTheAsker(from, seat)).catch(() => {});
+    if (granted && granted.ok === false) return json({ ok: true, lent: true, warning: `the server did not take the loan, so what ${from} types may not land: ${granted.error || "it said no"}` });
     return json({ ok: true, lent: true });
   });
 
   on("POST", "/api/knocks/revoke", async (req, res, url, json) => {
     const asked = await bodyOf(req);
     const seat = String(asked.seat || "");
-    keyboards.delete(seat);
-    dropLive(seat);
+    await takeKeyboardBack(seat);
     publishPanel().catch(() => {});
     return json({ ok: true });
   });

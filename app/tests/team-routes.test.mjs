@@ -276,3 +276,17 @@ test("a hive that never said anything about its door is knocked on as before", a
   assert.deepEqual(knock, [{ value: { ok: true }, status: 200 }]);
   assert.equal(calls.filter((one) => one[0] === "noteToPeer").length, 1);
 });
+
+test("a loan the server refuses still lends, and says that what the visitor types may not land", async () => {
+  const hive = teamHarness({ lendKeyboard: async () => ({ ok: false, error: "nobody we know has that key" }) });
+  const [answer] = await hive.call("/api/knocks/answer", { body: { seat: "worker", from: "art", ok: true } });
+  assert.equal(answer.value.lent, true);
+  assert.match(answer.value.warning, /may not land: nobody we know has that key/);
+});
+
+test("taking a keyboard back goes through the server too, so the visitor's next line is refused there", async () => {
+  const taken = [];
+  const hive = teamHarness({ takeKeyboardBack: async (seat) => { taken.push(seat); } });
+  await hive.call("/api/knocks/revoke", { body: { seat: "worker" } });
+  assert.deepEqual(taken, ["worker"]);
+});

@@ -15,3 +15,14 @@ test("a server whose image already names the folder keeps that name", () => {
   const env = { HIVE_SERVER_DIR: "/app/server" };
   assert.equal(nameTheServerDir(env, "/elsewhere"), "/app/server");
 });
+
+test("a server started without a state dir in its environment tells the commands it runs where the chats keep their events", async () => {
+  const { nameTheStateDir } = await import("../server.mjs");
+  const { stateDir } = await import("../engine/paths.mjs");
+  const env = {};
+  const dir = nameTheStateDir(env);
+  assert.equal(env.HIVE_STATE_DIR, dir);
+  assert.equal(dir, stateDir({}));
+  const named = { HIVE_STATE_DIR: "/workspace/hive" };
+  assert.equal(nameTheStateDir(named), "/workspace/hive");
+});

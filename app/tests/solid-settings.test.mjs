@@ -64,6 +64,7 @@ function mirrorWorld(over = {}) {
     st: { team: { me: "vini" }, mirrorOpen: over.open || "", mirrorDev: over.dev || "jonas" },
     knockHolds: () => false,
     knockedAt: () => 0,
+    knockRefused: new Map(),
     teamSeatKey: (dev, name) => `team:${dev}/${name}`,
     renderMarkdown: (t) => `<p>${t}</p>`,
     toneOf: (dev) => `tone-${dev}`,
@@ -726,4 +727,10 @@ test("the region builds into the one bundle, with every mount it promises", { sk
   } finally {
     await rm(outdir, { recursive: true, force: true });
   }
+});
+
+test("an ask that never left says why on the keyboard bar instead of pretending it is on its way", () => {
+  const row = { dev: "jonas", seats: [seat("api")] };
+  const model = mirrorModel({ row, extra: { knockRefused: new Map([["jonas/api", "we are not paired with that server"]]) } });
+  assert.match(model.cards[0].kb.say, /your ask did not leave: we are not paired with that server/);
 });
