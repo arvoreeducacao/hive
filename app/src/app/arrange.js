@@ -807,6 +807,10 @@ function paintEverything({ animate = true } = {}) {
     shown.forEach(({ it, lane, at, here }) => {
       const pos = here ? at : -1;
       let el = tiles.get(it.key);
+      if (el && it.kind === "job" && it.name && !el.classList.contains("opening")) {
+        el.remove();
+        el = null;
+      }
       if (!el) {
         el = it.kind === "job" ? (it.name ? tiles.get(it.name) || createOpeningTile(it) : createJobTile(it)) : it.kind === "file" ? createFileTile(it) : it.kind === "draft" ? createDraftTile(it) : createTile(it);
         tiles.set(it.key, el);

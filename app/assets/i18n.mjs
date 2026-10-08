@@ -486,7 +486,6 @@ export const PT_BR = {
   "diagnosis": "diagnóstico",
   "link": "vincular",
   "answer": "responder",
-  "tell them": "avisar",
   "the agent": "o agente",
   "system": "sistema",
   "your face in the hive — click to change it": "seu rosto na hive — clique para trocar",

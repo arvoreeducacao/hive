@@ -115,6 +115,7 @@ import { avatarFor, avatarKey } from "./assets/avatar/avatar.mjs";
 import { moodOf } from "./assets/mood.mjs";
 import { workspaceOf, readManifest } from "./lib/hub-workspace.mjs";
 import { hubPathFrom } from "./lib/hub-path.mjs";
+import { FIRST_FLIGHT, firstFlightMission } from "./lib/first-flight.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { basename, dirname, join } from "node:path";
 import { homedir, hostname, tmpdir, userInfo } from "node:os";
@@ -6143,7 +6144,6 @@ async function noteTourFeedback(b) {
 export const SETUP_IN_A_CHECKOUT = "../infra/scripts/setup.sh";
 export const SETUP_IN_A_BUNDLE = "../setup/setup.sh";
 const SETUP_SH = [SETUP_IN_A_CHECKOUT, SETUP_IN_A_BUNDLE].map((one) => join(HERE, one)).find(existsSync) || join(HERE, SETUP_IN_A_CHECKOUT);
-const FIRST_FLIGHT = "first-flight";
 
 const DEPS = [
   { name: "tmux", why: "every session lives in a tmux window", install: "brew install tmux", posixOnly: true },
@@ -6341,33 +6341,9 @@ async function runSetup(name, typedHub) {
 }
 
 
-function firstFlightMission(dev) {
-  return `You are the first chat of ${dev}'s hive, and your only job is to show them how a hive session behaves. Keep it short and warm; write in the language ${dev} writes in (default: Brazilian Portuguese).
-
-Do exactly this, in order:
-
-1. Write the file .hive/status/${FIRST_FLIGHT}.md right now, following the status protocol below, with title "first flight". This file is what the tile next to your terminal shows — the dev is looking at it as you write.
-2. Introduce yourself in at most four sentences: you are a hive worker; every session like you runs as a Claude Code process in a tmux window (this one on the Mac, the cloud ones on the dev's pod, each in its own git worktree); the tile beside you reads your status file, so keeping it honest is how the dev follows a fleet without reading every terminal.
-3. Then ask the dev ONE question with the AskUserQuestion tool: what they want to build first in the hive. Offer three options: a bug fix, a feature, and "just exploring". This makes your tile turn "needs you" — the whole point is for them to see what that looks like and answer from the app.
-4. When they answer, append a [done] line to the status file with their answer, and tell them: to open a real chat they press ⌥N, and to close this one they can kill it from the tile. Then stop.
-
-Do not touch any file other than .hive/status/${FIRST_FLIGHT}.md. Do not run git commands. Do not explore the repo.
-
-Status protocol — .hive/status/${FIRST_FLIGHT}.md, header rewritten at every step, log lines appended underneath:
-title: <2 to 5 words, the subject of the chat>
-summary: <what you are doing and why>
-done: <what is closed>
-now: <the step in progress>
-next: <what is left>
-
-HH:MM [working] short message
-HH:MM [question] waiting for the dev
-HH:MM [done] verdict`;
-}
-
-async function startFirstFlight(model) {
+async function startFirstFlight(model, { language, newChat } = {}) {
   if (await firstFlightAlive()) return { ok: true, name: FIRST_FLIGHT, already: true };
-  const bodyLike = { name: FIRST_FLIGHT, prompt: firstFlightMission(DEV || "you"), where: "local", model: model || "", structured: true, agent: "claude" };
+  const bodyLike = { name: FIRST_FLIGHT, prompt: firstFlightMission(DEV || "you", { language, newChat }), where: "local", model: model || "", structured: true, agent: "claude" };
   const job = openJob(bodyLike);
   runJob(job, bodyLike);
   invalidateOnboarding();
@@ -6379,7 +6355,7 @@ async function onboardingAction(action, data) {
     return { error: `sandbox: "${action}" would touch the real cluster — skipped` };
   }
   if (action === "setup") return runSetup(data.name, data.hub);
-  if (action === "first-flight") return startFirstFlight(data.model);
+  if (action === "first-flight") return startFirstFlight(data.model, { language: data.language, newChat: data.newChat });
   if (action === "finish") {
     await mkdir(HIVE_HOME, { recursive: true });
     await writeFile(ONBOARDED, `${new Date().toISOString()}\n`);

@@ -632,7 +632,7 @@ async function wRun(action, el) {
   }
   if (action === "first-flight") {
     const model = $("w-model")?.value || "";
-    const d = await wAct("first-flight", { model });
+    const d = await wAct("first-flight", { model, language: st.language, newChat: keyHint("new") });
     if (d?.ok) {
       wb.flightSeen = true;
       const target = blockWithRoom() || openBlock();

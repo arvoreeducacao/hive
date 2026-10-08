@@ -102,3 +102,24 @@ test("when the server settles on another free name, the seat still lands on the 
   assert.ok(!el.classList.contains("opening"));
   assert.deepEqual([...st.blocks[0].keys], ["repetido-2"]);
 });
+
+test("a chat drawn before the server named it still turns into the live chat, instead of a card frozen on starting", () => {
+  hive({ sessions: [], spawning: [{ ...job, id: "n11", name: "", settled: false }], keys: ["job:n11"] });
+  render();
+  assert.ok(tiles.get("job:n11").classList.contains("spawning"));
+
+  st.data = { ...st.data, spawning: [{ ...job, id: "n11", name: "voo" }] };
+  render();
+  const named = onCanvas();
+  assert.equal(named.length, 1);
+  assert.ok(named[0].classList.contains("opening"), "once the chat has a name, its tile is the one that becomes the chat");
+
+  st.data = { ...st.data, sessions: [seat("voo")], spawning: [{ ...job, id: "n11", name: "voo", landed: 1 }] };
+  render();
+  const live = onCanvas();
+  assert.equal(live.length, 1);
+  assert.ok(!live[0].classList.contains("spawning"), "the first-flight card would never update again");
+  assert.ok(!live[0].classList.contains("opening"));
+  assert.equal(live[0].dataset.name, "voo");
+  assert.deepEqual([...st.blocks[0].keys], ["voo"]);
+});
