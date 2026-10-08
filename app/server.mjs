@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { execFile, spawn } from "node:child_process";
 import { open, readFile } from "node:fs/promises";
 import { chmodSync, closeSync, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { serverGuideOf } from "./lib/server-guide.mjs";
 import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promises";
 import { parse as parseJsonc, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
 import { createHash, randomUUID } from "node:crypto";
@@ -143,6 +144,7 @@ for (const [name, definition] of Object.entries({
 })) hljs.registerLanguage(name, definition);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
+const SERVER_GUIDE = (() => { try { return serverGuideOf(JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"))); } catch { return ""; } })();
 const IS_WINDOWS = process.platform === "win32";
 
 if (IS_WINDOWS) process.env.MSYS2_ARG_CONV_EXCL = "*";
@@ -6330,7 +6332,7 @@ async function onboardingState(query) {
   const data = {
     dev, hub: hubPath, hubLooks: hubLooks(typedHub),
     wantsServer: wanted,
-    machine, setup, server, signature, claudeOnServer, ownerKey: servers.identity?.publicSsh || "",
+    machine, setup, server, signature, claudeOnServer, ownerKey: servers.identity?.publicSsh || "", serverGuide: SERVER_GUIDE,
     firstFlight: flight,
     finished: existsSync(ONBOARDED),
     sandbox: SANDBOX,

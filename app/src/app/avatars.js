@@ -27,6 +27,14 @@ const PLAY_LOOK = {
 /* a focused fleet is most of the day, and a face surprised all day says nothing */
 const HELD_LOOK = { wide: "thinking" };
 
+const guideLink = () => (wb.s?.serverGuide
+  ? `<a href="${esc(wb.s.serverGuide)}" target="_blank" rel="noreferrer">${phrase("the server guide ↗")}</a>`
+  : `${phrase("the server guide")} (<code>docs/run-your-own.md</code>)`);
+
+const serverIsOptional = () => (wb.s?.wantsServer === false
+  ? `<p class="sub">${phrase("Everything runs on this machine. A server of your own is optional: it keeps chats going with the computer closed, and brings in the team and the phone. It runs in Docker, and {guide} sets it up step by step.", { guide: guideLink() })}</p>`
+  : "");
+
 st.mugLook = "";
 
 st.mugHeld = "";
@@ -412,7 +420,7 @@ function pageServer() {
       <div class="w-kicker"><span class="live"></span> ${phrase("retrying")}</div>
       <h2>${phrase("No answer from your server yet.")}</h2>
       <p class="lead"><code>${esc(server.url || phrase("no address"))}</code></p>
-      <p class="sub">${esc(server.error || phrase("it did not answer"))} ${phrase("This screen retries on its own. A server that was never put up has to be started first — see {doc}.", { doc: "<code>docs/run-your-own.md</code>" })}</p>
+      <p class="sub">${esc(server.error || phrase("it did not answer"))} ${phrase("This screen retries on its own. A server that was never started has to be started first: {guide} walks you through it.", { guide: guideLink() })}</p>
       <div class="w-actions"><button class="later" data-w="next">${phrase("continue anyway — the next steps wait for it")}</button></div>
     </div>`;
   }
@@ -497,6 +505,7 @@ function pageFlight() {
       ${icon("flight")}
       <h2>${phrase("Open your first chat and watch it think.")}</h2>
       <p class="lead">${phrase("This one runs on this machine with a fixed mission: introduce itself, write its status file while you watch the tile fill in, then ask you a question — so you see what")} <b>${phrase("needs you")}</b> ${phrase("looks like and answer from the app. It touches nothing but its own status file.")}</p>
+      ${serverIsOptional()}
       <div class="w-form"><div><label for="w-model">${phrase("model")}</label><select id="w-model">
         <option value="">${phrase("the account default")}</option>
         <option value="haiku">${phrase("Haiku 4.5 — fast and cheap, plenty for this")}</option>
@@ -513,6 +522,7 @@ function pageFlight() {
     <p class="lead">${phrase("The same status the hive shows beside every terminal — written by the session itself, in a file, while it works. When it turns")} <b>${phrase("needs you")}</b>${phrase(", that is your cue.")}</p>
     ${flightCard()}
     <p class="sub">${phrase("Eight stops, about a minute, over the real screen — or go straight in and read them later with")} <code>${keyHint("help")}</code>.</p>
+    ${serverIsOptional()}
     <div class="w-actions"><button class="later" data-w="finish">${phrase("take me to the hive — skip the tour")}</button></div>
   </div>`;
 }
