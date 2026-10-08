@@ -154,3 +154,19 @@ test("o fix que falha sozinho nao tenta de novo a cada leitura", async () => {
   const second = await client.readDoctor(true);
   assert.deepEqual(second.healed, []);
 });
+
+test("um conserto que roda dentro do servidor vai pela porta do servidor, nao pelo interruptor do cluster", async () => {
+  const { client, green } = await clientFor((done) => [{
+    id: "flags", title: "Claude flags on the server", state: "fail", detail: "missing hasCompletedOnboarding", greenWhenFixed: true,
+    fix: { label: "pre-accept the dialogs", command: "bash <this deployment ships no power switch> exec 'true'", podScript: `touch ${done}`, kind: "fix" }
+  }]);
+  const ran = [];
+  client.runFixesOnTheServer(async (script) => {
+    ran.push(script);
+    writeFileSync(green, "");
+    return { ok: true, out: "done\n", error: "" };
+  });
+  const r = await client.applyFix("flags");
+  assert.equal(r.ok, true, `o conserto caiu no comando de cluster: ${r.error}`);
+  assert.deepEqual(ran, [`touch ${green}`]);
+});

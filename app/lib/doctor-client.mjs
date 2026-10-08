@@ -76,7 +76,19 @@ async function healAfter(report) {
   return { ...after, healed };
 }
 
+let onTheServer = null;
+
+export function runFixesOnTheServer(run) {
+  onTheServer = run;
+}
+
+async function overTheDoor(script) {
+  const r = await onTheServer(script);
+  return { ok: !!r.ok, out: r.out || "", raw: r.err || "", err: r.ok ? "" : String(r.error || r.err || "the server would not run it").trim() };
+}
+
 function runFix(item) {
+  if (item.fix.podScript && onTheServer) return overTheDoor(item.fix.podScript);
   const how = fixArgv(item.fix);
   if (how.error) return Promise.resolve({ ok: false, out: "", raw: "", err: how.error });
   return call(how.exe, how.args, FIX_TIMEOUT);
@@ -102,7 +114,7 @@ export async function applyFix(id) {
   }
   const kind = item.fix.kind;
   if (kind === "copy") return { error: `that fix needs you at the keyboard: ${item.fix.command}`, id, kind, command: item.fix.command };
-  const how = fixArgv(item.fix);
+  const how = item.fix.podScript && onTheServer ? {} : fixArgv(item.fix);
   if (how.error) return { error: how.error, id, kind };
   const r = await runFix(item);
   if (!r.ok) return { error: r.err.split("\n").filter(Boolean).pop() || `${item.fix.label} failed`, id, kind };

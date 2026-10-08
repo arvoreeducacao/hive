@@ -130,7 +130,7 @@ export function probeScript(ctx) {
   const flags = 'node -e \'const fs=require("fs");let j={};try{j=JSON.parse(fs.readFileSync(process.env.HOME+"/.claude.json","utf8"))}catch(e){}' +
     'let s={};try{s=JSON.parse(fs.readFileSync(process.env.HOME+"/.claude/settings.json","utf8"))}catch(e){}' +
     `const t={};for(const d of ${JSON.stringify(ctx.trustedDirs ?? readings.TRUSTED_DIRS)})t[d]=!!(j.projects&&j.projects[d]&&j.projects[d].hasTrustDialogAccepted);` +
-    'console.log(JSON.stringify({onboarding:!!j.hasCompletedOnboarding,bypass:!!j.bypassPermissionsModeAccepted,trusted:t,cross:s.crossSessionInbound||""}))\'';
+    'console.log(JSON.stringify({onboarding:!!j.hasCompletedOnboarding,bypass:!!j.bypassPermissionsModeAccepted,trusted:t,cross:s.crossSessionInbound||"",skipBypass:!!s.skipDangerousModePermissionPrompt}))\'';
   const memory = 'node -e \'const fs=require("fs");const read=(f)=>{try{return JSON.parse(fs.readFileSync(f,"utf8"))}catch(e){return {}}};' +
     'const home=process.env.HOME;const ins=read(home+"/.claude/plugins/installed_plugins.json");const cfg=read(home+"/.claude/settings.json");' +
     'const cred=read(home+"/.config/pi/memory-credentials.json");' +

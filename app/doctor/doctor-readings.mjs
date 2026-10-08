@@ -36,7 +36,9 @@ const preAcceptFor = (dirs) => 'node -e \'const fs=require("fs");const p=process
   JSON.stringify(dirs) +
   ')j.projects[d]=Object.assign({},j.projects[d]||{},{hasTrustDialogAccepted:true});fs.writeFileSync(p,JSON.stringify(j,null,2))\'';
 
-const ACCEPT_CROSS = 'node -e \'const fs=require("fs");const p=process.env.HOME+"/.claude/settings.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.crossSessionInbound="accept";fs.writeFileSync(p,JSON.stringify(j,null,2))\'';
+const ACCEPT_CROSS = 'node -e \'const fs=require("fs");const p=process.env.HOME+"/.claude/settings.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.crossSessionInbound="accept";j.skipDangerousModePermissionPrompt=true;fs.writeFileSync(p,JSON.stringify(j,null,2))\'';
+
+export const SELF_HOSTED_GH_LOGIN = "docker compose exec -it hive gh auth login";
 
 export const powerSwitchOf = (ctx) => (ctx.powerSwitch ? `bash ${ctx.powerSwitch}` : "bash <this deployment ships no power switch>");
 
@@ -126,7 +128,7 @@ export const fixes = {
   preAcceptFlags: (ctx) => ({ label: "pre-accept the dialogs", ...onPod(ctx, chain(preAcceptFor(ctx.trustedDirs ?? TRUSTED_DIRS), ACCEPT_CROSS)) }),
   restartControl: (ctx) => ({
     label: "restart the remote control",
-    ...onPod(ctx, `tmux kill-session -t rc 2>/dev/null; tmux new-session -d -s rc "export HOME=/workspace/home PATH=/workspace/npm-global/bin:$PATH && cd ${POD_HUB} && claude remote-control"`)
+    ...onPod(ctx, `tmux kill-session -t rc 2>/dev/null; tmux new-session -d -s rc "export HOME=/workspace/home PATH=/workspace/npm-global/bin:$PATH; cd ${POD_HUB} 2>/dev/null || cd /workspace/hive; claude remote-control"; sleep 10; tmux send-keys -t rc y Enter`)
   }),
   syncHubContext: (ctx) => ({
     label: "sync the canonical hub context",
@@ -140,7 +142,7 @@ export const fixes = {
     label: "clone the missing repos",
     ...onPod(ctx, `mkdir -p /workspace/repos && cd /workspace/repos && for r in ${repos.join(" ")}; do git clone https://github.com/${ctx.reposOwner ?? REPOS_OWNER}/$r.git; done`)
   }),
-  loginGh: (ctx) => ({ label: "log gh in on the server", command: `${powerSwitchOf(ctx)} shell gh auth login` }),
+  loginGh: (ctx) => ({ label: "log gh in on the server", command: ctx.powerSwitch ? `${powerSwitchOf(ctx)} shell gh auth login` : SELF_HOSTED_GH_LOGIN }),
   installMemory: (ctx) => runsDeploymentScript(ctx, "pod-memory.sh", "install the team memory on the server", ""),
   installCloudSessions: (ctx) => runsDeploymentScript(ctx, "pod-cloud-sessions.sh", "install the session sync on the server", " <private-repo-url>"),
   syncCloudSessions: (ctx) => ({ label: "run a session sync on the server", ...onPod(ctx, `node ${CLOUD_SESSIONS_ON_POD} sync`) }),
@@ -397,6 +399,7 @@ export function checkFlags(text, ctx) {
   const minor = [];
   if (!data.onboarding) serious.push("hasCompletedOnboarding");
   if (!data.bypass) serious.push("bypassPermissionsModeAccepted");
+  if (!data.skipBypass) serious.push("skipDangerousModePermissionPrompt in settings.json");
   const untrusted = (ctx.trustedDirs ?? TRUSTED_DIRS).filter((dir) => !(data.trusted || {})[dir]);
   if (untrusted.length) minor.push(`hasTrustDialogAccepted on ${untrusted.join(", ")}`);
   if (data.cross !== "accept") minor.push('crossSessionInbound: "accept" in settings.json');
@@ -446,9 +449,9 @@ export function checkRemoteControl(text, ctx, credentialText) {
   const unusable = credentialText != null && (!credential.token || (!credential.refresh && !(credential.expires > Date.now())));
   const screen = String(text || "").trim();
   if (unusable) {
-    return item(id, title, "fail", "remote control cannot start while the Claude credential on the pod is expired — restarting it will not help, it needs a login", fixes.loginClaude(ctx));
+    return item(id, title, "fail", "remote control cannot start while the Claude credential on the server is expired — restarting it will not help, it needs a login", fixes.loginClaude(ctx));
   }
-  if (!screen || screen === "down") return item(id, title, "fail", "there is no tmux session rc on the pod", fixes.restartControl(ctx));
+  if (!screen || screen === "down") return item(id, title, "fail", "there is no tmux session rc on the server", fixes.restartControl(ctx));
   if (!CONNECTED_CONTROL.test(screen)) return item(id, title, "warn", "the rc session is alive, but its screen never says it connected", fixes.restartControl(ctx));
   return item(id, title, "ok", "rc session alive and connected");
 }
@@ -539,7 +542,7 @@ export function checkGh(text, ctx) {
   const title = "gh authenticated on the server";
   if (text === null) return podUnavailable(id, title, ctx);
   const raw = String(text || "").trim();
-  if (!raw.startsWith("logged-in")) return item(id, title, "fail", "gh is not logged in on the pod; a worker cannot open a PR", fixes.loginGh(ctx));
+  if (!raw.startsWith("logged-in")) return item(id, title, "fail", "gh is not logged in on the server; a worker cannot open a PR", fixes.loginGh(ctx));
   const who = raw.split(/\s+/)[1] || "";
   return item(id, title, "ok", who ? `logged in as ${who}` : "logged in");
 }

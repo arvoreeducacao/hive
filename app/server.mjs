@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import { execFile, spawn } from "node:child_process";
 import { open, readFile } from "node:fs/promises";
 import { chmodSync, closeSync, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { CREDENTIAL_SAVED, loginConfirmed } from "./lib/server-login.mjs";
 import { serverGuideOf } from "./lib/server-guide.mjs";
 import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promises";
 import { parse as parseJsonc, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
@@ -5999,11 +6000,14 @@ async function inPod(script, timeout = 30000) {
 }
 
 const RESTART_RC = `tmux kill-session -t rc 2>/dev/null
-tmux new-session -d -s rc "export HOME=/workspace/home PATH=/workspace/npm-global/bin:\\$PATH && cd ${POD_HUB} && claude remote-control"
+tmux new-session -d -s rc "export HOME=/workspace/home PATH=/workspace/npm-global/bin:\\$PATH; cd ${POD_HUB} 2>/dev/null || cd /workspace/hive; claude remote-control"
 sleep 10
-tmux send-keys -t rc y 2>/dev/null
+tmux send-keys -t rc y Enter 2>/dev/null
 sleep 2
 tmux capture-pane -t rc -p | tail -4`;
+
+const CREDENTIAL_SAVED_PROBE = `home="$HOME"; [ -d /workspace/home ] && home=/workspace/home
+[ -n "$(find "$home/.claude/.credentials.json" -mmin -2 2>/dev/null)" ] && grep -q accessToken "$home/.claude/.credentials.json" && echo ${CREDENTIAL_SAVED}`;
 
 const OPEN_LOGIN = `tmux kill-session -t auth 2>/dev/null
 tmux new-session -d -s auth "export HOME=/workspace/home PATH=/workspace/npm-global/bin:\\$PATH && claude auth login; sleep 900"
@@ -6015,7 +6019,7 @@ done
 printf '%s\\n' "$screen"`;
 
 const PRE_ACCEPT = `node -e 'const fs=require("fs");const p=process.env.HOME+"/.claude.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.hasCompletedOnboarding=true;j.bypassPermissionsModeAccepted=true;j.projects=j.projects||{};for(const d of ["${POD_HUB}","/workspace/repos/${REPO_FOLDER}","/workspace/hive"])j.projects[d]=Object.assign({},j.projects[d]||{},{hasTrustDialogAccepted:true});fs.writeFileSync(p,JSON.stringify(j,null,2))'
-node -e 'const fs=require("fs");const p=process.env.HOME+"/.claude/settings.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.crossSessionInbound="accept";fs.writeFileSync(p,JSON.stringify(j,null,2))'`;
+node -e 'const fs=require("fs");const p=process.env.HOME+"/.claude/settings.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.crossSessionInbound="accept";j.skipDangerousModePermissionPrompt=true;fs.writeFileSync(p,JSON.stringify(j,null,2))'`;
 
 async function podAction(action, data) {
   if (action === "wake") {
@@ -6065,10 +6069,11 @@ async function podAction(action, data) {
 sleep 2
 tmux send-keys -t auth Enter
 sleep 10
-tmux capture-pane -t auth -p | tail -6`;
+tmux capture-pane -t auth -p | tail -6
+${CREDENTIAL_SAVED_PROBE}`;
     const r = await onTheServer(send, [code], { timeout: 60000 });
-    if (!/Login successful|Logged in|Successfully/i.test(r.out)) {
-      return { error: (r.out.split("\n").map((l) => l.trim()).filter(Boolean).pop() || "the pod did not confirm the login").slice(0, 160) };
+    if (!loginConfirmed(r.out)) {
+      return { error: (r.out.split("\n").map((l) => l.trim()).filter(Boolean).pop() || "the server did not confirm the login").slice(0, 160) };
     }
     await inPod(`${PRE_ACCEPT}\ntmux kill-session -t auth 2>/dev/null; true`, 40000);
     await inPod(RESTART_RC, 60000);
@@ -6501,6 +6506,7 @@ const STATIC = {
    arrived, and leaves a note for what it wants. */
 
 const doctor = await import("./lib/doctor-client.mjs").catch(() => null);
+doctor?.runFixesOnTheServer((script) => onTheServer(script, [], { timeout: doctor.FIX_TIMEOUT }));
 const routes = [];
 const on = (method, path, fn) => routes.push({ method, path, fn });
 const answer = async (req, res) => {

@@ -92,6 +92,8 @@ if command -v tmux >/dev/null 2>&1; then
     || tmux new-session -d -s hive -n hub "sleep infinity" \
     || boot_error tmux-hive "could not create the hive session"
   if [ -s /workspace/home/.claude/.credentials.json ] && [ -d "$HUB" ]; then
+    HOME=/workspace/home node -e 'const fs=require("fs");const p=process.env.HOME+"/.claude.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.projects=j.projects||{};j.projects[process.argv[1]]=Object.assign({},j.projects[process.argv[1]]||{},{hasTrustDialogAccepted:true});fs.writeFileSync(p,JSON.stringify(j,null,2))' "$HUB" \
+      || boot_error remote-control-trust "could not mark $HUB as trusted"
     tmux new-session -d -s rc 2>/dev/null || true
     tmux send-keys -t rc "export HOME=/workspace/home PATH=/workspace/npm-global/bin:\$PATH && cd $HUB && claude remote-control" Enter || true
     sleep 12

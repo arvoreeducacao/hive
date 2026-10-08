@@ -580,11 +580,19 @@ test("flags: a missing bypass fails, trust and cross only warn", () => {
   const serious = readings.checkFlags(JSON.stringify({ onboarding: true, bypass: false, trusted, cross: "accept" }), ctx);
   assert.equal(serious.state, "fail");
   assert.match(serious.detail, /stalls on a dialog/);
-  const minor = readings.checkFlags(JSON.stringify({ onboarding: true, bypass: true, trusted, cross: "" }), ctx);
+  const minor = readings.checkFlags(JSON.stringify({ onboarding: true, bypass: true, skipBypass: true, trusted, cross: "" }), ctx);
   assert.equal(minor.state, "warn");
   assert.match(minor.detail, /crossSessionInbound/);
-  assert.equal(readings.checkFlags(JSON.stringify({ onboarding: true, bypass: true, trusted, cross: "accept" }), ctx).state, "ok");
+  assert.equal(readings.checkFlags(JSON.stringify({ onboarding: true, bypass: true, skipBypass: true, trusted, cross: "accept" }), ctx).state, "ok");
   assert.equal(readings.checkFlags("nothing", ctx).state, "fail");
+});
+
+test("flags: a Claude that keeps the bypass answer in settings.json stalls without it, even with the old flag set", () => {
+  const trusted = Object.fromEntries(ctx.trustedDirs.map((d) => [d, true]));
+  const stalled = readings.checkFlags(JSON.stringify({ onboarding: true, bypass: true, skipBypass: false, trusted, cross: "accept" }), ctx);
+  assert.equal(stalled.state, "fail");
+  assert.match(stalled.detail, /skipDangerousModePermissionPrompt/);
+  assert.match(stalled.fix.podScript, /skipDangerousModePermissionPrompt=true/);
 });
 
 test("remote control: no session, not connected, alive", () => {
@@ -811,7 +819,7 @@ test("with the probe answering, the 21 items come from one snapshot", async () =
     "==cli", "a".repeat(64),
     "==signers", "has", "ada",
     "==credential", JSON.stringify({ token: true, expires: Date.now() + 3600000, refresh: true, plan: "max" }),
-    "==flags", JSON.stringify({ onboarding: true, bypass: true, trusted: Object.fromEntries(ctx.trustedDirs.map((d) => [d, true])), cross: "accept" }),
+    "==flags", JSON.stringify({ onboarding: true, bypass: true, skipBypass: true, trusted: Object.fromEntries(ctx.trustedDirs.map((d) => [d, true])), cross: "accept" }),
     "==memory", JSON.stringify({ installed: true, enabled: true, user: "ada", refresh: true, expiresIn: 1800 }),
     "==boot", "2026-08-19T09:00:00Z boot", "2026-08-20T09:00:00Z boot",
     "==cloudsessions", JSON.stringify({ repo: "https://github.com/ada/claude-sessions.git", script: true, lastSync: Date.now() - 120000, lastLog: "2026-08-19T12:00:00.000Z pulled=0 pushed=2 unchanged=40", now: Date.now() }),
