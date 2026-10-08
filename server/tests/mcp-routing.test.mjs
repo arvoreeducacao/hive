@@ -82,7 +82,7 @@ test("readClaudeConfig and hubServers answer empty for what is missing or broken
 });
 
 test("peerServerFor rides the gateway when it is up and serves the peer, with the seat in the headers", () => {
-  const served = peerServerFor({ seat: "asker", side: "local", home: "/state", entry: "/hive/peer/peer-mcp-live.mjs", execPath: "/bin/node", env: { PATH: "/bin" }, gateway: { ok: true, peer: true, token: "t0k", port: 4671 } });
+  const served = peerServerFor({ seat: "asker", side: "local", home: "/state", entry: "/hive/peer/peer-mcp-live.mjs", execPath: "/bin/node", gateway: { ok: true, peer: true, token: "t0k", port: 4671 } });
   assert.deepEqual(served, {
     type: "http",
     url: "http://127.0.0.1:4671/mcp/hive",
@@ -91,10 +91,22 @@ test("peerServerFor rides the gateway when it is up and serves the peer, with th
 });
 
 test("peerServerFor falls back to the stdio child when there is no gateway, or one without the route", () => {
-  const stdio = { type: "stdio", command: "/bin/node", args: ["/hive/peer/peer-mcp-live.mjs"], env: { PATH: "/bin", HIVE_SEAT: "asker", HIVE_SIDE: "cloud", HIVE_STATE_DIR: "/state" } };
-  const args = { seat: "asker", side: "cloud", home: "/state", entry: "/hive/peer/peer-mcp-live.mjs", execPath: "/bin/node", env: { PATH: "/bin" } };
+  const stdio = { type: "stdio", command: "/bin/node", args: ["/hive/peer/peer-mcp-live.mjs"], env: { HIVE_SEAT: "asker", HIVE_SIDE: "cloud", HIVE_STATE_DIR: "/state" } };
+  const args = { seat: "asker", side: "cloud", home: "/state", entry: "/hive/peer/peer-mcp-live.mjs", execPath: "/bin/node" };
   assert.deepEqual(peerServerFor({ ...args, gateway: null }), stdio);
   assert.deepEqual(peerServerFor({ ...args, gateway: { ok: false } }), stdio);
   assert.deepEqual(peerServerFor({ ...args, gateway: { ok: true, peer: false, token: "t0k", port: 4671 } }), stdio);
   assert.deepEqual(peerServerFor({ ...args, gateway: { ok: true, peer: true, token: "", port: 4671 } }), stdio);
+});
+
+test("the stdio peer carries only the hive's own variables, so no token of the environment lands on the agent's command line", () => {
+  const saved = process.env.GH_TOKEN;
+  process.env.GH_TOKEN = "ghp_should_never_show_in_ps";
+  try {
+    const stdio = peerServerFor({ seat: "asker", side: "local", home: "/state", entry: "/hive/peer/peer-mcp-live.mjs", execPath: "/bin/node" });
+    assert.deepEqual(Object.keys(stdio.env).sort(), ["HIVE_SEAT", "HIVE_SIDE", "HIVE_STATE_DIR"]);
+    assert.doesNotMatch(JSON.stringify(stdio), /ghp_should_never_show_in_ps/);
+  } finally {
+    if (saved === undefined) delete process.env.GH_TOKEN; else process.env.GH_TOKEN = saved;
+  }
 });

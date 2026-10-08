@@ -52,7 +52,7 @@ export function routedThroughGateway({ config, cwd, served, port, token }) {
   return { routed, kept };
 }
 
-export function peerServerFor({ seat, side, home, entry, execPath = process.execPath, env = process.env, gateway = null }) {
+export function peerServerFor({ seat, side, home, entry, execPath = process.execPath, gateway = null }) {
   if (gateway?.ok && gateway.peer && gateway.token) {
     return {
       type: "http",
@@ -64,6 +64,6 @@ export function peerServerFor({ seat, side, home, entry, execPath = process.exec
     type: "stdio",
     command: execPath,
     args: [entry],
-    env: { ...env, HIVE_SEAT: seat, HIVE_SIDE: side, HIVE_STATE_DIR: home },
+    env: { HIVE_SEAT: seat, HIVE_SIDE: side, HIVE_STATE_DIR: home },
   };
 }
