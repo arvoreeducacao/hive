@@ -514,7 +514,7 @@ function railViewModel() {
   if (raycastOn()) return raycastRailViewModel();
   const groups = [];
   for (const g of [
-    { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("pod")}`, icon: "i-cloud" },
+    { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
     { key: "local", label: phrase("local · your machine"), icon: "i-local" }
   ]) {
     const ofGroup = st.data.sessions.filter((s) => s.where === g.key && !isHidden(s.name));
@@ -698,7 +698,7 @@ function raycastTeamRailViewModel() {
     });
   }
   groups.push({
-    key: "team", label: phrase("team · on the cluster"),
+    key: "team", label: phrase("team"),
     count: theirs.filter((d) => d.seats.length).length, devs: theirs.map(rowOf)
   });
   const everyone = [...mine, ...theirs];
@@ -712,7 +712,7 @@ function raycastTeamRailViewModel() {
   return {
     key: "team", raycast: true, groups, hits, trouble,
     shown: !!trouble || (q ? hits.length > 0 : everyone.length > 0),
-    label: phrase("team · on the cluster"),
+    label: phrase("team"),
     tally: q ? String(hits.length) : trouble && !everyone.length ? "—" : phrase("{n} of {m}", { n: everyone.filter((d) => d.seats.length).length, m: everyone.length }),
     more: everyone.length > CREW_FOLDED ? `+${everyone.length - CREW_FOLDED}` : ""
   };
@@ -742,7 +742,7 @@ function teamRailViewModel() {
     });
   }
   groups.push({
-    key: "team", label: phrase("team · on the cluster"),
+    key: "team", label: phrase("team"),
     count: theirs.filter((d) => d.seats.length).length, devs: theirs.map(rowOf)
   });
   return { key: "team", groups };

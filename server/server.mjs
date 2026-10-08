@@ -2,6 +2,7 @@ import { createServer, STATUS_CODES } from "node:http";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { hostname } from "node:os";
 import { WebSocketServer } from "ws";
 
@@ -972,8 +973,14 @@ export function keepTheSeatsWrittenDown(broker, { on = process.on.bind(process),
   return write;
 }
 
+export function nameTheServerDir(env = process.env, here = dirname(fileURLToPath(import.meta.url))) {
+  if (!env.HIVE_SERVER_DIR) env.HIVE_SERVER_DIR = here;
+  return env.HIVE_SERVER_DIR;
+}
+
 const runAsCli = process.argv[1] && basename(process.argv[1]) === "server.mjs";
 if (runAsCli) {
+  nameTheServerDir();
   const broker = createBroker({ log: (line) => console.log(line) });
   const door = doorOf();
   listenOn(broker.http, door).then(async () => {

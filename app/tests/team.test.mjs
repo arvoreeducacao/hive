@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
-import { panelOf, readPanel, teamFromBoard, teamSeatKey, readTeamSeatKey, machineOf, liveliestOfDev, PANEL_FRESH } from "../lib/team.mjs";
+import { panelOf, peerOfTheBoard, readPanel, teamFromBoard, teamSeatKey, readTeamSeatKey, machineOf, liveliestOfDev, PANEL_FRESH } from "../lib/team.mjs";
 
 const seat = (over = {}) => ({
   name: "app-ios-carregamento",
@@ -615,4 +615,14 @@ test("the team board carries the door of each hive, and a stale deck reads as op
   assert.strictEqual(doorOf("jonas"), false);
   assert.strictEqual(doorOf("rafa"), true);
   assert.strictEqual(doorOf("vini"), true);
+});
+
+test("a note to a teammate goes to the server that showed their panel, whatever that server calls itself", () => {
+  const devs = [
+    { dev: "ana", key: "SHA256:mine", mine: true },
+    { dev: "bruno", key: "SHA256:bruno-server", mine: false }
+  ];
+  assert.equal(peerOfTheBoard(devs, "bruno"), "SHA256:bruno-server");
+  assert.equal(peerOfTheBoard(devs, "ana"), "", "your own panel is not a peer to send to");
+  assert.equal(peerOfTheBoard(devs, "carla"), "");
 });

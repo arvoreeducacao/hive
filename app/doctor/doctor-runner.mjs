@@ -140,7 +140,7 @@ export function probeScript(ctx) {
     'const state=home+"/.claude/cloud-sessions";const last=Number(read(state+"/last-sync").trim())||0;' +
     'const lines=read(state+"/sync.log").trim().split(String.fromCharCode(10)).filter(Boolean);' +
     `console.log(JSON.stringify({repo:(c.git&&c.git.repo)||"",script:fs.existsSync("${readings.CLOUD_SESSIONS_ON_POD}"),lastSync:last,lastLog:lines.pop()||"",now:Date.now()}))'`;
-  return `export HOME=/workspace/home PATH=/workspace/npm-global/bin:$PATH
+  return `if [ -d /workspace/home ]; then export HOME=/workspace/home PATH=/workspace/npm-global/bin:$PATH; fi
 printf '\\n==clock\\n'; date +%s
 printf '\\n==signers\\n'
 if [ -f ${readings.HIVE_DIR}/allowed_signers ]; then
@@ -150,7 +150,7 @@ if [ -f ${readings.HIVE_DIR}/allowed_signers ]; then
 else
   echo absent
 fi
-printf '\\n==credential\\n'; node -e 'try{const o=JSON.parse(require("fs").readFileSync("/workspace/home/.claude/.credentials.json","utf8")).claudeAiOauth||{};console.log(JSON.stringify({token:!!o.accessToken,expires:o.expiresAt||0,refresh:!!o.refreshToken,plan:o.subscriptionType||""}))}catch(e){console.log("{}")}' 2>/dev/null || echo "{}"
+printf '\\n==credential\\n'; node -e 'try{const o=JSON.parse(require("fs").readFileSync(process.env.HOME+"/.claude/.credentials.json","utf8")).claudeAiOauth||{};console.log(JSON.stringify({token:!!o.accessToken,expires:o.expiresAt||0,refresh:!!o.refreshToken,plan:o.subscriptionType||""}))}catch(e){console.log("{}")}' 2>/dev/null || echo "{}"
 printf '\\n==flags\\n'; ${flags} 2>/dev/null
 printf '\\n==memory\\n'; ${memory} 2>/dev/null
 printf '\\n==boot\\n'; tail -20 ${readings.BOOT_LOG} 2>/dev/null
@@ -190,7 +190,7 @@ else
 fi
 printf '\\n==gh\\n'; s=$(gh auth status 2>&1); case "$s" in *"Logged in"*) echo "logged-in $(printf '%s' "$s" | sed -n 's/.*account \\([^ ]*\\).*/\\1/p' | head -1)";; *) echo logged-out;; esac
 printf '\\n==mcpenv\\n'; curl -fsS --max-time 3 http://127.0.0.1:4671/health 2>/dev/null || echo gateway-down
-printf '\\n==disk\\n'; df -k /workspace | tail -1
+printf '\\n==disk\\n'; df -k "\${HIVE_WORKSPACE:-/workspace}" 2>/dev/null | tail -1
 true`;
 }
 

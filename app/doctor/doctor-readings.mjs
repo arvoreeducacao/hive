@@ -215,6 +215,9 @@ export function execFailure(text) {
 
 export const NOT_ON_A_CLUSTER = "skipped — this hive reaches its server at its address, not through a cluster";
 
+export const ONLY_ON_A_CLUSTER = "skipped — a server reached at its address trusts the key it was started with and the people invited in";
+export const HUB_RITUAL_ONLY_ON_A_CLUSTER = "skipped — this server is not part of a hosted deployment, so there is no hub contract or session sync to keep";
+
 export function podUnavailable(id, title, ctx) {
   const waited = ctx.probeSeconds ? ` within ${ctx.probeSeconds}s` : "";
   if (!ctx.onACluster) return { ...item(id, title, "skip", NOT_ON_A_CLUSTER), dependsOn: "pod" };
@@ -361,6 +364,7 @@ export function checkLastBoot(text, ctx) {
 export function checkSigners(text, ctx) {
   const id = "allowed-signers";
   const title = "allowed_signers on the server";
+  if (!ctx.onACluster) return item(id, title, "skip", ONLY_ON_A_CLUSTER);
   if (text === null) return podUnavailable(id, title, ctx);
   const [state, ...rest] = String(text || "").trim().split("\n");
   const identities = (rest.join(" ") || "").trim();
@@ -374,7 +378,7 @@ export function checkCredential(text, ctx) {
   const title = "Claude credential on the server";
   if (text === null) return podUnavailable(id, title, ctx);
   const data = readJson(text);
-  if (!data || !data.token) return item(id, title, "fail", "/workspace/home/.claude/.credentials.json is missing, empty or carries no token", fixes.loginClaude(ctx));
+  if (!data || !data.token) return item(id, title, "fail", "the server's ~/.claude/.credentials.json is missing, empty or carries no token", fixes.loginClaude(ctx));
   const expired = !data.expires || data.expires < Date.now();
   if (expired && !data.refresh) {
     return item(id, title, "fail", "the credential on the volume expired and carries no refresh token — nothing here can talk to Claude, remote control included", fixes.loginClaude(ctx));
@@ -420,6 +424,7 @@ export function checkMemory(text, ctx) {
 export function checkCloudSessions(text, ctx) {
   const id = "cloud-sessions";
   const title = "session sync on the server";
+  if (!ctx.onACluster) return item(id, title, "skip", HUB_RITUAL_ONLY_ON_A_CLUSTER);
   if (text === null) return podUnavailable(id, title, ctx);
   const data = readJson(text);
   if (!data) return item(id, title, "warn", "could not read the cloud-sessions state on the pod", fixes.installCloudSessions(ctx));
@@ -488,6 +493,7 @@ export function parseHubContext(text) {
 export function checkHubContext(text, ctx) {
   const id = "hub-context";
   const title = "canonical hub context on the server";
+  if (!ctx.onACluster) return item(id, title, "skip", HUB_RITUAL_ONLY_ON_A_CLUSTER);
   if (text === null) return podUnavailable(id, title, ctx);
   const data = parseHubContext(text);
   if (!data.present) {
@@ -511,6 +517,7 @@ export function checkHubContext(text, ctx) {
 export function checkHubContract(text, ctx) {
   const id = "hub-contract";
   const title = "hub contract in the seats";
+  if (!ctx.onACluster) return item(id, title, "skip", HUB_RITUAL_ONLY_ON_A_CLUSTER);
   if (text === null) return podUnavailable(id, title, ctx);
   const data = parseHubContext(text);
   if (!data.present) return item(id, title, "skip", "skipped — no canonical context to compare against (see hub-context)");
@@ -554,6 +561,7 @@ export function checkMcpEnv(line, ctx) {
   const title = "MCP credentials on the server";
   if (line === null) return podUnavailable(id, title, ctx);
   const raw = String(line || "").trim();
+  if ((!raw || raw === "gateway-down") && !ctx.onACluster) return item(id, title, "skip", "skipped — this server runs no MCP gateway");
   if (!raw || raw === "gateway-down") {
     return item(id, title, "fail", "the MCP gateway did not answer on 127.0.0.1:4671, so every server behind it is out", fixes.seeGateway(ctx));
   }

@@ -22,7 +22,7 @@ import { socketPathFor, isNamedPipe, whoHasTheDoor, sweepStale } from "./lib/doo
 import { strandedHelpers, strandedServers } from "./lib/helpers.mjs";
 import { loginUrlIn, loginVerdict } from "./lib/mcp-login.mjs";
 import { keepShot, readShot } from "./lib/shot.mjs";
-import { machineName, teamFromBoard, liveliestOfDev, POKE_FRESH, GRANT_MS, LIVE_DIR, panelOf, pagesOf, watchersOf, readPanel, knockOf, pokeOf, readKnock, readSay, sayLine, grantLive, turnsOfTail, liveOfTail, liveFileOf, readPoke, canPoke, askOf, readAsk, readOutbox, answerOf, readAnswer, askLine, owedOf, owedLive, owedText, owedFrom, OWED_FILE } from "./lib/team.mjs";
+import { machineName, peerOfTheBoard, teamFromBoard, liveliestOfDev, POKE_FRESH, GRANT_MS, LIVE_DIR, panelOf, pagesOf, watchersOf, readPanel, knockOf, pokeOf, readKnock, readSay, sayLine, grantLive, turnsOfTail, liveOfTail, liveFileOf, readPoke, canPoke, askOf, readAsk, readOutbox, answerOf, readAnswer, askLine, owedOf, owedLive, owedText, owedFrom, OWED_FILE } from "./lib/team.mjs";
 import { pickRepo, runsFromBundle, builtBundle, sameCommit, notesFromSubjects, updateFromReleases, updatePicked, releasesQuery, releaseOf, notesBetween, downloadScript, verifyScript, unpackScript, unpackedBundle, rpmInstallOf } from "./main/update.js";
 import { packOf, signatureOf, verifyPack, jsRootOf, sweepJsScript, unpackPackScript, signingTeam, sdkAgreement } from "./main/ota.js";
 import { extensionOf, refuseDrop, FILE_CEILING } from "./assets/drops.mjs";
@@ -114,7 +114,7 @@ import { askTheDoor, findCloudServer, NO_ADDRESS } from "./lib/cloud-door.mjs";
 import { avatarFor, avatarKey } from "./assets/avatar/avatar.mjs";
 import { moodOf } from "./assets/mood.mjs";
 import { workspaceOf, readManifest } from "./lib/hub-workspace.mjs";
-import { hubPathFrom } from "./lib/hub-path.mjs";
+import { cloudRepoOfTheHub, hubPathFrom } from "./lib/hub-path.mjs";
 import { FIRST_FLIGHT, firstFlightMission } from "./lib/first-flight.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { basename, dirname, join } from "node:path";
@@ -3109,7 +3109,7 @@ async function newChat({ name, prompt, images = [], where = "local", model = "",
     if (where === "cloud") {
       const opened = await onCloudSeats("POST", "", {
         name,
-        repo: repo || HUB_FOLDER,
+        repo: repo || cloudRepoOfTheHub(HUB, HUB_FOLDER),
         branch,
         model,
         effort,
@@ -4482,6 +4482,8 @@ async function peerKeyOf(dev) {
   if (!DEV || !DEV_NAME.test(dev)) return "";
   const server = await serverFor();
   if (!server) return "";
+  const onTheBoard = peerOfTheBoard((await readTeam()).devs, dev);
+  if (onTheBoard) return onTheBoard;
   const said = await server.client.get("/api/peers");
   if (!said.ok) return "";
   const found = (said.body?.peers || []).find((one) => one.name === dev);
@@ -4869,7 +4871,8 @@ async function followTeamNotes() {
 async function noteToPeer(dev, kind, note) {
   const server = await serverFor();
   if (!server) return { ok: false, error: "no server answering here" };
-  const said = await server.client.post("/api/peer-note", { dev: String(dev || ""), kind, note });
+  const to = peerOfTheBoard((await readTeam()).devs, dev);
+  const said = await server.client.post("/api/peer-note", { dev: String(dev || ""), ...(to ? { to } : {}), kind, note });
   return said.ok ? { ok: true } : { ok: false, error: said.error || "the note did not leave" };
 }
 
@@ -6310,7 +6313,7 @@ async function onboardingState(query) {
   const data = {
     dev, hub: hubPath, hubLooks: hubLooks(typedHub),
     wantsServer: wanted,
-    machine, setup, server, signature, claudeOnServer,
+    machine, setup, server, signature, claudeOnServer, ownerKey: servers.identity?.publicSsh || "",
     firstFlight: flight,
     finished: existsSync(ONBOARDED),
     sandbox: SANDBOX,

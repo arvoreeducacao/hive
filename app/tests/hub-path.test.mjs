@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { NOT_ABSOLUTE, hubPathFrom } from "../lib/hub-path.mjs";
+import { NOT_ABSOLUTE, hubPathFrom, cloudRepoOfTheHub } from "../lib/hub-path.mjs";
 
 const HOME = "/Users/ada";
 
@@ -22,4 +22,11 @@ test("a relative path is refused with a reason, since the app's own folder is no
 test("an empty field is empty, not an error of its own", () => {
   assert.deepEqual(hubPathFrom("", HOME), { path: "", why: "" });
   assert.deepEqual(hubPathFrom(undefined, HOME), { path: "", why: "" });
+});
+
+test("a cloud chat with no repository picked asks for the hub only when the hub is a repository", () => {
+  const isRepo = (path) => path === "/home/dev/acme-hub/.git";
+  assert.equal(cloudRepoOfTheHub("/home/dev/acme-hub", "acme-hub", isRepo), "acme-hub");
+  assert.equal(cloudRepoOfTheHub("/home/dev/code", "code", isRepo), "", "a plain folder of repositories lands in the server's own folder instead");
+  assert.equal(cloudRepoOfTheHub("", "", isRepo), "");
 });

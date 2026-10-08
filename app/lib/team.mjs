@@ -527,6 +527,11 @@ export function owedFrom(text, now = Date.now(), life = OWED_LIFE) {
     .map((row) => [String(row.seat), { seat: String(row.seat), to: String(row.to), agent: String(row.agent || ""), id: String(row.id || ""), at: Number(row.at), mark: Number(row.mark) || 0 }]);
 }
 
+export function peerOfTheBoard(devs, dev) {
+  const row = (devs || []).find((one) => one.dev === dev && !one.mine && one.key);
+  return row ? row.key : "";
+}
+
 export function teamFromBoard(rows, me, now = Date.now()) {
   const held = new Map();
   for (const row of rows || []) {

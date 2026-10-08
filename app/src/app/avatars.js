@@ -311,7 +311,7 @@ function nameNote(s) {
 function hubNote(s) {
   const look = s.hubLooks || {};
   if (!look.ok) return esc(look.why || "");
-  if (s.wantsServer) return look.env ? phrase("found it, with a .env") : phrase("found it — no .env yet, the server will need one");
+  if (s.wantsServer && s.machine?.wantsCluster) return look.env ? phrase("found it, with a .env") : phrase("found it — no .env yet, the server will need one");
   return look.instructions ? phrase("found it — chats open here and read the instructions it holds") : phrase("found it — chats open here, next to your repositories");
 }
 
@@ -438,7 +438,7 @@ function pageAuthorize() {
     ${icon("authorize")}
     <h2>${phrase("Your server does not know this key yet.")}</h2>
     <p class="lead">${phrase("A server trusts the key it was started with. Hand it yours and restart it:")} <code>HIVE_OWNER_KEY</code></p>
-    ${copyBox(s.setup?.line || "", "copy the line")}
+    ${copyBox(s.ownerKey ? `HIVE_OWNER_KEY="${s.ownerKey}"` : "", "copy the line")}
     <p class="sub">${sig.why ? phrase("right now: {why}.", { why: esc(sig.why) }) + " " : ""}${phrase("Someone already inside can also let you in with an invite.")}</p>
   </div>`;
 }
@@ -462,7 +462,7 @@ function pageLogin() {
   if (c.loggedIn) {
     return `<div class="w-page">
       ${icon("login")}
-      <h2>Claude is logged in on the pod${c.plan ? ` — ${esc(c.plan)} account` : ""}.</h2>
+      <h2>${c.plan ? phrase("Claude is logged in on the server — {plan} account.", { plan: esc(c.plan) }) : phrase("Claude is logged in on the server.")}</h2>
       <p class="lead">${phrase("The credential lives on the volume, so this is once per server, not once per day.")}</p>
       ${c.remoteControl ? "" : `<div class="w-actions"><button class="btn" data-w="control">${phrase("start remote control")}</button></div>`}
     </div>`;

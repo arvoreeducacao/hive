@@ -56,10 +56,14 @@ it, and none of them is something you should need.
 A server only answers to keys it knows. Hand it yours when you start it:
 
 ```
-HIVE_OWNER_KEY="$(cat ~/.hive/key-$USER.pub)" docker compose up
+HIVE_OWNER_KEY="$(cat ~/.hive/identity.pub)" docker compose up
 ```
 
-It adopts that key on boot, once — a restart with the same key changes nothing.
+`~/.hive/identity.pub` is the key the desktop app signs every request with. The
+app writes it the first time it opens, and its welcome screen shows the same line
+ready to copy.
+
+The server adopts that key on boot, once — a restart with the same key changes nothing.
 Without it, the server comes up answering only itself, and every client is turned
 away with a signature it does not recognise.
 
