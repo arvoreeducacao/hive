@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { foldText, markUp, rankSessions, wordsOf } from "../assets/archive-search.mjs";
 
-const session = (title, prompt = "", cwd = "/Users/me/arvore-hub", id = title) => ({ id, where: "local", title, prompt, cwd, at: 1 });
+const session = (title, prompt = "", cwd = "/Users/me/acme-hub", id = title) => ({ id, where: "local", title, prompt, cwd, at: 1 });
 
 const titles = (found) => found.map((one) => one.session.title);
 

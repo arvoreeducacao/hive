@@ -98,9 +98,9 @@ test("a page with no host — file:// — shows its name, not the whole path", (
   assert.equal(el.querySelector(".t-page").hidden, false);
   assert.equal(el.querySelector(".t-page span").textContent, "tela nova.html");
 
-  webOfSeat.set("alfa", { active: 0, asleep: false, tabs: [{ url: "https://arvore.dev/livros/1" }] });
+  webOfSeat.set("alfa", { active: 0, asleep: false, tabs: [{ url: "https://example.com/livros/1" }] });
   paintWebChipOfChat(el, seat());
-  assert.equal(el.querySelector(".t-page span").textContent, "arvore.dev", "a page with a host says the host, not its path");
+  assert.equal(el.querySelector(".t-page span").textContent, "example.com", "a page with a host says the host, not its path");
   webOfSeat.delete("alfa");
 });
 

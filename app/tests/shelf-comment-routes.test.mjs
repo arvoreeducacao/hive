@@ -6,7 +6,7 @@ import { registerArtifactRoutes } from "../routes/artifacts.mjs";
 function harness() {
   const routes = new Map();
   const calls = { commented: [], settled: [], stood: [], published: 0, pulls: 0 };
-  const kept = { comments: [{ id: "c-1", who: "rick", text: "oi", tab: "telas", v: 1, done: false }] };
+  const kept = { comments: [{ id: "c-1", who: "rita", text: "oi", tab: "telas", v: 1, done: false }] };
 
   registerArtifactRoutes((method, path, handler) => routes.set(path, { method, handler }), {
     bodyOf: async (req) => req.body || {},
@@ -25,7 +25,7 @@ function harness() {
     TABS: ["documento", "telas", "plano"],
     readShelfPage: () => ({ html: Buffer.from("<title>Telas</title>") }),
     SHELF_HOME: "/hive/shelf",
-    shelfRepoUrl: async () => "https://github.com/arvoreeducacao/artefatos",
+    shelfRepoUrl: async () => "https://github.com/acme/artifacts",
     shelfPull: async () => { calls.pulls += 1; return { ok: true }; },
     shelfIndex: () => ({ pages: [] }),
     getDev: () => "guilherme",
@@ -62,7 +62,7 @@ test("the page goes out with the pin shim, and the length says so", async () => 
 test("reading the comments of a page says who is reading, and only pulls when asked", async () => {
   const hive = harness();
   const read = await hive.call("/api/shelf/comments", { query: "?slug=catalogacao-de-livros" });
-  assert.deepEqual(read.answers, [{ value: { me: "guilherme", comments: [{ id: "c-1", who: "rick", text: "oi", tab: "telas", v: 1, done: false }] }, status: 200 }]);
+  assert.deepEqual(read.answers, [{ value: { me: "guilherme", comments: [{ id: "c-1", who: "rita", text: "oi", tab: "telas", v: 1, done: false }] }, status: 200 }]);
   assert.equal(hive.calls.pulls, 0);
   await hive.call("/api/shelf/comments", { query: "?slug=catalogacao-de-livros&pull=1" });
   assert.equal(hive.calls.pulls, 1);

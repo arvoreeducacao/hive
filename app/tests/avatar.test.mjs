@@ -15,13 +15,13 @@ const balanced = (svg) => {
 };
 
 test("the same name always gets the same face", () => {
-  for (const name of ["joao-cunha", "rafaelandrade", "art", "a"]) {
+  for (const name of ["jorge", "rosa", "art", "a"]) {
     assert.deepEqual(avatarFor(name), avatarFor(name));
   }
 });
 
 test("different names spread across the catalogue", () => {
-  const names = ["joao-cunha", "rafaelandrade", "vitor-piovezan", "joao-barros", "ricardo", "art", "mariana", "ana", "bruno", "carla", "diego", "elisa"];
+  const names = ["jorge", "rosa", "vini-dev", "jonas", "renato", "art", "mariana", "ana", "bruno", "carla", "diego", "elisa"];
   const seen = new Set(names.map((n) => avatarKey(avatarFor(n))));
   assert.ok(seen.size >= names.length - 1, `only ${seen.size} distinct faces for ${names.length} names`);
   const shapes = new Set(names.map((n) => avatarFor(n).shape));
@@ -37,7 +37,7 @@ test("a derived avatar is always a valid one", () => {
 });
 
 test("the key round-trips and junk is refused", () => {
-  const me = avatarFor("joao-cunha");
+  const me = avatarFor("jorge");
   assert.deepEqual(parseAvatar(avatarKey(me)), me);
   for (const junk of ["", "ball", "ball/dark", "ball/dark/mauve", "sphere/dark/purple", "ball/grinning/purple", "../../etc/passwd", null, undefined]) {
     assert.equal(parseAvatar(junk), null, `${junk} should not parse`);

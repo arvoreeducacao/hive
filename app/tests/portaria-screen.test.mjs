@@ -35,21 +35,21 @@ const zoneOf = (which) => body.querySelectorAll(".pt-zone")[which];
 const NOW = Date.now();
 const phone = (extra = {}) => ({
   fingerprint: "SHA256:abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
-  name: "iPhone de João", kind: "phone", pairedAt: NOW - 86400000 * 22, lastSeen: NOW - 60000,
+  name: "iPhone de Jonas", kind: "phone", pairedAt: NOW - 86400000 * 22, lastSeen: NOW - 60000,
   revoked: false, online: false, ...extra
 });
 const mac = { fingerprint: "SHA256:mac", name: "este mac", kind: "mac", pairedAt: NOW, lastSeen: NOW, revoked: false };
 const full = (extra = {}) => ({
-  me: { url: "https://pod-joao.hive.hive.example" },
+  me: { url: "https://pod-jonas.hive.hive.example" },
   devices: [phone(), mac], peers: [], invites: [], used: [], pairing: null,
-  phone: { enrolled: true, host: "https://pod-joao.hive.hive.example/sync", running: true, following: [], why: "", error: "" },
+  phone: { enrolled: true, host: "https://pod-jonas.hive.hive.example/sync", running: true, following: [], why: "", error: "" },
   ...extra
 });
 
 test("a phone row says when it paired, whether it is reading, and offers only to take it out", () => {
   const devices = screen(full()) && zoneOf(0);
   const row = devices.querySelector(".pt-row");
-  assert.match(row.textContent, /iPhone de João/);
+  assert.match(row.textContent, /iPhone de Jonas/);
   assert.match(row.querySelector("small").textContent, /paired/);
   assert.equal(row.querySelector('[data-pt="build"]'), null, "the phone build button outlived the phone app");
   assert.ok(row.querySelector('[data-pt="revoke"]'), "a phone cannot be taken out from the screen");
@@ -79,24 +79,24 @@ test("no device at all shows the empty state, not a lonely heading", () => {
 
 test("a person who is in can be taken out by key, and an open invite carries its link twice", () => {
   const people = screen(full({
-    peers: [{ fingerprint: "SHA256:vitor", name: "vitor", knownAt: NOW - 3600000, fromFile: false }],
-    invites: [{ at: NOW - 259200000, expiresAt: NOW + 345600000, link: "https://pod-joao/join?key=SHA256:x&token=t" }]
+    peers: [{ fingerprint: "SHA256:vini", name: "vini", knownAt: NOW - 3600000, fromFile: false }],
+    invites: [{ at: NOW - 259200000, expiresAt: NOW + 345600000, link: "https://pod-jonas/join?key=SHA256:x&token=t" }]
   })) && zoneOf(1);
-  assert.equal(people.querySelector('[data-pt="forget"]').dataset.key, "SHA256:vitor");
-  assert.equal(people.querySelector('[data-pt="copy"]').dataset.link, "https://pod-joao/join?key=SHA256:x&token=t");
-  assert.equal(people.querySelector('[data-pt="cancel"]').dataset.link, "https://pod-joao/join?key=SHA256:x&token=t");
+  assert.equal(people.querySelector('[data-pt="forget"]').dataset.key, "SHA256:vini");
+  assert.equal(people.querySelector('[data-pt="copy"]').dataset.link, "https://pod-jonas/join?key=SHA256:x&token=t");
+  assert.equal(people.querySelector('[data-pt="cancel"]').dataset.link, "https://pod-jonas/join?key=SHA256:x&token=t");
   assert.match(people.textContent, /closes in 4 days/);
 });
 
 test("the invite that was never used by a person says so — and stops saying it once someone has", () => {
   assert.match(screen(full()).textContent, /nobody has come in this way yet/);
-  assert.ok(!screen(full({ used: [{ at: NOW - 1000, usedAt: NOW, by: "vitor" }] })).textContent.includes("nobody has come in this way yet"));
+  assert.ok(!screen(full({ used: [{ at: NOW - 1000, usedAt: NOW, by: "vini" }] })).textContent.includes("nobody has come in this way yet"));
 });
 
 test("every button the screen paints lands either in the handler or on a door the server knows", () => {
   screen(full({
-    peers: [{ fingerprint: "SHA256:vitor", name: "vitor", knownAt: NOW, fromFile: false }],
-    invites: [{ at: NOW, expiresAt: NOW + 345600000, link: "https://pod-joao/join?key=k&token=t" }],
+    peers: [{ fingerprint: "SHA256:vini", name: "vini", knownAt: NOW, fromFile: false }],
+    invites: [{ at: NOW, expiresAt: NOW + 345600000, link: "https://pod-jonas/join?key=k&token=t" }],
     pairing: { code: "KRQ7F2MJ", expiresAt: NOW + 277000 }
   }));
   const asked = [...new Set([...body.querySelectorAll("[data-pt]")].map((one) => one.dataset.pt))];
@@ -153,7 +153,7 @@ test("a key that only the signers file knows says so, instead of posing as someo
 });
 
 test("the people half has a place to paste an invite someone sent, always", () => {
-  for (const one of [full(), full({ peers: [{ fingerprint: "SHA256:v", name: "vitor", knownAt: NOW, fromFile: false }] })]) {
+  for (const one of [full(), full({ peers: [{ fingerprint: "SHA256:v", name: "vini", knownAt: NOW, fromFile: false }] })]) {
     const people = screen(one) && zoneOf(1);
     assert.ok(people.querySelector("#pt-link"), "there is nowhere to paste a link that was sent to me");
     assert.ok(people.querySelector('[data-pt="join"]'));

@@ -96,7 +96,7 @@ test("with no contact given, the token still carries one, and it names nobody", 
     keys: await newVapidKeys(),
     fetchImpl: async (url, init) => { sent = init; return { ok: true, status: 201 }; }
   });
-  await notices.send({ endpoint: "https://web.push.apple.com/abc", p256dh: RFC.uaPublic, auth: RFC.auth }, { seat: "joao-1", wake: "done" });
+  await notices.send({ endpoint: "https://web.push.apple.com/abc", p256dh: RFC.uaPublic, auth: RFC.auth }, { seat: "jonas-1", wake: "done" });
   const claims = JSON.parse(textOf(fromB64(sent.headers.authorization.split(".")[1])));
   assert.equal(claims.sub, SUBJECT_WHEN_UNSAID);
   assert.doesNotMatch(SUBJECT_WHEN_UNSAID, /\./, "the contact it falls back to carries nobody's domain");
@@ -113,7 +113,7 @@ test("a notice reaches the phone push service with the vapid headers on it", asy
       return { ok: true, status: 201 };
     }
   });
-  const said = await notices.send({ endpoint: "https://web.push.apple.com/abc", p256dh: RFC.uaPublic, auth: RFC.auth }, { seat: "joao-1", wake: "done" });
+  const said = await notices.send({ endpoint: "https://web.push.apple.com/abc", p256dh: RFC.uaPublic, auth: RFC.auth }, { seat: "jonas-1", wake: "done" });
   assert.equal(said.ok, true);
   assert.equal(asked.length, 1);
   assert.match(asked[0].init.headers.authorization, /^vapid t=[\w-]+\.[\w-]+\.[\w-]+, k=[\w-]{80,}$/);
@@ -121,17 +121,17 @@ test("a notice reaches the phone push service with the vapid headers on it", asy
   assert.equal(asked[0].init.headers.ttl, "600");
   assert.equal(
     await openAsTheUserAgent(asked[0].init.body, { uaPublic: RFC.uaPublic, uaPrivate: RFC.uaPrivate, auth: RFC.auth }),
-    JSON.stringify({ seat: "joao-1", wake: "done" })
+    JSON.stringify({ seat: "jonas-1", wake: "done" })
   );
 });
 
 function brokerIn(dataDir, pod, mac, notices, more = {}) {
   const trusted = (fingerprint) => {
-    if (fingerprint === mac.fingerprint) return { signer: rawOfSsh(mac.publicSsh), name: "mac do joao", kind: "mac" };
+    if (fingerprint === mac.fingerprint) return { signer: rawOfSsh(mac.publicSsh), name: "mac do jonas", kind: "mac" };
     if (fingerprint === pod.fingerprint) return { signer: rawOfSsh(pod.publicSsh), name: "pod", kind: "pod" };
     return null;
   };
-  return createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "joao", trusted, notices, doneFloorMs: 0, ...more });
+  return createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "jonas", trusted, notices, doneFloorMs: 0, ...more });
 }
 
 test("the end of a turn rings the phone, and only the phone that asked for it", async () => {
@@ -150,11 +150,11 @@ test("the end of a turn rings the phone, and only the phone that asked for it", 
   const broker = brokerIn(dataDir, pod, macIdentity, notices);
   const at = () => localFetch(broker);
 
-  const mac = await Device.fromIdentity({ name: "mac do joao", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), fetchImpl: at(), lean: true });
+  const mac = await Device.fromIdentity({ name: "mac do jonas", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), fetchImpl: at(), lean: true });
   await mac.enroll("http://sync/sync", { kind: "mac" });
 
   const code = await mac.openCode();
-  const phone = await Device.create({ name: "iphone do joao", fetchImpl: at() });
+  const phone = await Device.create({ name: "iphone do jonas", fetchImpl: at() });
   await phone.pair("http://sync/sync", code.code);
 
   const otherCode = await mac.openCode();
@@ -165,20 +165,20 @@ test("the end of a turn rings the phone, and only the phone that asked for it", 
   await phone.takeNotices({ endpoint: "https://web.push.apple.com/phone", p256dh: RFC.uaPublic, auth: RFC.auth }, { needs: true, done: true });
   await tablet.takeNotices({ endpoint: "https://web.push.apple.com/tablet", p256dh: RFC.uaPublic, auth: RFC.auth }, { needs: true, done: false });
 
-  await mac.openSeat({ id: "joao-1", title: "o CRM manda a régua sozinho" });
-  await mac.share("joao-1", phone.fingerprint);
-  await mac.share("joao-1", tablet.fingerprint);
+  await mac.openSeat({ id: "jonas-1", title: "o CRM manda a régua sozinho" });
+  await mac.share("jonas-1", phone.fingerprint);
+  await mac.share("jonas-1", tablet.fingerprint);
 
-  await mac.write("joao-1", { type: "assistant", text: "li a fila" });
+  await mac.write("jonas-1", { type: "assistant", text: "li a fila" });
   assert.equal(sent.length, 0, "a message in the middle of a turn rings nobody");
 
-  await mac.write("joao-1", { type: "result", cost: 0.4, turns: 3 }, { wake: "done" });
+  await mac.write("jonas-1", { type: "result", cost: 0.4, turns: 3 }, { wake: "done" });
   assert.deepEqual(sent.map((one) => one.to.endpoint), ["https://web.push.apple.com/phone"], "only the device that wants the end of a turn hears it");
-  assert.deepEqual(sent[0].payload.seat, "joao-1");
+  assert.deepEqual(sent[0].payload.seat, "jonas-1");
   assert.equal(sent[0].payload.wake, "done");
 
   sent.length = 0;
-  await mac.write("joao-1", { type: "question", id: "q1", questions: [{ question: "posso mexer no schema?", header: "schema", options: [] }] }, { wake: "needs" });
+  await mac.write("jonas-1", { type: "question", id: "q1", questions: [{ question: "posso mexer no schema?", header: "schema", options: [] }] }, { wake: "needs" });
   assert.deepEqual(sent.map((one) => one.to.endpoint).sort(), ["https://web.push.apple.com/phone", "https://web.push.apple.com/tablet"], "a question rings both, because being asked is never muted");
 
   sent.length = 0;
@@ -186,7 +186,7 @@ test("the end of a turn rings the phone, and only the phone that asked for it", 
   const stop = phone.listen((note) => heard.push(note.kind));
   await phone.sync();
   await new Promise((done) => setTimeout(done, 60));
-  await mac.write("joao-1", { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
+  await mac.write("jonas-1", { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
   assert.equal(sent.length, 0, "a phone with the page open is told by the page, not by the push service");
   stop();
   phone.close?.();
@@ -194,14 +194,14 @@ test("the end of a turn rings the phone, and only the phone that asked for it", 
 
   sent.length = 0;
   answerWith = { ok: false, gone: true, status: 410 };
-  await mac.write("joao-1", { type: "result", cost: 0.2, turns: 2 }, { wake: "done" });
+  await mac.write("jonas-1", { type: "result", cost: 0.2, turns: 2 }, { wake: "done" });
   await new Promise((done) => setTimeout(done, 60));
   assert.equal(sent.length, 1);
   assert.equal(broker.state.notices[phone.fingerprint], undefined, "a subscription the push service calls gone is dropped");
 
   sent.length = 0;
   answerWith = { ok: true, gone: false, status: 201 };
-  await mac.write("joao-1", { type: "result", cost: 0.3, turns: 1 }, { wake: "done" });
+  await mac.write("jonas-1", { type: "result", cost: 0.3, turns: 1 }, { wake: "done" });
   assert.equal(sent.length, 0, "a dropped subscription is not tried again");
 
   broker.close();
@@ -217,32 +217,32 @@ test("a phone hears the end of a turn at most once in a while, and the next ring
   const broker = brokerIn(dataDir, pod, macIdentity, notices, { doneFloorMs: 400 });
   const at = () => localFetch(broker);
 
-  const mac = await Device.fromIdentity({ name: "mac do joao", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), fetchImpl: at(), lean: true });
+  const mac = await Device.fromIdentity({ name: "mac do jonas", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), fetchImpl: at(), lean: true });
   await mac.enroll("http://sync/sync", { kind: "mac" });
-  const phone = await Device.create({ name: "iphone do joao", fetchImpl: at() });
+  const phone = await Device.create({ name: "iphone do jonas", fetchImpl: at() });
   await phone.pair("http://sync/sync", (await mac.openCode()).code);
   await phone.takeNotices({ endpoint: "https://web.push.apple.com/phone", p256dh: RFC.uaPublic, auth: RFC.auth }, { needs: true, done: true });
 
-  for (const id of ["joao-1", "joao-2", "joao-3", "joao-4", "joao-5"]) {
+  for (const id of ["jonas-1", "jonas-2", "jonas-3", "jonas-4", "jonas-5"]) {
     await mac.openSeat({ id, title: `chat ${id}` });
     await mac.share(id, phone.fingerprint);
   }
 
-  for (const id of ["joao-1", "joao-2", "joao-3", "joao-4"]) await mac.write(id, { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
+  for (const id of ["jonas-1", "jonas-2", "jonas-3", "jonas-4"]) await mac.write(id, { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
   assert.equal(sent.length, 1, "four chats coming back in the same minute is one ring, not four");
   assert.equal(sent[0].more, undefined);
 
-  await mac.write("joao-5", { type: "question", id: "q1", questions: [] }, { wake: "needs" });
+  await mac.write("jonas-5", { type: "question", id: "q1", questions: [] }, { wake: "needs" });
   assert.equal(sent.length, 2, "being asked something is never held back");
   assert.equal(sent[1].wake, "needs");
 
   await new Promise((done) => setTimeout(done, 450));
-  await mac.write("joao-5", { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
+  await mac.write("jonas-5", { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
   assert.equal(sent.length, 3);
   assert.equal(sent[2].more, 3, "the ring that gets through counts the other chats that came back while it was quiet");
 
   await new Promise((done) => setTimeout(done, 450));
-  await mac.write("joao-1", { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
+  await mac.write("jonas-1", { type: "result", cost: 0.1, turns: 1 }, { wake: "done" });
   assert.equal(sent[3].more, undefined, "a quiet stretch with nothing missed rings with no tally");
 
   broker.close();
@@ -258,16 +258,16 @@ test("the line the phone shows rides the push sealed, and the hive never sees it
   const broker = brokerIn(dataDir, pod, macIdentity, notices);
   const at = () => localFetch(broker);
 
-  const mac = await Device.fromIdentity({ name: "mac do joao", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), fetchImpl: at(), lean: true });
+  const mac = await Device.fromIdentity({ name: "mac do jonas", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), fetchImpl: at(), lean: true });
   await mac.enroll("http://sync/sync", { kind: "mac" });
-  const phone = await Device.create({ name: "iphone do joao", fetchImpl: at() });
+  const phone = await Device.create({ name: "iphone do jonas", fetchImpl: at() });
   await phone.pair("http://sync/sync", (await mac.openCode()).code);
   await phone.takeNotices({ endpoint: "https://web.push.apple.com/phone", p256dh: RFC.uaPublic, auth: RFC.auth }, { needs: true, done: true });
 
-  await mac.openSeat({ id: "joao-1", title: "a fila do suporte" });
-  await mac.share("joao-1", phone.fingerprint);
+  await mac.openSeat({ id: "jonas-1", title: "a fila do suporte" });
+  await mac.share("jonas-1", phone.fingerprint);
   const notice = { title: "a fila do suporte", text: "são 135 abertos, 27 de verdade" };
-  await mac.write("joao-1", { type: "result", cost: 0.4, turns: 3 }, { wake: "done", notice });
+  await mac.write("jonas-1", { type: "result", cost: 0.4, turns: 3 }, { wake: "done", notice });
 
   assert.equal(sent.length, 1);
   const box = sent[0].n;
@@ -277,7 +277,7 @@ test("the line the phone shows rides the push sealed, and the hive never sees it
     assert.ok(!inTheClear.includes(word), `what the chat said never travels in the clear: ${word}`);
   }
   await phone.sync();
-  const said = JSON.parse(textOf(await decrypt(phone.keyFor("joao-1", box.keyId), aadOf({ seat: "joao-1", lane: "notice", seq: sent[0].seq, keyId: box.keyId }), box)));
+  const said = JSON.parse(textOf(await decrypt(phone.keyFor("jonas-1", box.keyId), aadOf({ seat: "jonas-1", lane: "notice", seq: sent[0].seq, keyId: box.keyId }), box)));
   assert.deepEqual(said, notice);
 
   broker.close();

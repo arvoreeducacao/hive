@@ -42,10 +42,10 @@ async function paired(held, kind, name) {
 }
 
 before(async () => {
-  mine = await stand("joao");
-  theirs = await stand("vitor");
-  mac = await paired(mine, "mac", "joao mac");
-  phone = await paired(mine, "mac", "outro mac do joao");
+  mine = await stand("jonas");
+  theirs = await stand("vini");
+  mac = await paired(mine, "mac", "jonas mac");
+  phone = await paired(mine, "mac", "outro mac do jonas");
 });
 
 after(async () => {
@@ -77,7 +77,7 @@ test("cancelling an invite takes it off the list and nobody can spend it after t
   const listed = await mac.client.get("/api/invites");
   assert.equal(listed.body.invites.some((one) => one.link === link), false, "the cancelled invite is still listed");
 
-  const guest = await paired(theirs, "mac", "vitor mac");
+  const guest = await paired(theirs, "mac", "vini mac");
   const tried = await guest.client.post("/api/join", { link });
   assert.equal(tried.ok, false, "a cancelled invite still let someone in");
 });
@@ -91,12 +91,12 @@ test("cancelling something that was never minted is a 404, not a silent yes", as
 test("an invite that is spent moves from open to used, carrying who used it", async () => {
   const before = await mac.client.get("/api/invites");
   const made = await mac.client.post("/api/invites", {});
-  const guest = await paired(theirs, "mac", "vitor mac 2");
+  const guest = await paired(theirs, "mac", "vini mac 2");
   const joined = await guest.client.post("/api/join", { link: made.body.link });
   assert.equal(joined.ok, true, joined.error);
 
   const after = await mac.client.get("/api/invites");
   assert.equal(after.body.invites.some((one) => one.link === made.body.link), false, "a spent invite is still open");
   assert.equal(after.body.used.length, before.body.used.length + 1);
-  assert.equal(after.body.used.at(-1).by, "vitor");
+  assert.equal(after.body.used.at(-1).by, "vini");
 });

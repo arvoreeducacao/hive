@@ -41,10 +41,10 @@ async function paired(held, kind, name) {
 }
 
 before(async () => {
-  theirs = await stand("vitor");
-  mine = await stand("joao");
-  const owner = await paired(theirs, "mac", "vitor mac");
-  const guest = await paired(mine, "mac", "joao mac");
+  theirs = await stand("vini");
+  mine = await stand("jonas");
+  const owner = await paired(theirs, "mac", "vini mac");
+  const guest = await paired(mine, "mac", "jonas mac");
   const invite = await owner.client.post("/api/invites", {});
   const joined = await guest.client.post("/api/join", { link: invite.body.link });
   assert.equal(joined.ok, true, joined.error);
@@ -60,8 +60,8 @@ after(async () => {
 });
 
 test("a note addressed by the person's name lands on the mac of that person", async () => {
-  const sender = await paired(mine, "mac", "joao asking");
-  const listener = await paired(theirs, "mac", "vitor listening");
+  const sender = await paired(mine, "mac", "jonas asking");
+  const listener = await paired(theirs, "mac", "vini listening");
 
   const heard = [];
   const stream = attachStream({ open: () => new WebSocket(listener.client.streamUrl()), onEnvelope: (e) => heard.push(e) });
@@ -70,9 +70,9 @@ test("a note addressed by the person's name lands on the mac of that person", as
     assert.equal(stream.up, true, "the listener never opened its stream");
 
     const sent = await sender.client.post("/api/peer-note", {
-      dev: "vitor",
+      dev: "vini",
       kind: "ask",
-      note: { from: "joao", text: "o deploy pode ir?" }
+      note: { from: "jonas", text: "o deploy pode ir?" }
     });
     assert.equal(sent.ok, true, sent.error);
     assert.equal(sent.body.to, theirs.broker.identity.fingerprint);
@@ -88,21 +88,21 @@ test("a note addressed by the person's name lands on the mac of that person", as
 });
 
 test("a note for a person we are not paired with is refused, and one with no kind too", async () => {
-  const sender = await paired(mine, "mac", "joao guessing");
+  const sender = await paired(mine, "mac", "jonas guessing");
   const nobody = await sender.client.post("/api/peer-note", { dev: "ninguem", kind: "ask", note: {} });
   assert.equal(nobody.status, 404);
   assert.match(nobody.error, /not paired/);
 
-  const bare = await sender.client.post("/api/peer-note", { dev: "vitor", note: {} });
+  const bare = await sender.client.post("/api/peer-note", { dev: "vini", note: {} });
   assert.equal(bare.status, 400);
   assert.match(bare.error, /needs a kind/);
 });
 
 test("a note waits in the mailbox when nobody is listening, and lands on arrival", async () => {
-  const sender = await paired(mine, "mac", "joao early");
-  const later = await paired(theirs, "mac", "vitor away");
+  const sender = await paired(mine, "mac", "jonas early");
+  const later = await paired(theirs, "mac", "vini away");
 
-  const sent = await sender.client.post("/api/peer-note", { dev: "vitor", kind: "poke", note: { from: "joao" } });
+  const sent = await sender.client.post("/api/peer-note", { dev: "vini", kind: "poke", note: { from: "jonas" } });
   assert.equal(sent.ok, true, sent.error);
 
   const heard = [];
@@ -116,7 +116,7 @@ test("a note waits in the mailbox when nobody is listening, and lands on arrival
 });
 
 test("only a paired server may push a note in, never a device pretending to be one", async () => {
-  const phone = await paired(theirs, "phone", "iphone do vitor");
+  const phone = await paired(theirs, "phone", "iphone do vini");
   const said = await phone.client.post("/api/peer-say", { kind: "ask", body: { text: "me deixa entrar" } });
   assert.equal(said.status, 403);
   assert.match(said.error, /only a paired server/);

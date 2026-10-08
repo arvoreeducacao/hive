@@ -22,7 +22,7 @@ test("an image is told apart from any other file", () => {
 });
 
 test("what the machine runs stays out", () => {
-  for (const name of ["Hive.app", "setup.exe", "arvore.dmg", "tool.jar", "install.pkg"]) {
+  for (const name of ["Hive.app", "setup.exe", "acme.dmg", "tool.jar", "install.pkg"]) {
     assert.match(refuseDrop([file(name)]), /runs/, name);
   }
 });

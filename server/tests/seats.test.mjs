@@ -251,7 +251,7 @@ test("an agent that is not on the box closes its window, and the seat says so in
 });
 
 test("a revived seat whose folder is not on this box opens in the hub, and a new seat asked for a folder that is not here is refused", { skip: !hasTmux }, async () => {
-  const elsewhere = join(root, "somebody", "desk", "arvore-hub");
+  const elsewhere = join(root, "somebody", "desk", "acme-hub");
   const revived = await seats.open({ name: "back", cwd: elsewhere, resumeId: "9f1c2ab3-0000-4000-8000-000000000001" });
   assert.ok(!revived.error, revived.error);
   assert.equal(revived.cwd, hub, "the seat was sent to a folder the box does not have, so the agent could not even start");

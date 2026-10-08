@@ -1,5 +1,9 @@
 # Security
 
+Hive is alpha software and has not had an outside security review. Run it on
+machines and code you are willing to let an agent change, and keep a server you
+host on `127.0.0.1` or behind your own network until you have read this page.
+
 ## Reporting
 
 Open a [private advisory](../../security/advisories/new) on this repository. That

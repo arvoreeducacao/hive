@@ -48,7 +48,7 @@ test("a link with pieces missing is no link at all", () => {
 
 test("the app opens the shelf and nothing else", () => {
   assert.equal(shelfLinkOf("hive://app/api/shelf"), null);
-  assert.equal(shelfLinkOf("https://github.com/arvoreeducacao/artefatos"), null);
+  assert.equal(shelfLinkOf("https://github.com/acme/artifacts"), null);
   assert.equal(shelfLinkOf("hive://shelf/"), null);
   assert.equal(shelfLinkOf("hive://shelf/../../etc/passwd"), null);
   assert.equal(shelfLinkOf("hive://shelf/UPPER-case"), null);

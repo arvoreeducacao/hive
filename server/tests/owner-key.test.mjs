@@ -9,25 +9,25 @@ import { fromAllowedSigners } from "../roster.mjs";
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const read = (path) => readFileSync(join(REPO, path), "utf8");
 
-const KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAEYdXE1P1NDRGIoyY90PC7LfyEw2oogwEOFuRhlvshX joao@mac";
+const KEY = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAEYdXE1P1NDRGIoyY90PC7LfyEw2oogwEOFuRhlvshX jonas@mac";
 const OTHER = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOmrOyxPKYeSlgfZgC+cfHFJBnI0uwKccE3dUEoiGxdi rafael@mac";
 
 test("a key handed over by the environment is read the same way the file is", () => {
-  const [one] = fromAllowedSigners(`joao ${KEY}`, { owners: ["joao"] });
+  const [one] = fromAllowedSigners(`jonas ${KEY}`, { owners: ["jonas"] });
   assert.match(one.fingerprint, /^SHA256:/);
   assert.equal(one.publicSsh, KEY);
 });
 
 test("the owner key joins the keys already written down, it does not replace them", () => {
   const written = `rafael ${OTHER}`;
-  const both = fromAllowedSigners([written, `joao ${KEY}`].join("\n"), { owners: ["joao"] });
+  const both = fromAllowedSigners([written, `jonas ${KEY}`].join("\n"), { owners: ["jonas"] });
   assert.equal(both.length, 2);
   assert.deepEqual(both.map((one) => one.publicSsh).sort(), [KEY, OTHER].sort());
 });
 
 test("a key already written down is not adopted twice", () => {
-  const written = `joao ${KEY}`;
-  const ownerLine = written.includes(KEY) ? "" : `joao ${KEY}`;
+  const written = `jonas ${KEY}`;
+  const ownerLine = written.includes(KEY) ? "" : `jonas ${KEY}`;
   assert.equal(ownerLine, "", "the boot would append a key the file already carries");
 });
 

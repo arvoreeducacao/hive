@@ -3,6 +3,8 @@ title: Settings
 description: The environment variables the server and the CLI read.
 sidebar:
   order: 3
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 ## The server

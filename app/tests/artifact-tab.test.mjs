@@ -151,7 +151,7 @@ test("the shelf rail really leaves the screen on a tab that is not from the shel
   pane.className = "art web";
   pane.innerHTML = '<div class="web-rail sh-tabs"></div><button class="web-link"></button><button class="web-ask"></button><button class="web-out"></button>';
   document.body.appendChild(pane);
-  web.paintArtifactChrome(pane, { kind: "web", url: "https://github.com/arvoreeducacao/dev-workspaces/pull/1114" });
+  web.paintArtifactChrome(pane, { kind: "web", url: "https://github.com/acme/hive/pull/1114" });
   assert.equal(getComputedStyle(pane.querySelector(".web-rail")).display, "none");
   pane.remove();
 });

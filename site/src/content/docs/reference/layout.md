@@ -3,6 +3,8 @@ title: Repository layout
 description: What each folder is, and which one is not part of Hive.
 sidebar:
   order: 4
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 | Folder | What |

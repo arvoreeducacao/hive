@@ -223,7 +223,7 @@ test("the two that switch still answer their shortcut and their line in the pale
 });
 
 test("a knock is the same knock while it waits, so it is only announced once", () => {
-  const knock = { from: "jott4", seat: "hive-3", at: 1787253264687 };
+  const knock = { from: "juno", seat: "hive-3", at: 1787253264687 };
   assert.equal(knockId(knock), knockId({ ...knock }));
   assert.notEqual(knockId(knock), knockId({ ...knock, at: knock.at + 1 }));
   assert.notEqual(knockId(knock), knockId({ ...knock, from: "rafa" }));
@@ -237,7 +237,7 @@ test("the rail has a foot of its own, so the list can scroll and the knocks cann
 
 test("every knock in the dock offers both answers", () => {
   st.data = { sessions: [{ name: "hive-3", title: "the seat" }], spawning: [], archived: [], pod: { up: false, name: "" } };
-  st.knocksOpen = [{ from: "jott4", seat: "hive-3", at: Date.now() - 60000 }];
+  st.knocksOpen = [{ from: "juno", seat: "hive-3", at: Date.now() - 60000 }];
   const model = knocksViewModel();
   assert.equal(model.knocks.length, 1);
   assert.equal(model.knocks[0].yes, "lend it");

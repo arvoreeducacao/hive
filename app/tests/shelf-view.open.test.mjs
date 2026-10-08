@@ -10,13 +10,13 @@ const PAGE = {
   slug: "publicar-sem-claude-ai",
   title: "Publicar sem claude.ai",
   label: "em-revisao",
-  owner: "joao",
+  owner: "jonas",
   at: 1787428353481,
   tabs: { documento: { versions: [{ n: 1, label: "em-revisao", at: 1, bytes: 15150 }, { n: 2, label: "em-revisao-cadeia-dos-prs", at: 2, bytes: 15337 }] } }
 };
 
 function shelf({ open = null, tab = "documento", version = 0 } = {}) {
-  st.shelf = { repo: "https://github.com/arvoreeducacao/artefatos", me: "joao", pages: [PAGE] };
+  st.shelf = { repo: "https://github.com/acme/artifacts", me: "jonas", pages: [PAGE] };
   st.shelfQuery = "";
   st.shelfWho = "team";
   st.shelfState = "";
@@ -75,7 +75,7 @@ test("back on the gallery, the reader gets out of the way", () => {
 
 test("the lente tab tells the page it is inside the hive, and which theme is worn", () => {
   const withLente = { ...PAGE, tabs: { ...PAGE.tabs, lente: { versions: [{ n: 1, label: "delivered", at: 3, bytes: 164000 }] } } };
-  st.shelf = { repo: "https://github.com/arvoreeducacao/artefatos", me: "joao", pages: [withLente] };
+  st.shelf = { repo: "https://github.com/acme/artifacts", me: "jonas", pages: [withLente] };
   st.themeName = "";
   st.shelfOpen = withLente.slug;
   st.shelfTab = "lente";

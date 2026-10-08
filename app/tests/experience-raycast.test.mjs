@@ -140,5 +140,5 @@ test('the Experimental settings keep the button of New Hive and give Hive in Ray
   assert.match(pane, /id="raycast-toggle"/);
   assert.match(pane, /id="raycast-state" role="status"/);
   assert.ok(pane.indexOf('id="experience-toggle"') < pane.indexOf('id="raycast-toggle"'));
-  for (const text of ['Hive in Raycast', "João's experiment: the Raycast look, with keycaps, a calm palette and structures you can switch for the whole screen. Turning it on turns New Hive off.", 'Try Hive in Raycast', 'Hive in Raycast is off.', 'Hive in Raycast is active · experimental']) assert.ok(PT_BR[text], text);
+  for (const text of ['Hive in Raycast', "An experiment: the Raycast look, with keycaps, a calm palette and structures you can switch for the whole screen. Turning it on turns New Hive off.", 'Try Hive in Raycast', 'Hive in Raycast is off.', 'Hive in Raycast is active · experimental']) assert.ok(PT_BR[text], text);
 });

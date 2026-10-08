@@ -29,7 +29,7 @@ test("catches a Slack token", () => {
 });
 
 test("catches a database url that carries a password", () => {
-  const url = fragment("mysql://", "arvore_ro", ":", "Tr0v4d0r-2026-xY", "@rds.internal:3306/arvore");
+  const url = fragment("mysql://", "acme_ro", ":", "Tr0v4d0r-2026-xY", "@rds.internal:3306/acme");
   const findings = scan(url);
   assert.ok(findings.some((f) => f.pattern === "url-with-password"));
 });

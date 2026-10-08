@@ -58,10 +58,10 @@ test("the request leads with your own sentence, and the seat carries its last li
 
 test("what came back offers the PR and the way to clear it", () => {
   const html = zone("came back", [group({
-    prs: ["https://github.com/arvoreeducacao/dev-workspaces/pull/359"],
+    prs: ["https://github.com/acme/hive/pull/359"],
     seats: [{ name: "ped-42", state: "done", title: "PED-42", now: "abriu o PR" }]
   })], "back");
-  assert.match(html, /dev-workspaces#359/, "the link reads as repo#number, not a raw url");
+  assert.match(html, /hive#359/, "the link reads as repo#number, not a raw url");
   assert.match(html, /data-seen="áudio mudo no CRM"/);
 });
 
@@ -128,10 +128,10 @@ test("the message says the state in words, then the request, then what happened"
 
 test("what came back leads with the PR, and the way to clear it", () => {
   const html = dayLine({
-    errand: "PED-42", asked: "toca o PED-42", prs: ["https://github.com/arvoreeducacao/dev-workspaces/pull/812"],
+    errand: "PED-42", asked: "toca o PED-42", prs: ["https://github.com/acme/hive/pull/812"],
     seats: [{ name: "ped-42", state: "done", title: "PED-42", now: "abriu o PR" }]
   }, "back");
-  assert.match(html, /dev-workspaces#812/, "the link reads as repo#number, not a raw url");
+  assert.match(html, /hive#812/, "the link reads as repo#number, not a raw url");
   assert.match(html, /data-seen="PED-42"/);
 });
 

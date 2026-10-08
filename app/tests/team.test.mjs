@@ -17,7 +17,7 @@ const seat = (over = {}) => ({
 });
 
 test("the published panel carries the card and nothing else", () => {
-  const panel = panelOf([seat({ prs: ["arvore/hub#1"], history: [1, 2, 3], threads: ["x"] })], "rafael", 1000);
+  const panel = panelOf([seat({ prs: ["acme/hub#1"], history: [1, 2, 3], threads: ["x"] })], "rafael", 1000);
   assert.deepStrictEqual(Object.keys(panel), ["v", "dev", "at", "seats"]);
   assert.deepStrictEqual(Object.keys(panel.seats[0]), ["name", "title", "where", "state", "when", "model", "summary", "description", "now", "live", "liveSince"]);
 });
@@ -76,26 +76,26 @@ test("an unknown state reads as idle instead of styling nothing", () => {
 test("who is running something comes first, and a stale panel shows no seats", () => {
   const board = (dev, panel, extra = {}) => ({ fingerprint: `k-${dev}`, panel, ...extra });
   const rows = teamFromBoard([
-    board("rafaelandrade", panelOf([seat(), seat({ name: "b", state: "needs" })], "rafaelandrade", 1000)),
+    board("rosa", panelOf([seat(), seat({ name: "b", state: "needs" })], "rosa", 1000)),
     board("art", panelOf([], "art", 1000)),
-    board("vitor", panelOf([seat()], "vitor", 1000 - (PANEL_FRESH + 1))),
-    board("joao", panelOf([seat()], "joao", 1000))
-  ], "joao", 1000);
+    board("vini", panelOf([seat()], "vini", 1000 - (PANEL_FRESH + 1))),
+    board("jonas", panelOf([seat()], "jonas", 1000))
+  ], "jonas", 1000);
 
   assert.deepStrictEqual(rows.map((r) => [r.dev, r.seats.length, r.needs]), [
-    ["joao", 1, 0],
-    ["rafaelandrade", 2, 1],
+    ["jonas", 1, 0],
+    ["rosa", 2, 1],
     ["art", 0, 0],
-    ["vitor", 0, 0]
+    ["vini", 0, 0]
   ]);
-  assert.strictEqual(rows.find((r) => r.dev === "vitor").sharing, false, "a panel nobody refreshed is still shown as live");
+  assert.strictEqual(rows.find((r) => r.dev === "vini").sharing, false, "a panel nobody refreshed is still shown as live");
   assert.strictEqual(rows[0].mine, true, "my own machine is not mine, or is not the first thing I see");
   assert.strictEqual(rows.some((r) => "pod" in r), false,
     "a row still carries a pod name, which is one deployment's way of hosting and not something the screen should know");
 });
 
 test("a team seat key survives the round trip and refuses anything else", () => {
-  assert.deepStrictEqual(readTeamSeatKey(teamSeatKey("rafaelandrade", "app-ios")), { dev: "rafaelandrade", machine: "", name: "app-ios" });
+  assert.deepStrictEqual(readTeamSeatKey(teamSeatKey("rosa", "app-ios")), { dev: "rosa", machine: "", name: "app-ios" });
 
   const studio = teamSeatKey("pedro", "arrumar-o-rail", "SHA256:cFiq6rLSylh4swpXK8vp4mqC8L4nBdHninFTrrSS6is");
   const macbook = teamSeatKey("pedro", "arrumar-o-rail", "SHA256:wvUgCSLqaSFeNZV697Vtks1mZcweWZWxFgHtf2QWY94");
@@ -108,10 +108,10 @@ test("a team seat key survives the round trip and refuses anything else", () => 
 import { knockOf, readKnock, sayOf, readSay, sayLine, grantLive, turnsOfTail, GRANT_MS, KNOCK_FRESH } from "../lib/team.mjs";
 
 test("a knock survives the round trip and expires on its own", () => {
-  const text = JSON.stringify(knockOf("joao", "bot-maluco", 1000));
-  assert.deepStrictEqual(readKnock(text, 1000), { from: "joao", seat: "bot-maluco", at: 1000, kind: "knock" });
+  const text = JSON.stringify(knockOf("jonas", "bot-maluco", 1000));
+  assert.deepStrictEqual(readKnock(text, 1000), { from: "jonas", seat: "bot-maluco", at: 1000, kind: "knock" });
   assert.strictEqual(readKnock(text, 1000 + KNOCK_FRESH + 1), null);
-  assert.strictEqual(readKnock(JSON.stringify(knockOf("joao", "bot-maluco", 1000, "bye")), 1000).kind, "bye");
+  assert.strictEqual(readKnock(JSON.stringify(knockOf("jonas", "bot-maluco", 1000, "bye")), 1000).kind, "bye");
 });
 
 test("the answer to a knock travels as a knock of its own, and an invented kind is just a knock", () => {
@@ -122,24 +122,24 @@ test("the answer to a knock travels as a knock of its own, and an invented kind 
 
 test("a knock with a name that is not a name is refused", () => {
   assert.strictEqual(readKnock(JSON.stringify(knockOf("../root", "seat", 1))), null);
-  assert.strictEqual(readKnock(JSON.stringify(knockOf("joao", "../etc/passwd", 1))), null);
-  assert.strictEqual(readKnock(JSON.stringify(sayOf("joao", "seat", "oi", 1, "x"))), null);
+  assert.strictEqual(readKnock(JSON.stringify(knockOf("jonas", "../etc/passwd", 1))), null);
+  assert.strictEqual(readKnock(JSON.stringify(sayOf("jonas", "seat", "oi", 1, "x"))), null);
 });
 
 test("a message keeps who wrote it and is cut before it travels", () => {
-  const said = readSay(JSON.stringify(sayOf("joao", "seat", "x".repeat(9000), 5, "id-1")));
-  assert.strictEqual(said.from, "joao");
+  const said = readSay(JSON.stringify(sayOf("jonas", "seat", "x".repeat(9000), 5, "id-1")));
+  assert.strictEqual(said.from, "jonas");
   assert.strictEqual(said.text.length, 4000);
-  assert.strictEqual(readSay(JSON.stringify(sayOf("joao", "seat", "   ", 5, "id-2"))), null);
+  assert.strictEqual(readSay(JSON.stringify(sayOf("jonas", "seat", "   ", 5, "id-2"))), null);
 });
 
 test("the message reaches the seat saying who is talking", () => {
-  assert.strictEqual(sayLine("joao", "  manda o reset  "), "joao: manda o reset");
+  assert.strictEqual(sayLine("jonas", "  manda o reset  "), "jonas: manda o reset");
 });
 
 test("a grant is only live while it has a holder and time left", () => {
-  assert.strictEqual(grantLive({ with: "joao", until: 2000 }, 1000), true);
-  assert.strictEqual(grantLive({ with: "joao", until: 500 }, 1000), false);
+  assert.strictEqual(grantLive({ with: "jonas", until: 2000 }, 1000), true);
+  assert.strictEqual(grantLive({ with: "jonas", until: 500 }, 1000), false);
   assert.strictEqual(grantLive({ with: "", until: 9e12 }, 1000), false);
   assert.strictEqual(grantLive(null, 1000), false);
   assert.ok(GRANT_MS >= 600000);
@@ -171,9 +171,9 @@ test("the tail keeps the last turns and cuts each one", () => {
 
 test("a card only carries the keyboard while the grant is alive", () => {
   const seats = [{ name: "a", title: "A", where: "local", state: "working" }];
-  const dead = panelOf(seats, "joao", 5000, new Map([["a", { with: "rafa", until: 1000 }]]));
+  const dead = panelOf(seats, "jonas", 5000, new Map([["a", { with: "rafa", until: 1000 }]]));
   assert.strictEqual(dead.seats[0].keyboard, undefined);
-  const live = panelOf(seats, "joao", 5000, new Map([["a", { with: "rafa", until: 9e12, turns: [{ who: "seat", text: "oi" }] }]]));
+  const live = panelOf(seats, "jonas", 5000, new Map([["a", { with: "rafa", until: 9e12, turns: [{ who: "seat", text: "oi" }] }]]));
   assert.strictEqual(live.seats[0].keyboard.with, "rafa");
   assert.deepStrictEqual(readPanel(JSON.stringify(live), 5000).seats[0].keyboard.turns, [{ who: "seat", text: "oi" }]);
 });
@@ -183,9 +183,9 @@ test("a card only carries the keyboard while the grant is alive", () => {
 import { pokeOf, readPoke, canPoke, POKE_FRESH } from "../lib/team.mjs";
 
 test("a poke carries who and when, and nothing else", () => {
-  const poke = pokeOf("vitor", 1000);
-  assert.deepStrictEqual(poke, { v: 1, kind: "poke", from: "vitor", at: 1000, id: "vitor:1000" });
-  assert.deepStrictEqual(readPoke(JSON.stringify(poke), 1500), { from: "vitor", at: 1000, id: "vitor:1000" });
+  const poke = pokeOf("vini", 1000);
+  assert.deepStrictEqual(poke, { v: 1, kind: "poke", from: "vini", at: 1000, id: "vini:1000" });
+  assert.deepStrictEqual(readPoke(JSON.stringify(poke), 1500), { from: "vini", at: 1000, id: "vini:1000" });
 });
 
 test("a poke that arrived late arrived for nobody", () => {
@@ -208,12 +208,12 @@ test("only the hives that were given it can poke", () => {
 });
 
 test("a hello is a poke with one more word, and a plain poke has no word at all", () => {
-  const hello = pokeOf("vitor", 1000, true);
-  assert.deepStrictEqual(hello, { v: 1, kind: "poke", from: "vitor", at: 1000, id: "vitor:1000", hello: true });
-  assert.deepStrictEqual(readPoke(JSON.stringify(hello), 1500), { from: "vitor", at: 1000, id: "vitor:1000", hello: true });
-  assert.ok(!("hello" in pokeOf("vitor", 1000)), "a shake does not carry the word");
-  assert.ok(!("hello" in readPoke(JSON.stringify(pokeOf("vitor", 1000)), 1500)));
-  const forged = JSON.stringify({ ...pokeOf("vitor", 1000), hello: "yes" });
+  const hello = pokeOf("vini", 1000, true);
+  assert.deepStrictEqual(hello, { v: 1, kind: "poke", from: "vini", at: 1000, id: "vini:1000", hello: true });
+  assert.deepStrictEqual(readPoke(JSON.stringify(hello), 1500), { from: "vini", at: 1000, id: "vini:1000", hello: true });
+  assert.ok(!("hello" in pokeOf("vini", 1000)), "a shake does not carry the word");
+  assert.ok(!("hello" in readPoke(JSON.stringify(pokeOf("vini", 1000)), 1500)));
+  const forged = JSON.stringify({ ...pokeOf("vini", 1000), hello: "yes" });
   assert.ok(!("hello" in readPoke(forged, 1500)), "anything but true is not a hello");
 });
 
@@ -394,19 +394,19 @@ test("the mirror file is named after the seat, and a name that is not a name has
 });
 
 test("the walk to the folder is not the command", () => {
-  assert.strictEqual(toolLine("Bash", { command: "cd /home/vitor/arvore-hub/app && node --test team.test.mjs" }), "node --test team.test.mjs");
+  assert.strictEqual(toolLine("Bash", { command: "cd /home/dev/acme-hub/app && node --test team.test.mjs" }), "node --test team.test.mjs");
   assert.strictEqual(toolLine("Bash", { command: "  git   status  " }), "git status");
 });
 
 test("a deep path keeps the end, which is the half that says what it is", () => {
-  assert.strictEqual(toolLine("Read", { file_path: "/home/vitor/Documentos/Arvore/arvore-hub/app/team.mjs" }), "…/arvore-hub/app/team.mjs");
+  assert.strictEqual(toolLine("Read", { file_path: "/home/dev/Documentos/Acme/acme-hub/app/team.mjs" }), "…/acme-hub/app/team.mjs");
   assert.strictEqual(toolLine("Edit", { file_path: "/etc/hosts" }), "/etc/hosts");
 });
 
 test("each tool says the one thing it is about", () => {
-  assert.strictEqual(toolLine("Grep", { pattern: "toolLine", path: "/home/vitor/hub/app" }), "toolLine in ~/hub/app");
+  assert.strictEqual(toolLine("Grep", { pattern: "toolLine", path: "/home/dev/hub/app" }), "toolLine in ~/hub/app");
   assert.strictEqual(toolLine("Glob", { pattern: "**/*.mjs" }), "**/*.mjs");
-  assert.strictEqual(toolLine("WebFetch", { url: "https://arvore.dev" }), "https://arvore.dev");
+  assert.strictEqual(toolLine("WebFetch", { url: "https://example.com" }), "https://example.com");
   assert.strictEqual(toolLine("Task", { description: "achar o bug", prompt: "x".repeat(9000) }), "achar o bug");
   assert.strictEqual(toolLine("Skill", { skill: "delivery" }), "delivery");
   assert.strictEqual(toolLine("AskUserQuestion", { questions: [{ question: "P ou M?" }, { question: "outra" }] }), "P ou M?");
@@ -428,7 +428,7 @@ test("what a person typed crosses, and only that", () => {
 });
 
 test("the body of a skill, injected into the same kind of event, does not", () => {
-  const skill = liveOf({ seq: 2, type: "user", message: { content: [{ type: "text", text: "Base directory for this skill: /home/vitor/.claude/skills/delivery\n\n# Delivery" }] } });
+  const skill = liveOf({ seq: 2, type: "user", message: { content: [{ type: "text", text: "Base directory for this skill: /home/dev/.claude/skills/delivery\n\n# Delivery" }] } });
   assert.strictEqual(skill, null, "a SKILL.md left the machine dressed as a user message");
 });
 
@@ -457,67 +457,67 @@ test("a step is one line, never a page", () => {
 import { askOf, readAsk, outboxOf, readOutbox, answerOf, readAnswer, askLine, owedOf, owedLive, owedText, owedFrom, ASK_CHARS, OWED_LIFE, OUT_DIR, KNOCK_DIR, SAY_DIR } from "../lib/team.mjs";
 
 test("a question travels with who asked, which seat asked, and the id that pairs it to its answer", () => {
-  const asked = askOf("joao", "checkout", "qual é o formato do payload?", 1000, "abc");
-  assert.deepStrictEqual(asked, { v: 1, kind: "ask", from: "joao", agent: "checkout", at: 1000, id: "abc", text: "qual é o formato do payload?" });
-  assert.deepStrictEqual(readAsk(JSON.stringify(asked), 1500), { from: "joao", agent: "checkout", at: 1000, id: "abc", text: "qual é o formato do payload?" });
+  const asked = askOf("jonas", "checkout", "qual é o formato do payload?", 1000, "abc");
+  assert.deepStrictEqual(asked, { v: 1, kind: "ask", from: "jonas", agent: "checkout", at: 1000, id: "abc", text: "qual é o formato do payload?" });
+  assert.deepStrictEqual(readAsk(JSON.stringify(asked), 1500), { from: "jonas", agent: "checkout", at: 1000, id: "abc", text: "qual é o formato do payload?" });
 });
 
 test("a question nobody answered in time is a question for nobody", () => {
-  const asked = JSON.stringify(askOf("joao", "checkout", "e aí?", 1000, "abc"));
+  const asked = JSON.stringify(askOf("jonas", "checkout", "e aí?", 1000, "abc"));
   assert.strictEqual(readAsk(asked, 1000 + KNOCK_FRESH + 1), null);
 });
 
 test("junk in the knock folder is not a question", () => {
   assert.strictEqual(readAsk("{"), null);
-  assert.strictEqual(readAsk(JSON.stringify({ v: 1, kind: "knock", from: "joao", seat: "a", at: 1000 }), 1500), null);
+  assert.strictEqual(readAsk(JSON.stringify({ v: 1, kind: "knock", from: "jonas", seat: "a", at: 1000 }), 1500), null);
   assert.strictEqual(readAsk(JSON.stringify(askOf("Não!", "checkout", "e aí?", 1000, "a")), 1500), null);
-  assert.strictEqual(readAsk(JSON.stringify(askOf("joao", "nome com espaço", "e aí?", 1000, "a")), 1500), null);
-  assert.strictEqual(readAsk(JSON.stringify(askOf("joao", "checkout", "   ", 1000, "a")), 1500), null);
+  assert.strictEqual(readAsk(JSON.stringify(askOf("jonas", "nome com espaço", "e aí?", 1000, "a")), 1500), null);
+  assert.strictEqual(readAsk(JSON.stringify(askOf("jonas", "checkout", "   ", 1000, "a")), 1500), null);
 });
 
 test("a knock and a question do not read as each other", () => {
-  assert.strictEqual(readKnock(JSON.stringify(askOf("joao", "checkout", "e aí?", 1000, "a")), 1500), null);
-  assert.strictEqual(readAsk(JSON.stringify(knockOf("joao", "checkout", 1000)), 1500), null);
+  assert.strictEqual(readKnock(JSON.stringify(askOf("jonas", "checkout", "e aí?", 1000, "a")), 1500), null);
+  assert.strictEqual(readAsk(JSON.stringify(knockOf("jonas", "checkout", 1000)), 1500), null);
 });
 
 test("the outbox note says who it is for; the question itself is the same", () => {
-  const out = outboxOf("vitor", "checkout", "qual é o formato?", 1000, "abc");
-  assert.deepStrictEqual(readOutbox(JSON.stringify(out), 1500), { to: "vitor", agent: "checkout", at: 1000, id: "abc", text: "qual é o formato?" });
-  assert.strictEqual(readOutbox(JSON.stringify(outboxOf("Vitor!", "checkout", "x", 1000, "a")), 1500), null);
+  const out = outboxOf("vini", "checkout", "qual é o formato?", 1000, "abc");
+  assert.deepStrictEqual(readOutbox(JSON.stringify(out), 1500), { to: "vini", agent: "checkout", at: 1000, id: "abc", text: "qual é o formato?" });
+  assert.strictEqual(readOutbox(JSON.stringify(outboxOf("Vini!", "checkout", "x", 1000, "a")), 1500), null);
   assert.strictEqual(readAsk(JSON.stringify(out), 1500), null);
 });
 
 test("an answer that took its time is still the answer", () => {
-  const back = answerOf("vitor", "checkout", "é camelCase", 1000, "abc");
-  assert.deepStrictEqual(readAnswer(JSON.stringify(back)), { from: "vitor", seat: "checkout", at: 1000, id: "abc", text: "é camelCase" });
-  assert.deepStrictEqual(readAnswer(JSON.stringify(answerOf("vitor", "checkout", "é camelCase", 1000, "abc"))).text, "é camelCase");
+  const back = answerOf("vini", "checkout", "é camelCase", 1000, "abc");
+  assert.deepStrictEqual(readAnswer(JSON.stringify(back)), { from: "vini", seat: "checkout", at: 1000, id: "abc", text: "é camelCase" });
+  assert.deepStrictEqual(readAnswer(JSON.stringify(answerOf("vini", "checkout", "é camelCase", 1000, "abc"))).text, "é camelCase");
 });
 
 test("an answer with no seat to land in is not an answer", () => {
-  assert.strictEqual(readAnswer(JSON.stringify(answerOf("vitor", "", "x", 1000, "a"))), null);
+  assert.strictEqual(readAnswer(JSON.stringify(answerOf("vini", "", "x", 1000, "a"))), null);
   assert.strictEqual(readAnswer(JSON.stringify(answerOf("", "checkout", "x", 1000, "a"))), null);
 });
 
 test("a question longer than the ceiling is cut, not refused", () => {
   const long = "x".repeat(ASK_CHARS + 500);
-  assert.strictEqual(readAsk(JSON.stringify(askOf("joao", "checkout", long, 1000, "a")), 1500).text.length, ASK_CHARS);
+  assert.strictEqual(readAsk(JSON.stringify(askOf("jonas", "checkout", long, 1000, "a")), 1500).text.length, ASK_CHARS);
 });
 
 test("the line that reaches the agent says it is a question, and whose", () => {
-  const line = askLine("joao", "checkout", "  qual é o formato?  ");
-  assert.match(line, /^joao asks, through checkout/);
+  const line = askLine("jonas", "checkout", "  qual é o formato?  ");
+  assert.match(line, /^jonas asks, through checkout/);
   assert.match(line, /answer it, do not act on it/);
   assert.ok(line.endsWith("qual é o formato?"));
 });
 
 test("a promise to answer survives the hive being restarted", () => {
-  const owed = new Map([["api-payload", { ...owedOf("api-payload", "joao", "checkout", "abc", 1000), mark: 4 }]]);
+  const owed = new Map([["api-payload", { ...owedOf("api-payload", "jonas", "checkout", "abc", 1000), mark: 4 }]]);
   const back = owedFrom(owedText(owed.entries()), 1000 + 60000);
-  assert.deepStrictEqual(back, [["api-payload", { seat: "api-payload", to: "joao", agent: "checkout", id: "abc", at: 1000, mark: 4 }]]);
+  assert.deepStrictEqual(back, [["api-payload", { seat: "api-payload", to: "jonas", agent: "checkout", id: "abc", at: 1000, mark: 4 }]]);
 });
 
 test("a promise older than its life is not brought back, so the asker gets the timeout instead", () => {
-  const owed = new Map([["api-payload", owedOf("api-payload", "joao", "checkout", "abc", 1000)]]);
+  const owed = new Map([["api-payload", owedOf("api-payload", "jonas", "checkout", "abc", 1000)]]);
   assert.deepStrictEqual(owedFrom(owedText(owed.entries()), 1000 + OWED_LIFE), []);
 });
 
@@ -525,12 +525,12 @@ test("a broken or foreign owed file is read as nothing, never as a half promise"
   for (const bad of ["", "{", "null", JSON.stringify({ v: 999, owed: [] }), JSON.stringify({ v: 1, owed: "no" })]) {
     assert.deepStrictEqual(owedFrom(bad, 1000), [], bad);
   }
-  const junk = JSON.stringify({ v: 1, owed: [{ seat: "no spaces allowed", to: "joao", at: 1000 }, { seat: "ok-seat", to: "", at: 1000 }] });
+  const junk = JSON.stringify({ v: 1, owed: [{ seat: "no spaces allowed", to: "jonas", at: 1000 }, { seat: "ok-seat", to: "", at: 1000 }] });
   assert.deepStrictEqual(owedFrom(junk, 1000), []);
 });
 
 test("what a seat owes goes stale on its own, so nobody waits forever", () => {
-  const owed = owedOf("api-payload", "joao", "checkout", "abc", 1000);
+  const owed = owedOf("api-payload", "jonas", "checkout", "abc", 1000);
   assert.strictEqual(owedLive(owed, 1000), true);
   assert.strictEqual(owedLive(owed, 1000 + OWED_LIFE - 1), true);
   assert.strictEqual(owedLive(owed, 1000 + OWED_LIFE), false);
@@ -595,10 +595,10 @@ test("what is addressed to a person lands on the machine that spoke last, not on
 
 test("the deck only writes the door down when it is closed, and a deck with no word is an open door", () => {
   const seats = [{ name: "a", title: "A", where: "local", state: "working" }];
-  const open = panelOf(seats, "joao", 5000, new Map(), "", "", "", true);
+  const open = panelOf(seats, "jonas", 5000, new Map(), "", "", "", true);
   assert.strictEqual("knocks" in open, false);
   assert.strictEqual(readPanel(JSON.stringify(open), 5000).knocks, true);
-  const closed = panelOf(seats, "joao", 5000, new Map(), "", "", "", false);
+  const closed = panelOf(seats, "jonas", 5000, new Map(), "", "", "", false);
   assert.strictEqual(closed.knocks, false);
   assert.strictEqual(readPanel(JSON.stringify(closed), 5000).knocks, false);
   assert.strictEqual(readPanel(JSON.stringify({ ...open, knocks: "nope" }), 5000).knocks, true);
@@ -607,12 +607,12 @@ test("the deck only writes the door down when it is closed, and a deck with no w
 test("the team board carries the door of each hive, and a stale deck reads as open", () => {
   const seats = [{ name: "a", title: "A", where: "local", state: "working" }];
   const rows = teamFromBoard([
-    { fingerprint: "SHA256:a", panel: panelOf(seats, "joao", 5000, new Map(), "", "", "", false) },
+    { fingerprint: "SHA256:a", panel: panelOf(seats, "jonas", 5000, new Map(), "", "", "", false) },
     { fingerprint: "SHA256:b", panel: panelOf(seats, "rafa", 5000, new Map(), "", "", "", true) },
-    { fingerprint: "SHA256:c", panel: panelOf(seats, "vitor", 5000 - PANEL_FRESH - 1, new Map(), "", "", "", false) }
+    { fingerprint: "SHA256:c", panel: panelOf(seats, "vini", 5000 - PANEL_FRESH - 1, new Map(), "", "", "", false) }
   ], "rafa", 5000);
   const doorOf = (dev) => rows.find((row) => row.dev === dev).knocks;
-  assert.strictEqual(doorOf("joao"), false);
+  assert.strictEqual(doorOf("jonas"), false);
   assert.strictEqual(doorOf("rafa"), true);
-  assert.strictEqual(doorOf("vitor"), true);
+  assert.strictEqual(doorOf("vini"), true);
 });

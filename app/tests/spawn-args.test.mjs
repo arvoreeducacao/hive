@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { unsafeSpawnArg, assertSpawnArgs } from "../lib/spawn-args.mjs";
 
 test("real model ids, seat names, uuids and branches pass", () => {
-  for (const ok of ["opus", "sonnet", "haiku", "fable", "claude-fable-5", "claude-haiku-4-5-20251001", "fix-login", "b1a2c3d4-0000-1111-2222-333344445555", "joao-barros/-/x", "arvore-hub", ""]) {
+  for (const ok of ["opus", "sonnet", "haiku", "fable", "claude-fable-5", "claude-haiku-4-5-20251001", "fix-login", "b1a2c3d4-0000-1111-2222-333344445555", "jonas/-/x", "acme-hub", ""]) {
     assert.strictEqual(unsafeSpawnArg(ok), false, `${ok} should pass`);
   }
 });

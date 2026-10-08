@@ -5,7 +5,7 @@
   "description": "Open a Hive chat, jump to one, answer it, or open a page from the shelf without leaving what you are doing.",
   "icon": "icon.png",
   "author": "arvoreeducacao",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "categories": [
     "Developer Tools",
     "Productivity"

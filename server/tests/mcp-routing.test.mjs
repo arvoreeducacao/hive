@@ -9,7 +9,7 @@ const cwd = "/work/hub";
 
 const config = {
   mcpServers: {
-    hubspot: { command: "npx", args: ["-y", "@arvoretech/hubspot-mcp"] },
+    hubspot: { command: "npx", args: ["-y", "@acme/hubspot-mcp"] },
     playwright: { command: "npx", args: ["-y", "@playwright/mcp@latest"] },
     "360dialog": { type: "http", url: "https://mcp.360dialog.com/mcp" },
     hive: { type: "stdio", command: "node", args: ["peer.mjs"] },
@@ -17,27 +17,27 @@ const config = {
   projects: {
     [cwd]: {
       mcpServers: {
-        "arvore-mysql-direnv": { command: "direnv", args: ["exec", cwd, "npx", "-y", "@arvoretech/mysql-mcp"] },
+        "acme-mysql-direnv": { command: "direnv", args: ["exec", cwd, "npx", "-y", "@acme/mysql-mcp"] },
         "super-postgresql-direnv": { command: "direnv", args: ["exec", cwd, "sh", "-c", "postgresql-mcp"] },
         refero: { type: "http", url: "https://refero.design/mcp" },
       },
     },
     "/work/other": {
-      mcpServers: { "clickhouse-direnv": { command: "direnv", args: ["exec", "/work/other", "npx", "-y", "@arvoretech/clickhouse-mcp"] } },
+      mcpServers: { "clickhouse-direnv": { command: "direnv", args: ["exec", "/work/other", "npx", "-y", "@acme/clickhouse-mcp"] } },
     },
   },
 };
 
-const served = ["arvore-mysql", "super-postgresql", "identity-postgresql", "clickhouse", "hubspot", "slack-advanced"];
+const served = ["acme-mysql", "super-postgresql", "identity-postgresql", "clickhouse", "hubspot", "slack-advanced"];
 
 test("stdioServersFor takes the user scope and the project scope of this cwd, stdio only", () => {
   const names = Object.keys(stdioServersFor(config, cwd)).sort();
-  assert.deepEqual(names, ["arvore-mysql-direnv", "hive", "hubspot", "playwright", "super-postgresql-direnv"]);
+  assert.deepEqual(names, ["acme-mysql-direnv", "hive", "hubspot", "playwright", "super-postgresql-direnv"]);
 });
 
 test("gatewayNameFor matches the exact name or the name without -direnv", () => {
   assert.equal(gatewayNameFor("hubspot", served), "hubspot");
-  assert.equal(gatewayNameFor("arvore-mysql-direnv", served), "arvore-mysql");
+  assert.equal(gatewayNameFor("acme-mysql-direnv", served), "acme-mysql");
   assert.equal(gatewayNameFor("playwright", served), "");
   assert.equal(gatewayNameFor("hive", served), "");
   assert.equal(gatewayNameFor("identity-direnv", served), "");
@@ -45,10 +45,10 @@ test("gatewayNameFor matches the exact name or the name without -direnv", () => 
 
 test("routedThroughGateway rewrites the served ones as http routes with the bearer and keeps the rest", () => {
   const { routed, kept } = routedThroughGateway({ config, cwd, served, port: 4671, token: "segredo" });
-  assert.deepEqual(Object.keys(routed).sort(), ["arvore-mysql-direnv", "hubspot", "super-postgresql-direnv"]);
-  assert.deepEqual(routed["arvore-mysql-direnv"], {
+  assert.deepEqual(Object.keys(routed).sort(), ["acme-mysql-direnv", "hubspot", "super-postgresql-direnv"]);
+  assert.deepEqual(routed["acme-mysql-direnv"], {
     type: "http",
-    url: "http://127.0.0.1:4671/mcp/arvore-mysql",
+    url: "http://127.0.0.1:4671/mcp/acme-mysql",
     headers: { Authorization: "Bearer segredo" },
   });
   assert.equal(routed.hubspot.url, "http://127.0.0.1:4671/mcp/hubspot");
@@ -74,8 +74,8 @@ test("readClaudeConfig and hubServers answer empty for what is missing or broken
     assert.deepEqual(readClaudeConfig(join(dir, "broken.json")), {});
     assert.deepEqual(hubServers(dir), []);
     mkdirSync(join(dir, ".mcp-servers"));
-    writeFileSync(join(dir, ".mcp-servers", "servers.json"), JSON.stringify({ servers: { "arvore-mysql": {}, hubspot: {} } }));
-    assert.deepEqual(hubServers(dir), ["arvore-mysql", "hubspot"]);
+    writeFileSync(join(dir, ".mcp-servers", "servers.json"), JSON.stringify({ servers: { "acme-mysql": {}, hubspot: {} } }));
+    assert.deepEqual(hubServers(dir), ["acme-mysql", "hubspot"]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

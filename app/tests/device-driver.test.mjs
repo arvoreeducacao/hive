@@ -66,12 +66,12 @@ test("wm size prefers the override, then the physical size", () => {
 test("the ui tree keeps only labelled nodes, with bounds as numbers and entities undone", () => {
   const xml = `<?xml version='1.0'?><hierarchy rotation="0">` +
     `<node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="x" content-desc="" clickable="false" bounds="[0,0][1080,2400]">` +
-    `<node index="1" text="Entrar &amp; ler" resource-id="br.com.arvore:id/login" class="android.widget.Button" package="x" content-desc="" clickable="true" bounds="[100,200][980,320]" />` +
+    `<node index="1" text="Entrar &amp; ler" resource-id="com.example:id/login" class="android.widget.Button" package="x" content-desc="" clickable="true" bounds="[100,200][980,320]" />` +
     `<node index="2" text="" resource-id="" class="android.view.View" package="x" content-desc="Menu &quot;principal&quot;" clickable="true" bounds="[0,0][120,120]" />` +
     `</node></hierarchy>`;
   const nodes = parseUiTree(xml);
   assert.equal(nodes.length, 2);
-  assert.deepEqual(nodes[0], { text: "Entrar & ler", desc: "", id: "br.com.arvore:id/login", cls: "android.widget.Button", bounds: [100, 200, 980, 320], clickable: true });
+  assert.deepEqual(nodes[0], { text: "Entrar & ler", desc: "", id: "com.example:id/login", cls: "android.widget.Button", bounds: [100, 200, 980, 320], clickable: true });
   assert.equal(nodes[1].desc, "Menu \"principal\"");
   assert.deepEqual(parseUiTree(""), []);
 });
@@ -231,14 +231,14 @@ test("the tree dumps then reads the xml, and logs filter by the app's pid when t
   const { exec, calls } = fakeExec([
     ["uiautomator dump", ok("UI hierchary dumped to: /sdcard/ui.xml\n")],
     ["cat /sdcard/ui.xml", ok(`<hierarchy><node text="Entrar" resource-id="" class="android.widget.Button" content-desc="" clickable="true" bounds="[0,0][10,10]"/></hierarchy>`)],
-    ["pidof br.com.arvore.biblion", ok("4242\n")],
+    ["pidof com.example.reader", ok("4242\n")],
     ["logcat", ok("08-25 18:47:03.641 4242 4242 D X: one\n08-25 18:47:03.642 4242 4242 D X: two\n")]
   ]);
   const drive = createDriver({ tools, exec, avdHome: "/nowhere" });
   const tree = await drive.tree("emulator-5554");
   assert.equal(tree.count, 1);
   assert.equal(tree.nodes[0].text, "Entrar");
-  const logs = await drive.logs("emulator-5554", { lines: 50, pkg: "br.com.arvore.biblion" });
+  const logs = await drive.logs("emulator-5554", { lines: 50, pkg: "com.example.reader" });
   assert.deepEqual(logs.lines, ["08-25 18:47:03.641 4242 4242 D X: one", "08-25 18:47:03.642 4242 4242 D X: two"]);
   const logcat = calls.find((c) => c.args.includes("logcat"));
   assert.deepEqual(logcat.args, ["-s", "emulator-5554", "logcat", "-d", "-t", "50", "--pid=4242"]);
@@ -247,12 +247,12 @@ test("the tree dumps then reads the xml, and logs filter by the app's pid when t
 test("opening an app that is not installed says so, with the nearest package when there is one", async () => {
   const { exec } = fakeExec([
     ["monkey", ok("** No activities found to run, monkey aborted.\n")],
-    ["pm list packages", ok("package:com.android.settings\npackage:br.com.arvore.biblion\n")]
+    ["pm list packages", ok("package:com.android.settings\npackage:com.example.reader\n")]
   ]);
   const drive = createDriver({ tools, exec, avdHome: "/nowhere" });
-  const r = await drive.openApp("emulator-5554", "br.com.arvore.leitor");
-  assert.match(r.error, /no app br\.com\.arvore\.leitor on emulator-5554/);
+  const r = await drive.openApp("emulator-5554", "com.example.other");
+  assert.match(r.error, /no app com\.example\.other on emulator-5554/);
   const { exec: exec2 } = fakeExec([["monkey", ok("Events injected: 1\n")]]);
   const drive2 = createDriver({ tools, exec: exec2, avdHome: "/nowhere" });
-  assert.deepEqual(await drive2.openApp("emulator-5554", "br.com.arvore.biblion"), { ok: true, app: "br.com.arvore.biblion" });
+  assert.deepEqual(await drive2.openApp("emulator-5554", "com.example.reader"), { ok: true, app: "com.example.reader" });
 });

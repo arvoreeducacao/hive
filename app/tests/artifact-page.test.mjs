@@ -185,7 +185,7 @@ test("the route that serves a page only answers to a key it could have written",
     readFileSync: (path) => { read.push(path); return Buffer.from("<title>Kept</title>"); },
     join,
     TABS: ["documento", "telas", "plano", "lente"],
-    getDev: () => "rick"
+    getDev: () => "rita"
   });
   const ask = async (key) => {
     const answers = [];

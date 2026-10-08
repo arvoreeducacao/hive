@@ -27,12 +27,12 @@ function checkout(root, name, branch) {
 
 test("a branch that is not main travels once, and stays quiet until it moves", () => {
   const root = mkdtempSync(join(tmpdir(), "hive-autopush-"));
-  const dir = checkout(root, "repo", "joao/-/work");
+  const dir = checkout(root, "repo", "jonas/-/work");
   const state = join(root, "state");
   const said = [];
   const first = onePass({ roots: [root], state, say: (l) => said.push(l) });
   assert.equal(first.moved, 1, said.join(" | "));
-  assert.match(said[0], /pushed joao\/-\/work {2}repo/);
+  assert.match(said[0], /pushed jonas\/-\/work {2}repo/);
 
   said.length = 0;
   const again = onePass({ roots: [root], state, say: (l) => said.push(l) });
@@ -51,7 +51,7 @@ test("main is never pushed by itself, and a checkout one folder deeper is still 
   checkout(root, "on-main", "main");
   const nested = join(root, "worktrees");
   mkdirSync(nested, { recursive: true });
-  checkout(nested, "deep", "joao/-/deep");
+  checkout(nested, "deep", "jonas/-/deep");
   const said = [];
   const pass = onePass({ roots: [root], state: join(root, "state"), say: (l) => said.push(l) });
   assert.equal(pass.seen, 1, "main was counted as a branch to push");
@@ -61,20 +61,20 @@ test("main is never pushed by itself, and a checkout one folder deeper is still 
 
 test("a box keeps pushing on its own clock, and one pass that throws does not stop the next", () => {
   const root = mkdtempSync(join(tmpdir(), "hive-autopush-"));
-  const dir = checkout(root, "repo", "joao/-/work");
+  const dir = checkout(root, "repo", "jonas/-/work");
   const state = join(root, "state");
   const said = [];
   let tick = null;
   const timer = keepPushing({ roots: [root], state, say: (l) => said.push(l), wait: (fn) => { tick = fn; return { unref() {} }; } });
   assert.ok(timer, "nothing was scheduled, so the box would push once and never again");
-  assert.match(said.join(" | "), /pushed joao\/-\/work/, "the first pass never ran");
+  assert.match(said.join(" | "), /pushed jonas\/-\/work/, "the first pass never ran");
 
   said.length = 0;
   writeFileSync(join(dir, "a.txt"), "two");
   git(dir, "add", "-A");
   git(dir, "commit", "-qm", "two");
   tick();
-  assert.match(said.join(" | "), /pushed joao\/-\/work/, "the scheduled pass never pushed what moved");
+  assert.match(said.join(" | "), /pushed jonas\/-\/work/, "the scheduled pass never pushed what moved");
 
   said.length = 0;
   const brokenPass = keepPushing({ roots: ["/nowhere at all"], state: "/nowhere at all/state", say: (l) => said.push(l), wait: () => ({ unref() {} }) });

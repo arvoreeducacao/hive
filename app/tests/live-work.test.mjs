@@ -116,12 +116,12 @@ test("an errand still running has not come back", () => {
     name: "mobi-release-ios", state: "idle", errand: "release interno do iOS", at: 10,
     live: [{ id: "a1", kind: "local_bash", said: "eas build" }]
   };
-  const zones = zonesOf({ sessions: [running], prsOf: () => ["https://github.com/arvoreeducacao/dev-workspaces/pull/628"], seen: {} });
+  const zones = zonesOf({ sessions: [running], prsOf: () => ["https://github.com/acme/hive/pull/628"], seen: {} });
   assert.equal(zones.cameBack.length, 0, "a seat with work alive must not be offered as came back");
   assert.equal(zones.onTheWay.length, 1);
 
   const done = { ...running, live: [] };
-  const after = zonesOf({ sessions: [done], prsOf: () => ["https://github.com/arvoreeducacao/dev-workspaces/pull/628"], seen: {} });
+  const after = zonesOf({ sessions: [done], prsOf: () => ["https://github.com/acme/hive/pull/628"], seen: {} });
   assert.equal(after.cameBack.length, 1, "with nothing alive it comes back as before");
 });
 
@@ -130,7 +130,7 @@ test("the panel the team reads carries the live work", () => {
     name: "mobi-release-ios", title: "release interno do iOS", where: "local", state: "idle",
     live: [{ id: "a1", kind: "local_bash", said: "eas build --profile internal" }],
     liveSince: "2026-08-29T10:00:00.000Z"
-  }], "joao", 1000);
+  }], "jonas", 1000);
   const read = readPanel(JSON.stringify(panel), 1000);
   assert.deepEqual(read.seats[0].live.map((one) => one.id), ["a1"]);
   assert.equal(read.seats[0].liveSince, "2026-08-29T10:00:00.000Z");

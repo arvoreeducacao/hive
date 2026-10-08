@@ -3,21 +3,21 @@ import assert from "node:assert";
 import { linePlanOf, mcpsOf, readManifest, reposOf, skillDescriptionOf, skillsOf, workspaceOf } from "../lib/hub-workspace.mjs";
 
 const manifest = {
-  repos: ["arvoreeducacao/api-arvore", "arvoreeducacao/arvore", "arvoreeducacao/offboarding"],
-  skills: { delivery: "*", "backend-nestjs": ["api-arvore"], "mobile-app": [{ repo: "arvore", path: "apps/mobile/**" }] },
-  mcps: { linear: "*", "arvore-mysql": ["arvore", "api-arvore"], "criar-postgresql": ["arvore"] },
+  repos: ["acme/api", "acme/acme", "acme/offboarding"],
+  skills: { delivery: "*", "backend-nestjs": ["api"], "mobile-app": [{ repo: "acme", path: "apps/mobile/**" }] },
+  mcps: { linear: "*", "acme-mysql": ["acme", "api"], "criar-postgresql": ["acme"] },
 };
 
 const onDisk = [
-  { name: "api-arvore", branch: "main", loose: 2, ahead: 0, top: true },
-  { name: "arvore", branch: "main", loose: 0, ahead: 0, top: true },
+  { name: "api", branch: "main", loose: 2, ahead: 0, top: true },
+  { name: "acme", branch: "main", loose: 0, ahead: 0, top: true },
   { name: "dev-workspaces", branch: "main", loose: 0, ahead: 1, top: true },
   { name: "alguma-worktree", branch: "wip", loose: 1, ahead: 0, top: false },
 ];
 
 const wired = {
   linear: { type: "http", url: "https://mcp.linear.app/mcp" },
-  "arvore-mysql": { type: "http", url: "http://127.0.0.1:4671/mcp/arvore-mysql" },
+  "acme-mysql": { type: "http", url: "http://127.0.0.1:4671/mcp/acme-mysql" },
   sentry: { type: "http", url: "http://127.0.0.1:4671/mcp/sentry" },
 };
 
@@ -36,9 +36,9 @@ test("a manifest that is not json, or has no repos list, is unreadable and says 
 
 test("a repository written without its org, a scope pointing nowhere and a stray key are issues, not a crash", () => {
   const read = readManifest(JSON.stringify({
-    repos: ["arvoreeducacao/api-arvore", "arvore", "arvoreeducacao/api-arvore"],
-    mcps: { signoz: ["arvore-eink-old"], broken: [] },
-    skills: { odd: { repo: "api-arvore" } },
+    repos: ["acme/api", "acme", "acme/api"],
+    mcps: { signoz: ["eink-old"], broken: [] },
+    skills: { odd: { repo: "api" } },
     typo: 1,
   }));
   assert.equal(read.state, "read");
@@ -47,15 +47,15 @@ test("a repository written without its org, a scope pointing nowhere and a stray
 });
 
 test("repos marry what the manifest declares with what is on disk, by basename", () => {
-  const repos = reposOf(manifest, onDisk, { "api-arvore": "nestjs", arvore: "elixir", "dev-workspaces": "unknown" });
+  const repos = reposOf(manifest, onDisk, { "api": "nestjs", acme: "elixir", "dev-workspaces": "unknown" });
   const byName = Object.fromEntries(repos.map((r) => [r.name, r]));
 
-  assert.equal(byName["api-arvore"].declared, true);
-  assert.equal(byName["api-arvore"].cloned, true);
-  assert.equal(byName["api-arvore"].tech, "nestjs");
-  assert.equal(byName["api-arvore"].loose, 2);
-  assert.deepEqual(byName["api-arvore"].skills, ["backend-nestjs"]);
-  assert.deepEqual(byName["arvore"].skills, ["mobile-app"]);
+  assert.equal(byName["api"].declared, true);
+  assert.equal(byName["api"].cloned, true);
+  assert.equal(byName["api"].tech, "nestjs");
+  assert.equal(byName["api"].loose, 2);
+  assert.deepEqual(byName["api"].skills, ["backend-nestjs"]);
+  assert.deepEqual(byName["acme"].skills, ["mobile-app"]);
 
   assert.equal(byName["offboarding"].declared, true);
   assert.equal(byName["offboarding"].cloned, false);
@@ -70,7 +70,7 @@ test("a repo inside .worktrees never counts as an undeclared repo", () => {
 });
 
 test("a nested repo the walk only knows by basename still counts as cloned", () => {
-  const repos = reposOf({ repos: ["arvoreeducacao/brand"] }, [{ name: "brand", branch: "main", loose: 0, ahead: 0, top: false }]);
+  const repos = reposOf({ repos: ["acme/brand"] }, [{ name: "brand", branch: "main", loose: 0, ahead: 0, top: false }]);
   assert.equal(repos.length, 1);
   assert.equal(repos[0].cloned, true);
   assert.equal(repos[0].branch, "main");
@@ -82,20 +82,20 @@ test("skills are the union of the manifest and the folders, each saying which si
   assert.deepEqual(Object.keys(byName).sort(), ["backend-nestjs", "delivery", "mobile-app", "pr-lens"]);
   assert.deepEqual(byName.delivery, { name: "delivery", declared: true, onDisk: true, scoped: false, repos: [] });
   assert.equal(byName["backend-nestjs"].scoped, true);
-  assert.deepEqual(byName["backend-nestjs"].repos, ["api-arvore"]);
+  assert.deepEqual(byName["backend-nestjs"].repos, ["api"]);
   assert.equal(byName["mobile-app"].onDisk, false);
   assert.equal(byName["pr-lens"].declared, false);
 });
 
 test("mcps are the union of the manifest, the .mcp.json and the gateway, and say how each one reaches the seat", () => {
-  const mcps = mcpsOf(manifest, wired, ["arvore-mysql", "sentry"]);
+  const mcps = mcpsOf(manifest, wired, ["acme-mysql", "sentry"]);
   const byName = Object.fromEntries(mcps.map((m) => [m.name, m]));
-  assert.deepEqual(Object.keys(byName).sort(), ["arvore-mysql", "criar-postgresql", "linear", "sentry"]);
+  assert.deepEqual(Object.keys(byName).sort(), ["acme-mysql", "criar-postgresql", "linear", "sentry"]);
   assert.equal(byName.linear.remote, true);
   assert.equal(byName.linear.gateway, false);
-  assert.equal(byName["arvore-mysql"].gateway, true);
-  assert.equal(byName["arvore-mysql"].remote, false);
-  assert.equal(byName["arvore-mysql"].scoped, true);
+  assert.equal(byName["acme-mysql"].gateway, true);
+  assert.equal(byName["acme-mysql"].remote, false);
+  assert.equal(byName["acme-mysql"].scoped, true);
   assert.equal(byName["criar-postgresql"].wired, false);
   assert.equal(byName.sentry.declared, false);
   assert.equal(byName.sentry.wired, true);
@@ -125,11 +125,11 @@ test("a read manifest counts what is declared, cloned, missing and unlisted on e
   const state = workspaceOf(
     { state: "read", manifest, issues: [{ path: "/typo", message: "not a key hive.json knows" }] },
     onDisk,
-    { name: "arvore-hub", mcpJson: { mcpServers: wired }, gateway: ["arvore-mysql", "sentry"], skillDirs: ["delivery", "pr-lens"] },
+    { name: "acme-hub", mcpJson: { mcpServers: wired }, gateway: ["acme-mysql", "sentry"], skillDirs: ["delivery", "pr-lens"] },
   );
 
   assert.equal(state.state, "read");
-  assert.equal(state.name, "arvore-hub");
+  assert.equal(state.name, "acme-hub");
   assert.equal(state.path, "hive.json");
   assert.deepEqual(state.issues, [{ path: "/typo", message: "not a key hive.json knows" }]);
   assert.deepEqual(state.counts, {

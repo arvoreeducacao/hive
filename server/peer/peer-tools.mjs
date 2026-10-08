@@ -223,7 +223,7 @@ export const PEER_TOOLS = [
   },
   {
     name: "device_tree",
-    description: "Read the accessibility tree of the device screen — every node with a text, a description or an id, with its bounds and whether it is clickable. Android only: iOS has no equivalent, so there you read device_screenshot and tap by pixel. Native screens only: a WebView shows up as one node, so on the Árvore app read the screenshot instead. Needs device_open first.",
+    description: "Read the accessibility tree of the device screen — every node with a text, a description or an id, with its bounds and whether it is clickable. Android only: iOS has no equivalent, so there you read device_screenshot and tap by pixel. Native screens only: a WebView shows up as one node, so in a hybrid or WebView app read the screenshot instead. Needs device_open first.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {

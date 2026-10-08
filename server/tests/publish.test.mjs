@@ -33,7 +33,7 @@ async function fakeApp(base, { pushed = true, refuse = "" } = {}) {
           tab: "documento", pushed
         }));
       }
-      if (req.url === "/api/shelf") return res.end(JSON.stringify({ repo: "https://github.com/arvoreeducacao/artefatos", pages: [] }));
+      if (req.url === "/api/shelf") return res.end(JSON.stringify({ repo: "https://github.com/acme/artifacts", pages: [] }));
       res.end(JSON.stringify({ error: "unknown route" }));
     });
   });
@@ -65,8 +65,8 @@ test("the link to announce opens the page in the hive", () => {
 
 test("the shelf link points at the version, and needs every piece", () => {
   assert.equal(
-    shelfPageUrl("https://github.com/arvoreeducacao/artefatos", "uma-pagina", "documento", 3),
-    "https://github.com/arvoreeducacao/artefatos/blob/HEAD/a/uma-pagina/documento.v3.html"
+    shelfPageUrl("https://github.com/acme/artifacts", "uma-pagina", "documento", 3),
+    "https://github.com/acme/artifacts/blob/HEAD/a/uma-pagina/documento.v3.html"
   );
   assert.equal(shelfPageUrl("", "uma-pagina", "documento", 3), "");
   assert.equal(shelfPageUrl("https://github.com/a/b", "uma-pagina", "documento", 0), "");
@@ -91,7 +91,7 @@ test("publishing keeps the page here and puts it on the shelf, with the link bac
   assert.equal(done.pushed, true);
   assert.equal(done.version, 3);
   assert.equal(done.url, "hive://shelf/uma-pagina?tab=documento");
-  assert.equal(done.source, "https://github.com/arvoreeducacao/artefatos/blob/HEAD/a/uma-pagina/documento.v3.html");
+  assert.equal(done.source, "https://github.com/acme/artifacts/blob/HEAD/a/uma-pagina/documento.v3.html");
   assert.deepEqual(app.seen.map((call) => call.path), ["/api/artifact/keep", "/api/shelf/publish", "/api/shelf"]);
   assert.equal(app.seen[0].body.url, "");
 });

@@ -10,7 +10,7 @@ const domainHarness = () => {
   let response = { ok: true, out: "", error: "" };
   const command = async (kind, name, args, options) => {
     commands.push({ kind, name, args, options });
-    if (args.join(" ") === "api user -q .login") return kind === "sh" ? "ricardo" : { ok: true, out: "ricardo", error: "" };
+    if (args.join(" ") === "api user -q .login") return kind === "sh" ? "renato" : { ok: true, out: "renato", error: "" };
     return kind === "sh" ? response.out : response;
   };
   const readRegistry = async () => structuredClone(registry);

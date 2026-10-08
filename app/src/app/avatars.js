@@ -320,8 +320,9 @@ function pageHello() {
   return `<div class="w-page">
     <div class="w-icon">${HEX}</div>
     <h2>${phrase("Welcome to the hive.")}</h2>
-    <p class="lead">${phrase("A fleet of Claude Code sessions and one screen to run them. Every chat lands here as a tile with a real terminal, next to what it says about itself — what it is doing, what is done, what it needs from you. Some run on this machine; the rest run on your own server.")}</p>
+    <p class="lead">${phrase("A fleet of coding agents and one screen to run them. Every chat lands here as a tile with a real terminal, next to what it says about itself — what it is doing, what is done, what it needs from you. Some run on this machine; the rest run on your own server.")}</p>
     <p class="sub">${phrase("About five minutes. It ends with your first chat running.")}</p>
+    <p class="sub w-alpha">${phrase("This is an alpha: things change and break between versions, and nothing here is promised yet.")}</p>
     <div class="w-form">
       <div class="w-me">
         <div class="w-face">

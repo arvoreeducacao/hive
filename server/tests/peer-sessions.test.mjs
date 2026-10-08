@@ -68,19 +68,19 @@ async function paired(held, kind, name) {
 }
 
 before(async () => {
-  theirs = await stand("vitor");
-  mine = await stand("joao");
-  seat = fakeSeat(theirs.home, "assento-do-vitor");
+  theirs = await stand("vini");
+  mine = await stand("jonas");
+  seat = fakeSeat(theirs.home, "assento-do-vini");
   await seat.up();
 
-  const owner = await paired(theirs, "mac", "vitor mac");
-  const guest = await paired(mine, "mac", "joao mac");
+  const owner = await paired(theirs, "mac", "vini mac");
+  const guest = await paired(mine, "mac", "jonas mac");
   const invite = await owner.client.post("/api/invites", {});
   const joined = await guest.client.post("/api/join", { link: invite.body.link });
   assert.equal(joined.ok, true, joined.error);
 
   const lent = await owner.client.post("/api/grants", {
-    seat: "assento-do-vitor",
+    seat: "assento-do-vini",
     to: mine.broker.identity.fingerprint,
     forMs: 600000
   });
@@ -98,33 +98,33 @@ after(async () => {
 });
 
 test("listing a peer's seats needs no grant — only reaching into one does", async () => {
-  const me = await paired(mine, "mac", "joao listing");
+  const me = await paired(mine, "mac", "jonas listing");
   const there = theirs.broker.identity.fingerprint;
   const said = await me.client.get(`/api/peers/${encodeURIComponent(there)}/sessions`);
   assert.equal(said.ok, true, said.error);
-  assert.ok((said.body.sessions || []).some((one) => one.name === "assento-do-vitor"), JSON.stringify(said.body));
+  assert.ok((said.body.sessions || []).some((one) => one.name === "assento-do-vini"), JSON.stringify(said.body));
 });
 
 test("the history of a peer's seat comes through my server, not from me reaching over", async () => {
-  const me = await paired(mine, "mac", "joao reading");
+  const me = await paired(mine, "mac", "jonas reading");
   const there = theirs.broker.identity.fingerprint;
   seat.emit({ type: "assistant", message: { content: [{ type: "text", text: "antes" }] } });
 
-  const said = await me.client.get(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/events?from=0`);
+  const said = await me.client.get(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/events?from=0`);
   assert.equal(said.ok, true, said.error);
   assert.ok((said.body.events || []).some((e) => e.message?.content?.[0]?.text === "antes"), JSON.stringify(said.body).slice(0, 200));
 });
 
 test("my say reaches the driver of a seat that is not mine", async () => {
-  const me = await paired(mine, "mac", "joao typing");
+  const me = await paired(mine, "mac", "jonas typing");
   const there = theirs.broker.identity.fingerprint;
-  const said = await me.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/say`, { text: "posso mexer?" });
+  const said = await me.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/say`, { text: "posso mexer?" });
   assert.equal(said.ok, true, said.error);
   assert.ok(seat.heard.some((one) => one.type === "say" && one.text === "posso mexer?"), JSON.stringify(seat.heard));
 });
 
 test("an event written on the peer is pushed all the way to my device", async () => {
-  const me = await paired(mine, "mac", "joao watching");
+  const me = await paired(mine, "mac", "jonas watching");
   const there = theirs.broker.identity.fingerprint;
 
   const heard = [];
@@ -133,7 +133,7 @@ test("an event written on the peer is pushed all the way to my device", async ()
     for (let round = 0; round < 100 && !stream.up; round += 1) await wait(20);
     assert.equal(stream.up, true, "my own stream did not open");
 
-    const asked = await me.client.get(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor`);
+    const asked = await me.client.get(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini`);
     assert.equal(asked.ok, true, asked.error);
 
     for (let round = 0; round < 100 && !mine.broker.peers.listening(there); round += 1) await wait(30);
@@ -146,14 +146,14 @@ test("an event written on the peer is pushed all the way to my device", async ()
     const got = heard.find(pushed);
     assert.ok(got, `only ${JSON.stringify(heard.map((e) => e.body?.event?.message?.content?.[0]?.text || e.kind))} arrived`);
     assert.equal(got.body.peer, there);
-    assert.equal(got.body.session, "assento-do-vitor");
+    assert.equal(got.body.session, "assento-do-vini");
   } finally {
     stream.stop();
   }
 });
 
 test("a server we are not paired with is refused, not proxied", async () => {
-  const me = await paired(mine, "mac", "joao guessing");
+  const me = await paired(mine, "mac", "jonas guessing");
   const stranger = newIdentity("de fora").fingerprint;
   const said = await me.client.get(`/api/peers/${encodeURIComponent(stranger)}/sessions`);
   assert.equal(said.status, 404);
@@ -161,7 +161,7 @@ test("a server we are not paired with is refused, not proxied", async () => {
 });
 
 test("a seat name the peer route cannot address is refused before any call", async () => {
-  const me = await paired(mine, "mac", "joao poking");
+  const me = await paired(mine, "mac", "jonas poking");
   const there = theirs.broker.identity.fingerprint;
   const said = await me.client.get(`/api/peers/${encodeURIComponent(there)}/sessions/${encodeURIComponent("não vale")}`);
   assert.equal(said.status, 400);
@@ -171,7 +171,7 @@ test("forgetting the peer stops the relay", async () => {
   const held = await stand("efemero");
   try {
     const owner = await paired(held, "mac", "dono");
-    const guest = await paired(mine, "mac", "joao dropping");
+    const guest = await paired(mine, "mac", "jonas dropping");
     const invite = await owner.client.post("/api/invites", {});
     const joined = await guest.client.post("/api/join", { link: invite.body.link });
     assert.equal(joined.ok, true, joined.error);

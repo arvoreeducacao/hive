@@ -52,18 +52,18 @@ const folders = (windows, seats, trails, saved) => new Function(`
 `)();
 
 const WALK = [
-  "==repo\t/hub/api-arvore/.git",
-  "worktree /hub/api-arvore",
+  "==repo\t/hub/api/.git",
+  "worktree /hub/api",
   "HEAD 1b9857c13cdf5ddeafe5274f78a6b00969baf092",
   "branch refs/heads/main",
   "",
   "worktree /tmp/scratch/wt-api",
   "HEAD b4eb8f0e23b5a0b78375634190aa79c0443862b2",
-  "branch refs/heads/VitorPiovezan-/-guard",
+  "branch refs/heads/ViniDev-/-guard",
   "",
   "worktree /tmp/scratch/wt-old",
   "HEAD 05f8ec85cdd7f6a9d36ace9c8650e7831c900102",
-  "branch refs/heads/VitorPiovezan-/-old",
+  "branch refs/heads/ViniDev-/-old",
   "prunable gitdir file points to non-existent location",
   "",
   "==repo\t/hub/dev-workspaces/.git",
@@ -73,7 +73,7 @@ const WALK = [
   "",
   "worktree /hub/wt-hive",
   "HEAD 6b9fb170000000000000000000000000000000bb",
-  "branch refs/heads/vitor-piovezan/-/mirror",
+  "branch refs/heads/vini-dev/-/mirror",
   "locked somebody is using it",
   ""
 ].join("\n");
@@ -81,9 +81,9 @@ const WALK = [
 test("the walk keeps the worktrees a repo hangs off, never the repo itself", () => {
   const trees = srv.readWorktreeWalk(WALK);
   assert.deepEqual(trees.map((t) => t.path), ["/tmp/scratch/wt-api", "/tmp/scratch/wt-old", "/hub/wt-hive"]);
-  assert.deepEqual(trees.map((t) => t.repo), ["api-arvore", "api-arvore", "dev-workspaces"]);
-  assert.equal(trees[0].main, "/hub/api-arvore", "the repo it belongs to is where git has to be told to remove it");
-  assert.equal(trees[0].branch, "VitorPiovezan-/-guard");
+  assert.deepEqual(trees.map((t) => t.repo), ["api", "api", "dev-workspaces"]);
+  assert.equal(trees[0].main, "/hub/api", "the repo it belongs to is where git has to be told to remove it");
+  assert.equal(trees[0].branch, "ViniDev-/-guard");
   assert.equal(trees[0].head, "b4eb8f0e");
   assert.equal(trees[2].locked, true, "a lock somebody put there on purpose survives the walk");
 });
@@ -112,7 +112,7 @@ const NOW = 1787340000000;
 const HOUR = 3600000;
 
 function tree(over) {
-  return { path: "/tmp/wt", repo: "api-arvore", main: "/hub/api-arvore", branch: "b", seat: "", loose: 0, ahead: 0, locked: false, gone: false, touched: NOW - 2 * HOUR, ...over };
+  return { path: "/tmp/wt", repo: "api", main: "/hub/api", branch: "b", seat: "", loose: 0, ahead: 0, locked: false, gone: false, touched: NOW - 2 * HOUR, ...over };
 }
 
 test("two hours untouched is idle at one hour and still fresh at three", () => {
@@ -209,11 +209,11 @@ test("nothing is measured yet, so the sidebar says so instead of showing a zero"
 
 test("the page stacks the worktrees by repo, the heaviest repo first", () => {
   const groups = worktreeGroups([
-    { repo: "api-arvore", path: "/a", bytes: 100 },
-    { repo: "mobiarvorev3", path: "/b", bytes: 5000 },
-    { repo: "api-arvore", path: "/c", bytes: 900 }
+    { repo: "api", path: "/a", bytes: 100 },
+    { repo: "mobile-app", path: "/b", bytes: 5000 },
+    { repo: "api", path: "/c", bytes: 900 }
   ]);
-  assert.deepEqual(groups.map((g) => g.repo), ["mobiarvorev3", "api-arvore"]);
+  assert.deepEqual(groups.map((g) => g.repo), ["mobile-app", "api"]);
   assert.deepEqual(groups[1].rows.map((r) => r.path), ["/c", "/a"], "the heaviest worktree leads its repo");
   assert.equal(groups[1].bytes, 1000);
 });

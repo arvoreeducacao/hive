@@ -36,11 +36,11 @@ function host(broker) {
 
 function brokerIn(dataDir, pod, mac) {
   const trusted = (fingerprint) => {
-    if (fingerprint === mac.fingerprint) return { signer: rawOfSsh(mac.publicSsh), name: "mac do joao", kind: "mac" };
+    if (fingerprint === mac.fingerprint) return { signer: rawOfSsh(mac.publicSsh), name: "mac do jonas", kind: "mac" };
     if (fingerprint === pod.fingerprint) return { signer: rawOfSsh(pod.publicSsh), name: "pod", kind: "pod" };
     return null;
   };
-  return createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "joao", trusted });
+  return createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "jonas", trusted });
 }
 
 test("the whole phone story: enroll by signature, pair by code, sync from zero, live both ways, share, revoke, pictures, clock, restart, compaction", async () => {
@@ -50,9 +50,9 @@ test("the whole phone story: enroll by signature, pair by code, sync from zero, 
   let broker = brokerIn(dataDir, pod, macIdentity);
   let door = await host(broker);
 
-  const mac = await Device.fromIdentity({ name: "mac do joao", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), lean: true });
+  const mac = await Device.fromIdentity({ name: "mac do jonas", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), lean: true });
   const enrolled = await mac.enroll(door.url, { kind: "mac" });
-  assert.equal(enrolled.person, "joao");
+  assert.equal(enrolled.person, "jonas");
   assert.equal(mac.audience, pod.fingerprint, "the mac pins the pod's own fingerprint as audience");
   assert.equal(mac.fingerprint, macIdentity.fingerprint, "the mac keeps the fingerprint of its hive identity");
 
@@ -64,9 +64,9 @@ test("the whole phone story: enroll by signature, pair by code, sync from zero, 
   await assert.rejects(() => stranger.enroll(door.url), /not on the roster/);
 
   const code = await mac.openCode();
-  const phone = await Device.create({ name: "iphone do joao" });
+  const phone = await Device.create({ name: "iphone do jonas" });
   await phone.pair(door.url, code.code);
-  assert.equal(phone.person, "joao");
+  assert.equal(phone.person, "jonas");
   assert.equal(phone.kind, "phone");
   await assert.rejects(() => phone.call("POST", "/enroll", { agreer: toB64(phone.rawAgreer) }), /code, not by enrolling/);
 
@@ -467,10 +467,10 @@ test("a phone with hundreds of chats keeps its stream: what it already has trave
   const broker = brokerIn(dataDir, pod, macIdentity);
   const door = await host(broker);
 
-  const mac = await Device.fromIdentity({ name: "mac do joao", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), lean: true });
+  const mac = await Device.fromIdentity({ name: "mac do jonas", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, store: memoryStore(), lean: true });
   await mac.enroll(door.url, { kind: "mac" });
   const code = await mac.openCode();
-  const phone = await Device.create({ name: "iphone do joao" });
+  const phone = await Device.create({ name: "iphone do jonas" });
   await phone.pair(door.url, code.code);
 
   const seatId = "a-conversa-de-hoje";

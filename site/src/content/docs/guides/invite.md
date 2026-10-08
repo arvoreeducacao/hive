@@ -3,6 +3,8 @@ title: Invite someone
 description: One link, one click, and two servers know each other.
 sidebar:
   order: 3
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 A team is a set of servers that know each other. Adding a person means making

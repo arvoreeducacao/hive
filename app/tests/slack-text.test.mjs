@@ -111,7 +111,7 @@ test("a page link in rich text keeps its bold and still opens here", () => {
 });
 
 test("what is not a page of this team's keeps leaving for the browser", () => {
-  assert.match(mrkdwnHtml("<https://github.com/arvoreeducacao/x/pull/9|PR>", who), /target="_blank"/);
+  assert.match(mrkdwnHtml("<https://github.com/acme/x/pull/9|PR>", who), /target="_blank"/);
   assert.doesNotMatch(mrkdwnHtml("<hive://app/whatever|nope>", who), /md-shelf/);
   assert.doesNotMatch(mrkdwnHtml("<hive://shelf/|nada>", who), /md-shelf/);
   assert.doesNotMatch(mrkdwnHtml("<javascript:alert(1)|x>", who), /href/);

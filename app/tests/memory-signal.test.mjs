@@ -10,8 +10,8 @@ const { memoryChip, memoryChipClick, memoryNow, relevanceSay, MEMORY_LOGIN_COMMA
 const { tileViewModel } = await app("seat-menu");
 
 const ITEMS = [
-  { id: "m1", title: "api-arvore: mínimo 2 réplicas", source: "shared", relevance: 0.96, author: "rafaelandrade", date: "2026-05-02" },
-  { id: "m2", title: "Deploy em PR é preview, não produção", source: "curated", relevance: 0.81, author: "jott4", date: "2026-06-30" },
+  { id: "m1", title: "api: mínimo 2 réplicas", source: "shared", relevance: 0.96, author: "rosa", date: "2026-05-02" },
+  { id: "m2", title: "Deploy em PR é preview, não produção", source: "curated", relevance: 0.81, author: "juno", date: "2026-06-30" },
   { id: "c1", title: "readiness passava antes do Prisma conectar", source: "conversation", relevance: 0.88, author: "", date: "" }
 ];
 
@@ -52,8 +52,8 @@ test("the chip opens inline: score, title, author and date, and the conversation
   const rows = [...box.querySelectorAll(".mit")];
   assert.equal(rows.length, 3);
   assert.deepEqual(rows.map((one) => one.querySelector(".mrel").textContent), ["0,96", "0,81", "0,88"]);
-  assert.equal(rows[0].querySelector(".mtitle").textContent, "api-arvore: mínimo 2 réplicas");
-  assert.equal(rows[0].querySelector(".mby").textContent, "rafaelandrade · 02/05");
+  assert.equal(rows[0].querySelector(".mtitle").textContent, "api: mínimo 2 réplicas");
+  assert.equal(rows[0].querySelector(".mby").textContent, "rosa · 02/05");
   assert.equal(rows[0].dataset.verified, "yes");
   assert.equal(rows[2].dataset.verified, "no");
   assert.equal(rows[2].dataset.source, "conversation");
@@ -141,13 +141,13 @@ test("only the parts that exist are counted", async () => {
 test("saving to the team memory is a row of its own, not the plain tool card", async () => {
   const e = seat("mem-save");
   say(e, "guarda isso");
-  svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__plugin_claude-memory_arvore-memory__memory_save", input: { title: "readiness do api-arvore precisa esperar o Prisma conectar", content: "..." } }] } });
+  svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__plugin_claude-memory_team-memory__memory_save", input: { title: "readiness do api precisa esperar o Prisma conectar", content: "..." } }] } });
   await flush();
   const row = e.host.querySelector('.sv-memsave[data-memory="saved"]');
   assert.ok(row, "no memory row");
   assert.equal(e.host.querySelector('.sv-tool[data-tool$="memory_save"]'), null, "the plain card drew too");
   assert.match(row.querySelector(".mk").textContent, /saving to the team memory…/);
-  assert.equal(row.querySelector(".mv").textContent, "readiness do api-arvore precisa esperar o Prisma conectar");
+  assert.equal(row.querySelector(".mv").textContent, "readiness do api precisa esperar o Prisma conectar");
   assert.equal(row.querySelector(".ma").textContent, "comes in through Jev at 4:30");
   assert.ok(row.classList.contains("running"));
   svEvent(e, { seq: ++seq, type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "ok", is_error: false }] } });
@@ -158,7 +158,7 @@ test("saving to the team memory is a row of its own, not the plain tool card", a
 
 test("a save that failed says so on the same row", async () => {
   const e = seat("mem-save-bad");
-  svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "mcp__plugin_claude-memory_arvore-memory__memory_save", input: { title: "x" } }] } });
+  svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "mcp__plugin_claude-memory_team-memory__memory_save", input: { title: "x" } }] } });
   svEvent(e, { seq: ++seq, type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t2", content: "boom", is_error: true }] } });
   await flush();
   const row = e.host.querySelector(".sv-memsave");

@@ -40,7 +40,7 @@ const tabsOf = (name) => webStateOf(name).tabs.map((t) => t.url).filter(Boolean)
 test("only a link that is exactly a published page is claimed by the hive", () => {
   const name = seat();
   apple(true);
-  const { box, links } = root(URL_A, "https://linear.app/arvore/issue/EXP-231", `${URL_A}?v=3`);
+  const { box, links } = root(URL_A, "https://linear.app/acme/issue/EXP-231", `${URL_A}?v=3`);
   wireLinks(name, box);
   const [art, elsewhere, versioned] = links;
   assert.equal(art.classList.contains("md-art"), true);

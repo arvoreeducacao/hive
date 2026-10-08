@@ -37,7 +37,7 @@ test("who sees a task: the owner always, the team when shared, the people picked
   assert.equal(seesTask(mine, "mari"), false);
   assert.equal(seesTask(team, "mari"), true);
   assert.equal(seesTask(picked, "mari"), true);
-  assert.equal(seesTask(picked, "joao"), false);
+  assert.equal(seesTask(picked, "jonas"), false);
   assert.equal(seesTask(mine, "rafael"), true);
 });
 
@@ -92,7 +92,7 @@ test("private tasks stay in the hive home, shared ones in the shelf, one file ea
 test("the list a person sees: their own, the team's, the ones passed to them; closed ones leave after 14 days", () => {
   const now = 100 * TASK_KEPT_DONE;
   const mine = newTask({ text: "a", owner: "rafael", at: 1 }).task;
-  const hidden = newTask({ text: "b", owner: "mari", who: "people", people: ["joao"], at: 2 }).task;
+  const hidden = newTask({ text: "b", owner: "mari", who: "people", people: ["jonas"], at: 2 }).task;
   const passed = newTask({ text: "c", owner: "mari", who: "people", people: ["rafael"], at: 3 }).task;
   const old = { ...newTask({ text: "d", owner: "rafael", at: 4 }).task, done: true, doneAt: now - TASK_KEPT_DONE - 1 };
   const seen = tasksOf({ local: [mine, old], shared: [hidden, passed], me: "rafael", now });
@@ -129,7 +129,7 @@ test("a group task is seen by the group's people and nobody else", () => {
   const { group } = newGroup({ name: "Leitura", members: ["mari"], by: "rafael" });
   const { task } = newTask({ text: "a", owner: "rafael", who: "group", group: group.id });
   assert.equal(seesTask(task, "mari", [group]), true);
-  assert.equal(seesTask(task, "joao", [group]), false);
+  assert.equal(seesTask(task, "jonas", [group]), false);
   assert.ok(newTask({ text: "a", owner: "rafael", who: "group" }).error, "a group task names its group");
   const moved = editTask(task, { who: "me" }, { me: "rafael" }).task;
   assert.equal(moved.group, undefined);
@@ -137,7 +137,7 @@ test("a group task is seen by the group's people and nobody else", () => {
 
 test("only people in a group change it", () => {
   const { group } = newGroup({ name: "Leitura", members: ["mari"], by: "rafael" });
-  assert.ok(editGroup(group, { name: "x" }, { me: "joao" }).error);
+  assert.ok(editGroup(group, { name: "x" }, { me: "jonas" }).error);
   assert.equal(editGroup(group, { name: "Leitura BR" }, { me: "mari" }).group.name, "Leitura BR");
   assert.ok(editGroup(group, { members: [] }, { me: "mari" }).error);
 });

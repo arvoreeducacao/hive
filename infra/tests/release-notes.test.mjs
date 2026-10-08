@@ -18,13 +18,13 @@ test("housekeeping never reaches the screen", () => {
     "refactor(app): the tile paints from one place",
     "style: the lint agrees with itself",
     "build: electron 40",
-    'Revert "Merge pull request #118 from arvoreeducacao/comms-channels"'
+    'Revert "Merge pull request #118 from acme/comms-channels"'
   ]) assert.equal(kindOf(subject), "quiet", subject);
 });
 
 test("a merge subject is never a note — the branch commits are", () => {
-  assert.equal(kindOf("Merge pull request #134 from arvoreeducacao/joao-barros/-/pr-panel"), "quiet");
-  assert.equal(mergedPr("Merge pull request #134 from arvoreeducacao/joao-barros/-/pr-panel"), "#134");
+  assert.equal(kindOf("Merge pull request #134 from acme/jonas/-/pr-panel"), "quiet");
+  assert.equal(mergedPr("Merge pull request #134 from acme/jonas/-/pr-panel"), "#134");
   assert.equal(mergedPr("fix: something"), "");
 });
 

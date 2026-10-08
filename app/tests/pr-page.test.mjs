@@ -6,7 +6,7 @@ import { isPrPageSlug, nextToRead, prPageAddress, prPageFailed, prPageHtml, prPa
 import { createPrDomain } from "../routes/prs.mjs";
 import { registerArtifactRoutes } from "../routes/artifacts.mjs";
 
-const KEY = "arvoreeducacao/dev-workspaces#1170";
+const KEY = "acme/hive#1170";
 
 const line = (t, a, d, h) => ({ t, a, d, h });
 
@@ -18,12 +18,12 @@ const FILES = [
 
 const PR = {
   key: KEY,
-  repo: "arvoreeducacao/dev-workspaces",
+  repo: "acme/hive",
   number: 1170,
   title: "PR <b>page</b>",
   author: "art",
   state: "open",
-  url: "https://github.com/arvoreeducacao/dev-workspaces/pull/1170",
+  url: "https://github.com/acme/hive/pull/1170",
   head: "art/-/pr-no-hive",
   base: "main",
   bodyHtml: "<h2>Mudança</h2><p>texto \"com aspas\" </script><script>alert(1)</script></p>"
@@ -42,7 +42,7 @@ const seenPaths = (window) => [...window.document.querySelectorAll('.files li[da
 test("a PR page slug is stable, short and only ever looks like a PR page", () => {
   const slug = prPageSlug(KEY);
   assert.equal(slug, prPageSlug(KEY));
-  assert.notEqual(slug, prPageSlug("arvoreeducacao/dev-workspaces#117"));
+  assert.notEqual(slug, prPageSlug("acme/hive#117"));
   assert.ok(isPrPageSlug(slug));
   assert.equal(prPageAddress(KEY), `shelf://${slug}/`);
   assert.equal(isPrPageSlug("pr-lens-do-hive"), false);
@@ -170,9 +170,9 @@ function prDomain({ registry = [], sessions = [] } = {}) {
 test("the server builds the PR page from GitHub's rendered description and the PR diff", async () => {
   const { domain, commands } = prDomain({ registry: [{ key: KEY, session: "seat" }] });
   const page = await domain.pullPage(prPageSlug(KEY));
-  assert.match(page.start, /Loading dev-workspaces #1170/);
+  assert.match(page.start, /Loading hive #1170/);
   const html = page.start + (await page.rest());
-  assert.deepEqual(commands.find((args) => args[0] === "api"), ["api", "repos/arvoreeducacao/dev-workspaces/pulls/1170", "-H", "Accept: application/vnd.github.full+json"]);
+  assert.deepEqual(commands.find((args) => args[0] === "api"), ["api", "repos/acme/hive/pulls/1170", "-H", "Accept: application/vnd.github.full+json"]);
   const window = openPage(html);
   assert.match(window.document.querySelector("iframe").getAttribute("srcdoc"), /<article class="markdown-body"><p>oi<\/p><\/article>/);
   assert.deepEqual([...window.document.querySelectorAll(".files li[data-i]")].map((row) => row.title), ["app/src/one.js", "package-lock.json"], "noise files go last");
@@ -182,7 +182,7 @@ test("the server builds the PR page from GitHub's rendered description and the P
 test("the server finds a PR named only in a live chat, and refuses a slug it cannot place", async () => {
   const { domain } = prDomain({ sessions: [{ name: "seat", prs: [PR.url] }] });
   assert.ok(await domain.pullPage(prPageSlug(KEY)));
-  assert.equal(await domain.pullPage(prPageSlug("arvoreeducacao/other#1")), null);
+  assert.equal(await domain.pullPage(prPageSlug("acme/other#1")), null);
   assert.equal(await domain.pullPage("my-page"), null);
 });
 
@@ -242,15 +242,15 @@ test("a PR GitHub will not give back ends in a red notice instead of a skeleton 
   });
   const page = await domain.pullPage(prPageSlug(KEY));
   const window = openPage(page.start + (await page.rest()));
-  assert.equal(window.document.querySelector(".failed .label").textContent, "Could not load dev-workspaces #1170");
-  assert.equal(window.document.querySelector(".failed a").getAttribute("href"), "https://github.com/arvoreeducacao/dev-workspaces/pull/1170");
+  assert.equal(window.document.querySelector(".failed .label").textContent, "Could not load hive #1170");
+  assert.equal(window.document.querySelector(".failed a").getAttribute("href"), "https://github.com/acme/hive/pull/1170");
   assert.ok(window.document.querySelector(".waiting"), "the skeleton is in the page and hidden by the notice that follows it");
   window.close();
 });
 
 test("the skeleton names the PR it is loading and is hidden once the page arrives", () => {
-  const start = prPageStart({ repo: "arvoreeducacao/dev-workspaces", number: 7 });
-  assert.match(start, /<title>dev-workspaces #7<\/title>/);
+  const start = prPageStart({ repo: "acme/hive", number: 7 });
+  assert.match(start, /<title>hive #7<\/title>/);
   assert.match(start, /aria-busy="true"/);
   assert.match(start, /\.waiting:has\(~ \.page\), \.waiting:has\(~ \.failed\) \{ display: none; \}/);
   assert.match(prPageFailed({ repo: "a/b", number: 7, url: "" }), /<\/html>$/);

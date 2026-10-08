@@ -113,7 +113,7 @@ function parser() {
   return new Function(body + "\nreturn parseHistory;")();
 }
 
-const chunk = (file, extra) => `==F==${file}\n==T==1787900000\n==W=="timestamp":"2026-08-28T14:00:00.000Z"\n==C=="cwd":"/Users/me/Documents/arvore/arvore-hub"\n${extra}`;
+const chunk = (file, extra) => `==F==${file}\n==T==1787900000\n==W=="timestamp":"2026-08-28T14:00:00.000Z"\n==C=="cwd":"/Users/me/Documents/acme/acme-hub"\n${extra}`;
 
 test("the hour on the row is the hour of the last message, not the hour of the sync", () => {
   const rows = [];
@@ -153,7 +153,7 @@ function archive(transcripts) {
 
 const transcript = (entrypoint, promptSource) => [
   `{"type":"queue-operation","operation":"enqueue","timestamp":"2026-08-28T14:00:00.000Z"}`,
-  `{"type":"user","cwd":"/Users/me/arvore-hub","promptSource":"${promptSource}","entrypoint":"${entrypoint}"}`,
+  `{"type":"user","cwd":"/Users/me/acme-hub","promptSource":"${promptSource}","entrypoint":"${entrypoint}"}`,
   `{"type":"assistant","timestamp":"2026-08-28T14:00:01.000Z"}`,
   `{"type":"last-prompt","lastPrompt":"conserta o histórico"}`
 ];
@@ -184,7 +184,7 @@ const pastedImage = `{"type":"user","content":[{"type":"image","source":{"data":
 test("a chat that opens with a pasted image still takes a row", () => {
   const out = archive({ [ID]: [pastedImage, ...transcript("claude-desktop", "sdk")] });
   assert.match(out, new RegExp(`==F==.*${ID}\\.jsonl`), "one pasted print hid a whole session from the archive");
-  assert.match(out, /==C=="cwd":"\/Users\/me\/arvore-hub"/, "the row came back without the folder it was worked in");
+  assert.match(out, /==C=="cwd":"\/Users\/me\/acme-hub"/, "the row came back without the folder it was worked in");
 });
 
 test("a chat that ends with a pasted image keeps the last thing typed", () => {

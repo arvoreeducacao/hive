@@ -70,13 +70,13 @@ test("a link in a sent message can be clicked, and the punctuation after it stay
   e.conv = svConvSeed();
   e.convView = mountConversation(e.scroll, svConvActions(e));
   const deck = "https://docs.google.com/presentation/d/1lGCIpm9umXTiwe37gaUDkHLOvF2JLraWQfPYjIkD2p4/edit?usp=sharing";
-  svConvLine(e, "sv-user", `/compact see ${deck}.\n- the PR (https://github.com/arvoreeducacao/dev-workspaces/pull/1125)\n[Image #1] and http:// alone`);
+  svConvLine(e, "sv-user", `/compact see ${deck}.\n- the PR (https://github.com/acme/hive/pull/1125)\n[Image #1] and http:// alone`);
   const bubble = e.scroll.querySelector(".sv-user");
   const links = [...bubble.querySelectorAll("a[href]")];
-  assert.deepEqual(links.map((a) => a.getAttribute("href")), [deck, "https://github.com/arvoreeducacao/dev-workspaces/pull/1125"]);
+  assert.deepEqual(links.map((a) => a.getAttribute("href")), [deck, "https://github.com/acme/hive/pull/1125"]);
   assert.equal(links[0].target, "_blank");
   assert.equal(links[0].nextSibling.nodeValue.startsWith("."), true);
-  assert.equal(bubble.querySelector("ul.said-list > li").textContent, "the PR (https://github.com/arvoreeducacao/dev-workspaces/pull/1125)");
+  assert.equal(bubble.querySelector("ul.said-list > li").textContent, "the PR (https://github.com/acme/hive/pull/1125)");
   assert.equal(bubble.querySelector(".said-cmd")?.textContent, "/compact");
   assert.equal(bubble.querySelector(".said-img")?.textContent, "[Image #1]");
   assert.equal(links[1].dataset.here, "1", "a PR link opens inside the hive like the ones the AI writes");

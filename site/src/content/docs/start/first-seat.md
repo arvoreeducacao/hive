@@ -3,6 +3,8 @@ title: Your first seat
 description: Open a seat, give it a mission, and watch it work.
 sidebar:
   order: 3
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 A **seat** is one agent session: a tile on the wall with a real terminal behind

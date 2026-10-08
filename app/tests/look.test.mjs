@@ -46,9 +46,9 @@ test("the palette is taken whether or not the pty reads its key", () => {
 test("with the keyboard in a session, opening it alone answers on a key the pty never reads", () => {
   const wasKeys = st.keys;
   const wasTyping = st.typing;
-  st.mirrorDev = "jott4";
+  st.mirrorDev = "juno";
   st.mirrorOpen = false;
-  st.team = { me: "rafa", devs: [{ dev: "jott4", up: true, seats: [] }] };
+  st.team = { me: "rafa", devs: [{ dev: "juno", up: true, seats: [] }] };
   st.typing = "a-seat";
   const press = (binding) => {
     st.keys = { fullscreen: binding };
@@ -279,9 +279,9 @@ test("bash is the shell family and an unknown tool still gets a face", () => {
 });
 
 test("an mcp call keeps the verb on the row and the server in the chip", () => {
-  const f = toolFace("mcp__arvore-mysql__read_query");
+  const f = toolFace("mcp__acme-mysql__read_query");
   assert.equal(f.label, "read_query");
-  assert.equal(f.server, "arvore-mysql");
+  assert.equal(f.server, "acme-mysql");
   assert.equal(f.kind, "mcp");
   assert.equal(f.glyph, "i-db");
   assert.equal(toolFace("mcp__claude_ai_Gmail__send_message").server, "Gmail");
@@ -289,7 +289,7 @@ test("an mcp call keeps the verb on the row and the server in the chip", () => {
 });
 
 test("the row shows the command, not the walk to it", () => {
-  const cmd = "cd /Users/jott4/Developer/arvore-hub/frontend && sed -n 1,120p Hybrid.tsx";
+  const cmd = "cd /Users/dev/Developer/acme-hub/frontend && sed -n 1,120p Hybrid.tsx";
   assert.equal(toolArg("Bash", { command: cmd }), "sed -n 1,120p Hybrid.tsx");
   assert.equal(toolArg("Bash", { command: "cd a && cd b && ls" }), "ls");
   assert.equal(toolArg("Bash", { command: "cd /tmp" }), "cd /tmp");
@@ -297,15 +297,15 @@ test("the row shows the command, not the walk to it", () => {
 });
 
 test("a deep path keeps its tail and gives home back its tilde", () => {
-  assert.equal(shortPath("/Users/jott4/Developer/arvore-hub/app/app.html"), "…/arvore-hub/app/app.html");
-  assert.equal(shortPath("/Users/jott4/notes.md"), "~/notes.md");
-  assert.equal(toolArg("Read", { file_path: "/Users/jott4/a/b/c/d.ts", offset: 40 }), "…/b/c/d.ts");
+  assert.equal(shortPath("/Users/dev/Developer/acme-hub/app/app.html"), "…/acme-hub/app/app.html");
+  assert.equal(shortPath("/Users/dev/notes.md"), "~/notes.md");
+  assert.equal(toolArg("Read", { file_path: "/Users/dev/a/b/c/d.ts", offset: 40 }), "…/b/c/d.ts");
 });
 
 test("the argument is the field that carries the call, never the json around it", () => {
-  assert.equal(toolArg("Grep", { pattern: "svToolCard", path: "/Users/jott4/app", output_mode: "content" }),
+  assert.equal(toolArg("Grep", { pattern: "svToolCard", path: "/Users/dev/app", output_mode: "content" }),
     "svToolCard · ~/app");
-  assert.equal(toolArg("mcp__arvore-mysql__read_query", { query: "SELECT state,\n  COUNT(*)\nFROM t" }),
+  assert.equal(toolArg("mcp__acme-mysql__read_query", { query: "SELECT state,\n  COUNT(*)\nFROM t" }),
     "SELECT state, COUNT(*) FROM t");
   assert.equal(toolArg("TodoWrite", { todos: [
     { content: "one", status: "completed" },
@@ -318,7 +318,7 @@ test("the argument is the field that carries the call, never the json around it"
 });
 
 test("the hover keeps the whole command the row had to cut", () => {
-  const cmd = "cd /Users/jott4/somewhere/deep && ls";
+  const cmd = "cd /Users/dev/somewhere/deep && ls";
   assert.ok(toolTitle("Bash", { command: cmd }).includes(cmd));
 });
 

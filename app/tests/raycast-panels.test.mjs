@@ -131,10 +131,10 @@ test("routines with the flag on pick the first routine and carry its mission; wi
 
 const tasksApi = await app("tasks");
 
-const task = (over = {}) => ({ id: "t1", text: "Conferir saldo A2B", owner: "jott4", who: "me", at: 1, ...over });
+const task = (over = {}) => ({ id: "t1", text: "Conferir saldo A2B", owner: "juno", who: "me", at: 1, ...over });
 
 function taskWorld(list, over = {}) {
-  st.tasks = { me: "jott4", list, groups: [], shelf: "ok", at: 1 };
+  st.tasks = { me: "juno", list, groups: [], shelf: "ok", at: 1 };
   st.team = { devs: [] };
   st.data = { ...st.data, sessions: over.sessions || [], spawning: [], archived: [] };
   Object.assign(tasksApi.tasksUi, { section: "mine", open: "", query: "", form: null, mention: null, confirm: null }, over.ui || {});
@@ -200,8 +200,8 @@ test("the shelf is dressed as a window with the flag on and gets its own markup 
   const before = $("shelf").innerHTML;
   const search = $("sh-search");
   const gallery = $("sh-gal");
-  st.shelf = { repo: "https://github.com/acme/shelf", me: "jott4", pages: [
-    { slug: "one", title: "One", owner: "jott4", label: "draft", tabs: { telas: [{ n: 1 }] }, at: Date.now() },
+  st.shelf = { repo: "https://github.com/acme/shelf", me: "juno", pages: [
+    { slug: "one", title: "One", owner: "juno", label: "draft", tabs: { telas: [{ n: 1 }] }, at: Date.now() },
     { slug: "two", title: "Two", owner: "ana", label: "decided", tabs: { documento: [{ n: 2 }] }, at: Date.now() }
   ] };
   st.shelfPick = "";

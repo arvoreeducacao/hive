@@ -13,14 +13,14 @@ const { nameForPage, openPageInASeat, seatOfPage, seatThatPublished, seatYouClic
 const { drafts } = await app("draft-seat");
 
 const SHELF = {
-  repo: "https://github.com/arvoreeducacao/artefatos",
-  me: "joao",
+  repo: "https://github.com/acme/artifacts",
+  me: "jonas",
   pages: [
     {
       slug: "guarda-roupa-do-avatar-do-hive",
       title: "Guarda-roupa do avatar do Hive",
       label: "in-review",
-      owner: "rafaelandrade",
+      owner: "rosa",
       at: 20,
       tabs: {
         documento: { versions: [{ n: 1, label: "draft", at: 10 }, { n: 2, label: "in-review", at: 20 }] },

@@ -11,7 +11,7 @@ const driver = readFileSync(join(HERE, "../engine/driver.mjs"), "utf8");
 
 const hook = (hook_event, stderr = "", subtype = "hook_response") => ({ type: "system", subtype, hook_id: "h1", hook_name: `${hook_event}:x`, hook_event, stdout: "{}", stderr, output: "", outcome: "success" });
 
-const USED = 'hive-memory:{"v":1,"kind":"used","state":"on","items":[{"id":"m1","title":"api-arvore: mínimo 2 réplicas","source":"shared","relevance":0.96,"author":"rafaelandrade","date":"2026-05-02"},{"id":"c9","title":"readiness passava antes do Prisma","source":"conversation","relevance":0.88,"author":"","date":"2026-06-30T10:00:00Z"}]}';
+const USED = 'hive-memory:{"v":1,"kind":"used","state":"on","items":[{"id":"m1","title":"api: mínimo 2 réplicas","source":"shared","relevance":0.96,"author":"rosa","date":"2026-05-02"},{"id":"c9","title":"readiness passava antes do Prisma","source":"conversation","relevance":0.88,"author":"","date":"2026-06-30T10:00:00Z"}]}';
 
 test("the driver asks the sdk for every hook event", () => {
   assert.match(driver, /includeHookEvents: true/);
@@ -24,7 +24,7 @@ test("a hook response carrying the memory line becomes a memory event, and the h
   assert.deepEqual(fate.memory, {
     type: "memory", kind: "used", state: "on",
     items: [
-      { id: "m1", title: "api-arvore: mínimo 2 réplicas", source: "shared", relevance: 0.96, author: "rafaelandrade", date: "2026-05-02" },
+      { id: "m1", title: "api: mínimo 2 réplicas", source: "shared", relevance: 0.96, author: "rosa", date: "2026-05-02" },
       { id: "c9", title: "readiness passava antes do Prisma", source: "conversation", relevance: 0.88, author: "", date: "2026-06-30" }
     ]
   });

@@ -19,7 +19,7 @@ const PAGE = {
 };
 
 const COMMENTS = [
-  { id: "c-1", tab: "telas", v: 1, who: "rick", at: 1788892700000, text: "o botão de baixo some no celular", pin: { frame: "f-3", name: "Opção B", x: 0.4, y: 0.6 }, done: false },
+  { id: "c-1", tab: "telas", v: 1, who: "rita", at: 1788892700000, text: "o botão de baixo some no celular", pin: { frame: "f-3", name: "Opção B", x: 0.4, y: 0.6 }, done: false },
   { id: "c-2", tab: "telas", v: 1, who: "guilherme", at: 1788892800000, text: "no desktop também", re: "c-1", done: false },
   { id: "c-3", tab: "documento", v: 1, who: "ada", at: 1788892900000, text: "falta o número", done: false },
   { id: "c-4", tab: "telas", v: 1, who: "ada", at: 1788893000000, text: "a cor do chip", pin: { frame: "f-1", name: "Hoje", x: 0.1, y: 0.2 }, done: true, doneBy: "guilherme" }
@@ -32,7 +32,7 @@ globalThis.fetch = async (url, init) => {
 };
 
 async function open(tab = "telas") {
-  st.shelf = { repo: "https://github.com/arvoreeducacao/artefatos", me: "guilherme", pages: [PAGE] };
+  st.shelf = { repo: "https://github.com/acme/artifacts", me: "guilherme", pages: [PAGE] };
   st.shelfQuery = "";
   st.shelfWho = "team";
   st.shelfState = "";

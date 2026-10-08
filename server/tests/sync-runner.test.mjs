@@ -38,7 +38,7 @@ function stage() {
   const broker = createSyncBroker({
     dataDir: join(root, "broker"),
     audience: pod.fingerprint,
-    owner: "joao",
+    owner: "jonas",
     trusted: (fp) => (fp === mac.fingerprint ? { signer: rawOfSsh(mac.publicSsh), name: "mac", kind: "mac" } : null)
   });
   return { root, base, pod, mac, broker, fetchImpl: localFetch(broker) };
@@ -230,7 +230,7 @@ test("what the chat runs on travels with the first turn and every change of mode
   assert.deepEqual(first.map((one) => [one.type, one.model, one.agent, one.effort]), [["system", "opus-5", "claude", "high"]]);
   assert.equal(slim({ type: "driver", subtype: "model_changed", model: "sonnet-5", label: "Sonnet 5" })[0].model, "sonnet-5");
   assert.equal(slim({ type: "driver", subtype: "effort_changed", level: "low" })[0].level, "low");
-  assert.equal(slim({ type: "driver", subtype: "account_changed", account: "arvore" })[0].account, "arvore");
+  assert.equal(slim({ type: "driver", subtype: "account_changed", account: "acme" })[0].account, "acme");
 });
 
 test("what the chat already said does not ring the phone, and a turn rings it once with the line the person will read", async () => {
@@ -244,7 +244,7 @@ test("what the chat already said does not ring the phone, and a turn rings it on
   const broker = createSyncBroker({
     dataDir: join(root, "broker"),
     audience: pod.fingerprint,
-    owner: "joao",
+    owner: "jonas",
     notices,
     doneFloorMs: 0,
     trusted: (fp) => (fp === mac.fingerprint ? { signer: rawOfSsh(mac.publicSsh), name: "mac", kind: "mac" } : null)

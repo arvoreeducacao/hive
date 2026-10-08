@@ -23,7 +23,7 @@ function cut(text, from, to, what = "app.html") {
 }
 
 const block = cut(panes, "\nst.deviceChat = null;", "\nst.cockChat = null;", "chat-and-panes.js");
-const DEVICE = { platform: "android", avd: "hive-pixel", serial: "emulator-5554", booted: true, app: "br.com.arvore.biblion", width: 1080, height: 2400, at: 1700000000000, want: 1 };
+const DEVICE = { platform: "android", avd: "hive-pixel", serial: "emulator-5554", booted: true, app: "com.example.reader", width: 1080, height: 2400, at: 1700000000000, want: 1 };
 
 function world({ device = DEVICE, visible = "visible", answer = { ok: true }, appears = DEVICE, list = { ok: true, avds: ["hive-pixel"], running: [], sims: [] } } = {}) {
   const timers = [];
@@ -138,7 +138,7 @@ test("one frame in flight at a time — the next is only asked after the last la
   w.openDevice("ana");
   w.paintDeviceOfChat(w.el, w.seat());
   assert.deepEqual(w.el.classes, ["deviced", "arting"]);
-  assert.equal(w.id.textContent, "ana · hive-pixel · 1080×2400 · br.com.arvore.biblion");
+  assert.equal(w.id.textContent, "ana · hive-pixel · 1080×2400 · com.example.reader");
   assert.equal(w.srcs.length, 1);
   assert.match(w.srcs[0], /^\/api\/device\/frame\?name=ana&t=\d+$/);
   assert.equal(w.gone.textContent, "waiting for the first frame");

@@ -93,18 +93,18 @@ test("the seat key shows only for the nine seats the digits reach", () => {
 });
 
 test("the worktree chip is the branch cut in the middle, and it copies the whole branch", () => {
-  const [tree] = model({ seat: { trees: [{ repo: "dev-workspaces", branch: "joao-cunha/-/oms-v2-juntar-skus", path: "/w/a" }] } }).heads;
+  const [tree] = model({ seat: { trees: [{ repo: "dev-workspaces", branch: "jorge/-/oms-v2-juntar-skus", path: "/w/a" }] } }).heads;
   assert.equal(tree.text, "oms-v2-j…ar-skus");
-  assert.equal(tree.copy, "joao-cunha/-/oms-v2-juntar-skus");
+  assert.equal(tree.copy, "jorge/-/oms-v2-juntar-skus");
   assert.equal(tree.cls, "tree");
-  const [main] = model({ seat: { trees: [{ repo: "arvore-hub", main: true, path: "/w/b" }] } }).heads;
-  assert.equal(main.text, "arvore-hub");
+  const [main] = model({ seat: { trees: [{ repo: "acme-hub", main: true, path: "/w/b" }] } }).heads;
+  assert.equal(main.text, "acme-hub");
   assert.equal(main.cls, "tree main");
   assert.equal(main.copy, "");
 });
 
 test("a cloud seat and a pull request with a failing check ride in the head too", () => {
-  const heads = model({ seat: { where: "cloud" }, prs: [{ key: "hive#9", repo: "arvore/hive", number: 9, state: "open", ci: "failed" }] }).heads;
+  const heads = model({ seat: { where: "cloud" }, prs: [{ key: "hive#9", repo: "acme/hive", number: 9, state: "open", ci: "failed" }] }).heads;
   assert.deepEqual(heads.map((one) => one.cls), ["cloud", "pr bad"]);
   assert.equal(heads[1].text, "#9");
 });

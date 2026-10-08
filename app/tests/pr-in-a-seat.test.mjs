@@ -15,7 +15,7 @@ const { drafts } = await app("draft-seat");
 const { prPageAddress } = await import("../assets/pr-page.mjs");
 
 const SHELF = {
-  repo: "https://github.com/arvoreeducacao/artefatos",
+  repo: "https://github.com/acme/artifacts",
   me: "art",
   pages: [{
     slug: "guarda-roupa-do-avatar-do-hive", title: "Guarda-roupa do avatar do Hive", label: "in-review", owner: "art", at: 20,
@@ -43,8 +43,8 @@ if (!document.getElementById("webyard")) {
 
 bootSolid();
 
-const PR = "https://github.com/arvoreeducacao/dev-workspaces/pull/1111";
-const PAGE = prPageAddress("arvoreeducacao/dev-workspaces#1111");
+const PR = "https://github.com/acme/hive/pull/1111";
+const PAGE = prPageAddress("acme/hive#1111");
 
 function hive(session = "") {
   document.body.classList.add("experience-next");
@@ -60,7 +60,7 @@ function hive(session = "") {
   st.shelf = SHELF;
   st.published = [];
   st.webChat = null;
-  st.prs = [{ key: "arvoreeducacao/dev-workspaces#1111", url: PR, session, title: "menu", repo: "arvoreeducacao/dev-workspaces", number: 1111 }];
+  st.prs = [{ key: "acme/hive#1111", url: PR, session, title: "menu", repo: "acme/hive", number: 1111 }];
   for (const name of [...webOfSeat.keys()]) webOfSeat.delete(name);
   for (const one of [...drafts.values()]) { one.e.host.remove(); drafts.delete(one.id); }
   document.getElementById("webyard").innerHTML = "";
@@ -98,24 +98,24 @@ test("another PR in the same chat takes over the PR tab instead of opening one m
   hive("");
   openPrInASeat(st.prs[0]);
   const first = st.webChat;
-  openPrInASeat({ ...st.prs[0], key: "arvoreeducacao/dev-workspaces#11112", url: `${PR}2` });
+  openPrInASeat({ ...st.prs[0], key: "acme/hive#11112", url: `${PR}2` });
   assert.equal(st.webChat, first);
-  assert.deepEqual(tabsOf(first).map((t) => t.url), [prPageAddress("arvoreeducacao/dev-workspaces#11112")]);
+  assert.deepEqual(tabsOf(first).map((t) => t.url), [prPageAddress("acme/hive#11112")]);
 });
 
 test("a GitHub tab reached from the PR page is taken over by the next PR", () => {
   hive("atendimento-leitura");
   openPrInASeat(st.prs[0]);
   tabsOf("atendimento-leitura")[0].url = `${PR}/files`;
-  openPrInASeat({ ...st.prs[0], key: "arvoreeducacao/dev-workspaces#7" });
-  assert.deepEqual(tabsOf("atendimento-leitura").map((t) => t.url), [prPageAddress("arvoreeducacao/dev-workspaces#7")]);
+  openPrInASeat({ ...st.prs[0], key: "acme/hive#7" });
+  assert.deepEqual(tabsOf("atendimento-leitura").map((t) => t.url), [prPageAddress("acme/hive#7")]);
 });
 
 test("a tab that is not a pull request is left where it was", () => {
   hive("atendimento-leitura");
-  openWebPage("atendimento-leitura", "https://github.com/arvoreeducacao/dev-workspaces/issues/7");
+  openWebPage("atendimento-leitura", "https://github.com/acme/hive/issues/7");
   openPrInASeat(st.prs[0]);
-  assert.deepEqual(tabsOf("atendimento-leitura").map((t) => t.url), ["https://github.com/arvoreeducacao/dev-workspaces/issues/7", PAGE]);
+  assert.deepEqual(tabsOf("atendimento-leitura").map((t) => t.url), ["https://github.com/acme/hive/issues/7", PAGE]);
 });
 
 test("the current hive keeps its own review screen", () => {

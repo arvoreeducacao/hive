@@ -14,12 +14,12 @@ const CODEX_WORKING = `› Rode o comando shell sleep 30 e depois conte de 1 ate
 • Vou aguardar os 30 segundos no shell e, quando terminar, imprimir de 1 a 20, um número por linha.
 • Working (7s • esc to interrupt) · 1 background terminal running · /ps to view · /stop to close
 › Ask Codex to do anything
-  gpt-5.6-sol default fast · ~/Projects/Work/arvore-hub`;
+  gpt-5.6-sol default fast · ~/Projects/Work/acme-hub`;
 const CODEX_IDLE = `  Foi pedido aguardar 30 segundos e contar de 1 a 20.
   O comando terminou normalmente.
 ────────────────────────────────────────────────
 › Ask Codex to do anything
-  gpt-5.6-sol default fast · ~/Projects/Work/arvore-hub`;
+  gpt-5.6-sol default fast · ~/Projects/Work/acme-hub`;
 const CODEX_DIALOG = `  ✨ Update available! 0.145.0 -> 0.151.0
 › 1. Update now (runs \`sh -c 'curl -fsSL https://chatgpt.com/codex/install.sh | sh'\`)
   2. Skip
@@ -32,13 +32,13 @@ const KIMI_WORKING = ` ● Run sleep 30, then count 1-20.
  ╭──────────────────────────────╮
  │ >                            │
  ╰──────────────────────────────╯
- Ask When Needed  K2.7 Coding thinking  …/Projects/Work/arvore-hub  main`;
+ Ask When Needed  K2.7 Coding thinking  …/Projects/Work/acme-hub  main`;
 const KIMI_IDLE = `   Resumo:
    • Pedido: rodar sleep 30 e depois contar de 1 a 20, um número por linha.
  ╭──────────────────────────────╮
  │ >                            │
  ╰──────────────────────────────╯
- Ask When Needed  K2.7 Coding thinking  …/Projects/Work/arvore-hub  main`;
+ Ask When Needed  K2.7 Coding thinking  …/Projects/Work/acme-hub  main`;
 const KIMI_DIALOG = `    slack-advanced (http): url=http://127.0.0.1:4671/mcp/slack-advanced
    ❯ Trust this folder
      Enable project MCP servers. Remembered for this folder.

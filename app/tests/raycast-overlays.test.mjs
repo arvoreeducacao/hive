@@ -233,7 +233,7 @@ test("with the flag the palette writes each seat's state beside its name and det
 test("with the flag the palette details a seat by its state, model, branch and PR, and a command by its keys", () => withFlag(() => {
   const one = {
     name: "a", title: "apagar oc recebida", where: "local", state: "working", when: "2m", agent: "claude", kind: "structured", model: "Opus 5.5",
-    trees: [{ repo: "pedtec-data-fixes", branch: "joao-cunha/-/apaga-nota-de-teste-900031" }], prs: ["https://github.com/org/pedtec-data-fixes/pull/144"]
+    trees: [{ repo: "ops-data-fixes", branch: "jorge-team/-/apaga-nota-de-teste-900031" }], prs: ["https://github.com/org/ops-data-fixes/pull/144"]
   };
   st.blocks = [{ id: "b1", ws: st.space, keys: ["z", "a"] }];
   st.prs = [];
@@ -247,7 +247,7 @@ test("with the flag the palette details a seat by its state, model, branch and P
   assert.equal(fact("state").text, "working · 2m");
   assert.equal(fact("branch").copy, one.trees[0].branch);
   assert.ok(fact("branch").mono.includes("…") && fact("branch").mono.endsWith("900031"));
-  assert.equal(fact("pr").mono, "pedtec-data-fixes#144");
+  assert.equal(fact("pr").mono, "ops-data-fixes#144");
   st.palSel = 1;
   assert.deepEqual([...palPreviewViewModel().keys], ["⌘", "N"]);
   st.palSel = 7;
@@ -304,7 +304,7 @@ test("the empty wall teaches the keys: four ways to start and the last archived 
 
 test("with the flag the request from someone else says which kind it is and its button carries its key", () => withFlag(() => {
   hive([seat()]);
-  const asked = { from: "jott4", seat: "q1", at: Date.now(), kind: "ask", text: "posso?" };
+  const asked = { from: "juno", seat: "q1", at: Date.now(), kind: "ask", text: "posso?" };
   st.knocksOpen = [asked];
   st.nudgeQueue = [asked];
   paintNudge();
@@ -335,7 +335,7 @@ test("a doctor fix in the palette shows where it runs and the command it copies 
   const fact = (k) => said.facts.find((f) => f.key === k);
   assert.equal(fact("where").text, phrase("on the server"));
   assert.equal(fact("command").mono, "git -C /worksp…ull --ff-only");
-  st.alerts = { ...st.alerts, items: [{ id: "login", state: "fail", headline: "x", fix: { label: "log Claude in on the server", command: "/Users/someone/Developer/hub/dev-workspaces/arvore/scripts/pod-login.sh" } }] };
+  st.alerts = { ...st.alerts, items: [{ id: "login", state: "fail", headline: "x", fix: { label: "log Claude in on the server", command: "/Users/someone/Developer/hub/dev-workspaces/acme/scripts/pod-login.sh" } }] };
   st.palRows = palModel("");
   st.palSel = st.palRows.filter((r) => !r.sec).findIndex((r) => r.id === "env:login");
   const local = palPreviewViewModel().facts;

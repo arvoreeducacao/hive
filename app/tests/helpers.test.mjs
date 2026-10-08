@@ -26,7 +26,7 @@ test("a helper whose panel is gone is swept", () => {
 test("a neighbour's dev panel keeps its own helpers", () => {
   const out = ps([
     [500, 1, "/usr/bin/node ./server.mjs"],
-    [800, 1, "/usr/bin/node /Users/joao/wt/hive/app/server.mjs"],
+    [800, 1, "/usr/bin/node /Users/dev/wt/hive/app/server.mjs"],
     [810, 800, HELPER],
     [820, 1, HELPER]
   ]);

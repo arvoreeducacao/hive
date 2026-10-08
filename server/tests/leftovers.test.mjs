@@ -44,7 +44,7 @@ test("the leftovers of a seat are the rows that carry its name, minus this proce
 test("machinery is the driver, the agent binary and the mcp servers; a dev server or a test is not", () => {
   assert.equal(isMachinery("/usr/bin/node /hive/server/engine/codex-driver.mjs --agent codex"), true);
   assert.equal(isMachinery("/Applications/Hive.app/Contents/Resources/server/node_modules/@anthropic-ai/claude-agent-sdk-darwin-arm64/claude --output-format stream-json"), true);
-  assert.equal(isMachinery("node /Users/dev/.claude/plugins/cache/arvore/claude-memory/0.1.0/scripts/mcp-server.mjs"), true);
+  assert.equal(isMachinery("node /Users/dev/.claude/plugins/cache/acme/claude-memory/0.1.0/scripts/mcp-server.mjs"), true);
   assert.equal(isMachinery("node --test tests/codex-limits.test.mjs tests/npx-runner.test.mjs tests/mcp-server.test.mjs"), false, "a test suite is not machinery because of the files it names");
   assert.equal(isMachinery("codex app-server --listen"), true);
   assert.equal(isMachinery("/opt/homebrew/bin/npx -y @scope/some-mcp"), true);

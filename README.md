@@ -1,12 +1,25 @@
 # Hive
 
 [![ci](https://github.com/arvoreeducacao/hive/actions/workflows/ci.yml/badge.svg)](https://github.com/arvoreeducacao/hive/actions/workflows/ci.yml)
+![status: alpha](https://img.shields.io/badge/status-alpha-orange)
 
 Run a fleet of coding agents and watch all of them at once.
 
-> **Early access.** This repository is private for now and has no releases yet:
-> you build the app from source, as below, on Linux, macOS or Windows. Anything
-> that breaks or reads wrong, tell the person who invited you.
+> [!WARNING]
+> **Hive is alpha software.** It is open so people can try it and tell us what
+> breaks, not because it is finished.
+>
+> - There are no releases yet: you build the app from source, as below, on
+>   Linux, macOS or Windows.
+> - Anything can change between commits: settings, the files under `~/.hive`,
+>   the HTTP routes, the extension hooks. There is no migration promise yet.
+> - Seats run coding agents with a shell and no approval prompts. Point them only
+>   at code and machines you are willing to let an agent change. Read
+>   [SECURITY.md](SECURITY.md) before you run a server anyone else can reach.
+> - It is used every day by the team that builds it, on Linux and macOS. Windows
+>   has had the least use.
+>
+> Bugs and rough edges go in [issues](https://github.com/arvoreeducacao/hive/issues).
 
 Every session is a **seat**: a tile on a wall, with a real terminal behind it. You
 open a seat on a repository and a branch, tell it what you want, and it works.
@@ -132,8 +145,7 @@ install, Linear first, live in
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md). Found something that looks like a hole?
-[SECURITY.md](SECURITY.md) first, please, not an issue. While this repository is
-private, send it straight to the person who invited you.
+[SECURITY.md](SECURITY.md) first, please, not an issue.
 
 ## License
 

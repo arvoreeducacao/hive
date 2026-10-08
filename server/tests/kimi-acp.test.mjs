@@ -23,11 +23,11 @@ test("kimi acp: the client announces no fs and no terminal, so kimi runs its own
 });
 
 test("kimi acp: the hive peer rides as stdio, the hub's gateway as one http server named hub, and remotes with their headers", () => {
-  const servers = mcpServersFor({ seat: "orca", base: "/Users/joao/.hive", gateway: { port: 4671, servers: ["arvore-mysql"] }, remote: [{ name: "figma", url: "https://mcp.figma.com/mcp", headers: { "X-Key": "${K}" } }], env: { HIVE_MCP_GATEWAY_TOKEN: "tok", K: "k1" } });
+  const servers = mcpServersFor({ seat: "orca", base: "/Users/dev/.hive", gateway: { port: 4671, servers: ["acme-mysql"] }, remote: [{ name: "figma", url: "https://mcp.figma.com/mcp", headers: { "X-Key": "${K}" } }], env: { HIVE_MCP_GATEWAY_TOKEN: "tok", K: "k1" } });
   assert.equal(servers[0].name, "hive");
   assert.equal(servers[0].command, process.execPath);
   assert.equal(servers[0].args[0], peerEntry());
-  assert.deepEqual(servers[0].env, [{ name: "HIVE_SEAT", value: "orca" }, { name: "HIVE_STATE_DIR", value: "/Users/joao/.hive" }]);
+  assert.deepEqual(servers[0].env, [{ name: "HIVE_SEAT", value: "orca" }, { name: "HIVE_STATE_DIR", value: "/Users/dev/.hive" }]);
   assert.deepEqual(servers[1], { type: "http", name: "hub", url: "http://127.0.0.1:4671/mcp/hub", headers: [{ name: "Authorization", value: "Bearer tok" }] }, "the gateway rides as one server, hub, whatever it hosts");
   assert.deepEqual(servers[2], { type: "http", name: "figma", url: "https://mcp.figma.com/mcp", headers: [{ name: "X-Key", value: "k1" }] });
   assert.deepEqual(mcpServersFor({}), []);

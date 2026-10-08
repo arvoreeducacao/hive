@@ -97,7 +97,7 @@ test("a thumbnail says the last thing the seat said, and the question when it ne
 });
 
 test("entering builds the wing, the stage and the side strip, and the real tile of the focused seat goes on the stage", () => {
-  lay([["a", "b"], ["c"]], { b: "needs", c: "working" }, { a: { trees: [{ repo: "hub", branch: "joao/-/stage", path: "/x/.wt-stage", main: false }] } });
+  lay([["a", "b"], ["c"]], { b: "needs", c: "working" }, { a: { trees: [{ repo: "hub", branch: "jonas/-/stage", path: "/x/.wt-stage", main: false }] } });
   setStructure("stage", { quiet: true });
   assert.equal(structureWorn(), "stage");
   assert.equal(document.body.dataset.structure, "stage");

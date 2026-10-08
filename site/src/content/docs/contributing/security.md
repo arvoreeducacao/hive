@@ -3,6 +3,8 @@ title: Security
 description: How to report a hole, what counts as one, and what does not.
 sidebar:
   order: 2
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 ## Reporting

@@ -41,11 +41,11 @@ test("a worktree says which repo it belongs to, not what its folder is called", 
   const dir = await sandbox();
   const main = await repo(dir, "dev-workspaces");
   const tree = join(dir, "hive-humor");
-  git(main, "worktree", "add", "-q", "-b", "joao/-/humor", tree);
+  git(main, "worktree", "add", "-q", "-b", "jonas/-/humor", tree);
 
   const it = repoAt(tree);
   assert.equal(it.repo, "dev-workspaces");
-  assert.equal(it.branch, "joao/-/humor");
+  assert.equal(it.branch, "jonas/-/humor");
   assert.equal(it.main, false);
 
   const home = repoAt(main);
@@ -58,12 +58,12 @@ test("a worktree says which repo it belongs to, not what its folder is called", 
 test("a chat that walked three repos shows the three, newest first", async () => {
   const dir = await sandbox();
   const hub = await repo(dir, "hub");
-  const api = await repo(hub, "api-arvore");
+  const api = await repo(hub, "api");
   const front = await repo(hub, "frontend");
   const dirs = [hub, api, join(front, "src"), hub, api];
 
   const trees = seatTrees({ dirs });
-  assert.deepEqual(trees.map((t) => t.repo), ["api-arvore", "hub", "frontend"]);
+  assert.deepEqual(trees.map((t) => t.repo), ["api", "hub", "frontend"]);
   await rm(dir, { recursive: true, force: true });
 });
 
@@ -73,11 +73,11 @@ test("a seat that has a worktree is never credited with the branch someone else 
   const main = await repo(dir, "dev-workspaces");
   git(main, "checkout", "-q", "-b", "outra-pessoa/-/a-etiqueta");
   const tree = join(dir, "uma-conexao");
-  git(main, "worktree", "add", "-q", "-b", "joao/-/uma-conexao", tree);
+  git(main, "worktree", "add", "-q", "-b", "jonas/-/uma-conexao", tree);
   const dirs = [hub, main, tree];
 
   const trees = seatTrees({ dirs });
-  assert.deepEqual(trees.map((t) => t.branch), ["joao/-/uma-conexao"]);
+  assert.deepEqual(trees.map((t) => t.branch), ["jonas/-/uma-conexao"]);
   assert.deepEqual(trees.map((t) => t.path), [tree]);
   await rm(dir, { recursive: true, force: true });
 });

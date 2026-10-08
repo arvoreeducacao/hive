@@ -52,7 +52,7 @@ test("what is not a page on the shelf is not a shelf link", () => {
 });
 
 test("links to the world keep opening in the world", () => {
-  const html = renderMarkdown("o PR é https://github.com/arvoreeducacao/dev-workspaces/pull/353");
+  const html = renderMarkdown("o PR é https://github.com/acme/hive/pull/353");
   assert.match(html, /target="_blank"/);
   assert.doesNotMatch(html, /md-shelf/);
 });

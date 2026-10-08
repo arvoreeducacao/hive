@@ -5,7 +5,7 @@ import { createDemoLogin, createMemoryLogin, memoryClientStore } from "../lib/me
 import { memoryVault } from "../lib/memory-vault.mjs";
 import { registerMemoryRoutes } from "../routes/memories.mjs";
 
-const LIST = { memories: [{ id: "m1", title: "Deploy da API só dispara por push na main", repo: "api-arvore", origin: "automatica", retrieved_count: 23 }] };
+const LIST = { memories: [{ id: "m1", title: "Deploy da API só dispara por push na main", repo: "api", origin: "automatica", retrieved_count: 23 }] };
 
 function upstream(script) {
   const calls = [];
@@ -26,13 +26,13 @@ function clock(start = 1_790_000_000_000) {
 test("the list goes to the memory server with the read token as a bearer, and comes back shaped", async () => {
   const { calls, fetchImpl } = upstream([{ status: 200, body: LIST }]);
   const source = createMemorySource({ baseUrl: "https://memory.example/", readToken: () => "read-only-token", fetchImpl });
-  const said = await source.list({ status: "active", repo: "api-arvore", q: "deploy" });
+  const said = await source.list({ status: "active", repo: "api", q: "deploy" });
   assert.equal(said.state, "ok");
   assert.equal(said.demo, false);
   assert.equal(said.source, "memory.example");
   assert.deepEqual(said.memories, LIST.memories);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].url, "https://memory.example/api/memories?status=active&repo=api-arvore&q=deploy");
+  assert.equal(calls[0].url, "https://memory.example/api/memories?status=active&repo=api&q=deploy");
   assert.equal(calls[0].auth, "Bearer read-only-token");
 });
 
@@ -154,7 +154,7 @@ test("one memory that does not exist is a missing memory, not a missing route", 
 });
 
 test("only the filters of the contract travel, cleaned", () => {
-  assert.equal(String(memoryListQuery({ status: "deleted", origin: "robot", repo: " arvore ", evil: "1" })), "repo=arvore&status=active");
+  assert.equal(String(memoryListQuery({ status: "deleted", origin: "robot", repo: " acme ", evil: "1" })), "repo=acme&status=active");
   assert.equal(String(memoryListQuery({ status: "archived", origin: "manual" })), "status=archived&origin=manual");
   assert.equal(cleanMemoryId("abc-123"), "abc-123");
   assert.equal(cleanMemoryId("a/b"), "");

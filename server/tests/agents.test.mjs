@@ -79,13 +79,13 @@ test("codex: resume args carry the session and first turn does not", () => {
 });
 
 test("codex: the seat name reaches the hive mcp, which codex never inherits from the environment", () => {
-  const args = agents.codex.turnArgs({ text: "hi", seat: "orca", base: "/Users/joao/.hive" });
+  const args = agents.codex.turnArgs({ text: "hi", seat: "orca", base: "/Users/dev/.hive" });
   const at = args.indexOf("-c");
   assert.ok(at > 0);
   const peer = peerEntry();
   assert.equal(
     args[at + 1],
-    `mcp_servers.hive={command=${JSON.stringify(process.execPath)},args=[${JSON.stringify(peer)}],env={HIVE_SEAT="orca",HIVE_STATE_DIR="/Users/joao/.hive"}}`,
+    `mcp_servers.hive={command=${JSON.stringify(process.execPath)},args=[${JSON.stringify(peer)}],env={HIVE_SEAT="orca",HIVE_STATE_DIR="/Users/dev/.hive"}}`,
   );
   assert.doesNotMatch(args[at + 1], /command="hive"/, "a seat must not need the command line installed to see the others");
   assert.equal(args.at(-1), "hi");

@@ -78,7 +78,7 @@ test("a chat that closed stays visible while the chat that opened it is alive", 
   noteErrand(dir, { seat: "biblion-onix", errand: "acervo", by: "chat-abre-chat" });
   const all = readErrands(dir);
   all["biblion-capas"].endedAt = 1000;
-  all["biblion-capas"].prs = ["https://github.com/arvoreeducacao/dev-workspaces/pull/833"];
+  all["biblion-capas"].prs = ["https://github.com/acme/hive/pull/833"];
 
   const kin = goneKin(all, [{ name: "chat-abre-chat" }, { name: "biblion-onix" }]);
   assert.deepEqual(kin.map((one) => one.name), ["biblion-capas"]);

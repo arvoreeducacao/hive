@@ -105,31 +105,31 @@ test("the summary falls back to the description, then to the line that says only
 
 test("the chips are the worktrees, then account, the lent keyboard and the pull request — the model and the kind of seat are already on the screen", () => {
   const model = tile({
-    seat: { trees: [{ repo: "leaf", path: "/w/leaf", branch: "ricardo/-/solid", main: false }], model: "opus", account: "ana@arvore", structured: true },
-    lentHere: [{ seat: "ana", with: "joao" }],
-    prs: [{ key: "hive#9", state: "open", repo: "arvore/hive", number: 9 }]
+    seat: { trees: [{ repo: "leaf", path: "/w/leaf", branch: "renato/-/solid", main: false }], model: "opus", account: "ana@acme", structured: true },
+    lentHere: [{ seat: "ana", with: "jonas" }],
+    prs: [{ key: "hive#9", state: "open", repo: "acme/hive", number: 9 }]
   });
   assert.deepEqual(model.chips.map((c) => c.key), ["tree:/w/leaf", "acc", "lent", "repo", "pr"]);
   const tree = model.chips[0];
   assert.equal(tree.cls, "tree apart");
   assert.equal(tree.text, "leaf");
   assert.equal(tree.twig, "solid");
-  assert.equal(tree.title, "/w/leaf\nricardo/-/solid\nworktree");
+  assert.equal(tree.title, "/w/leaf\nrenato/-/solid\nworktree");
   assert.equal(model.chips[2].take, "ana");
-  assert.match(model.chips[2].html, /team-av.*joao.*joao at the keyboard/);
+  assert.match(model.chips[2].html, /team-av.*jonas.*jonas at the keyboard/);
   assert.equal(model.chips[4].text, "pr #9");
 });
 
 test("a worktree the pull request already names does not get a second repo chip", () => {
   const model = tile({
     seat: { trees: [{ repo: "hive", path: "/w/hive", branch: "main", main: true }] },
-    prs: [{ key: "hive#9", state: "open", repo: "arvore/hive", number: 9 }]
+    prs: [{ key: "hive#9", state: "open", repo: "acme/hive", number: 9 }]
   });
   assert.deepEqual(model.chips.map((c) => c.key), ["tree:/w/hive", "pr"]);
 });
 
 test("a shut seat shows one pull request and says how many more, an open one shows them all", () => {
-  const prs = [1, 2, 3].map((n) => ({ key: `hive#${n}`, state: "open", repo: "arvore/hive", number: n, title: `pr ${n}` }));
+  const prs = [1, 2, 3].map((n) => ({ key: `hive#${n}`, state: "open", repo: "acme/hive", number: n, title: `pr ${n}` }));
   const shut = tile({ prs });
   assert.equal(shut.prs.cards.length, 1);
   assert.equal(shut.prs.more, "2 more pull requests — open the seat to see them");
@@ -141,7 +141,7 @@ test("a shut seat shows one pull request and says how many more, an open one sho
 test("a pull request card carries the repo, the scale, what it says and one key per action", () => {
   const card = tile({
     prs: [{
-      key: "hive#9", state: "open", repo: "arvore/hive", number: 9, title: "the rail in solid",
+      key: "hive#9", state: "open", repo: "acme/hive", number: 9, title: "the rail in solid",
       additions: 12, deletions: 3, says: "checks running",
       acts: [{ act: "merge", label: "merge", tone: "ready" }, { act: "force", label: "force merge", tone: "warn" }]
     }],
@@ -245,13 +245,13 @@ test("the editor bar names every open tab and marks the one being read and the o
     active: 1,
     tabs: [
       { key: "a", name: "hive", path: "app/app.html" },
-      { key: "b", name: "hive", path: "app/src/tile.jsx", branch: "ricardo/-/solid", dirty: true, where: "local" }
+      { key: "b", name: "hive", path: "app/src/tile.jsx", branch: "renato/-/solid", dirty: true, where: "local" }
     ]
   });
   assert.deepEqual(model.bar.tabs.map((t) => [t.name, t.on, t.dirty]), [["app.html", false, false], ["tile.jsx", true, true]]);
   assert.equal(model.bar.tabs[0].hint, "hive · app/app.html");
   assert.equal(model.bar.dirty, true);
-  assert.deepEqual(model.status.where.map((p) => p.text), ["this machine", "hive · ricardo/-/solid", "app/src/tile.jsx"]);
+  assert.deepEqual(model.status.where.map((p) => p.text), ["this machine", "hive · renato/-/solid", "app/src/tile.jsx"]);
   assert.deepEqual(model.status.at.map((p) => p.text), ["not saved"]);
 });
 
@@ -360,9 +360,9 @@ test("the browser or phone sign shows only while the seat is using it, and the b
 });
 
 test("in the new hive the lent keyboard says who has it in two words, the old one keeps the long line", () => {
-  const lent = (next) => tile({ next, lentHere: [{ seat: "ana", with: "joao" }] }).chips.find((c) => c.key === "lent").html;
-  assert.match(lent(true), /joao · take back$/);
-  assert.match(lent(false), /joao at the keyboard · take it back$/);
+  const lent = (next) => tile({ next, lentHere: [{ seat: "ana", with: "jonas" }] }).chips.find((c) => c.key === "lent").html;
+  assert.match(lent(true), /jonas · take back$/);
+  assert.match(lent(false), /jonas at the keyboard · take it back$/);
 });
 
 test("the grip opens the chat from the grid and takes it back to the grid from full screen", () => {

@@ -106,12 +106,12 @@ async function paired(held, kind, name) {
 }
 
 before(async () => {
-  owner = await stand("vitor");
-  guest = await stand("joao");
-  seat = fakeSeat(owner.home, "assento-do-vitor");
+  owner = await stand("vini");
+  guest = await stand("jonas");
+  seat = fakeSeat(owner.home, "assento-do-vini");
   await seat.up();
-  const theirs = await paired(owner, "mac", "vitor mac");
-  const mine = await paired(guest, "mac", "joao mac");
+  const theirs = await paired(owner, "mac", "vini mac");
+  const mine = await paired(guest, "mac", "jonas mac");
   const invite = await theirs.client.post("/api/invites", {});
   const joined = await mine.client.post("/api/join", { link: invite.body.link });
   assert.equal(joined.ok, true, joined.error);
@@ -128,39 +128,39 @@ after(async () => {
 });
 
 test("being paired is not permission to type in someone's seat", async () => {
-  const mine = await paired(guest, "mac", "joao trying");
+  const mine = await paired(guest, "mac", "jonas trying");
   const there = owner.broker.identity.fingerprint;
-  const said = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/say`, { text: "posso?" });
+  const said = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/say`, { text: "posso?" });
   assert.equal(said.status, 403, JSON.stringify(said));
   assert.match(said.error, /not lent to you/);
   assert.ok(!seat.heard.some((one) => one.text === "posso?"), "o say passou sem empréstimo");
 });
 
 test("with the keyboard lent, the same say goes through", async () => {
-  const theirs = await paired(owner, "mac", "vitor lending");
-  const mine = await paired(guest, "mac", "joao typing");
+  const theirs = await paired(owner, "mac", "vini lending");
+  const mine = await paired(guest, "mac", "jonas typing");
   const there = owner.broker.identity.fingerprint;
   const meThere = guest.broker.identity.fingerprint;
 
-  const lent = await theirs.client.post("/api/grants", { seat: "assento-do-vitor", to: meThere });
+  const lent = await theirs.client.post("/api/grants", { seat: "assento-do-vini", to: meThere });
   assert.equal(lent.ok, true, lent.error);
 
-  const said = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/say`, { text: "obrigado" });
+  const said = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/say`, { text: "obrigado" });
   assert.equal(said.ok, true, said.error);
   assert.ok(seat.heard.some((one) => one.type === "say" && one.text === "obrigado"));
 });
 
 test("taking the keyboard back closes the door again", async () => {
-  const theirs = await paired(owner, "mac", "vitor taking back");
-  const mine = await paired(guest, "mac", "joao losing it");
+  const theirs = await paired(owner, "mac", "vini taking back");
+  const mine = await paired(guest, "mac", "jonas losing it");
   const there = owner.broker.identity.fingerprint;
   const meThere = guest.broker.identity.fingerprint;
 
-  await theirs.client.post("/api/grants", { seat: "assento-do-vitor", to: meThere });
-  const took = await theirs.client.post("/api/grants/take", { seat: "assento-do-vitor" });
+  await theirs.client.post("/api/grants", { seat: "assento-do-vini", to: meThere });
+  const took = await theirs.client.post("/api/grants/take", { seat: "assento-do-vini" });
   assert.equal(took.ok, true, took.error);
 
-  const after = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/say`, { text: "e agora" });
+  const after = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/say`, { text: "e agora" });
   assert.equal(after.status, 403);
 });
 
@@ -170,7 +170,7 @@ test("a peer cannot lend itself a keyboard on someone else's server", async () =
     identity: guest.broker.identity,
     audience: owner.broker.identity.fingerprint
   });
-  const tried = await asPeer.post("/api/grants", { seat: "assento-do-vitor", to: guest.broker.identity.fingerprint });
+  const tried = await asPeer.post("/api/grants", { seat: "assento-do-vini", to: guest.broker.identity.fingerprint });
   assert.equal(tried.status, 403, JSON.stringify(tried));
   assert.match(tried.error, /does not lend keyboards|only while its keyboard is lent/);
 });
@@ -181,51 +181,51 @@ test("a peer cannot take a keyboard back either", async () => {
     identity: guest.broker.identity,
     audience: owner.broker.identity.fingerprint
   });
-  const tried = await asPeer.post("/api/grants/take", { seat: "assento-do-vitor" });
+  const tried = await asPeer.post("/api/grants/take", { seat: "assento-do-vini" });
   assert.equal(tried.status, 403);
 });
 
 test("the owner's own devices never need a grant", async () => {
-  const theirs = await paired(owner, "mac", "vitor himself");
-  const said = await theirs.client.post("/api/sessions/assento-do-vitor/say", { text: "é meu" });
+  const theirs = await paired(owner, "mac", "vini himself");
+  const said = await theirs.client.post("/api/sessions/assento-do-vini/say", { text: "é meu" });
   assert.equal(said.ok, true, said.error);
   assert.ok(seat.heard.some((one) => one.text === "é meu"));
 });
 
 test("lending to a key nobody knows is refused", async () => {
-  const theirs = await paired(owner, "mac", "vitor careless");
-  const said = await theirs.client.post("/api/grants", { seat: "assento-do-vitor", to: newIdentity("ninguém").fingerprint });
+  const theirs = await paired(owner, "mac", "vini careless");
+  const said = await theirs.client.post("/api/grants", { seat: "assento-do-vini", to: newIdentity("ninguém").fingerprint });
   assert.equal(said.status, 404);
   assert.match(said.error, /nobody we know/);
 });
 
 test("the grant list shows what is lent, and only what is still alive", async () => {
-  const theirs = await paired(owner, "mac", "vitor listing");
+  const theirs = await paired(owner, "mac", "vini listing");
   const meThere = guest.broker.identity.fingerprint;
-  await theirs.client.post("/api/grants", { seat: "assento-do-vitor", to: meThere, forMs: 60000 });
+  await theirs.client.post("/api/grants", { seat: "assento-do-vini", to: meThere, forMs: 60000 });
   const said = await theirs.client.get("/api/grants");
   assert.equal(said.ok, true, said.error);
   assert.equal(said.body.forMs, GRANT_MS);
-  assert.ok(said.body.grants.some((one) => one.seat === "assento-do-vitor" && one.to === meThere));
+  assert.ok(said.body.grants.some((one) => one.seat === "assento-do-vini" && one.to === meThere));
 });
 
 test("a lent keyboard types but does not administer", async () => {
-  const theirs = await paired(owner, "mac", "vitor lending admin");
-  const mine = await paired(guest, "mac", "joao poking admin");
+  const theirs = await paired(owner, "mac", "vini lending admin");
+  const mine = await paired(guest, "mac", "jonas poking admin");
   const there = owner.broker.identity.fingerprint;
-  await theirs.client.post("/api/grants", { seat: "assento-do-vitor", to: guest.broker.identity.fingerprint });
+  await theirs.client.post("/api/grants", { seat: "assento-do-vini", to: guest.broker.identity.fingerprint });
 
-  const typed = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/command`, { type: "say", text: "digitando" });
+  const typed = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/command`, { type: "say", text: "digitando" });
   assert.equal(typed.ok, true, typed.error);
 
-  const administered = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vitor/command`, { type: "control", op: "context" });
+  const administered = await mine.client.post(`/api/peers/${encodeURIComponent(there)}/sessions/assento-do-vini/command`, { type: "control", op: "context" });
   assert.equal(administered.status, 403, JSON.stringify(administered));
   assert.match(administered.error, /does not "control"/);
 });
 
 test("the owner's own device may administer its own seat", async () => {
-  const theirs = await paired(owner, "mac", "vitor administering");
-  const said = await theirs.client.post("/api/sessions/assento-do-vitor/command", { type: "control", op: "context" });
+  const theirs = await paired(owner, "mac", "vini administering");
+  const said = await theirs.client.post("/api/sessions/assento-do-vini/command", { type: "control", op: "context" });
   assert.equal(said.ok, true, said.error);
   assert.ok(seat.heard.some((one) => one.type === "control"));
 });

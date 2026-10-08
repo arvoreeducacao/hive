@@ -19,7 +19,7 @@ const drawn = (svg) => { const host = document.createElement("span"); host.inner
 
 function fresh() {
   st.data = { pod: { up: false, name: "" }, sessions: [], archived: [], spawning: [] };
-  st.team = { me: "joao", devs: [], sharing: false, players: [], version: 0 };
+  st.team = { me: "jonas", devs: [], sharing: false, players: [], version: 0 };
   st.configRead = false;
   st.configHas = {};
   st.faceAsked = true;
@@ -50,7 +50,7 @@ test("the robot is the face by default, and the blobatar is one pick away", () =
   assert.equal(rows[0].part, "style");
   assert.deepEqual(rows[0].opts.map((o) => [o.value, o.worn]), [["robot", true], ["blobatar", false]]);
   assert.ok(rows.some((r) => r.part === "shape"), "the robot keeps its body, colour and wardrobe");
-  assert.equal(avatar("joao"), `<span class="team-av face av-alive">${avatarSvg(devFace("joao"), { salt: "team-joao", title: "joao" })}</span>`);
+  assert.equal(avatar("jonas"), `<span class="team-av face av-alive">${avatarSvg(devFace("jonas"), { salt: "team-jonas", title: "jonas" })}</span>`);
 });
 
 test("picking the blobatar writes it down, and picking the robot writes a robot back", async () => {
@@ -59,7 +59,7 @@ test("picking the blobatar writes it down, and picking the robot writes a robot 
   assert.deepEqual(await wrote(() => pickFace("style", "blobatar")), ["blobatar"]);
   assert.equal(st.myBlob, true);
   assert.deepEqual(facePickerViewModel().map((r) => r.part), ["style"], "a blobatar has no body, colour or wardrobe to pick");
-  assert.equal(avatar("joao"), `<span class="team-av face av-alive">${personFace("joao")}</span>`);
+  assert.equal(avatar("jonas"), `<span class="team-av face av-alive">${personFace("jonas")}</span>`);
   assert.deepEqual(await wrote(() => pickFace("style", "robot")), [avatarKey(st.myFace)]);
   assert.equal(st.myBlob, false);
 });
@@ -72,13 +72,13 @@ test("a blobatar read from the config is the face at the top, with expressions f
   assert.equal(st.myFace, null);
   const slot = document.getElementById("brand-mug");
   paintBrandAvatar();
-  assert.equal(slot.innerHTML, drawn(personFace("joao")));
+  assert.equal(slot.innerHTML, drawn(personFace("jonas")));
   mugPlay("exclaim");
-  assert.equal(slot.innerHTML, drawn(personFace("joao", "surprised")));
+  assert.equal(slot.innerHTML, drawn(personFace("jonas", "surprised")));
   mugRest();
-  assert.equal(slot.innerHTML, drawn(personFace("joao")));
+  assert.equal(slot.innerHTML, drawn(personFace("jonas")));
   mugPlay("wide", { hold: false });
-  assert.equal(slot.innerHTML, drawn(personFace("joao", "thinking")), "a mood that stays is worn until the fleet moves");
+  assert.equal(slot.innerHTML, drawn(personFace("jonas", "thinking")), "a mood that stays is worn until the fleet moves");
   st.mugHeld = "";
   mugRest();
 });

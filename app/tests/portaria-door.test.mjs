@@ -20,17 +20,17 @@ function door({ devices, peers, invites, used, phones = [], calls = [], up = tru
     get: async (path) => {
       calls.push(["GET", path, null]);
       if (path === "/api/devices") return { ok: true, body: { devices } };
-      if (path === "/api/peers") return { ok: true, body: { peers, me: { url: "https://pod-joao", fingerprint: "SHA256:me" } } };
+      if (path === "/api/peers") return { ok: true, body: { peers, me: { url: "https://pod-jonas", fingerprint: "SHA256:me" } } };
       if (path === "/api/invites") return { ok: true, body: { invites, used } };
       return { ok: false, error: "no such route" };
     },
     post: async (path, payload) => {
       calls.push(["POST", path, payload]);
-      if (path === "/api/invites") return { ok: true, body: { link: "hive://join?at=https%3A%2F%2Fpod-joao&key=k&token=t", expiresAt: NOW + 7 * DAY } };
+      if (path === "/api/invites") return { ok: true, body: { link: "hive://join?at=https%3A%2F%2Fpod-jonas&key=k&token=t", expiresAt: NOW + 7 * DAY } };
       if (path === "/api/devices/revoke") return { ok: true, body: { revoked: true } };
       if (path === "/api/invites/cancel") return { ok: true, body: { cancelled: true } };
       if (path === "/api/peers/forget") return { ok: true, body: { forgotten: true } };
-      if (path === "/api/join") return payload?.link ? { ok: true, body: { joined: true, peer: { name: "vitor" } } } : { ok: false, error: "that is not a link I can read" };
+      if (path === "/api/join") return payload?.link ? { ok: true, body: { joined: true, peer: { name: "vini" } } } : { ok: false, error: "that is not a link I can read" };
       return { ok: false, error: "the server said no" };
     }
   };
@@ -38,7 +38,7 @@ function door({ devices, peers, invites, used, phones = [], calls = [], up = tru
     openCode: async () => { calls.push(["BRIDGE", "openCode", null]); return bridgeError ? { error: bridgeError } : { code: "KRQ7F2MJ", expiresAt: codeUntil }; },
     devices: async () => { calls.push(["BRIDGE", "devices", null]); return bridgeError ? { error: bridgeError, devices: [] } : { devices: phones }; },
     revoke: async (fingerprint) => { calls.push(["BRIDGE", "revoke", fingerprint]); return { revoked: true }; },
-    state: () => ({ enrolled: true, host: "https://pod-joao/sync", running: true, following: ["a-seat"], why: "" }),
+    state: () => ({ enrolled: true, host: "https://pod-jonas/sync", running: true, following: ["a-seat"], why: "" }),
     tick: async () => ({ running: true })
   };
   const written = [];
@@ -51,7 +51,7 @@ function door({ devices, peers, invites, used, phones = [], calls = [], up = tru
   return { ...made, calls, written };
 }
 
-const phone = (extra = {}) => ({ fingerprint: "SHA256:phone", name: "iPhone de João", kind: "phone", pairedAt: NOW - 22 * DAY, lastSeen: NOW, online: true, revokedAt: 0, ...extra });
+const phone = (extra = {}) => ({ fingerprint: "SHA256:phone", name: "iPhone de Jonas", kind: "phone", pairedAt: NOW - 22 * DAY, lastSeen: NOW, online: true, revokedAt: 0, ...extra });
 const mac = { fingerprint: "SHA256:mac", name: "este mac", kind: "mac", pairedAt: NOW, lastSeen: NOW, revoked: false };
 const base = (extra = {}) => ({ devices: [mac], phones: [phone()], peers: [], invites: [], used: [], ...extra });
 
@@ -59,7 +59,7 @@ test("the door reads devices, phones, people and invites in one breath", async (
   const it = door(base());
   const said = await it.portariaState();
   assert.deepEqual(said.devices.map((one) => one.kind), ["mac", "phone"]);
-  assert.equal(said.me.url, "https://pod-joao");
+  assert.equal(said.me.url, "https://pod-jonas");
   assert.deepEqual(it.calls.filter(([verb]) => verb === "GET").map(([, path]) => path).sort(), ["/api/devices", "/api/invites", "/api/peers"]);
   assert.ok(it.calls.some(([verb, what]) => verb === "BRIDGE" && what === "devices"), "the phones come from the sync door, not from the server roster");
 });
@@ -70,7 +70,7 @@ test("a phone row says whether it is reading right now, and never claims to be t
   assert.equal(row.online, true);
   assert.equal(row.here, false);
   assert.equal(row.fromFile, false);
-  assert.equal(row.name, "iPhone de João");
+  assert.equal(row.name, "iPhone de Jonas");
 });
 
 test("a device that was taken out never comes back on the list", async () => {
@@ -119,16 +119,16 @@ test("revoking a phone goes through the sync door; revoking a machine goes to th
 
 test("each button carries its own payload to the server, and nothing else", async () => {
   const it = door(base());
-  await it.portariaDo("forget", { fingerprint: "SHA256:vitor" });
-  await it.portariaDo("cancel", { link: "hive://join?at=https%3A%2F%2Fpod-joao&key=k&token=t" });
+  await it.portariaDo("forget", { fingerprint: "SHA256:vini" });
+  await it.portariaDo("cancel", { link: "hive://join?at=https%3A%2F%2Fpod-jonas&key=k&token=t" });
   const posts = it.calls.filter(([verb]) => verb === "POST");
-  assert.deepEqual(posts.find(([, path]) => path === "/api/peers/forget")[2], { fingerprint: "SHA256:vitor" });
-  assert.deepEqual(posts.find(([, path]) => path === "/api/invites/cancel")[2], { link: "hive://join?at=https%3A%2F%2Fpod-joao&key=k&token=t" });
+  assert.deepEqual(posts.find(([, path]) => path === "/api/peers/forget")[2], { fingerprint: "SHA256:vini" });
+  assert.deepEqual(posts.find(([, path]) => path === "/api/invites/cancel")[2], { link: "hive://join?at=https%3A%2F%2Fpod-jonas&key=k&token=t" });
 });
 
 test("the invite hands back the link the server minted", async () => {
   const said = await door(base()).portariaDo("invite", {});
-  assert.equal(said.link, "hive://join?at=https%3A%2F%2Fpod-joao&key=k&token=t");
+  assert.equal(said.link, "hive://join?at=https%3A%2F%2Fpod-jonas&key=k&token=t");
 });
 
 test("a button nobody wrote is refused instead of guessed", async () => {
@@ -169,8 +169,8 @@ test("a peer never shows up among the devices, and never goes missing either", a
 
 test("a peer the two lists both know is shown once, as someone who came in", async () => {
   const both = base({
-    devices: [mac, { fingerprint: "SHA256:vitor", name: "vitor", kind: "peer", pairedAt: NOW - 3600000, lastSeen: NOW, revoked: false }],
-    peers: [{ fingerprint: "SHA256:vitor", name: "vitor", knownAt: NOW - 3600000 }]
+    devices: [mac, { fingerprint: "SHA256:vini", name: "vini", kind: "peer", pairedAt: NOW - 3600000, lastSeen: NOW, revoked: false }],
+    peers: [{ fingerprint: "SHA256:vini", name: "vini", knownAt: NOW - 3600000 }]
   });
   const said = await door(both).portariaState();
   assert.equal(said.peers.length, 1);
@@ -179,11 +179,11 @@ test("a peer the two lists both know is shown once, as someone who came in", asy
 
 test("a link someone sent me goes in, and the door never claims it is my own machine", async () => {
   const it = door(base());
-  const said = await it.portariaDo("join", { link: "hive://join?at=https%3A%2F%2Fpod-vitor&key=k&token=t" });
+  const said = await it.portariaDo("join", { link: "hive://join?at=https%3A%2F%2Fpod-vini&key=k&token=t" });
   assert.equal(said.joined, true);
-  assert.equal(said.peer.name, "vitor");
+  assert.equal(said.peer.name, "vini");
   const sent = it.calls.find(([verb, path]) => verb === "POST" && path === "/api/join");
-  assert.deepEqual(sent[2], { link: "hive://join?at=https%3A%2F%2Fpod-vitor&key=k&token=t" }, "joining someone else must not carry the mine flag");
+  assert.deepEqual(sent[2], { link: "hive://join?at=https%3A%2F%2Fpod-vini&key=k&token=t" }, "joining someone else must not carry the mine flag");
 });
 
 test("going in with nothing pasted is refused before it reaches the server", async () => {
@@ -194,14 +194,14 @@ test("going in with nothing pasted is refused before it reaches the server", asy
 });
 
 test("only the machine you are on says it is the machine you are on", async () => {
-  const other = { fingerprint: "SHA256:other-mac", name: "joao", kind: "mac", pairedAt: NOW - DAY, lastSeen: NOW - 3600000, revoked: false };
+  const other = { fingerprint: "SHA256:other-mac", name: "jonas", kind: "mac", pairedAt: NOW - DAY, lastSeen: NOW - 3600000, revoked: false };
   const said = await door(base({ devices: [mac, other] })).portariaState();
   assert.equal(said.devices.find((one) => one.fingerprint === "SHA256:mac").here, true);
   assert.equal(said.devices.find((one) => one.fingerprint === "SHA256:other-mac").here, false, "both machines claimed to be this one");
 });
 
 test("a key only the trust file knows does not pose as a machine that came in", async () => {
-  const fromFile = { fingerprint: "SHA256:only-in-the-file", name: "joao", kind: "mac", pairedAt: 0, lastSeen: 0, revoked: false };
+  const fromFile = { fingerprint: "SHA256:only-in-the-file", name: "jonas", kind: "mac", pairedAt: 0, lastSeen: 0, revoked: false };
   const said = await door(base({ devices: [mac, fromFile] })).portariaState();
   const row = said.devices.find((one) => one.fingerprint === "SHA256:only-in-the-file");
   assert.equal(row.fromFile, true, "a key that never came in was showing up as just another machine");

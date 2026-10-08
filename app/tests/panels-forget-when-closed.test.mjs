@@ -18,7 +18,7 @@ const page = () => ({
   tabs: { documento: { versions: [{ n: 1, label: "decided", at: 1 }] } }
 });
 
-const shelfWith = (one) => { st.shelf = { repo: "https://github.com/arvoreeducacao/artefatos", pages: [one] }; st.shelfShut = new Set(); };
+const shelfWith = (one) => { st.shelf = { repo: "https://github.com/acme/artifacts", pages: [one] }; st.shelfShut = new Set(); };
 
 test("closing the shelf drops the page it was showing and the gallery behind it, and opening draws them again", () => {
   const one = page();

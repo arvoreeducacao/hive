@@ -36,7 +36,7 @@ test("the phone's face and markdown are the desktop's own, to the byte", () => {
 test("the page comes out of the server's door with its types, without a signature, and the sync door refuses the unsigned", async () => {
   const dataDir = mkdtempSync(join(tmpdir(), "hive-phone-page-"));
   const pod = newIdentity("pod");
-  const broker = createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "joao" });
+  const broker = createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "jonas" });
   const http = createServer((request, response) => {
     const url = new URL(request.url, "http://sync");
     if (isSyncPath(url.pathname)) return serveSync(broker, request, response, url);
@@ -57,7 +57,7 @@ test("the page comes out of the server's door with its types, without a signatur
     assert.equal((await fetch(`${url}/phone/nope.js`)).status, 404);
     const hello = await (await fetch(`${url}/sync/hello`)).json();
     assert.equal(hello.audience, pod.fingerprint);
-    assert.equal(hello.person, "joao");
+    assert.equal(hello.person, "jonas");
     assert.equal((await fetch(`${url}/sync/seats`)).status, 401);
     assert.equal((await fetch(`${url}/sync/stream`)).status, 401);
   } finally {
@@ -111,23 +111,23 @@ function runTheWorker({ kept = {}, names = {} } = {}) {
 test("the push tells the phone which chat came back and what it said, and falls back to the names it kept when it cannot open the line", async () => {
   const raw = random(32);
   const keyId = await keyIdOf(raw);
-  const box = await encrypt(raw, aadOf({ seat: "joao-1", lane: "notice", seq: 7, keyId }), bytesOf(JSON.stringify({ title: "a fila do suporte", text: "são 135 abertos, 27 de verdade" })));
-  const kept = { seatKeys: { "joao-1": { [keyId]: toB64(raw) } } };
-  const names = { names: { "joao-1": "o nome velho" }, words: { chat: "um chat", done: "terminou o turno", needs: "está esperando você", more: "e outros {n} chats voltaram" } };
+  const box = await encrypt(raw, aadOf({ seat: "jonas-1", lane: "notice", seq: 7, keyId }), bytesOf(JSON.stringify({ title: "a fila do suporte", text: "são 135 abertos, 27 de verdade" })));
+  const kept = { seatKeys: { "jonas-1": { [keyId]: toB64(raw) } } };
+  const names = { names: { "jonas-1": "o nome velho" }, words: { chat: "um chat", done: "terminou o turno", needs: "está esperando você", more: "e outros {n} chats voltaram" } };
 
   const worker = runTheWorker({ kept, names });
-  await worker.push({ seat: "joao-1", wake: "done", seq: 7, n: { keyId, nonce: box.nonce, ct: box.ct } });
+  await worker.push({ seat: "jonas-1", wake: "done", seq: 7, n: { keyId, nonce: box.nonce, ct: box.ct } });
   assert.deepEqual({ title: worker.shown[0].title, body: worker.shown[0].body }, { title: "a fila do suporte", body: "são 135 abertos, 27 de verdade" });
 
-  await worker.push({ seat: "joao-1", wake: "done", seq: 7, more: 3, n: { keyId, nonce: box.nonce, ct: box.ct } });
+  await worker.push({ seat: "jonas-1", wake: "done", seq: 7, more: 3, n: { keyId, nonce: box.nonce, ct: box.ct } });
   assert.equal(worker.shown[1].body, "são 135 abertos, 27 de verdade\ne outros 3 chats voltaram");
 
   const blind = runTheWorker({ kept: {}, names });
-  await blind.push({ seat: "joao-1", wake: "needs", seq: 7, n: { keyId, nonce: box.nonce, ct: box.ct } });
+  await blind.push({ seat: "jonas-1", wake: "needs", seq: 7, n: { keyId, nonce: box.nonce, ct: box.ct } });
   assert.deepEqual({ title: blind.shown[0].title, body: blind.shown[0].body }, { title: "o nome velho", body: "está esperando você" }, "a phone that cannot open the line still says which chat and what it wants");
 
   const bare = runTheWorker({ kept: {}, names: { words: names.words } });
-  await bare.push({ seat: "joao-2", wake: "done", seq: 1 });
+  await bare.push({ seat: "jonas-2", wake: "done", seq: 1 });
   assert.deepEqual({ title: bare.shown[0].title, body: bare.shown[0].body }, { title: "um chat", body: "terminou o turno" });
 });
 

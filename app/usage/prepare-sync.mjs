@@ -186,7 +186,7 @@ async function listCandidates(root, since, limit) {
 }
 
 function parseArgs(argv) {
-  const o = { since: null, limit: 0, person: process.env.HIVE_PERSON || "joao-barros", apply: false, target: null, allowlist: null };
+  const o = { since: null, limit: 0, person: process.env.HIVE_PERSON || basename(homedir()), apply: false, target: null, allowlist: null };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--since") o.since = argv[++i];

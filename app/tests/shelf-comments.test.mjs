@@ -18,7 +18,7 @@ function sandbox() {
 }
 
 const said = (home, over = {}) => addComment(home, "catalogacao-de-livros", {
-  tab: "telas", v: 1, who: "rick", text: "o botão de baixo some no celular", at: 1_700_000_001_000,
+  tab: "telas", v: 1, who: "rita", text: "o botão de baixo some no celular", at: 1_700_000_001_000,
   pin: { frame: "f-3", name: "Opção B", x: 0.42, y: 0.61 }, ...over
 });
 
@@ -94,7 +94,7 @@ test("settling a comment marks who closed it and when; reopening clears that", (
 });
 
 test("the commit line says who spoke and on which tab", () => {
-  assert.equal(commentCommitLine("catalogacao-de-livros", { who: "rick", tab: "telas", v: 1 }), "estante: catalogacao-de-livros · comentário de rick em telas v1");
+  assert.equal(commentCommitLine("catalogacao-de-livros", { who: "rita", tab: "telas", v: 1 }), "estante: catalogacao-de-livros · comentário de rita em telas v1");
   assert.equal(commentCommitLine("x", { who: "", tab: "", v: 0 }), "estante: x · comentário de alguém");
   assert.equal(settleCommitLine("x", { done: true }), "estante: x · comentário atendido");
   assert.equal(settleCommitLine("x", { done: false }), "estante: x · comentário reaberto");

@@ -41,14 +41,14 @@ const signedBy = (me, path) =>
   signedHeaders({ secret: me.secret, fingerprint: me.fingerprint, audience: broker.identity.fingerprint, method: "GET", path, body: "" });
 
 test("a paired device the guard turns away leaves one line saying who, where and why", async () => {
-  const me = await pair("mac", "outro mac do joao");
+  const me = await pair("mac", "outro mac do jonas");
   const headers = signedBy(me, "/api/me");
   assert.equal((await fetch(`${url}/api/me`, { headers })).status, 200);
   assert.equal(said.filter((one) => one.startsWith("server: refused")).length, 0, "an accepted request is not logged as refused");
 
   const again = await fetch(`${url}/api/me`, { headers });
   assert.equal(again.status, 401);
-  assert.ok(said.includes("server: refused mac outro mac do joao on GET /api/me — that request was already used once"), said.join("\n"));
+  assert.ok(said.includes("server: refused mac outro mac do jonas on GET /api/me — that request was already used once"), said.join("\n"));
 });
 
 test("a key nobody paired is named by its fingerprint, and a bare request by its absence", async () => {

@@ -61,7 +61,7 @@ function mirrorWorld(over = {}) {
     stateColor: (s) => "#" + s,
     GLYPH: { working: "g-working", idle: "g-idle" },
     LABEL: { working: "working", idle: "idle" },
-    st: { team: { me: "vitor" }, mirrorOpen: over.open || "", mirrorDev: over.dev || "joao" },
+    st: { team: { me: "vini" }, mirrorOpen: over.open || "", mirrorDev: over.dev || "jonas" },
     knockHolds: () => false,
     knockedAt: () => 0,
     teamSeatKey: (dev, name) => `team:${dev}/${name}`,
@@ -79,45 +79,45 @@ const seat = (name, over = {}) => ({ name, title: name, state: "working", when: 
 
 test("a hive that never answered shows nothing at all, one that is up says it is empty, one asleep says so", () => {
   assert.deepEqual(mirrorModel({ row: null }).empty, { key: "gone", dev: "", said: "" });
-  const up = mirrorModel({ row: { dev: "joao", up: true, seats: [] } }).empty;
-  assert.equal(up.dev, "joao");
+  const up = mirrorModel({ row: { dev: "jonas", up: true, seats: [] } }).empty;
+  assert.equal(up.dev, "jonas");
   assert.match(up.said, /has the server up and nothing running/);
-  const asleep = mirrorModel({ row: { dev: "joao", up: false, seats: [] } }).empty;
+  const asleep = mirrorModel({ row: { dev: "jonas", up: false, seats: [] } }).empty;
   assert.equal(asleep.dev, "", "the name is inside the sentence, not a bold of its own");
-  assert.match(asleep.said, /joao's server is asleep\./);
-  assert.match(asleep.said, /the hive comes back when joao does/);
+  assert.match(asleep.said, /jonas's server is asleep\./);
+  assert.match(asleep.said, /the hive comes back when jonas does/);
 });
 
 test("a mirrored card says whose seat it is, what it is doing and where it runs", () => {
-  const model = mirrorModel({ row: { dev: "joao", up: true, seats: [seat("b2", { model: "opus", summary: "merging" })] } });
+  const model = mirrorModel({ row: { dev: "jonas", up: true, seats: [seat("b2", { model: "opus", summary: "merging" })] } });
   const [card] = model.cards;
   assert.equal(model.empty, null);
-  assert.equal(card.key, "joao/b2");
-  assert.equal(card.tone, "tone-joao");
+  assert.equal(card.key, "jonas/b2");
+  assert.equal(card.tone, "tone-jonas");
   assert.equal(card.side.label, "working");
   assert.equal(card.side.glyph, "g-working");
-  assert.equal(card.side.whereSaid, "joao's machine");
+  assert.equal(card.side.whereSaid, "jonas's machine");
   assert.equal(card.side.model, "opus");
   assert.equal(card.side.summary, "merging");
   assert.equal(card.side.blank, false);
 });
 
 test("a seat on the pod names whose server it is, and one with no card written says so", () => {
-  const model = mirrorModel({ row: { dev: "joao", up: true, seats: [seat("b2", { where: "cloud" })] } });
-  assert.equal(model.cards[0].side.whereSaid, "joao's server");
+  const model = mirrorModel({ row: { dev: "jonas", up: true, seats: [seat("b2", { where: "cloud" })] } });
+  assert.equal(model.cards[0].side.whereSaid, "jonas's server");
   assert.equal(model.cards[0].side.blank, true);
   assert.equal(model.cards[0].side.summary, "no card written yet");
 });
 
 test("the keyboard bar offers to ask while it is theirs, and to give it back while it is yours", () => {
-  const free = mirrorModel({ row: { dev: "joao", up: true, seats: [seat("b2")] } }).cards[0].kb;
+  const free = mirrorModel({ row: { dev: "jonas", up: true, seats: [seat("b2")] } }).cards[0].kb;
   assert.equal(free.mine, false);
-  assert.equal(free.who, "joao");
+  assert.equal(free.who, "jonas");
   assert.equal(free.act.kind, "knock");
   assert.equal(free.act.knock, "b2");
   assert.equal(free.act.give, undefined);
   assert.equal(free.act.label, "ask for the keyboard");
-  const mine = mirrorModel({ row: { dev: "joao", up: true, seats: [seat("b2", { keyboard: { with: "vitor", turns: [] } })] } }).cards[0].kb;
+  const mine = mirrorModel({ row: { dev: "jonas", up: true, seats: [seat("b2", { keyboard: { with: "vini", turns: [] } })] } }).cards[0].kb;
   assert.equal(mine.mine, true);
   assert.equal(mine.act.kind, "give");
   assert.equal(mine.act.give, "b2");
@@ -125,13 +125,13 @@ test("the keyboard bar offers to ask while it is theirs, and to give it back whi
 });
 
 test("a keyboard somebody else is holding offers no button at all", () => {
-  const lent = mirrorModel({ row: { dev: "joao", up: true, seats: [seat("b2", { keyboard: { with: "ana" } })] } }).cards[0].kb;
+  const lent = mirrorModel({ row: { dev: "jonas", up: true, seats: [seat("b2", { keyboard: { with: "ana" } })] } }).cards[0].kb;
   assert.equal(lent.act, null);
   assert.equal(lent.who, "ana");
 });
 
 test("an ask already sent shows as waiting, and the button will not be pressed twice", () => {
-  const world = { ...mirrorWorld({ row: { dev: "joao", up: true, seats: [seat("b2")] } }), knockHolds: () => true, knockedAt: () => 1 };
+  const world = { ...mirrorWorld({ row: { dev: "jonas", up: true, seats: [seat("b2")] } }), knockHolds: () => true, knockedAt: () => 1 };
   const kb = run(world, mirror, "mirrorViewModel")().cards[0].kb;
   assert.equal(kb.act.label, "asked — waiting");
   assert.equal(kb.act.off, true);
@@ -139,12 +139,12 @@ test("an ask already sent shows as waiting, and the button will not be pressed t
 });
 
 test("the conversation and the composer are only there while the keyboard is ours and the chat is not open alone", () => {
-  const lent = seat("b2", { keyboard: { with: "vitor", turns: [{ who: "you", text: "**hi**" }] } });
-  const deck = mirrorModel({ row: { dev: "joao", up: true, seats: [lent] } }).cards[0];
-  assert.equal(deck.talk.chat, "team:joao/b2");
+  const lent = seat("b2", { keyboard: { with: "vini", turns: [{ who: "you", text: "**hi**" }] } });
+  const deck = mirrorModel({ row: { dev: "jonas", up: true, seats: [lent] } }).cards[0];
+  assert.equal(deck.talk.chat, "team:jonas/b2");
   assert.deepEqual(deck.talk.turns, [{ key: "0:you:**hi**", you: true, html: "<p>**hi**</p>" }]);
   assert.equal(deck.composer.send, "send");
-  const alone = mirrorModel({ open: "b2", row: { dev: "joao", up: true, seats: [lent] } }).cards[0];
+  const alone = mirrorModel({ open: "b2", row: { dev: "jonas", up: true, seats: [lent] } }).cards[0];
   assert.equal(alone.shown, true);
   assert.equal(alone.talk, null, "the well takes over from the preview when the seat is opened alone");
   assert.equal(alone.composer, null);
@@ -152,7 +152,7 @@ test("the conversation and the composer are only there while the keyboard is our
 
 test("a turn is keyed by what it says, so an edited turn is a new node and gets its links wired again", () => {
   const turns = [{ who: "them", text: "one" }, { who: "them", text: "two" }];
-  const talk = mirrorModel({ row: { dev: "joao", up: true, seats: [seat("b2", { keyboard: { with: "vitor", turns } })] } }).cards[0].talk;
+  const talk = mirrorModel({ row: { dev: "jonas", up: true, seats: [seat("b2", { keyboard: { with: "vini", turns } })] } }).cards[0].talk;
   assert.deepEqual(talk.turns.map((one) => one.key), ["0:them:one", "1:them:two"]);
 });
 
@@ -236,7 +236,7 @@ function faceWorld(wear = {}) {
     WEAR_WORD: WORN,
     st: { myBlob: false },
     BLOB_FACE: "blobatar",
-    myName: () => "joao",
+    myName: () => "jonas",
     personFace: (name) => `<svg data-blob="${name}"/>`,
     myFaceSvg: (salt) => `<svg data-salt="${salt}"/>`
   };
@@ -276,7 +276,7 @@ test("the style row is first, the robot worn by default and the blobatar drawn f
   const [style] = run(faceWorld(), picker, "facePickerViewModel")();
   assert.deepEqual(style.opts.map((one) => [one.value, one.worn, one.taken]), [["robot", true, false], ["blobatar", false, false]]);
   assert.match(style.opts[0].svg, /data-salt="style-robot"/);
-  assert.equal(style.opts[1].svg, '<svg data-blob="joao"/>');
+  assert.equal(style.opts[1].svg, '<svg data-blob="jonas"/>');
 });
 
 test("a blobatar has only the style row: no body, colour or wardrobe to pick", () => {

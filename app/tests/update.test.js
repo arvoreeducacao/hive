@@ -241,7 +241,7 @@ test("the pick carries the running number down to the count", () => {
 });
 
 test("the list asks for a whole page of releases, so the running build can still be found in it", () => {
-  assert.equal(releasesQuery("arvoreeducacao/dev-workspaces"), "repos/arvoreeducacao/dev-workspaces/releases?per_page=100");
+  assert.equal(releasesQuery("acme/hive"), "repos/acme/hive/releases?per_page=100");
   assert.equal(releasesQuery("not a slug"), "");
 });
 
@@ -431,8 +431,8 @@ test("a note carries its group and its PR, and loses the parentheses", () => {
 
 test("a body written before the groups existed still reads, minus the merge noise", () => {
   const notes = notesOf([
-    "- Merge pull request #134 from arvoreeducacao/joao-barros/-/pr-panel",
-    '- Revert "Merge pull request #118 from arvoreeducacao/comms"',
+    "- Merge pull request #134 from acme/jonas/-/pr-panel",
+    '- Revert "Merge pull request #118 from acme/comms"',
     "- fix: the PR panel stops burning the GitHub API budget"
   ].join("\n"));
   assert.deepEqual(notes, [{ kind: "", text: "fix: the PR panel stops burning the GitHub API budget", pr: "" }]);

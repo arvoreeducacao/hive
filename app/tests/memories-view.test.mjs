@@ -75,19 +75,19 @@ test("an automatic memory nobody used is counted down to its archiving, 60 days 
 });
 
 test("folders count by repository, put the memories with no repository under General, and keep the archived apart", () => {
-  const active = [{ repo: "api-arvore" }, { repo: "api-arvore" }, { repo: "arvore" }, { repo: null }];
-  const folders = mem.memoryFolders(active, [{ repo: "arvore" }]);
-  assert.deepEqual(folders.map((one) => [one.key, one.n]), [["all", 4], ["api-arvore", 2], ["arvore", 1], ["-", 1], ["archived", 1]]);
+  const active = [{ repo: "api" }, { repo: "api" }, { repo: "acme" }, { repo: null }];
+  const folders = mem.memoryFolders(active, [{ repo: "acme" }]);
+  assert.deepEqual(folders.map((one) => [one.key, one.n]), [["all", 4], ["api", 2], ["acme", 1], ["-", 1], ["archived", 1]]);
 });
 
 test("the list filters by folder, origin and words, and the most used come first", () => {
   const active = [
-    { id: "a", title: "Deploy só na main", repo: "api-arvore", origin: "automatica", retrieved_count: 3, date: iso(1), tags: ["deploy"] },
-    { id: "b", title: "reader_id é perfil", repo: "api-arvore", origin: "manual", retrieved_count: 9, date: iso(2), tags: [] },
+    { id: "a", title: "Deploy só na main", repo: "api", origin: "automatica", retrieved_count: 3, date: iso(1), tags: ["deploy"] },
+    { id: "b", title: "reader_id é perfil", repo: "api", origin: "manual", retrieved_count: 9, date: iso(2), tags: [] },
     { id: "c", title: "Lint é ultracite", repo: "frontend", origin: "automatica", retrieved_count: 1, date: iso(3), tags: [] }
   ];
   assert.deepEqual(mem.shownMemories(active, [], { folder: "all" }).map((one) => one.id), ["b", "a", "c"]);
-  assert.deepEqual(mem.shownMemories(active, [], { folder: "api-arvore", origin: "automatica" }).map((one) => one.id), ["a"]);
+  assert.deepEqual(mem.shownMemories(active, [], { folder: "api", origin: "automatica" }).map((one) => one.id), ["a"]);
   assert.deepEqual(mem.shownMemories(active, [], { query: "DEPLOY" }).map((one) => one.id), ["a"]);
   assert.deepEqual(mem.shownMemories(active, [{ id: "z" }], { folder: "archived" }).map((one) => one.id), ["z"]);
 });
@@ -141,7 +141,7 @@ test("time reads in words, and a date in day and month", () => {
 
 test("the memories tab draws folders, rows with their origin and use, and the picked memory as markdown that cannot run", async () => {
   fresh();
-  serve({ one: { id: "demo-001", title: "Deploy da API só dispara por push na main", origin: "automatica", repo: "api-arvore", author: "@rafa-a", date: iso(2), retrieved_count: 23, status: "active", content: "# Deploy da API só dispara por push na main\n\nRoda em **main**.\n\n<img src=x onerror=alert(1)><script>alert(2)</script>" } });
+  serve({ one: { id: "demo-001", title: "Deploy da API só dispara por push na main", origin: "automatica", repo: "api", author: "@bruno", date: iso(2), retrieved_count: 23, status: "active", content: "# Deploy da API só dispara por push na main\n\nRoda em **main**.\n\n<img src=x onerror=alert(1)><script>alert(2)</script>" } });
   mem.openMemories();
   await settle();
   await settle();
@@ -182,19 +182,19 @@ test("the memories tab draws folders, rows with their origin and use, and the pi
 
 test("the detail keeps the original author and lists who changed the memory, newest first, with where it happened", async () => {
   await openOn({ one: {
-    id: "demo-001", title: "Deploy da API só dispara por push na main", origin: "automatica", repo: "api-arvore", author: "rafa-a", date: iso(9), retrieved_count: 23, status: "active", content: "x",
+    id: "demo-001", title: "Deploy da API só dispara por push na main", origin: "automatica", repo: "api", author: "bruno", date: iso(9), retrieved_count: 23, status: "active", content: "x",
     updated_by: "ana@example.com",
     history: [
       { at: "2026-09-28", action: "edited", by: "ana@example.com", via: "painel" },
-      { at: "2026-10-01", action: "merged", by: "ricardoraposo", via: "ponte" },
+      { at: "2026-10-01", action: "merged", by: "renato", via: "ponte" },
       { at: "2026-10-02", action: "hacked", by: "x", via: "chat" }
     ]
   } });
   const facts = [...document.querySelectorAll("#memories .mem-kv dt")].map((dt) => [dt.textContent, dt.nextElementSibling.textContent]);
-  assert.match(facts[0][1], /^rafa-a, from a conversation in api-arvore/);
+  assert.match(facts[0][1], /^bruno, from a conversation in api/);
   const changes = facts.filter(([say]) => say === "added to" || say === "edited");
   assert.deepEqual(changes, [
-    ["added to", "by ricardoraposo on 01/10 · by the team memory bridge"],
+    ["added to", "by renato on 01/10 · by the team memory bridge"],
     ["edited", "by ana@example.com on 28/09 · in the panel"]
   ]);
   mem.closeMemories();

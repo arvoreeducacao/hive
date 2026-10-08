@@ -146,8 +146,8 @@ const roomy = { account: "default", label: "Claude", provider: "claude", signedI
 test("the footer says when the tightest login renews and how old the numbers are, only with the flag", () => {
   const soon = new Date(Date.now() + 2 * 3600000).toISOString();
   const later = new Date(Date.now() + 4 * 86400000).toISOString();
-  const spent = { ...roomy, account: "arvore", limits: [{ kind: "session", percent: 100, resets_at: soon }, { kind: "weekly_all", percent: 62, resets_at: later }] };
-  hive([], [], { limits: { accounts: [spent], tightest: "arvore", seen: Date.now() - 5 * 60000 } });
+  const spent = { ...roomy, account: "acme", limits: [{ kind: "session", percent: 100, resets_at: soon }, { kind: "weekly_all", percent: 62, resets_at: later }] };
+  hive([], [], { limits: { accounts: [spent], tightest: "acme", seen: Date.now() - 5 * 60000 } });
   const plain = limitChipViewModel();
   assert.equal("resets" in plain, false);
   assert.equal(plain.accounts[0].parts[0].k, "5h");

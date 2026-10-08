@@ -13,12 +13,12 @@ function artifactHarness() {
   let mirrored = { pushed: true };
   let pages = [{ key: "one" }];
   let shelfPage = { html: Buffer.from("<title>Shelf</title>") };
-  let repo = "https://github.com/arvoreeducacao/artefatos";
+  let repo = "https://github.com/acme/artifacts";
   let pull = { ok: true };
   let shelfPages = [{ slug: "one" }];
   let file = Buffer.from("<title>Kept</title>");
   let fileError = null;
-  let dev = "rick";
+  let dev = "rita";
 
   registerArtifactRoutes((method, path, handler) => routes.set(path, { method, handler }), {
     bodyOf: async (req) => req.body || {},
@@ -194,12 +194,12 @@ test("shelf page and index keep tab fallback, pull failure and owner behavior", 
   const empty = await hive.call("/api/shelf");
   assert.deepEqual(empty.answers, [{ value: { repo: "", pages: [], error: "no shelf repo yet" }, status: 200 }]);
 
-  hive.setRepo("https://github.com/arvoreeducacao/artefatos");
+  hive.setRepo("https://github.com/acme/artifacts");
   hive.setShelfPages([{ slug: "kept" }]);
   hive.setPull({ error: "cannot pull" });
   const failedPull = await hive.call("/api/shelf", { query: "?pull=1" });
   assert.deepEqual(failedPull.answers, [{ value: {
-    repo: "https://github.com/arvoreeducacao/artefatos",
+    repo: "https://github.com/acme/artifacts",
     pages: [{ slug: "kept" }],
     error: "cannot pull"
   }, status: 200 }]);
@@ -209,7 +209,7 @@ test("shelf page and index keep tab fallback, pull failure and owner behavior", 
   hive.setDev("ada");
   const indexed = await hive.call("/api/shelf");
   assert.deepEqual(indexed.answers, [{ value: {
-    repo: "https://github.com/arvoreeducacao/artefatos",
+    repo: "https://github.com/acme/artifacts",
     me: "ada",
     leaf: "https://leaf.example.org",
     pages: [{ slug: "kept" }]

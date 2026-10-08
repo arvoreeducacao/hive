@@ -35,7 +35,7 @@ const planCard = async (name, seat = {}, plan = PLAN) => {
 const BLANK_PLAN = `Uma frente so.
 
 \`\`\`frentes
-estoque-do-livro · padrao · · arvore · o estoque que a loja mostra
+estoque-do-livro · padrao · · acme · o estoque que a loja mostra
 \`\`\`
 `;
 

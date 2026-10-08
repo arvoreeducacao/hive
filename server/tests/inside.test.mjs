@@ -37,8 +37,8 @@ test("the credential is read for its plan and its age, and a missing one is not 
 test("repos come out sorted, and a folder that is not there is empty", async () => {
   const dir = await mkdtemp(join(tmpdir(), "inside-"));
   try {
-    for (const one of ["criar", "arvore", "api-arvore"]) await mkdir(join(dir, one));
-    assert.deepEqual(await reposOf(dir), ["api-arvore", "arvore", "criar"]);
+    for (const one of ["criar", "acme", "api"]) await mkdir(join(dir, one));
+    assert.deepEqual(await reposOf(dir), ["acme", "api", "criar"]);
     assert.deepEqual(await reposOf(join(dir, "nao-existe")), []);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -48,9 +48,9 @@ test("repos come out sorted, and a folder that is not there is empty", async () 
 test("worktrees are counted one level down, per owner", async () => {
   const dir = await mkdtemp(join(tmpdir(), "inside-"));
   try {
-    await mkdir(join(dir, "joao", "limpeza"), { recursive: true });
-    await mkdir(join(dir, "joao", "porta"), { recursive: true });
-    await mkdir(join(dir, "vitor", "crm"), { recursive: true });
+    await mkdir(join(dir, "jonas", "limpeza"), { recursive: true });
+    await mkdir(join(dir, "jonas", "porta"), { recursive: true });
+    await mkdir(join(dir, "vini", "crm"), { recursive: true });
     await writeFile(join(dir, "solto.txt"), "");
     assert.equal(await worktreesOf(dir), 3);
     assert.equal(await worktreesOf(join(dir, "nao-existe")), 0);
@@ -68,7 +68,7 @@ test("what the pod answers about itself has every field the screen paints", asyn
   const said = await insideOf({
     disk: async () => ({ total: 10, used: 4, free: 6, percent: 40 }),
     claude: async () => ({ at: 5, plan: "max", expires: 9 }),
-    repos: async () => ["arvore"],
+    repos: async () => ["acme"],
     worktrees: async () => 2,
     remoteControl: async () => true,
     agents: async () => ({ codex: "/workspace/npm-global/bin/codex" })
@@ -77,7 +77,7 @@ test("what the pod answers about itself has every field the screen paints", asyn
     disk: { total: 10, used: 4, free: 6, percent: 40 },
     claude: { loggedIn: true, plan: "max", credentialAt: 5 },
     agents: { codex: "/workspace/npm-global/bin/codex" },
-    repos: ["arvore"],
+    repos: ["acme"],
     worktrees: 2,
     remoteControl: true
   });

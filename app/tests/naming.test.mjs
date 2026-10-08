@@ -35,29 +35,29 @@ const REFUSED = "I cannot access Slack links, could you share what is in the thr
 
 test("a mission that is only a slack link is named after the thread, not the address", () => {
   assert.equal(
-    nameFromAnswer(REFUSED, "https://leianaarvore.slack.com/archives/C01DB3YUUEQ/p1784210591983749"),
-    "slack-c01db3yuueq-1784210591"
+    nameFromAnswer(REFUSED, "https://acme.slack.com/archives/C0EXAMPLE01/p1784210591983749"),
+    "slack-c0example01-1784210591"
   );
 });
 
 test("two slack links never collapse into the same seat name", () => {
-  const one = nameFromAnswer(REFUSED, "https://leianaarvore.slack.com/archives/C01DB3YUUEQ/p1784210591983749");
-  const other = nameFromAnswer(REFUSED, "https://leianaarvore.slack.com/archives/C01DB3YUUEQ/p1788266220916919?thread_ts=1784210591.983749");
-  const elsewhere = nameFromAnswer(REFUSED, "https://leianaarvore.slack.com/archives/C07US58UC1Z/p1787250255841939");
+  const one = nameFromAnswer(REFUSED, "https://acme.slack.com/archives/C0EXAMPLE01/p1784210591983749");
+  const other = nameFromAnswer(REFUSED, "https://acme.slack.com/archives/C0EXAMPLE01/p1788266220916919?thread_ts=1784210591.983749");
+  const elsewhere = nameFromAnswer(REFUSED, "https://acme.slack.com/archives/C0EXAMPLE02/p1787250255841939");
   assert.notEqual(one, other);
   assert.notEqual(one, elsewhere);
   assert.notEqual(other, elsewhere);
 });
 
 test("a link that is not slack is named after what it points at", () => {
-  assert.equal(nameFromAnswer(REFUSED, "https://github.com/arvoreeducacao/dev-workspaces/pull/696"), "dev-workspaces-pr-696");
-  assert.equal(nameFromAnswer(REFUSED, "https://linear.app/arvore/issue/PED-694/o-titulo-do-card"), "linear-ped-694-o-titulo-do-card");
+  assert.equal(nameFromAnswer(REFUSED, "https://github.com/acme/hive/pull/696"), "hive-pr-696");
+  assert.equal(nameFromAnswer(REFUSED, "https://linear.app/acme/issue/PED-694/o-titulo-do-card"), "linear-ped-694-o-titulo-do-card");
   assert.equal(nameFromAnswer(REFUSED, "https://www.exemplo.com.br/"), "exemplo");
 });
 
 test("words the person wrote outrank the link they pasted", () => {
   assert.equal(
-    nameFromAnswer(REFUSED, "olha essa thread https://leianaarvore.slack.com/archives/C01DB3YUUEQ/p1784210591983749 e me diz"),
+    nameFromAnswer(REFUSED, "olha essa thread https://acme.slack.com/archives/C0EXAMPLE01/p1784210591983749 e me diz"),
     "olha-essa-thread-e"
   );
 });
@@ -65,7 +65,7 @@ test("words the person wrote outrank the link they pasted", () => {
 test("the first words of the mission name the seat on the spot", async () => {
   const { nameFromMission } = await import("../lib/naming.mjs");
   assert.equal(nameFromMission("Irmão, queria fazer uma alteração no hive"), "irmao-queria-fazer-uma");
-  assert.equal(nameFromMission("https://github.com/arvoreeducacao/dev-workspaces/pull/711"), "dev-workspaces-pr-711");
+  assert.equal(nameFromMission("https://github.com/acme/hive/pull/711"), "hive-pr-711");
   assert.equal(nameFromMission(""), "");
 });
 

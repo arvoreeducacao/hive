@@ -27,38 +27,38 @@ test("an account nobody has spent says nothing at all", () => {
 });
 
 test("an account out of room says the hour it comes back", () => {
-  const said = accountRoom({ name: "arvore", spent: { until: inAnHour, why: "limit" } });
+  const said = accountRoom({ name: "acme", spent: { until: inAnHour, why: "limit" } });
   assert.match(said, /out of room until \d\d:\d\d/);
-  const row = painted({ name: "arvore", spent: { until: inAnHour, why: "limit" } });
+  const row = painted({ name: "acme", spent: { until: inAnHour, why: "limit" } });
   assert.match(row.querySelector("small.out").textContent, /out of room until \d\d:\d\d/);
 });
 
 test("an hour that has already passed is not a warning any more", () => {
-  assert.equal(accountRoom({ name: "arvore", spent: { until: anHourAgo, why: "limit" } }), "");
-  assert.equal(painted({ name: "arvore", spent: { until: anHourAgo, why: "limit" } }).querySelector("small.out"), null);
+  assert.equal(accountRoom({ name: "acme", spent: { until: anHourAgo, why: "limit" } }), "");
+  assert.equal(painted({ name: "acme", spent: { until: anHourAgo, why: "limit" } }).querySelector("small.out"), null);
 });
 
 test("a mark with no hour on it is not painted as a wait with no end", () => {
-  assert.equal(accountRoom({ name: "arvore", spent: { until: 0, why: "spent" } }), "");
+  assert.equal(accountRoom({ name: "acme", spent: { until: 0, why: "spent" } }), "");
 });
 
 test("a login that fell out is a different sentence, because signing in again is the fix", () => {
-  const said = accountRoom({ name: "arvore", spent: { until: 0, why: "login" } });
+  const said = accountRoom({ name: "acme", spent: { until: 0, why: "login" } });
   assert.match(said, /sign in again/);
   assert.doesNotMatch(said, /out of room until/);
 });
 
 test("an account signed in again is not still called signed out by an old mark", () => {
-  assert.equal(accountRoom({ name: "arvore", loggedIn: true, spent: { until: 0, why: "login" } }), "");
-  assert.equal(painted({ name: "arvore", loggedIn: true, spent: { until: 0, why: "login" } }).querySelector("small.out"), null);
+  assert.equal(accountRoom({ name: "acme", loggedIn: true, spent: { until: 0, why: "login" } }), "");
+  assert.equal(painted({ name: "acme", loggedIn: true, spent: { until: 0, why: "login" } }).querySelector("small.out"), null);
 });
 
 test("an account signed out is offered the sign-in, default included", () => {
   const signIn = (one) => painted(one).querySelector("[data-pv-signin]");
   assert.equal(signIn({ name: "default", loggedIn: false }).dataset.pvSignin, "default");
-  assert.equal(signIn({ name: "arvore", loggedIn: false }).dataset.pvSignin, "arvore");
-  assert.equal(painted({ name: "arvore", loggedIn: true }).querySelector("[data-pv-signin]"), null);
-  assert.equal(painted({ name: "arvore", loggedIn: false, blind: true }).querySelector("[data-pv-signin]"), null);
+  assert.equal(signIn({ name: "acme", loggedIn: false }).dataset.pvSignin, "acme");
+  assert.equal(painted({ name: "acme", loggedIn: true }).querySelector("[data-pv-signin]"), null);
+  assert.equal(painted({ name: "acme", loggedIn: false, blind: true }).querySelector("[data-pv-signin]"), null);
 });
 
 test("the screen paints the provider on the left and its logins on the right", () => {

@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createSlackBridge, NOT_MINE, PING_EVERY, PONG_WAIT } from "../lib/slack-bridge.mjs";
 import { readChats } from "../lib/slack-hive.mjs";
 
-const JOAO = "U0748LXRG48";
+const JONAS = "U0748LXRG48";
 const BOT = "U0C35AT9TQW";
 
 class FakeSocket {
@@ -21,7 +21,7 @@ class FakeSocket {
   terminate() { this.terminated = true; }
 }
 
-function stage({ people = [JOAO], opens = () => ({ name: "aurora", where: "local" }), says = () => ({ ok: true }), replies = [], now = Date.now } = {}) {
+function stage({ people = [JONAS], opens = () => ({ name: "aurora", where: "local" }), says = () => ({ ok: true }), replies = [], now = Date.now } = {}) {
   const home = mkdtempSync(join(tmpdir(), "hive-slack-bridge-"));
   const calls = [];
   const said = [];
@@ -31,10 +31,10 @@ function stage({ people = [JOAO], opens = () => ({ name: "aurora", where: "local
     calls.push({ method, body });
     if (method === "apps.connections.open") return { json: async () => ({ ok: true, url: "wss://slack/socket" }) };
     if (method === "auth.test") return { json: async () => ({ ok: true, user_id: BOT, user: "hive" }) };
-    if (method === "users.info") return { json: async () => ({ ok: true, user: { name: "joao.barros", profile: { display_name: "João" } } }) };
+    if (method === "users.info") return { json: async () => ({ ok: true, user: { name: "jonas", profile: { display_name: "Jonas" } } }) };
     if (method === "conversations.info") return { json: async () => ({ ok: true, channel: { name: "teste" } }) };
     if (method === "chat.postMessage") { said.push(body); return { json: async () => ({ ok: true, ts: "9.9" }) }; }
-    if (method === "chat.getPermalink") return { json: async () => ({ ok: true, permalink: "https://leianaarvore.slack.com/archives/C024/p1000000" }) };
+    if (method === "chat.getPermalink") return { json: async () => ({ ok: true, permalink: "https://acme.slack.com/archives/C024/p1000000" }) };
     if (method === "conversations.replies") return { json: async () => ({ ok: true, messages: replies }) };
     return { json: async () => ({ ok: true }) };
   };
@@ -55,7 +55,7 @@ function stage({ people = [JOAO], opens = () => ({ name: "aurora", where: "local
 const envelope = (event) => JSON.stringify({ type: "events_api", envelope_id: "e1", payload: { event } });
 
 const mention = (over = {}) => ({
-  type: "app_mention", user: JOAO, text: `<@${BOT}> sobe o relatório`, ts: "1.1", channel: "C024", ...over
+  type: "app_mention", user: JONAS, text: `<@${BOT}> sobe o relatório`, ts: "1.1", channel: "C024", ...over
 });
 
 test("the bridge connects, learns who it is, and acks every envelope", async () => {
@@ -91,13 +91,13 @@ test("the next message in the thread lands in the chat instead of opening anothe
   const it = stage();
   await it.bridge.tick();
   await it.bridge.take(envelope(mention()));
-  await it.bridge.take(envelope({ type: "message", user: JOAO, text: "e o de escrita?", ts: "2.2", thread_ts: "1.1", channel: "C024" }));
+  await it.bridge.take(envelope({ type: "message", user: JONAS, text: "e o de escrita?", ts: "2.2", thread_ts: "1.1", channel: "C024" }));
 
   assert.equal(it.opened.length, 1);
   assert.equal(it.relayed.length, 1);
   assert.equal(it.relayed[0].seat, "aurora");
   assert.match(it.relayed[0].text, /e o de escrita\?/);
-  assert.match(it.relayed[0].text, /João/);
+  assert.match(it.relayed[0].text, /Jonas/);
 });
 
 test("the mention and the channel copy of the same message only work once", async () => {
@@ -112,7 +112,7 @@ test("the mention and the channel copy of the same message only work once", asyn
 test("a channel message in no thread of ours is none of our business", async () => {
   const it = stage();
   await it.bridge.tick();
-  await it.bridge.take(envelope({ type: "message", user: JOAO, text: "papo do canal", ts: "3.3", channel: "C024", channel_type: "channel" }));
+  await it.bridge.take(envelope({ type: "message", user: JONAS, text: "papo do canal", ts: "3.3", channel: "C024", channel_type: "channel" }));
   assert.equal(it.opened.length, 0);
   assert.equal(it.said.length, 0);
 });
@@ -120,7 +120,7 @@ test("a channel message in no thread of ours is none of our business", async () 
 test("a direct message opens a chat with no channel to name", async () => {
   const it = stage();
   await it.bridge.tick();
-  await it.bridge.take(envelope({ type: "message", user: JOAO, text: "oi", ts: "4.4", channel: "D01", channel_type: "im" }));
+  await it.bridge.take(envelope({ type: "message", user: JONAS, text: "oi", ts: "4.4", channel: "D01", channel_type: "im" }));
   assert.equal(it.opened.length, 1);
   assert.equal(it.opened[0].errand, "slack · mensagem direta");
 });
@@ -138,7 +138,7 @@ test("the bot never answers itself, and edits and joins are not messages", async
   await it.bridge.tick();
   await it.bridge.take(envelope({ type: "message", user: BOT, bot_id: "B0C3", text: "eu mesmo", ts: "5.5", channel: "D01", channel_type: "im" }));
   await it.bridge.take(envelope({ type: "message", bot_id: "B1", text: "outro robô", ts: "6.6", channel: "D01", channel_type: "im" }));
-  await it.bridge.take(envelope({ type: "message", subtype: "channel_join", user: JOAO, text: "entrou", ts: "7.7", channel: "C024" }));
+  await it.bridge.take(envelope({ type: "message", subtype: "channel_join", user: JONAS, text: "entrou", ts: "7.7", channel: "C024" }));
   assert.equal(it.opened.length, 0);
   assert.equal(it.relayed.length, 0);
   assert.equal(it.said.length, 0);
@@ -165,7 +165,7 @@ test("a chat that is gone gives the thread a new one", async () => {
   const it = stage({ says: () => ({ ok: false, error: "that seat is not alive here anymore" }) });
   await it.bridge.tick();
   await it.bridge.take(envelope(mention()));
-  await it.bridge.take(envelope({ type: "message", user: JOAO, text: "voltei", ts: "8.8", thread_ts: "1.1", channel: "C024" }));
+  await it.bridge.take(envelope({ type: "message", user: JONAS, text: "voltei", ts: "8.8", thread_ts: "1.1", channel: "C024" }));
 
   assert.equal(it.opened.length, 2);
   assert.match(it.said.map((one) => one.text).join("\n"), /não está mais aberto/);
@@ -253,9 +253,9 @@ test("a mention dropped into a running thread carries what was said before it", 
   const it = stage({
     replies: [
       { ts: "0.1", user: "UOUTRO", text: "o gráfico de leitura parou de subir" },
-      { ts: "0.2", user: JOAO, text: "desde quinta, parece" },
-      { ts: "1.1", user: JOAO, text: `<@${BOT}> sobe o relatório` },
-      { ts: "1.9", user: JOAO, text: "isso veio depois e não conta" }
+      { ts: "0.2", user: JONAS, text: "desde quinta, parece" },
+      { ts: "1.1", user: JONAS, text: `<@${BOT}> sobe o relatório` },
+      { ts: "1.9", user: JONAS, text: "isso veio depois e não conta" }
     ]
   });
   await it.bridge.tick();
@@ -266,12 +266,12 @@ test("a mention dropped into a running thread carries what was said before it", 
   assert.match(mission, /o gráfico de leitura parou de subir/);
   assert.match(mission, /desde quinta/);
   assert.doesNotMatch(mission, /veio depois e não conta/);
-  assert.match(mission, /leianaarvore\.slack\.com\/archives\/C024/);
+  assert.match(mission, /acme\.slack\.com\/archives\/C024/);
   assert.ok(mission.startsWith("sobe o relatório"));
 });
 
 test("a mention that opens its own thread quotes nobody", async () => {
-  const it = stage({ replies: [{ ts: "1.1", user: JOAO, text: "sobe o relatório" }] });
+  const it = stage({ replies: [{ ts: "1.1", user: JONAS, text: "sobe o relatório" }] });
   await it.bridge.tick();
   await it.bridge.take(envelope(mention()));
   assert.doesNotMatch(it.opened[0].prompt, /The thread before that/);

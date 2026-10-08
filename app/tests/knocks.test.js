@@ -58,7 +58,7 @@ const quiet = () => {
   paintNudge();
 };
 
-const KNOCK = { from: "jott4", seat: "hive-3", at: Date.now() };
+const KNOCK = { from: "juno", seat: "hive-3", at: Date.now() };
 
 test("a seat nobody knocked on offers the knock", () => {
   knocked.clear();
@@ -84,19 +84,19 @@ test("the wait is short enough to ask again in the same minute", () => {
 });
 
 test("the nudge only ever shows what is still waiting", () => {
-  const mine = { from: "jott4", seat: "hive-3", at: 1 };
+  const mine = { from: "juno", seat: "hive-3", at: 1 };
   const gone = { from: "rafa", seat: "hive-7", at: 2 };
   assert.deepEqual(nudgeAhead([gone, mine], [mine]), [mine]);
 });
 
 test("a knock answered anywhere else leaves the nudge with nothing to ask", () => {
-  assert.deepEqual(nudgeAhead([{ from: "jott4", seat: "hive-3" }], []), []);
+  assert.deepEqual(nudgeAhead([{ from: "juno", seat: "hive-3" }], []), []);
 });
 
 test("the same person asking for the same seat is the same ask, whenever it arrived", () => {
-  assert.equal(sameKnock({ from: "jott4", seat: "hive-3", at: 1 }, { from: "jott4", seat: "hive-3", at: 9 }), true);
-  assert.equal(sameKnock({ from: "jott4", seat: "hive-3" }, { from: "jott4", seat: "hive-9" }), false);
-  assert.equal(sameKnock(null, { from: "jott4", seat: "hive-3" }), false);
+  assert.equal(sameKnock({ from: "juno", seat: "hive-3", at: 1 }, { from: "juno", seat: "hive-3", at: 9 }), true);
+  assert.equal(sameKnock({ from: "juno", seat: "hive-3" }, { from: "juno", seat: "hive-9" }), false);
+  assert.equal(sameKnock(null, { from: "juno", seat: "hive-3" }), false);
 });
 
 test("a knock arriving shakes the window, plays the sound and puts the ask on the screen", () => {
@@ -252,7 +252,7 @@ test("the same poke never shakes twice", () => {
 test("two pokes landing together are one shake, not two", () => {
   quiet();
   pokesSeen.clear();
-  const said = sound(() => takePokes([{ id: "art:1", from: "art", at: 1 }, { id: "joao:2", from: "joao", at: 2 }]));
+  const said = sound(() => takePokes([{ id: "art:1", from: "art", at: 1 }, { id: "jonas:2", from: "jonas", at: 2 }]));
   assert.equal(said, ASKED, "one sound, not two on top of each other");
   assert.equal(document.body.classList.contains("nudged"), true);
 });
@@ -277,14 +277,14 @@ test("a poke that lands on another desktop leaves a notice", () => {
 
 test("a closed door leaves no button to press: the card says so and offers nothing", async () => {
   const { mirrorKbModel } = await app("team");
-  st.team.me = "rick";
+  st.team.me = "rita";
   const seat = { name: "hive-1", title: "Hive 1", state: "working" };
-  const open = mirrorKbModel(seat, { dev: "joao", knocks: true });
+  const open = mirrorKbModel(seat, { dev: "jonas", knocks: true });
   assert.equal(open.act.kind, "knock");
   assert.equal(open.act.label, "ask for the keyboard");
-  const closed = mirrorKbModel(seat, { dev: "joao", knocks: false });
+  const closed = mirrorKbModel(seat, { dev: "jonas", knocks: false });
   assert.equal(closed.act, null);
   assert.equal(closed.say, "is not taking keyboard asks right now");
-  const lent = mirrorKbModel({ ...seat, keyboard: { with: "rick", until: 9e12, turns: [] } }, { dev: "joao", knocks: false });
+  const lent = mirrorKbModel({ ...seat, keyboard: { with: "rita", until: 9e12, turns: [] } }, { dev: "jonas", knocks: false });
   assert.equal(lent.act.kind, "give", "a keyboard already in hand is still handed back");
 });

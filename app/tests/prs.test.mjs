@@ -14,7 +14,7 @@ const hive = () => {
   const asked = [];
   let live = 0;
   let peak = 0;
-  let iAm = "joao";
+  let iAm = "jonas";
   let registry = [];
   let sessions = [];
   let answer = () => ({ ok: true, out: "{}", error: "" });
@@ -78,7 +78,7 @@ const prJson = (over = {}) => JSON.stringify({
   url: "https://github.com/o/r/pull/1",
   state: "OPEN",
   isDraft: false,
-  author: { login: "joao" },
+  author: { login: "jonas" },
   headRefName: "branch",
   baseRefName: "main",
   additions: 1,
@@ -299,15 +299,15 @@ test("an empty log is not an error, it is just no lines", () => {
 });
 
 const TALK_OWN = JSON.stringify({
-  comments: [{ author: { login: "joao" }, createdAt: "2026-08-20T12:00:00Z", body: "does it reproduce?", url: "u1" }],
+  comments: [{ author: { login: "jonas" }, createdAt: "2026-08-20T12:00:00Z", body: "does it reproduce?", url: "u1" }],
   reviews: [
-    { author: { login: "vitor" }, submittedAt: "2026-08-20T13:00:00Z", body: "", state: "APPROVED" },
+    { author: { login: "vini" }, submittedAt: "2026-08-20T13:00:00Z", body: "", state: "APPROVED" },
     { author: { login: "ana" }, submittedAt: "2026-08-20T14:00:00Z", body: "", state: "COMMENTED" }
   ]
 });
 
 const TALK_INLINE = JSON.stringify([{
-  user: { login: "vitor" },
+  user: { login: "vini" },
   created_at: "2026-08-20T11:00:00Z",
   body: "extract this into a constant",
   path: "app/doctor/doctor-core.mjs",

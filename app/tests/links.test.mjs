@@ -38,7 +38,7 @@ async function where(url) {
   return opened.length ? "artifact" : null;
 }
 
-const PR_URL = "https://github.com/arvoreeducacao/dev-workspaces/pull/278";
+const PR_URL = "https://github.com/acme/hive/pull/278";
 const THREAD_URL = "https://acme.slack.com/archives/C0EXAMPLE01/p1755800000123456";
 
 test("a pr, a thread and a published page open in the panel that already shows them", async () => {
@@ -52,10 +52,10 @@ test("a pr, a thread and a published page open in the panel that already shows t
 
 test("a link with no panel here still leaves for the browser", () => {
   for (const url of [
-    "https://github.com/arvoreeducacao/dev-workspaces/issues/12",
-    "https://github.com/arvoreeducacao/dev-workspaces",
+    "https://github.com/acme/hive/issues/12",
+    "https://github.com/acme/hive",
     "https://acme.slack.com/archives/C0EXAMPLE01",
-    "https://linear.app/arvore/issue/EXP-231",
+    "https://linear.app/acme/issue/EXP-231",
     "https://not-slack.com/archives/C0EXAMPLE01/p1755800000123456"
   ]) assert.equal(homeOfLink("seat", url), null, `${url} should have stayed in the browser`);
 });
@@ -66,10 +66,10 @@ test("a pr link cannot be the whole sentence around it", () => {
 });
 
 test("the page and the server name a pr the same way, or the panel never finds it", () => {
-  for (const url of [PR_URL, `${PR_URL}/files`, `${PR_URL}#issuecomment-1`, "https://github.com/arvore.hub/api-arvore/pull/9"]) {
+  for (const url of [PR_URL, `${PR_URL}/files`, `${PR_URL}#issuecomment-1`, "https://github.com/acme.hub/api/pull/9"]) {
     assert.equal(prKeyOf(url), prKey(url), url);
   }
-  assert.equal(prKeyOf(PR_URL), "arvoreeducacao/dev-workspaces#278");
+  assert.equal(prKeyOf(PR_URL), "acme/hive#278");
 });
 
 test("the page and the server name a thread the same way, reply or not", () => {

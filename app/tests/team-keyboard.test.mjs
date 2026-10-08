@@ -18,28 +18,28 @@ const route = (path) => {
 
 
 test("the note the ask sends is one the other side reads back", () => {
-  const said = readKnock(JSON.stringify(knockOf("joao", "seat-name", Date.now())));
+  const said = readKnock(JSON.stringify(knockOf("jonas", "seat-name", Date.now())));
   assert.ok(said, "the other hive could not read the ask");
   assert.equal(said.kind, "knock");
-  assert.equal(said.from, "joao");
+  assert.equal(said.from, "jonas");
   assert.equal(said.seat, "seat-name");
 });
 
 test("the note the goodbye sends says it is a goodbye", () => {
-  const said = readKnock(JSON.stringify(knockOf("joao", "seat-name", Date.now(), "bye")));
+  const said = readKnock(JSON.stringify(knockOf("jonas", "seat-name", Date.now(), "bye")));
   assert.ok(said, "the other hive could not read the goodbye");
   assert.equal(said.kind, "bye");
 });
 
 test("the note the poke sends is one the other side reads back", () => {
-  const said = readPoke(JSON.stringify(pokeOf("joao", Date.now())));
+  const said = readPoke(JSON.stringify(pokeOf("jonas", Date.now())));
   assert.ok(said, "the other hive could not read the poke");
-  assert.equal(said.from, "joao");
+  assert.equal(said.from, "jonas");
 });
 
 test("a bare seat and name is not a note, and never leaves looking like one", () => {
-  assert.equal(readKnock(JSON.stringify({ seat: "seat-name", from: "joao" })), null);
-  assert.equal(readPoke(JSON.stringify({ from: "joao" })), null);
+  assert.equal(readKnock(JSON.stringify({ seat: "seat-name", from: "jonas" })), null);
+  assert.equal(readPoke(JSON.stringify({ from: "jonas" })), null);
 });
 
 

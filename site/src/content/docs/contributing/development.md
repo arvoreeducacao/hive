@@ -3,6 +3,8 @@ title: Working on Hive
 description: Getting it running, the suite, and the rules that are not style.
 sidebar:
   order: 1
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 ## Getting it running

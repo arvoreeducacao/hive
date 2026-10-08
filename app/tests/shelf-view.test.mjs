@@ -27,7 +27,7 @@ const pageOf = (over = {}) => ({
   slug: "atividade-com-etapas",
   title: "Uma atividade, N etapas",
   description: "RFC · plataforma",
-  owner: "joao",
+  owner: "jonas",
   label: "in-review",
   at: 1_700_000_000_000,
   tabs: { documento: { versions: [{ n: 1, label: "draft", at: 1 }, { n: 2, label: "in-review", at: 2 }] } },
@@ -63,7 +63,7 @@ test("the ruler shows the lente tab once something was published into it, and op
       lente: { versions: [{ n: 1, label: "draft", at: 2 }, { n: 2, label: "in-review", at: 3 }] }
     }
   });
-  seed({ me: "joao", pages: [withLens] });
+  seed({ me: "jonas", pages: [withLens] });
   filters("team", "", "");
   openShelf();
   openShelfPage(withLens, "lente");
@@ -88,7 +88,7 @@ test("a tab only exists when something was actually published into it", () => {
 });
 
 test("mine hides other people's pages and the team's hides nobody", () => {
-  seed({ me: "joao", pages: [pageOf(), pageOf({ slug: "outra", owner: "marina" })] });
+  seed({ me: "jonas", pages: [pageOf(), pageOf({ slug: "outra", owner: "marina" })] });
   filters("mine", "", "");
   assert.deepEqual(shelfRows().map((p) => p.slug), ["atividade-com-etapas"]);
   filters("team", "", "");
@@ -112,7 +112,7 @@ const splitPage = (over = {}) => pageOf({
 });
 
 test("the state chip filters by the whole family, not by the exact label", () => {
-  seed({ me: "joao", pages: [pageOf({ label: "in-review-virada-etapas" }), deliveredPage()] });
+  seed({ me: "jonas", pages: [pageOf({ label: "in-review-virada-etapas" }), deliveredPage()] });
   filters("team", "in-review", "");
   assert.deepEqual(shelfRows().map((p) => p.slug), ["atividade-com-etapas"]);
   filters("team", "closed", "");
@@ -121,7 +121,7 @@ test("the state chip filters by the whole family, not by the exact label", () =>
 
 test("a mission whose plan is still in review is found by both filters, not only by the newest tab", () => {
   assert.deepEqual(shelfStatesOf(splitPage()).sort(), ["decided", "in-review"]);
-  seed({ me: "joao", pages: [splitPage()] });
+  seed({ me: "jonas", pages: [splitPage()] });
   filters("team", "in-review", "");
   assert.deepEqual(shelfRows().map((p) => p.slug), ["missao-partida"]);
   filters("team", "decided", "");
@@ -159,7 +159,7 @@ test("the bands the shelf shows are the four the team decided on, and only what 
 });
 
 test("search looks at the title, the description and the name of the folder", () => {
-  seed({ me: "joao", pages: [pageOf(), pageOf({ slug: "crm", title: "CRM", description: "sdr-engine" })] });
+  seed({ me: "jonas", pages: [pageOf(), pageOf({ slug: "crm", title: "CRM", description: "sdr-engine" })] });
   filters("team", "", "sdr");
   assert.deepEqual(shelfRows().map((p) => p.slug), ["crm"]);
   filters("team", "", "ETAPAS");
@@ -169,12 +169,12 @@ test("search looks at the title, the description and the name of the folder", ()
 });
 
 test("the github link points at the file, and stays quiet when the repo url is not one", () => {
-  seed({ repo: "https://github.com/arvoreeducacao/artefatos", pages: [] });
+  seed({ repo: "https://github.com/acme/artifacts", pages: [] });
   assert.equal(
     shelfGithubUrl(pageOf(), "documento", 2),
-    "https://github.com/arvoreeducacao/artefatos/blob/HEAD/a/atividade-com-etapas/documento.v2.html"
+    "https://github.com/acme/artifacts/blob/HEAD/a/atividade-com-etapas/documento.v2.html"
   );
-  seed({ repo: "git@github.com:arvoreeducacao/artefatos.git", pages: [] });
+  seed({ repo: "git@github.com:acme/artifacts.git", pages: [] });
   assert.equal(shelfGithubUrl(pageOf(), "documento", 2), "");
   seed({ repo: "", pages: [] });
   assert.equal(shelfGithubUrl(pageOf(), "documento", 2), "");
@@ -207,7 +207,7 @@ test("the shelf markup and the strings it needs are wired into the page", () => 
   const frame = page.slice(page.indexOf('<iframe id="sh-frame"')).slice(0, 200);
   assert.match(frame, /sandbox="allow-scripts allow-popups"/);
 
-  st.shelf = { me: "joao", repo: "https://github.com/arvoreeducacao/artefatos", pages: [pageOf()] };
+  st.shelf = { me: "jonas", repo: "https://github.com/acme/artifacts", pages: [pageOf()] };
   st.shelfWho = "team"; st.shelfState = ""; st.shelfQuery = "";
   st.shelfOpen = null;
   openShelf();
@@ -221,7 +221,7 @@ test("the shelf markup and the strings it needs are wired into the page", () => 
 const linger = () => new Promise((done) => setTimeout(done, LIVE_AFTER_MS + 60));
 
 test("a card shows the picture of the page, and the page itself only while the pointer rests on it", async () => {
-  const shelved = { me: "joao", repo: "https://github.com/arvoreeducacao/artefatos", pages: [pageOf({ thumbs: { documento: 1 } })] };
+  const shelved = { me: "jonas", repo: "https://github.com/acme/artifacts", pages: [pageOf({ thumbs: { documento: 1 } })] };
   const saved = globalThis.fetch;
   globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(shelved), json: async () => shelved });
   st.shelf = shelved;
@@ -266,7 +266,7 @@ const press = (key, mods = {}) => document.dispatchEvent(new window.KeyboardEven
 }));
 
 const onTheShelf = (open = null) => {
-  seed({ me: "joao", pages: [pageOf()] });
+  seed({ me: "jonas", pages: [pageOf()] });
   filters("team", "", "");
   openShelf();
   st.shelfOpen = open;
@@ -277,7 +277,7 @@ test("the key that opens the shelf is the key that closes it", () => {
   closeShelf();
   assert.equal(shelfOnScreen(), false);
   st.keys = { ...st.keys, shelf: { alt: true, code: "KeyE" } };
-  seed({ me: "joao", pages: [pageOf()] });
+  seed({ me: "jonas", pages: [pageOf()] });
   press("e", { alt: true });
   assert.equal(showing(), true);
   press("e", { alt: true });
@@ -310,7 +310,7 @@ test("the arrow and esc take the same way back, so they cannot drift apart", () 
 test("a bare key never reaches the seats sitting behind the shelf", () => {
   st.keys = { ...st.keys, shelf: { code: "KeyE" } };
   closeShelf();
-  seed({ me: "joao", pages: [pageOf()] });
+  seed({ me: "jonas", pages: [pageOf()] });
   press("e");
   assert.equal(showing(), true, "the bare key does reach the app when nothing is over it");
   press("e");

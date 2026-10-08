@@ -11,9 +11,9 @@ import { tmpdir } from "node:os";
 const hive = () => mkdtemp(join(tmpdir(), "hive-peer-"));
 
 const seats = [
-  { name: "api-payload", side: "cloud", repo: "api-arvore", model: "opus", state: "working", now: "montando o dto", title: "" },
-  { name: "api-webhooks", side: "cloud", repo: "api-arvore", model: "sonnet", state: "idle", now: "", title: "retry do webhook" },
-  { name: "checkout", side: "local", repo: "frontend-arvore-nextjs", model: "", state: "needs", now: "", title: "" },
+  { name: "api-payload", side: "cloud", repo: "api", model: "opus", state: "working", now: "montando o dto", title: "" },
+  { name: "api-webhooks", side: "cloud", repo: "api", model: "sonnet", state: "idle", now: "", title: "retry do webhook" },
+  { name: "checkout", side: "local", repo: "frontend-nextjs", model: "", state: "needs", now: "", title: "" },
 ];
 
 test("a whole name wins over a prefix that fits more than one seat", () => {
@@ -69,7 +69,7 @@ test("the say event carries who sent it and whether an ask already took it", () 
 
 test("the handle names the peer, the way to reach it and who is asking", () => {
   const handle = peerHandle(seats[0], { name: "checkout", side: "local" });
-  assert.match(handle, /peer: api-payload · cloud · api-arvore · opus · working · "montando o dto"/);
+  assert.match(handle, /peer: api-payload · cloud · api · opus · working · "montando o dto"/);
   assert.match(handle, /message\(seat, text\)/);
   assert.match(handle, /you are: checkout \(local\)/);
 });
@@ -79,11 +79,11 @@ test("with nobody asking, the handle stops at the peer", () => {
 });
 
 test("a seat with nothing to say still reads as a line", () => {
-  assert.equal(seatLine(seats[2]), "checkout · local · frontend-arvore-nextjs · needs");
+  assert.equal(seatLine(seats[2]), "checkout · local · frontend-nextjs · needs");
 });
 
 test("the line carries the title the person reads on the rail, not only the address", () => {
-  assert.equal(seatLine(seats[1]), 'api-webhooks "retry do webhook" · cloud · api-arvore · sonnet · idle');
+  assert.equal(seatLine(seats[1]), 'api-webhooks "retry do webhook" · cloud · api · sonnet · idle');
 });
 
 test("a title that only repeats the name is not said twice", () => {
@@ -128,15 +128,15 @@ test("the status file answers what the seat is doing now", () => {
 });
 
 test("the repo is the folder the worktree hangs from", () => {
-  assert.equal(repoOf("/workspace/worktrees/api-arvore/api-payload"), "api-arvore");
-  assert.equal(repoOf("/workspace/repos/arvore-hub"), "arvore-hub");
+  assert.equal(repoOf("/workspace/worktrees/api/api-payload"), "api");
+  assert.equal(repoOf("/workspace/repos/acme-hub"), "acme-hub");
   assert.equal(repoOf(""), "");
 });
 
 test("which side a seat is on decides which tmux server holds it", () => {
   assert.equal(sideOf("/workspace/hive"), "cloud");
   assert.equal(tmuxSession(sideOf("/workspace/hive")), "hive");
-  assert.equal(tmuxSession(sideOf("/Users/joao/.hive")), "hive-local");
+  assert.equal(tmuxSession(sideOf("/Users/dev/.hive")), "hive-local");
 });
 
 /* a command that failed and a command that printed nothing used to look the same */
@@ -162,13 +162,13 @@ test("a question for another person is left in the outbox, in the shape their hi
   const base = await hive();
   try {
     const env = { HIVE_STATE_DIR: base, HIVE_SEAT: "checkout" };
-    const sent = await askPerson("Vitor", "  qual é o formato do payload?  ", { env });
-    assert.equal(sent.to, "vitor");
+    const sent = await askPerson("Vini", "  qual é o formato do payload?  ", { env });
+    assert.equal(sent.to, "vini");
     assert.equal(sent.agent, "checkout");
     const files = await readdir(join(base, "outbox"));
     assert.deepEqual(files, [`${sent.id}.json`]);
     const note = await readFile(join(base, "outbox", files[0]), "utf8");
-    assert.deepEqual(readOutbox(note), { to: "vitor", agent: "checkout", at: JSON.parse(note).at, id: sent.id, text: "qual é o formato do payload?" });
+    assert.deepEqual(readOutbox(note), { to: "vini", agent: "checkout", at: JSON.parse(note).at, id: sent.id, text: "qual é o formato do payload?" });
   } finally {
     await rm(base, { recursive: true, force: true });
   }
@@ -179,8 +179,8 @@ test("a question with nobody to send it to, or nothing to ask, never leaves the 
   try {
     const env = { HIVE_STATE_DIR: base, HIVE_SEAT: "checkout" };
     assert.match((await askPerson("Não Existe!", "e aí?", { env })).error, /not a name I can address/);
-    assert.match((await askPerson("vitor", "   ", { env })).error, /nothing to ask/);
-    assert.match((await askPerson("vitor", "e aí?", { env: { HIVE_STATE_DIR: base } })).error, /no name in the hive/);
+    assert.match((await askPerson("vini", "   ", { env })).error, /nothing to ask/);
+    assert.match((await askPerson("vini", "e aí?", { env: { HIVE_STATE_DIR: base } })).error, /no name in the hive/);
     assert.equal(existsSync(join(base, "outbox")), false);
   } finally {
     await rm(base, { recursive: true, force: true });

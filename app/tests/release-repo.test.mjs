@@ -25,12 +25,12 @@ test("the bundle still knows which repository releases it after packaging strips
 test("a manifest that names no github repository names none", () => {
   assert.equal(repoOfManifest({}), "");
   assert.equal(repoOfManifest(null), "");
-  assert.equal(repoOfManifest({ homepage: "https://example.com/arvoreeducacao/dev-workspaces" }), "");
+  assert.equal(repoOfManifest({ homepage: "https://example.com/acme/hive" }), "");
   assert.equal(repoOfManifest({ homepage: "not a url" }), "");
 });
 
 test("the homepage is read the way people write it", () => {
-  assert.equal(repoOfManifest({ homepage: "https://github.com/arvoreeducacao/dev-workspaces.git" }), "arvoreeducacao/dev-workspaces");
-  assert.equal(repoOfManifest({ homepage: "https://github.com/arvoreeducacao/dev-workspaces/" }), "arvoreeducacao/dev-workspaces");
+  assert.equal(repoOfManifest({ homepage: "https://github.com/acme/hive.git" }), "acme/hive");
+  assert.equal(repoOfManifest({ homepage: "https://github.com/acme/hive/" }), "acme/hive");
   assert.equal(repoOfManifest({ homepage: "http://github.com/a/b" }), "a/b");
 });

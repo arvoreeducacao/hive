@@ -47,7 +47,7 @@ test("what an option means is on the card, not hidden behind the mouse", () => {
 
 test("an option with nothing to explain gets no empty line under it", () => {
   const card = questionCard([{ header: "repos", question: "quais repos?", options: [
-    { label: "api-arvore" }, { label: "frontend", description: "só a tela" }
+    { label: "api" }, { label: "frontend", description: "só a tela" }
   ] }], took().send);
   assert.deepEqual([...card.querySelectorAll(".qod")].map((d) => d.textContent), ["só a tela"]);
 });
@@ -73,12 +73,12 @@ test("your own words beat the options, and clear the one you had picked", async 
 test("a question that takes many keeps every pick, as a list", async () => {
   const got = took();
   const card = questionCard([{ header: "repos", question: "quais repos?", multiSelect: true, options: [
-    { label: "api-arvore" }, { label: "frontend" }, { label: "arvore" }
+    { label: "api" }, { label: "frontend" }, { label: "acme" }
   ] }], got.send);
   pick(card, 0);
   pick(card, 2);
   await send(card);
-  assert.deepEqual(got.seen, [{ "quais repos?": ["api-arvore", "arvore"] }]);
+  assert.deepEqual(got.seen, [{ "quais repos?": ["api", "acme"] }]);
   pick(card, 0);
 });
 

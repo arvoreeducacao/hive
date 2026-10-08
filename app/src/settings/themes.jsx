@@ -66,10 +66,10 @@ function ThemePreview(props) {
   return (
     <Show when={p().name}>
       <div class="thm-mini" style={p().vars} aria-hidden="true">
-        <div class="bar"><i class="logo" /><span>Jott4</span><span class="on">{p().seatSay}</span><span>Livreiro</span><span class="grow" /><span>20 PRs</span></div>
+        <div class="bar"><i class="logo" /><span>you</span><span class="on">{p().seatSay}</span><span>checkout</span><span class="grow" /><span>20 PRs</span></div>
         <div class="seats">
           <div class="rl">
-            <span><i class="d needs" />Livreiro</span><span><i class="d working" />apagar oc</span><span><i class="d working" />valores</span><span><i class="d ready" />explorar</span><span><i class="d idle" />revisor</span>
+            <span><i class="d needs" />checkout</span><span><i class="d working" />fix login</span><span><i class="d working" />billing</span><span><i class="d ready" />refunds</span><span><i class="d idle" />revisor</span>
           </div>
           <For each={p().seats}>{(seat) => (
             <div class="st"><b>{seat.name}</b><span class="s"><i class={`d ${seat.state}`} />{seat.say}</span><i class="ln" /><i class="ln" /><i class="ln s2" /><span class="cp"><em /></span></div>

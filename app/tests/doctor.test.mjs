@@ -28,12 +28,12 @@ const ctx = {
   serverKey: "SHA256:key",
   powerSwitch: POWER_SWITCH,
   deploymentDir: "acme",
-  podHub: "/workspace/repos/arvore-hub",
-  hubFolder: "arvore-hub",
-  reposOwner: "arvoreeducacao",
-  expectedRepos: ["arvore-hub", "dev-workspaces"],
-  memoryPlugin: "claude-memory@arvore",
-  trustedDirs: ["/workspace/repos/arvore-hub", "/workspace/repos/dev-workspaces", "/workspace/hive"],
+  podHub: "/workspace/repos/acme-hub",
+  hubFolder: "acme-hub",
+  reposOwner: "acme",
+  expectedRepos: ["acme-hub", "dev-workspaces"],
+  memoryPlugin: "claude-memory@acme",
+  trustedDirs: ["/workspace/repos/acme-hub", "/workspace/repos/dev-workspaces", "/workspace/hive"],
   repo: "/Users/ada/repos/dev-workspaces",
   bin: "/Users/ada/.local/bin",
   key: "/Users/ada/.hive/key-ada",
@@ -544,9 +544,9 @@ test("a missing allowed_signers is a security failure with a fix that authorizes
 });
 
 test("allowed_signers without your key is a failure too", () => {
-  const r = readings.checkSigners("missing-key\njoao vitor", ctx);
+  const r = readings.checkSigners("missing-key\njonas vini", ctx);
   assert.equal(r.state, "fail");
-  assert.match(r.detail, /joao vitor/);
+  assert.match(r.detail, /jonas vini/);
   assert.equal(readings.checkSigners("has\nada", ctx).state, "ok");
 });
 
@@ -602,14 +602,14 @@ test("remote control: no session, not connected, alive", () => {
 });
 
 test("repos: absent, no .git, complete", () => {
-  const absent = readings.checkRepos("ok arvore-hub", ctx);
+  const absent = readings.checkRepos("ok acme-hub", ctx);
   assert.equal(absent.state, "fail");
   assert.match(absent.detail, /not cloned: dev-workspaces/);
   assert.match(absent.fix.command, /git clone/);
-  const noGit = readings.checkRepos("ok arvore-hub\nno-git dev-workspaces", ctx);
+  const noGit = readings.checkRepos("ok acme-hub\nno-git dev-workspaces", ctx);
   assert.equal(noGit.state, "fail");
   assert.match(noGit.detail, /no \.git: dev-workspaces/);
-  assert.equal(readings.checkRepos("ok arvore-hub\nok dev-workspaces\nok other", ctx).state, "ok");
+  assert.equal(readings.checkRepos("ok acme-hub\nok dev-workspaces\nok other", ctx).state, "ok");
 });
 
 test("canonical hub context", () => {
@@ -636,7 +636,7 @@ test("hub contract in the seats", () => {
   const clean = readings.checkHubContract("present tip=abc behind=0 dirty=0 at=x\nseat:ok\nstale:", ctx);
   assert.equal(clean.state, "ok");
 
-  const onlyWorktrees = readings.checkHubContract("present tip=abc behind=0 dirty=0 at=x\nseat:ok\nstale: oi colecoes-arvore-professor", ctx);
+  const onlyWorktrees = readings.checkHubContract("present tip=abc behind=0 dirty=0 at=x\nseat:ok\nstale: oi colecoes-acme-professor", ctx);
   assert.equal(onlyWorktrees.state, "ok");
   assert.match(onlyWorktrees.detail, /2 worktree\(s\) on an older contract/);
 
@@ -816,10 +816,10 @@ test("with the probe answering, the 21 items come from one snapshot", async () =
     "==boot", "2026-08-19T09:00:00Z boot", "2026-08-20T09:00:00Z boot",
     "==cloudsessions", JSON.stringify({ repo: "https://github.com/ada/claude-sessions.git", script: true, lastSync: Date.now() - 120000, lastLog: "2026-08-19T12:00:00.000Z pulled=0 pushed=2 unchanged=40", now: Date.now() }),
     "==control", "Ready",
-    "==repos", "ok arvore-hub", "ok dev-workspaces",
+    "==repos", "ok acme-hub", "ok dev-workspaces",
     "==gh", "logged-in adaandrade",
     "==context", `present tip=abc123 behind=0 dirty=0 at=${new Date().toISOString()}`, "seat:ok", "stale:",
-    "==mcpenv", JSON.stringify({ ok: true, configurados: 14, envFile: "/workspace/repos/arvore-hub/.env", faltando: {} }),
+    "==mcpenv", JSON.stringify({ ok: true, configurados: 14, envFile: "/workspace/repos/acme-hub/.env", faltando: {} }),
     "==disk", "/dev/nvme1n1 104857600 52428800 52428800 50% /workspace"
   ].join("\n");
   const items = await runChecks({ ...ctx, hasConfig: true, configText: CONFIG, hubExists: true }, {
@@ -943,7 +943,7 @@ test("an exec that truly hangs is still reported as a wait that ran out", async 
 
 test("every fix that reaches into the pod names the container", () => {
   for (const [name, make] of Object.entries(readings.fixes)) {
-    const fix = make(ctx, ["arvore-hub"]);
+    const fix = make(ctx, ["acme-hub"]);
     if (!/kubectl (exec|cp)/.test(fix.command)) continue;
     assert.match(fix.command, /-c workspace/, `the fix ${name} reaches the pod without naming the container`);
   }
@@ -1067,10 +1067,10 @@ test("--fix reaches for the fixes and leaves the investigations to be read", asy
     "==boot", "2026-08-19T09:00:00Z boot", "2026-08-19T09:01:00Z boot-error step=repos detail=clone-failed",
     "==cloudsessions", JSON.stringify({ repo: "https://github.com/ada/claude-sessions.git", script: true, lastSync: Date.now() - 120000, lastLog: "2026-08-19T12:00:00.000Z pulled=0 pushed=2 unchanged=40", now: Date.now() }),
     "==control", "Ready",
-    "==repos", "ok arvore-hub", "ok dev-workspaces",
+    "==repos", "ok acme-hub", "ok dev-workspaces",
     "==gh", "logged-in adaandrade",
     "==context", `present tip=abc behind=3 dirty=0 at=${new Date().toISOString()}`, "seat:stale", "stale:",
-    "==mcpenv", JSON.stringify({ ok: true, configurados: 14, envFile: "/workspace/repos/arvore-hub/.env", faltando: {} }),
+    "==mcpenv", JSON.stringify({ ok: true, configurados: 14, envFile: "/workspace/repos/acme-hub/.env", faltando: {} }),
     "==disk", "/dev/nvme1n1 104857600 94371840 10485760 90% /workspace"
   ].join("\n");
   const items = await runChecks({ ...ctx, hasConfig: true, configText: CONFIG, hubExists: true }, {
@@ -1098,12 +1098,12 @@ test("--fix reaches for the fixes and leaves the investigations to be read", asy
 });
 
 test("checkMcpEnv names the servers whose credential is missing, as a warning: the others still answer", () => {
-  const cheio = JSON.stringify({ configurados: 14, envFile: "/workspace/repos/arvore-hub/.env", faltando: {} });
+  const cheio = JSON.stringify({ configurados: 14, envFile: "/workspace/repos/acme-hub/.env", faltando: {} });
   assert.equal(readings.checkMcpEnv(cheio, ctx).state, "ok");
 
   const vazio = JSON.stringify({
     configurados: 14,
-    envFile: "/workspace/repos/arvore-hub/.env",
+    envFile: "/workspace/repos/acme-hub/.env",
     faltando: { "pedidos-tech": ["PEDIDOS_MCP_TOKEN"], metabase: ["METABASE_API_KEY"] },
   });
   const faltando = readings.checkMcpEnv(vazio, ctx);

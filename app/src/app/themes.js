@@ -158,9 +158,9 @@ function themePreviewModel() {
     seatSay: phrase("validate publishers"),
     vars: { "--p-bg": ui.bg, "--p-panel": ui.panel, "--p-panel2": ui.panel2, "--p-line": ui.line3, "--p-txt": ui.txt, "--p-txt2": ui.txt2, "--p-txt3": ui.txt3, "--p-accent": ui.accent, "--p-signal": ui.signal, "--p-yellow": ui.yellow },
     seats: [
-      { key: "a", name: "apagar oc recebida", state: "working", say: phrase("working") },
-      { key: "b", name: "Livreiro", state: "needs", say: phrase("needs you") },
-      { key: "c", name: "explorar estorno", state: "ready", say: phrase("ready") }
+      { key: "a", name: "fix login redirect", state: "working", say: phrase("working") },
+      { key: "b", name: "checkout", state: "needs", say: phrase("needs you") },
+      { key: "c", name: "explore refunds", state: "ready", say: phrase("ready") }
     ],
     palette: THEME_CHIPS.map(([key, say]) => ({ key, name: phrase(say), value: hex6(ui[key] || "") }))
   };

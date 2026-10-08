@@ -24,15 +24,15 @@ const stage = ({ has = () => true, gitAnswers = [] } = {}) => {
 };
 
 test("a branch is named after whoever asked, so two people never collide", () => {
-  assert.equal(branchFor("joao", "front"), "joao/-/front");
+  assert.equal(branchFor("jonas", "front"), "jonas/-/front");
   assert.equal(branchFor("", "front"), "hive/-/front");
 });
 
 test("a name that could climb out of the workspace is refused before git sees it", () => {
-  assert.match(refuse({ repo: "arvore-hub", name: "../../etc" }), /name a seat can have|climb out/);
+  assert.match(refuse({ repo: "acme-hub", name: "../../etc" }), /name a seat can have|climb out/);
   assert.match(refuse({ repo: "../secrets", name: "front" }), /repository name|climb out/);
-  assert.match(refuse({ repo: "arvore-hub", name: "front", branch: "a/../../b" }), /climb out/);
-  assert.equal(refuse({ repo: "arvore-hub", name: "front", branch: "joao/-/front" }), "");
+  assert.match(refuse({ repo: "acme-hub", name: "front", branch: "a/../../b" }), /climb out/);
+  assert.equal(refuse({ repo: "acme-hub", name: "front", branch: "jonas/-/front" }), "");
 });
 
 test("a repository the server does not have is said plainly, not as a git error", async () => {
@@ -44,18 +44,18 @@ test("a repository the server does not have is said plainly, not as a git error"
 
 test("a worktree that is already there is used, and git is never called", async () => {
   const { args, calls } = stage({ has: () => true });
-  const said = await prepareWorktree({ ...args, repo: "arvore-hub", name: "front" });
-  assert.deepEqual(said, { cwd: "/workspace/worktrees/arvore-hub/front", made: false });
+  const said = await prepareWorktree({ ...args, repo: "acme-hub", name: "front" });
+  assert.deepEqual(said, { cwd: "/workspace/worktrees/acme-hub/front", made: false });
   assert.deepEqual(calls, [], "it fetched and branched over a worktree that already existed");
 });
 
 test("a fresh worktree branches off origin/main", async () => {
   const { args, calls } = stage({ has: (path) => path.endsWith(".git") });
-  const said = await prepareWorktree({ ...args, repo: "arvore-hub", name: "front", owner: "joao" });
-  assert.equal(said.cwd, "/workspace/worktrees/arvore-hub/front");
-  assert.equal(said.branch, "joao/-/front");
+  const said = await prepareWorktree({ ...args, repo: "acme-hub", name: "front", owner: "jonas" });
+  assert.equal(said.cwd, "/workspace/worktrees/acme-hub/front");
+  assert.equal(said.branch, "jonas/-/front");
   assert.match(calls[0], /fetch origin/);
-  assert.match(calls[1], /worktree add -b joao\/-\/front .* origin\/main/);
+  assert.match(calls[1], /worktree add -b jonas\/-\/front .* origin\/main/);
 });
 
 test("a repository with no origin/main still gets a worktree", async () => {
@@ -63,7 +63,7 @@ test("a repository with no origin/main still gets a worktree", async () => {
     has: (path) => path.endsWith(".git"),
     gitAnswers: [{ ok: true }, { ok: false, err: "invalid reference: origin/main" }, { ok: true }]
   });
-  const said = await prepareWorktree({ ...args, repo: "solto", name: "front", owner: "joao" });
+  const said = await prepareWorktree({ ...args, repo: "solto", name: "front", owner: "jonas" });
   assert.equal(said.made, true);
   assert.equal(calls.length, 3, "it gave up instead of trying a branch with no upstream");
 });
@@ -73,7 +73,7 @@ test("when every way fails, the reason git gave is the one reported", async () =
     has: (path) => path.endsWith(".git"),
     gitAnswers: [{ ok: true }, { ok: false, err: "fatal: a\nfatal: bad ref" }, { ok: false, err: "fatal: bad ref" }, { ok: false, err: "fatal: bad ref" }]
   });
-  const said = await prepareWorktree({ ...args, repo: "arvore-hub", name: "front" });
+  const said = await prepareWorktree({ ...args, repo: "acme-hub", name: "front" });
   assert.match(said.error, /could not make a worktree for front/);
   assert.match(said.error, /bad ref/);
 });

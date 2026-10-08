@@ -22,7 +22,7 @@ const PAGE = {
   slug: "publicar-sem-claude-ai",
   title: "Publicar sem claude.ai",
   label: "em-revisao",
-  owner: "joao",
+  owner: "jonas",
   at: 1787428353481,
   tabs: { documento: { versions: [{ n: 1, label: "em-revisao", at: 1, bytes: 15150 }] } }
 };
@@ -34,7 +34,7 @@ function shelf({ open = PAGE.slug, wide = false, full = false } = {}) {
   toldItIsReading.length = 0;
   theScreen().toggle("fullscreen", full);
   document.getElementById("shelf").hidden = false;
-  st.shelf = { repo: "https://github.com/arvoreeducacao/artefatos", me: "joao", pages: [PAGE, OTHER] };
+  st.shelf = { repo: "https://github.com/acme/artifacts", me: "jonas", pages: [PAGE, OTHER] };
   st.shelfQuery = "";
   st.shelfWho = "team";
   st.shelfState = "";

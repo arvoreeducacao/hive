@@ -7,7 +7,7 @@ const chat = (over = {}) => ({
   where: "local",
   id: "3f1c9a2e-1111-4222-8333-444455556666",
   kind: "chat",
-  cwd: "/home/dev/Arvore/arvore-hub",
+  cwd: "/home/dev/Acme/acme-hub",
   model: "",
   account: "",
   ...over
@@ -28,7 +28,7 @@ test("a hive told not to own the fleet does not own it", () => {
 });
 
 test("a dead tmux server means every restorable seat comes back", () => {
-  const seats = [chat(), chat({ name: "shipping", where: "cloud", cwd: "/workspace/worktrees/arvore-hub/shipping" })];
+  const seats = [chat(), chat({ name: "shipping", where: "cloud", cwd: "/workspace/worktrees/acme-hub/shipping" })];
   const plan = fleetPlan(seats, false, []);
   assert.strictEqual(plan.restore.length, 2);
   assert.strictEqual(plan.prune.length, 0);
@@ -108,7 +108,7 @@ test("a seat with shell metacharacters never reaches a script", () => {
 test("the local script resumes the id in the seat's cwd with its account", () => {
   const script = localRestoreScript(
     [chat({ account: "extra", model: "opus" })],
-    { hub: "/home/dev/Arvore/arvore-hub", hiveHome: "/home/dev/.hive", shell: "zsh" }
+    { hub: "/home/dev/Acme/acme-hub", hiveHome: "/home/dev/.hive", shell: "zsh" }
   );
   assert.match(script, /tmux new-session -d -s hive-local -n hub/);
   assert.match(script, /new-window -d -t hive-local -n acq-front/);
@@ -120,8 +120,8 @@ test("the local script resumes the id in the seat's cwd with its account", () =>
 
 test("the local script honours the remote-control switch and restores shells", () => {
   const script = localRestoreScript(
-    [{ name: "term", where: "local", kind: "shell", cwd: "/home/dev/Arvore/arvore-hub" }],
-    { hub: "/home/dev/Arvore/arvore-hub", hiveHome: "/home/dev/.hive", shell: "zsh", remoteControl: false }
+    [{ name: "term", where: "local", kind: "shell", cwd: "/home/dev/Acme/acme-hub" }],
+    { hub: "/home/dev/Acme/acme-hub", hiveHome: "/home/dev/.hive", shell: "zsh", remoteControl: false }
   );
   assert.match(script, /ZDOTDIR=\/home\/dev\/\.hive\/shell\/zsh exec zsh -l/);
   assert.match(script, /exec zsh -l/);
@@ -255,7 +255,7 @@ test("a seat on another agent comes back inside the login it ran on, in that age
       chat({ name: "kr", agent: "kiro", kind: "chat", account: "team" }),
       chat({ name: "km", agent: "kimi", kind: "chat", account: "" }),
     ],
-    { hub: "/home/dev/Arvore/arvore-hub", hiveHome: "/home/dev/.hive", shell: "zsh", engineDir: "/eng" }
+    { hub: "/home/dev/Acme/acme-hub", hiveHome: "/home/dev/.hive", shell: "zsh", engineDir: "/eng" }
   );
   assert.match(script, /CODEX_HOME=\/home\/dev\/\.hive\/providers\/codex\/accounts\/extra HIVE_STATE_DIR=\/home\/dev\/\.hive node \/eng\/codex-driver\.mjs/);
   assert.match(script, /XDG_DATA_HOME=\/home\/dev\/\.hive\/providers\/kiro\/accounts\/team\/share HIVE_SEAT=kr HIVE_SIDE=local/);
@@ -268,15 +268,15 @@ import { localRestorePlan } from "../lib/fleet.mjs";
 
 test("the restore plan says what to run for each seat without a shell in between", () => {
   const plan = localRestorePlan(
-    [chat({ account: "extra", model: "opus" }), { name: "term", where: "local", kind: "shell", cwd: "/home/dev/Arvore/arvore-hub" }],
-    { hub: "/home/dev/Arvore/arvore-hub", hiveHome: "/home/dev/.hive", autocompact: "80" }
+    [chat({ account: "extra", model: "opus" }), { name: "term", where: "local", kind: "shell", cwd: "/home/dev/Acme/acme-hub" }],
+    { hub: "/home/dev/Acme/acme-hub", hiveHome: "/home/dev/.hive", autocompact: "80" }
   );
   assert.equal(plan[0].program, "claude");
   assert.deepEqual(plan[0].args, ["--resume", "3f1c9a2e-1111-4222-8333-444455556666", "--dangerously-skip-permissions", "--remote-control", "acq-front", "--model", "opus", "--autocompact", "80"]);
   assert.equal(plan[0].env.CLAUDE_CONFIG_DIR, join("/home/dev/.hive", "accounts", "extra"));
   assert.equal(plan[0].env.FORCE_HYPERLINK, "1");
   assert.equal(plan[1].program, "shell");
-  assert.equal(plan[1].cwd, "/home/dev/Arvore/arvore-hub");
+  assert.equal(plan[1].cwd, "/home/dev/Acme/acme-hub");
   assert.doesNotMatch(localRestorePlan([chat()], { hub: "/h", hiveHome: "/i", remoteControl: false })[0].args.join(" "), /--remote-control/);
 });
 
@@ -303,7 +303,7 @@ test("a terminal on another agent comes back through that agent's own continue, 
 });
 
 test("a seat that lived in a Windows folder is still one this hive brings back", () => {
-  assert.equal(seatIsRestorable(chat({ cwd: "C:\\Users\\Ana Lima\\dev\\arvore-hub" })), true);
+  assert.equal(seatIsRestorable(chat({ cwd: "C:\\Users\\Ana Lima\\dev\\acme-hub" })), true);
   assert.equal(seatIsRestorable(chat({ cwd: "C:/Users/ana/dev" })), true);
   assert.equal(seatIsRestorable(chat({ cwd: "C:\\Users\\ana; rm -rf /" })), false);
 });

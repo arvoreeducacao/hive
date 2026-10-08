@@ -436,9 +436,9 @@ test("searchTools casa toda palavra no servidor, no nome ou na descrição, e p�
   assert.equal(searchTools(catalog, "", 2).total, 3);
   assert.equal(searchTools(catalog, "", 2).tools.length, 2);
   assert.equal(reachesRepo("*", ""), true);
-  assert.equal(reachesRepo(["arvore", { repo: "api-arvore", path: "x" }], "api-arvore"), true);
-  assert.equal(reachesRepo(["arvore"], "leaf"), false);
-  assert.equal(reachesRepo("arvore", "arvore"), true);
+  assert.equal(reachesRepo(["acme", { repo: "api", path: "x" }], "api"), true);
+  assert.equal(reachesRepo(["acme"], "leaf"), false);
+  assert.equal(reachesRepo("acme", "acme"), true);
 });
 
 test("o /mcp/hub lista e procura sem acordar ninguém, e o mcp_call acorda só o servidor chamado", async (t) => {

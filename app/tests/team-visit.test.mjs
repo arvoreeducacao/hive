@@ -14,7 +14,7 @@ const VISIT = server.slice(a, b);
 
 const EMPTY = { me: "", devs: [], at: 0 };
 
-function visit({ dev = "joao", devs = [], calls = [] }) {
+function visit({ dev = "jonas", devs = [], calls = [] }) {
   const made = new Function("DEV", "emptyTeam", "teamCache", "readTeam",
     VISIT + "return { readHive };")(
       dev,
@@ -26,25 +26,25 @@ function visit({ dev = "joao", devs = [], calls = [] }) {
 }
 
 test("visiting a hive that is up asks the server for a fresh board", async () => {
-  const it = visit({ devs: [{ dev: "vitor", pod: "ws-vitor-0", up: true }] });
-  const said = await it.readHive("vitor");
+  const it = visit({ devs: [{ dev: "vini", pod: "ws-vini-0", up: true }] });
+  const said = await it.readHive("vini");
 
   assert.equal(said.at, 2, "the visit did not come back with a board");
   assert.deepEqual(it.calls, [true], "a hive that is up must be read fresh, not from the cache");
 });
 
 test("visiting a hive that is asleep or unknown settles for what is cached", async () => {
-  const asleep = visit({ devs: [{ dev: "vitor", pod: "ws-vitor-0", up: false }] });
-  await asleep.readHive("vitor");
+  const asleep = visit({ devs: [{ dev: "vini", pod: "ws-vini-0", up: false }] });
+  await asleep.readHive("vini");
   assert.deepEqual(asleep.calls, [false], "a sleeping hive does not deserve a round trip");
 
-  const stranger = visit({ devs: [{ dev: "vitor", pod: "ws-vitor-0", up: true }] });
+  const stranger = visit({ devs: [{ dev: "vini", pod: "ws-vini-0", up: true }] });
   await stranger.readHive("rafael");
   assert.deepEqual(stranger.calls, [false], "a name the board never mentioned does not deserve a round trip");
 });
 
 test("a machine that is nobody's hive has no team to visit", async () => {
-  const it = visit({ dev: "", devs: [{ dev: "vitor", pod: "ws-vitor-0", up: true }] });
-  assert.deepEqual(await it.readHive("vitor"), EMPTY);
+  const it = visit({ dev: "", devs: [{ dev: "vini", pod: "ws-vini-0", up: true }] });
+  assert.deepEqual(await it.readHive("vini"), EMPTY);
   assert.deepEqual(it.calls, []);
 });

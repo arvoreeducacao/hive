@@ -6,7 +6,7 @@ const { artifactPublish, artifactSaid, artifactFace } = await app("subagents-doc
 
 const ON_THE_SHELF = `on the shelf as "Publicar sem claude.ai" · documento v1 · in-review · pushed to the team's repo
 hive://shelf/publicar-sem-claude-ai?tab=documento&v=1 — this is the link to announce: it opens the page inside the hive, for anyone on the team
-https://github.com/arvoreeducacao/artefatos/blob/HEAD/a/publicar-sem-claude-ai/documento.v1.html — the file in the repo, source only; post it to no one`;
+https://github.com/acme/artifacts/blob/HEAD/a/publicar-sem-claude-ai/documento.v1.html — the file in the repo, source only; post it to no one`;
 
 const NO_ADDRESS = `the page is kept on this machine, but the shelf refused it: no reason given`;
 

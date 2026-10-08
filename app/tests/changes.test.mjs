@@ -29,7 +29,7 @@ async function repo() {
   git(at, "add", ".");
   git(at, "commit", "-qm", "first");
   git(at, "branch", "-q", "base-line");
-  git(at, "checkout", "-q", "-b", "joao/-/liquid");
+  git(at, "checkout", "-q", "-b", "jonas/-/liquid");
   git(at, "update-ref", "refs/remotes/origin/main", "base-line");
   await writeFile(join(at, "src", "later.ts"), "later\n");
   git(at, "add", ".");
@@ -72,7 +72,7 @@ test("the changes route lists what the worktree changed, with counts, and the co
   assert.equal(status, 200);
   assert.equal(value.state, "ok");
   assert.equal(value.repo, "api");
-  assert.equal(value.branch, "joao/-/liquid");
+  assert.equal(value.branch, "jonas/-/liquid");
   assert.equal(value.base, "origin/main");
   const byPath = Object.fromEntries(value.files.map((file) => [file.path, file]));
   assert.deepEqual(Object.keys(byPath).sort(), ["cover.png", "src/gone.ts", "src/new file.ts", "src/sum.ts"]);

@@ -20,7 +20,7 @@ bootSolid();
 document.body.classList.add("experience-raycast");
 document.dispatchEvent(new CustomEvent("hive:experience", { detail: { experience: "raycast", was: "current" } }));
 
-const seat = (name, extra = {}) => ({ name, title: name.replace(/-/g, " "), where: "local", state: "idle", kind: "chat", model: "Opus 5.5", trees: [{ repo: "arvore-hub", branch: "", main: true }], ...extra });
+const seat = (name, extra = {}) => ({ name, title: name.replace(/-/g, " "), where: "local", state: "idle", kind: "chat", model: "Opus 5.5", trees: [{ repo: "acme-hub", branch: "", main: true }], ...extra });
 
 function lay(blocks, extra = {}) {
   st.LIMIT = 6;
@@ -106,7 +106,7 @@ test("every seat of the block gets a pane with the real tile inside, a title on 
   assert.equal(tiles.get("g")?.isConnected ?? false, false, "a seat of another block stays out of view");
   assert.equal(shown[0].querySelector(".ck-pn").textContent, "1");
   assert.equal(shown[0].querySelector(".ck-pt").textContent, "a");
-  assert.equal(shown[0].querySelector(".ck-pm").textContent, "arvore-hub · main");
+  assert.equal(shown[0].querySelector(".ck-pm").textContent, "acme-hub · main");
   assert.equal(shown[0].classList.contains("on"), true, "the focused seat wears the outline");
   assert.equal(shown[1].classList.contains("on"), false);
   assert.match(shown[1].querySelector(".ck-sl").textContent, /working/);

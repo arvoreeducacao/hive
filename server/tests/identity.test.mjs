@@ -21,12 +21,12 @@ function ask(me, { method = "POST", path = "/api/say", body = "", audience = "SH
 }
 
 test("a fresh identity round-trips through the openssh format", () => {
-  const me = newIdentity("joao@mac");
-  assert.match(me.publicSsh, /^ssh-ed25519 [A-Za-z0-9+/=]+ joao@mac$/);
+  const me = newIdentity("jonas@mac");
+  assert.match(me.publicSsh, /^ssh-ed25519 [A-Za-z0-9+/=]+ jonas@mac$/);
   assert.match(me.fingerprint, /^SHA256:[A-Za-z0-9+/]{43}$/);
   const raw = rawFromSsh(me.publicSsh);
   assert.equal(raw.length, 32);
-  assert.equal(sshFromRaw(raw, "joao@mac"), me.publicSsh);
+  assert.equal(sshFromRaw(raw, "jonas@mac"), me.publicSsh);
   assert.ok(publicKeyOf(me.publicSsh));
 });
 
@@ -44,11 +44,11 @@ test("the fingerprint is the one ssh-keygen prints", () => {
 });
 
 test("a public key we generated is one ssh-keygen accepts in allowed_signers", () => {
-  const me = newIdentity("joao@mac");
+  const me = newIdentity("jonas@mac");
   const dir = mkdtempSync(join(tmpdir(), "hive-signers-"));
   try {
     const signers = join(dir, "allowed_signers");
-    writeFileSync(signers, `joao ${me.publicSsh.split(" ").slice(0, 2).join(" ")}\n`);
+    writeFileSync(signers, `jonas ${me.publicSsh.split(" ").slice(0, 2).join(" ")}\n`);
     const back = readFileSync(signers, "utf8");
     assert.ok(rawFromSsh(back.split(" ").slice(1).join(" ")));
     execFileSync("ssh-keygen", ["-l", "-f", signers], { encoding: "utf8" });

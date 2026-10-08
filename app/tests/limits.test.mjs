@@ -15,22 +15,22 @@ const answer = (limits) => ({
 });
 
 test("the default account keeps the plain keychain name and a named one is hashed by its config dir", () => {
-  const dir = join(HIVE, "accounts", "arvore");
+  const dir = join(HIVE, "accounts", "acme");
   assert.equal(keychainService(""), KEYCHAIN_SERVICE);
   assert.equal(keychainService(dir), `${KEYCHAIN_SERVICE}-${createHash("sha256").update(dir).digest("hex").slice(0, 8)}`);
   assert.equal(accountConfigDir(HIVE, "default"), "");
-  assert.equal(accountConfigDir(HIVE, "arvore"), dir);
+  assert.equal(accountConfigDir(HIVE, "acme"), dir);
   assert.equal(credentialsFile("", CLAUDE), join(CLAUDE, ".credentials.json"));
-  assert.equal(credentialsFile(join(HIVE, "accounts", "arvore"), CLAUDE), join(HIVE, "accounts", "arvore", ".credentials.json"));
+  assert.equal(credentialsFile(join(HIVE, "accounts", "acme"), CLAUDE), join(HIVE, "accounts", "acme", ".credentials.json"));
 });
 
 test("the machine's accounts are the default one plus every folder under the hive, and a machine with none still has the default", async () => {
   const entries = [
-    { name: "arvore", isDirectory: () => true },
+    { name: "acme", isDirectory: () => true },
     { name: "spent.json", isDirectory: () => false },
     { name: "Not A Name", isDirectory: () => true }
   ];
-  assert.deepEqual(await accountsOnThisMachine(HIVE, { list: async () => entries }), ["default", "arvore"]);
+  assert.deepEqual(await accountsOnThisMachine(HIVE, { list: async () => entries }), ["default", "acme"]);
   assert.deepEqual(await accountsOnThisMachine(HIVE, { list: async () => { throw new Error("no folder"); } }), ["default"]);
 });
 
@@ -113,11 +113,11 @@ test("every account on the machine is asked, and one that fails does not take th
   const rows = await limitsPerAccount({
     home: HIVE,
     claudeHome: CLAUDE,
-    accounts: ["default", "arvore", "never-signed-in"],
+    accounts: ["default", "acme", "never-signed-in"],
     platform: "darwin",
     keychain: async (service) => {
       if (service === KEYCHAIN_SERVICE) return credentials("default-token");
-      if (service === keychainService(join(HIVE, "accounts", "arvore"))) return credentials("arvore-token");
+      if (service === keychainService(join(HIVE, "accounts", "acme"))) return credentials("acme-token");
       throw new Error("no such entry");
     },
     readText: async () => { throw new Error("no file"); },
@@ -127,7 +127,7 @@ test("every account on the machine is asked, and one that fails does not take th
         : { ok: false, status: 500 }
   });
 
-  assert.deepEqual(rows.map((row) => row.account), ["default", "arvore", "never-signed-in"]);
+  assert.deepEqual(rows.map((row) => row.account), ["default", "acme", "never-signed-in"]);
   assert.equal(rows[0].limits.length, 2);
   assert.deepEqual(rows[1].limits, []);
   assert.match(rows[1].error, /500/);
@@ -136,9 +136,9 @@ test("every account on the machine is asked, and one that fails does not take th
 
 test("the account with the least room comes first, and the model-scoped limit never decides it", () => {
   const roomy = { account: "default", limits: [{ kind: "session", percent: 27 }, { kind: "weekly_all", percent: 55 }] };
-  const dry = { account: "arvore", limits: [{ kind: "session", percent: 100 }, { kind: "weekly_all", percent: 77 }] };
+  const dry = { account: "acme", limits: [{ kind: "session", percent: 100 }, { kind: "weekly_all", percent: 77 }] };
   const scoped = { account: "third", limits: [{ kind: "session", percent: 10 }, { kind: "weekly_scoped", percent: 99, model: "Fable" }] };
-  assert.equal(tightestAccount([roomy, dry, scoped]).account, "arvore");
+  assert.equal(tightestAccount([roomy, dry, scoped]).account, "acme");
   assert.equal(tightestAccount([roomy, scoped]).account, "default");
   assert.equal(tightestAccount([{ account: "nobody", limits: [] }]), null);
   assert.equal(tightestAccount([]), null);
@@ -148,12 +148,12 @@ test("an account at 100% is handed to the rotation with the hour it comes back",
   const now = Date.parse("2026-08-28T22:00:00Z");
   const dry = dryAccounts([
     { account: "default", limits: [{ kind: "session", percent: 34, resets_at: "2026-08-29T05:00:00Z" }] },
-    { account: "arvore", limits: [
+    { account: "acme", limits: [
       { kind: "session", percent: 100, resets_at: "2026-08-29T04:00:00Z" },
       { kind: "weekly_all", percent: 77, resets_at: "2026-08-30T17:00:00Z" }
     ] }
   ], { now });
-  assert.deepEqual(dry.map((one) => one.account), ["arvore"]);
+  assert.deepEqual(dry.map((one) => one.account), ["acme"]);
   assert.equal(dry[0].until, Date.parse("2026-08-29T04:00:00Z"));
   assert.match(dry[0].says, /five-hour window/);
 });
@@ -161,7 +161,7 @@ test("an account at 100% is handed to the rotation with the hour it comes back",
 test("a login out of both windows only comes back when the later one does", () => {
   const now = Date.parse("2026-08-28T22:00:00Z");
   const [dry] = dryAccounts([
-    { account: "arvore", limits: [
+    { account: "acme", limits: [
       { kind: "session", percent: 100, resets_at: "2026-08-29T04:00:00Z" },
       { kind: "weekly_all", percent: 100, resets_at: "2026-08-30T17:00:00Z" }
     ] }
@@ -173,20 +173,20 @@ test("a login out of both windows only comes back when the later one does", () =
 test("an hour that has already passed is not handed over, so nobody parks the fleet on a login that is back", () => {
   const now = Date.parse("2026-08-29T06:00:00Z");
   assert.deepEqual(dryAccounts([
-    { account: "arvore", limits: [{ kind: "session", percent: 100, resets_at: "2026-08-29T04:00:00Z" }] }
+    { account: "acme", limits: [{ kind: "session", percent: 100, resets_at: "2026-08-29T04:00:00Z" }] }
   ], { now }), []);
 });
 
 test("a full window with no hour on it is still handed over, and the rotation waits for a real refusal", () => {
   const [dry] = dryAccounts([
-    { account: "arvore", limits: [{ kind: "session", percent: 100, resets_at: "" }] }
+    { account: "acme", limits: [{ kind: "session", percent: 100, resets_at: "" }] }
   ]);
   assert.equal(dry.until, 0);
 });
 
 test("the model-scoped week never dries an account, and 99% is not dry", () => {
   assert.deepEqual(dryAccounts([
-    { account: "arvore", limits: [
+    { account: "acme", limits: [
       { kind: "session", percent: 99, resets_at: "2026-08-29T04:00:00Z" },
       { kind: "weekly_scoped", percent: 100, model: "Fable", resets_at: "2026-08-30T17:00:00Z" }
     ] }
@@ -218,14 +218,14 @@ test("a refusal with no retry-after still waits, and an ordinary failure does no
 test("a login inside its wait is not asked at all, so the app stops feeding the refusal", async () => {
   let asked = 0;
   const how = {
-    home: "/h", claudeHome: "/h/.claude", accounts: ["default", "arvore"],
+    home: "/h", claudeHome: "/h/.claude", accounts: ["default", "acme"],
     platform: "linux", readText: async () => JSON.stringify({ claudeAiOauth: { accessToken: "t" } }),
     ask: async () => { asked += 1; return { ok: true, status: 200, json: async () => ({ limits: [{ kind: "session", percent: 4 }] }) }; },
-    waiting: (account) => (account === "arvore" ? Date.parse("2026-08-29T11:00:00Z") : 0)
+    waiting: (account) => (account === "acme" ? Date.parse("2026-08-29T11:00:00Z") : 0)
   };
   const rows = await limitsPerAccount(how);
   assert.equal(asked, 1, "only the login that is not waiting is asked");
-  assert.deepEqual(rows[1], { account: "arvore", signedIn: true, limits: [], until: Date.parse("2026-08-29T11:00:00Z"), error: "" });
+  assert.deepEqual(rows[1], { account: "acme", signedIn: true, limits: [], until: Date.parse("2026-08-29T11:00:00Z"), error: "" });
   assert.equal(rows[0].signedIn, true);
 });
 
@@ -240,28 +240,28 @@ test("a login nobody signed into is marked as such instead of looking like a fai
 test("a login that goes quiet keeps the numbers it last gave, stamped with when they were read", () => {
   let wall = Date.parse("2026-08-29T10:00:00Z");
   const plans = createPlanMemory({ now: () => wall });
-  const answered = [{ provider: "claude", account: "arvore", signedIn: true, limits: [{ kind: "session", percent: 12 }] }];
+  const answered = [{ provider: "claude", account: "acme", signedIn: true, limits: [{ kind: "session", percent: 12 }] }];
   assert.deepEqual(plans.remember(answered), answered, "a fresh answer passes straight through");
 
   wall += 60000;
-  const quiet = plans.remember([{ provider: "claude", account: "arvore", signedIn: true, limits: [], until: wall + 3600000 }]);
+  const quiet = plans.remember([{ provider: "claude", account: "acme", signedIn: true, limits: [], until: wall + 3600000 }]);
   assert.deepEqual(quiet[0].limits, [{ kind: "session", percent: 12 }]);
   assert.equal(quiet[0].stale, Date.parse("2026-08-29T10:00:00Z"));
-  assert.equal(plans.waiting("claude", "arvore"), wall + 3600000);
+  assert.equal(plans.waiting("claude", "acme"), wall + 3600000);
 });
 
 test("the wait is over once its moment passes, and a login that signs out is forgotten", () => {
   let wall = Date.parse("2026-08-29T10:00:00Z");
   const plans = createPlanMemory({ now: () => wall });
-  plans.remember([{ provider: "claude", account: "arvore", signedIn: true, limits: [{ kind: "session", percent: 12 }] }]);
-  plans.remember([{ provider: "claude", account: "arvore", signedIn: true, limits: [], until: wall + 1000 }]);
-  assert.equal(plans.waiting("claude", "arvore"), wall + 1000);
+  plans.remember([{ provider: "claude", account: "acme", signedIn: true, limits: [{ kind: "session", percent: 12 }] }]);
+  plans.remember([{ provider: "claude", account: "acme", signedIn: true, limits: [], until: wall + 1000 }]);
+  assert.equal(plans.waiting("claude", "acme"), wall + 1000);
   wall += 2000;
-  assert.equal(plans.waiting("claude", "arvore"), 0);
+  assert.equal(plans.waiting("claude", "acme"), 0);
 
-  const out = plans.remember([{ provider: "claude", account: "arvore", signedIn: false, limits: [], error: "not signed in" }]);
+  const out = plans.remember([{ provider: "claude", account: "acme", signedIn: false, limits: [], error: "not signed in" }]);
   assert.deepEqual(out[0].limits, [], "nothing is remembered for a login that is gone");
-  const back = plans.remember([{ provider: "claude", account: "arvore", signedIn: true, limits: [] }]);
+  const back = plans.remember([{ provider: "claude", account: "acme", signedIn: true, limits: [] }]);
   assert.deepEqual(back[0].limits, []);
 });
 

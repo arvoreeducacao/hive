@@ -27,7 +27,7 @@ const roomy = {
 };
 
 const dry = {
-  account: "arvore",
+  account: "acme",
   provider: "claude",
   signedIn: true,
   label: "Claude",
@@ -69,13 +69,13 @@ test("every login signed in gets its own meter, whatever is running on it", () =
 });
 
 test("two logins of the same agent are told apart by name", () => {
-  const foot = bar([roomy, dry, codex], "arvore");
-  assert.deepEqual(foot.accounts.map((one) => one.who), ["default", "arvore", ""]);
-  assert.deepEqual(foot.accounts.map((one) => one.key), ["claude/default", "claude/arvore", "codex/default"]);
+  const foot = bar([roomy, dry, codex], "acme");
+  assert.deepEqual(foot.accounts.map((one) => one.who), ["default", "acme", ""]);
+  assert.deepEqual(foot.accounts.map((one) => one.key), ["claude/default", "claude/acme", "codex/default"]);
 });
 
 test("every number carries its own track, filled to that number and nothing else", () => {
-  const foot = bar([roomy, dry], "arvore");
+  const foot = bar([roomy, dry], "acme");
   assert.deepEqual(foot.accounts.map((one) => one.parts.map((part) => [part.pct, part.width])), [
     [["27%", "27%"], ["55%", "55%"]],
     [["100%", "100%"], ["77%", "77%"]]
@@ -101,18 +101,18 @@ test("a login nobody signed into never shows up, and with none signed in the bar
   assert.deepEqual(empty.accounts, []);
 });
 
-const refused = { account: "arvore", provider: "claude", signedIn: true, label: "Claude", limits: [], until: Date.parse("2026-08-29T11:20:00Z") };
+const refused = { account: "acme", provider: "claude", signedIn: true, label: "Claude", limits: [], until: Date.parse("2026-08-29T11:20:00Z") };
 
 test("a login the plan will not answer for keeps its place on the bar, with a dash where the number was", () => {
   const foot = bar([roomy, refused], "default");
-  assert.deepEqual(foot.accounts.map((one) => one.who), ["default", "arvore"], "the login is still there to be seen");
+  assert.deepEqual(foot.accounts.map((one) => one.who), ["default", "acme"], "the login is still there to be seen");
   const quiet = foot.accounts[1];
   assert.equal(quiet.quiet, true);
   assert.deepEqual(quiet.parts, [{ key: "quiet", k: "", heat: "", pct: "—", width: "0%" }]);
 });
 
 test("numbers the server remembered are shown, dimmed, and say when they were read", () => {
-  const kept = { ...roomy, account: "arvore", stale: Date.parse("2026-08-29T09:12:00Z"), until: Date.parse("2026-08-29T11:20:00Z") };
+  const kept = { ...roomy, account: "acme", stale: Date.parse("2026-08-29T09:12:00Z"), until: Date.parse("2026-08-29T11:20:00Z") };
   const foot = bar([roomy, kept], "default");
   const old = foot.accounts[1];
   assert.equal(old.quiet, true, "remembered numbers are not fresh ones");
@@ -134,20 +134,20 @@ test("a login is named by its agent only when there is more than one agent on th
 });
 
 test("the tooltip names every login, its windows and when they come back", () => {
-  const foot = bar([roomy, dry], "arvore");
+  const foot = bar([roomy, dry], "acme");
   const said = limitChipTitle([roomy, dry]).split("\n");
   assert.equal(said.length, 3);
   assert.match(said[0], /^default — current session 27% \(resets .+\) · current week · all models 55%/);
-  assert.match(said[1], /^arvore — current session 100%/);
+  assert.match(said[1], /^acme — current session 100%/);
   assert.ok(!said.join("\n").includes("Fable"), "the model-scoped week does not belong on the bar");
   assert.equal(said[2], "click for the whole picture");
   assert.equal(foot.title, said.join("\n"));
 });
 
 test("the popover carries one block per login, each window with its meter and its reset", () => {
-  bar([roomy, dry], "arvore");
+  bar([roomy, dry], "acme");
   const pop = limPopViewModel();
-  assert.deepEqual(pop.accounts.map((one) => one.account), ["default", "arvore"]);
+  assert.deepEqual(pop.accounts.map((one) => one.account), ["default", "acme"]);
   assert.ok(pop.accounts.every((one) => one.named));
   assert.deepEqual(pop.accounts[0].limits.map((one) => one.label), ["current session", "current week · all models", "current week · Fable"]);
   assert.equal(pop.accounts[0].limits[0].pct, "27% used");
@@ -177,7 +177,7 @@ test("the popover carries the reason a login is quiet, and the age of what it ke
   assert.deepEqual(quiet.limits, []);
   assert.match(quiet.note, /^the plan is not answering — back .+/);
 
-  bar([roomy, { ...roomy, account: "arvore", stale: Date.parse("2026-08-29T09:12:00Z") }], "default");
+  bar([roomy, { ...roomy, account: "acme", stale: Date.parse("2026-08-29T09:12:00Z") }], "default");
   const kept = limPopViewModel().accounts[1];
   assert.equal(kept.limits.length, 3);
   assert.match(kept.note, /^last answer .+/);

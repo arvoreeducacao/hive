@@ -49,8 +49,8 @@ const fleet = [
   { name: "a-estante", where: "local", state: "working", model: "", title: "a estante", now: "publicando", structured: true }
 ];
 
-const team = { me: "joao", sharing: true, machines: false, devs: [
-  { dev: "ricardo", up: true, sharing: true, seats: ["x"] },
+const team = { me: "jonas", sharing: true, machines: false, devs: [
+  { dev: "renato", up: true, sharing: true, seats: ["x"] },
   { dev: "rafael", up: false, sharing: false, seats: [] }
 ] };
 
@@ -58,11 +58,11 @@ test("a person's name offers itself in an empty chat, and enter picks it instead
   st.team = team;
   const b = bench();
   type(b.box, "fala com ~r");
-  assert.deepEqual(rows(b), ["ricardo", "rafael"], "everyone on the team who is not me, the one with the hive open first");
+  assert.deepEqual(rows(b), ["renato", "rafael"], "everyone on the team who is not me, the one with the hive open first");
   assert.equal(b.suggest.hidden, false);
   const enter = press(b.box, "Enter");
   assert.ok(enter.defaultPrevented);
-  assert.equal(b.box.value, "fala com ~ricardo ");
+  assert.equal(b.box.value, "fala com ~renato ");
   assert.equal(b.suggest.hidden, true);
   assert.ok(!b.asked.some((one) => one.url === "/api/spawn"), "enter on an open menu must not open the chat");
   shut(b);

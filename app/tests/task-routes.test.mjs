@@ -153,7 +153,7 @@ test("a group is created on the shelf, and its tasks reach its people", async ()
   const seen = await h.call("GET", "/api/tasks");
   assert.deepEqual(seen.value.tasks.map((one) => one.text), ["revisar o RFC"]);
   assert.equal(seen.value.groups.length, 1);
-  h.state.me = "joao";
+  h.state.me = "jonas";
   assert.deepEqual((await h.call("GET", "/api/tasks")).value.tasks, []);
 });
 
@@ -171,7 +171,7 @@ test("a group picture is kept beside the group and served back, and a data url n
 test("someone outside a group cannot rename it", async () => {
   const h = harness();
   const made = await h.call("POST", "/api/tasks/groups", { name: "Leitura" });
-  h.state.me = "joao";
+  h.state.me = "jonas";
   const edited = await h.call("POST", "/api/tasks/groups/edit", { id: made.value.group.id, name: "meu" });
   assert.equal(edited.status, 403);
 });

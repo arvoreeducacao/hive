@@ -60,7 +60,7 @@ test("sending the draft asks for the picker before anything spawns", () => {
 });
 
 test("the first message travels with every choice the draft holds", () => {
-  const d = { where: "local", kind: "structured", repo: "arvore", branch: "main", e: { agent: "opencode", model: "anthropic/claude-x", account: "work" } };
+  const d = { where: "local", kind: "structured", repo: "acme", branch: "main", e: { agent: "opencode", model: "anthropic/claude-x", account: "work" } };
   assert.deepEqual(helpers.spawnPayloadOf(d, "conserta o login"), {
     name: "", prompt: "conserta o login", images: [], where: "local", model: "anthropic/claude-x", agent: "opencode",
     structured: true, account: "work", repo: "", branch: ""
@@ -68,9 +68,9 @@ test("the first message travels with every choice the draft holds", () => {
 });
 
 test("a cloud draft carries repo and branch and leaves the local account behind", () => {
-  const d = { where: "cloud", kind: "terminal", repo: " api-arvore ", branch: "main", e: { agent: "claude", model: "", account: "work" } };
+  const d = { where: "cloud", kind: "terminal", repo: " api ", branch: "main", e: { agent: "claude", model: "", account: "work" } };
   assert.deepEqual(helpers.spawnPayloadOf(d, "x"), {
-    name: "", prompt: "x", images: [], where: "cloud", model: "", agent: "claude", structured: false, account: "", repo: "api-arvore", branch: "main"
+    name: "", prompt: "x", images: [], where: "cloud", model: "", agent: "claude", structured: false, account: "", repo: "api", branch: "main"
   });
 });
 

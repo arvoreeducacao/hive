@@ -101,9 +101,9 @@ test("what came back offers I saw this, and says so even when there is no PR to 
 });
 
 test("a PR link is shortened to repo#number, and anything else keeps its url", () => {
-  const one = errand("pr", { prs: ["https://github.com/arvoreeducacao/dev-workspaces/pull/702", "https://x/y"] });
+  const one = errand("pr", { prs: ["https://github.com/acme/hive/pull/702", "https://x/y"] });
   const [line] = dayModel({ ...emptyDay, cameBack: [one] }).brief.lines;
-  assert.deepEqual(line.acts.links.map((l) => l.say), ["dev-workspaces#702", "https://x/y"]);
+  assert.deepEqual(line.acts.links.map((l) => l.say), ["hive#702", "https://x/y"]);
 });
 
 test("the greeting counts everything and bolds what is waiting on you", () => {
@@ -161,7 +161,7 @@ const prList = (over = {}) => {
   return prListViewModel();
 };
 
-const pull = (over = {}) => ({ key: "k1", repo: "arvore/api", number: 7, title: "a pr", state: "open", ci: "passed", ...over });
+const pull = (over = {}) => ({ key: "k1", repo: "acme/api", number: 7, title: "a pr", state: "open", ci: "passed", ...over });
 
 test("an empty queue says so instead of drawing an empty list", () => {
   const model = prList({ prs: [] });
@@ -242,10 +242,10 @@ test("a pr that could not be read shows its head and the trouble, and nothing el
 
 test("the head links to the pr, says who wrote it and how much it moves", () => {
   const model = prMid({
-    prs: [pull({ url: "https://github.com/arvore/api/pull/7", author: "ada", files: 3, added: 10, removed: 2, branch: "x", base: "main" })],
+    prs: [pull({ url: "https://github.com/acme/api/pull/7", author: "ada", files: 3, added: 10, removed: 2, branch: "x", base: "main" })],
     openPr: "k1"
   });
-  assert.deepEqual(model.head.link, { href: "https://github.com/arvore/api/pull/7", say: "api#7" });
+  assert.deepEqual(model.head.link, { href: "https://github.com/acme/api/pull/7", say: "api#7" });
   assert.equal(model.head.notes[0].say, "by ada");
   assert.match(model.head.notes[1].html, /\+10/);
   assert.match(model.head.notes[1].html, /-2/);
@@ -337,12 +337,12 @@ test("the gauge fills with what you read and speaks up once the sitting is long 
 
 const PAGE = {
   slug: "publicar-sem-claude-ai", title: "Publicar sem claude.ai", label: "in-review",
-  owner: "joao", at: 1787428353481, description: "como a estante publica",
+  owner: "jonas", at: 1787428353481, description: "como a estante publica",
   tabs: { documento: { versions: [{ n: 1, label: "draft" }, { n: 2, label: "in-review" }] } }
 };
 
 const shelfWorld = (over = {}) => {
-  st.shelf = over.shelf || { me: "joao", repo: "https://github.com/arvoreeducacao/artefatos", pages: [PAGE] };
+  st.shelf = over.shelf || { me: "jonas", repo: "https://github.com/acme/artifacts", pages: [PAGE] };
   st.shelfWho = over.shelfWho ?? "team";
   st.shelfState = over.shelfState ?? "";
   st.shelfShut = over.shelfShut || new Set();
@@ -368,7 +368,7 @@ test("a shelf with no repo explains how to point it at one, in html so the code 
 test("filters that match nothing are told apart from a shelf nobody has published to", () => {
   const filtered = gallery({ shelfState: "decided" });
   assert.match(filtered.blank.say, /Nothing here with those filters/);
-  const fresh = gallery({ shelf: { me: "joao", repo: "https://github.com/x/y", pages: [] } });
+  const fresh = gallery({ shelf: { me: "jonas", repo: "https://github.com/x/y", pages: [] } });
   assert.match(fresh.blank.say, /the first page you publish lands here/);
 });
 
@@ -400,7 +400,7 @@ test("a band that is folded shut keeps its count and paints no card", () => {
 });
 
 test("a page that was closed is marked shut so the card can grey itself out", () => {
-  const model = gallery({ shelf: { me: "joao", repo: "https://github.com/x/y", pages: [{ ...PAGE, label: "closed" }] } });
+  const model = gallery({ shelf: { me: "jonas", repo: "https://github.com/x/y", pages: [{ ...PAGE, label: "closed" }] } });
   assert.equal(model.bands[0].cards[0].shut, "yes");
 });
 
@@ -413,7 +413,7 @@ const worktrees = (over = {}) => {
   return worktreesViewModel();
 };
 
-const tree = (over = {}) => ({ path: "/w/one", repo: "arvore/api", branch: "b1", bytes: 1000, touched: 1, idle: true, ...over });
+const tree = (over = {}) => ({ path: "/w/one", repo: "acme/api", branch: "b1", bytes: 1000, touched: 1, idle: true, ...over });
 
 test("before the first read the worktree screen says it is asking, with no numbers to show", () => {
   const model = worktrees();
@@ -501,7 +501,7 @@ test("a config that did not load says where it is and what went wrong", () => {
 test("a manifest that read carries its counts, and every skill and mcp says which side it is missing from", () => {
   const model = workspace({
     wsState: {
-      state: "read", name: "arvore-hub", path: "hive.json",
+      state: "read", name: "acme-hub", path: "hive.json",
       repos: [{ name: "extra", declared: false, cloned: true, branch: "main" }, { name: "api", declared: true, cloned: true, branch: "main" }],
       skills: [
         { name: "delivery", declared: true, onDisk: true, scoped: false },
@@ -510,7 +510,7 @@ test("a manifest that read carries its counts, and every skill and mcp says whic
       ],
       mcps: [
         { name: "linear", declared: true, wired: true, gateway: false, remote: true, scoped: false },
-        { name: "arvore-mysql", declared: true, wired: true, gateway: true, remote: false, scoped: true },
+        { name: "acme-mysql", declared: true, wired: true, gateway: true, remote: false, scoped: true },
         { name: "criar-postgresql", declared: true, wired: false, gateway: false, remote: false, scoped: true },
         { name: "sentry", declared: false, wired: true, gateway: true, remote: false, scoped: false }
       ],
@@ -530,7 +530,7 @@ test("a manifest that read carries its counts, and every skill and mcp says whic
   assert.equal(model.skillsLine, "1 in step");
   assert.deepEqual(model.skills.map((s) => [s.name, s.shape, s.scoped]), [["delivery", "", false]]);
   assert.equal(model.mcpsLine, "2 through the gateway · 1 remote");
-  assert.deepEqual(model.mcps.map((m) => m.name), ["linear", "arvore-mysql"]);
+  assert.deepEqual(model.mcps.map((m) => m.name), ["linear", "acme-mysql"]);
   assert.match(model.mcps[0].html, /^linear<svg[\s\S]*#i-cloud/);
   assert.doesNotMatch(model.mcps[0].html, /<em>/);
   assert.match(model.mcps[1].html, /i-swap/);
@@ -660,7 +660,7 @@ test("before the door answers there is nothing to draw, and a door that is shut 
 test("the count adds the devices, the people who came in, and where the door listens", () => {
   const model = door({
     portaria: {
-      door: "cloud", devices: [phone()], peers: [{ fingerprint: "SHA256:vitor", name: "vitor", fromFile: false }, { fingerprint: "SHA256:f", fromFile: true }],
+      door: "cloud", devices: [phone()], peers: [{ fingerprint: "SHA256:vini", name: "vini", fromFile: false }, { fingerprint: "SHA256:f", fromFile: true }],
       invites: [], used: []
     }
   });
@@ -1219,10 +1219,10 @@ test("the mcp form switches between url and command, and the skill form asks for
   st.wsAdd.kind = "stdio";
   assert.deepEqual(workspace({ wsState: read }).add.fields.map((f) => f.field), ["name", "command", "env", "scope"]);
 
-  st.wsAdd = { what: "skill", name: "copy-check-mobile", description: "Copy no app.", scope: "mobiarvorev3", plan: null, error: "", busy: false, block: {} };
+  st.wsAdd = { what: "skill", name: "copy-check-mobile", description: "Copy no app.", scope: "mobile-app", plan: null, error: "", busy: false, block: {} };
   const skill = workspace({ wsState: read }).add;
   assert.equal(skill.kinds, null);
-  assert.deepEqual(skill.fields.map((f) => [f.field, f.value]), [["name", "copy-check-mobile"], ["description", "Copy no app."], ["scope", "mobiarvorev3"]]);
+  assert.deepEqual(skill.fields.map((f) => [f.field, f.value]), [["name", "copy-check-mobile"], ["description", "Copy no app."], ["scope", "mobile-app"]]);
   assert.equal(skill.applySay, "write");
 
   st.wsAdd.plan = { name: "copy-check-mobile", asks: false, files: [

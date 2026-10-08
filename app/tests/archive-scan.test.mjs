@@ -10,7 +10,7 @@ const OTHER = "11111111-2222-3333-4444-555555555555";
 
 const transcript = (entrypoint = "cli", promptSource = "typed") => [
   `{"type":"queue-operation","operation":"enqueue","timestamp":"2026-08-28T14:00:00.000Z"}`,
-  `{"type":"user","cwd":"/Users/me/arvore-hub","promptSource":"${promptSource}","entrypoint":"${entrypoint}"}`,
+  `{"type":"user","cwd":"/Users/me/acme-hub","promptSource":"${promptSource}","entrypoint":"${entrypoint}"}`,
   `{"type":"assistant","timestamp":"2026-08-28T14:00:01.000Z"}`,
   `{"type":"last-prompt","lastPrompt":"conserta o histórico"}`
 ];
@@ -32,7 +32,7 @@ test("a chat takes a row with the folder it ran in, the last thing typed and the
   assert.equal(read, 1);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].id, ID);
-  assert.equal(rows[0].cwd, "/Users/me/arvore-hub");
+  assert.equal(rows[0].cwd, "/Users/me/acme-hub");
   assert.equal(rows[0].prompt, "conserta o histórico");
   assert.equal(rows[0].title, "conserta o histórico");
   assert.equal(new Date(rows[0].at).toISOString(), "2026-08-28T14:00:01.000Z");
@@ -42,7 +42,7 @@ test("a chat that opens with a pasted image still takes a row, folder and all", 
   const { projects } = archive({ [ID]: [pastedImage, ...transcript("claude-desktop", "sdk")] });
   const { rows } = await scanTranscripts({ projectsDir: projects });
   assert.equal(rows.length, 1, "one pasted print must not hide a whole session");
-  assert.equal(rows[0].cwd, "/Users/me/arvore-hub");
+  assert.equal(rows[0].cwd, "/Users/me/acme-hub");
 });
 
 test("a chat that ends with a pasted image keeps the last thing typed", async () => {

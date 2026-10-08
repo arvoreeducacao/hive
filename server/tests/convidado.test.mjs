@@ -63,17 +63,17 @@ const asServer = (from, to) => createBrokerClient({
 });
 
 before(async () => {
-  mine = await stand("joao");
-  guest = await stand("vitor");
-  own = await stand("joao pod");
-  myMac = await paired(mine, "mac", "joao mac");
+  mine = await stand("jonas");
+  guest = await stand("vini");
+  own = await stand("jonas pod");
+  myMac = await paired(mine, "mac", "jonas mac");
 
   const forGuest = await myMac.client.post("/api/invites", {});
-  const guestMac = await paired(guest, "mac", "vitor mac");
+  const guestMac = await paired(guest, "mac", "vini mac");
   assert.equal((await guestMac.client.post("/api/join", { link: forGuest.body.link, mine: true })).ok, true);
 
   const forOwn = await myMac.client.post("/api/invites", { mine: true });
-  const ownMac = await paired(own, "mac", "joao pod mac");
+  const ownMac = await paired(own, "mac", "jonas pod mac");
   assert.equal((await ownMac.client.post("/api/join", { link: forOwn.body.link, mine: true })).ok, true);
 });
 
@@ -174,22 +174,22 @@ test("a guest reads the seat list, which is the fleet card, and never opens a se
 test("the trust file says whose key it is, in either order, and files it on the right side", () => {
   const key = newIdentity("desktop").publicSsh;
 
-  const asWritten = fromAllowedSigners(`joao ${key}`, { owners: ["joao"] });
+  const asWritten = fromAllowedSigners(`jonas ${key}`, { owners: ["jonas"] });
   assert.equal(asWritten[0].kind, "mac", "the owner's own machine was filed as a guest");
-  assert.equal(asWritten[0].name, "joao");
+  assert.equal(asWritten[0].name, "jonas");
 
   const byComment = fromAllowedSigners(key, { owners: ["desktop"] });
   assert.equal(byComment[0].kind, "mac", "a key whose comment names the owner was filed as a guest");
   assert.equal(byComment[0].name, "desktop", "the name sat after the key and was thrown away");
 
-  const guest = fromAllowedSigners(`vitor ${key}`, { owners: ["joao"] });
+  const guest = fromAllowedSigners(`vini ${key}`, { owners: ["jonas"] });
   assert.equal(guest[0].kind, "peer", "someone else's key was filed as a machine of mine");
 
-  const nameless = fromAllowedSigners(newIdentity("").publicSsh, { owners: ["joao"] });
+  const nameless = fromAllowedSigners(newIdentity("").publicSsh, { owners: ["jonas"] });
   assert.equal(nameless[0].kind, "peer", "a key with no name at all cannot be assumed to be mine");
   assert.match(nameless[0].name, /^[A-Za-z0-9+/]/, "a nameless key should show its key, not the word peer");
 
-  const noOwner = fromAllowedSigners(`joao ${key}`, {});
+  const noOwner = fromAllowedSigners(`jonas ${key}`, {});
   assert.equal(noOwner[0].kind, "peer", "with no owner to compare against, nothing is promoted");
 });
 
@@ -199,10 +199,10 @@ test("a key already on the roster changes side when the trust file is corrected"
   let text = "";
   const store = createRosterStore({ read: () => text, write: (next) => { text = next; }, now: () => 1000 });
 
-  store.adopt(fromAllowedSigners(key, { owners: ["joao"] }));
+  store.adopt(fromAllowedSigners(key, { owners: ["jonas"] }));
   assert.equal(publicView(store.all)[0].kind, "peer");
 
-  store.adopt(fromAllowedSigners(`joao ${key}`, { owners: ["joao"] }));
+  store.adopt(fromAllowedSigners(`jonas ${key}`, { owners: ["jonas"] }));
   assert.equal(publicView(store.all)[0].kind, "peer", "adopt alone should not move a key that is already there");
 
   assert.equal(store.keepKind(fingerprint, "mac").kept, true);
@@ -210,21 +210,21 @@ test("a key already on the roster changes side when the trust file is corrected"
 });
 
 test("the pod knows whose it is from its own hostname, so a bad stamp cannot lock the owner out", () => {
-  assert.equal(devOfHost("ws-joao-0"), "joao");
-  assert.equal(devOfHost("ws-joao-cunha-0"), "joao-cunha");
-  assert.equal(devOfHost("WS-JOAO-0"), "joao");
-  assert.equal(devOfHost("ws-joao"), "", "a name with no ordinal is not a pod hostname");
+  assert.equal(devOfHost("ws-jonas-0"), "jonas");
+  assert.equal(devOfHost("ws-jorge-0"), "jorge");
+  assert.equal(devOfHost("WS-JONAS-0"), "jonas");
+  assert.equal(devOfHost("ws-jonas"), "", "a name with no ordinal is not a pod hostname");
   assert.equal(devOfHost("mac-mini.local"), "");
   assert.equal(devOfHost(""), "");
 
   const key = newIdentity("desktop").publicSsh;
-  const stamped = fromAllowedSigners(`joao ${key}`, { owners: ["x", devOfHost("ws-joao-0")] });
+  const stamped = fromAllowedSigners(`jonas ${key}`, { owners: ["x", devOfHost("ws-jonas-0")] });
   assert.equal(stamped[0].kind, "mac", "a wrong stamp beat the pod's own hostname and locked the owner out");
 });
 
 test("the trust file also fixes a stale name, not only a stale side", () => {
   const key = newIdentity("desktop").publicSsh;
-  const read = fromAllowedSigners(`joao ${key}`, { owners: ["joao"] })[0];
+  const read = fromAllowedSigners(`jonas ${key}`, { owners: ["jonas"] })[0];
   let text = "";
   const store = createRosterStore({ read: () => text, write: (next) => { text = next; }, now: () => 1000 });
 
@@ -232,8 +232,8 @@ test("the trust file also fixes a stale name, not only a stale side", () => {
   assert.equal(publicView(store.all)[0].name, "peer");
 
   store.keepName(read.fingerprint, read.name);
-  assert.equal(publicView(store.all)[0].name, "joao", "the stale name survived the correction");
+  assert.equal(publicView(store.all)[0].name, "jonas", "the stale name survived the correction");
 
   assert.equal(store.keepName(read.fingerprint, "").kept, true);
-  assert.equal(publicView(store.all)[0].name, "joao", "an empty name should not erase a good one");
+  assert.equal(publicView(store.all)[0].name, "jonas", "an empty name should not erase a good one");
 });

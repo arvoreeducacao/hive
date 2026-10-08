@@ -38,7 +38,7 @@ test("what is typed and not sent travels both ways and the broker never reads it
   const broker = createSyncBroker({
     dataDir,
     audience: pod.fingerprint,
-    owner: "joao",
+    owner: "jonas",
     trusted: (fingerprint) => (fingerprint === macIdentity.fingerprint ? { signer: rawOfSsh(macIdentity.publicSsh), name: "mac", kind: "mac" } : null)
   });
   const door = await host(broker);
@@ -106,7 +106,7 @@ test("the runner hands over what was typed on the mac and keeps what was typed o
   const broker = createSyncBroker({
     dataDir: join(root, "broker"),
     audience: pod.fingerprint,
-    owner: "joao",
+    owner: "jonas",
     trusted: (fp) => (fp === macIdentity.fingerprint ? { signer: rawOfSsh(macIdentity.publicSsh), name: "mac", kind: "mac" } : null)
   });
   const fetchImpl = localFetch(broker);

@@ -16,7 +16,7 @@ function sandbox() {
 
 const page = (home, over = {}) => shelve({
   home, slug: "atividade-com-etapas", tab: "documento", html: "<h1>uma</h1>",
-  title: "Uma atividade, N etapas", kind: "rfc", owner: "joao", label: "in-review",
+  title: "Uma atividade, N etapas", kind: "rfc", owner: "jonas", label: "in-review",
   at: 1_700_000_000_000, ...over
 });
 
@@ -50,7 +50,7 @@ test("a page shelved with an old label carries the new one from then on", () => 
 
 test("the slug survives accents, punctuation and a title that is all of them", () => {
   assert.equal(slugOf("Uma atividade, N etapas"), "uma-atividade-n-etapas");
-  assert.equal(slugOf("Sync Árvore ↔ Super Autor"), "sync-arvore-super-autor");
+  assert.equal(slugOf("Sync Ação ↔ Relatório"), "sync-acao-relatorio");
   assert.equal(slugOf("   "), slugOf("   "));
   assert.match(slugOf("↔↔↔"), /^[a-f0-9]{10}$/);
   assert.ok(slugOf("x".repeat(200)).length <= 60);

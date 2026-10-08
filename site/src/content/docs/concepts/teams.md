@@ -3,6 +3,8 @@ title: Teams and peers
 description: A team is a set of servers that know each other, joined by a one-time link.
 sidebar:
   order: 4
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 There is no central server, so a team is not a place you join. It is a set of

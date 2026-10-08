@@ -40,7 +40,7 @@ bootSolid();
 
 const seat = (name) => ({ name, title: name, where: "local", state: "idle", kind: "chat" });
 const THREAD = { key: "C1:1.2", session: "ana", channel: "eng", title: "a thread" };
-const PR = { key: "arvore/hive#9", session: "ana", repo: "arvore/hive", number: 9, title: "a pr", state: "open" };
+const PR = { key: "acme/hive#9", session: "ana", repo: "acme/hive", number: 9, title: "a pr", state: "open" };
 
 function hive({ said = [], known = [] } = {}) {
   st.LIMIT = 4;

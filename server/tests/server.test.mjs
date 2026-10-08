@@ -56,7 +56,7 @@ test("the server names itself without being asked, and that is the only open rou
 });
 
 test("pairing carries only the public key, and then the key opens the routes", async () => {
-  const { client, me } = await pair("mac", "mac do joao");
+  const { client, me } = await pair("mac", "mac do jonas");
   const mine = await client.me();
   assert.equal(mine.ok, true, mine.error);
   assert.equal(mine.body.fingerprint, me.fingerprint);
@@ -242,12 +242,12 @@ test("the query is part of what the signature covers", async () => {
 });
 
 test("the phone asks for the fleet and gets what runs on the pod and what runs on the computer", async () => {
-  const mac = await pair("mac", "mac do joao");
+  const mac = await pair("mac", "mac do jonas");
   const phone = await pair("phone", "iPhone");
 
   const published = await mac.client.panel({
     v: 1,
-    dev: "joao",
+    dev: "jonas",
     at: Date.now(),
     avatar: "cloud/surprised/pink",
     seats: [
@@ -269,7 +269,7 @@ test("the phone asks for the fleet and gets what runs on the pod and what runs o
   assert.ok(!seats.some((one) => one.name === "assento-do-pod"),
     "a seat the Mac only mirrored from the pod got on the list without the pod saying a word");
 
-  assert.equal(fleet.body.bench?.dev, "joao", "the face of the machine at home did not come along");
+  assert.equal(fleet.body.bench?.dev, "jonas", "the face of the machine at home did not come along");
   assert.equal(fromMac.key, mac.me.fingerprint, "the seat does not say which machine it belongs to, so the phone would not know who to talk to");
 });
 
@@ -287,7 +287,7 @@ test("asking for a new chat is answered while the machine is still building it, 
     await mac.client.panel({ seats: [] });
 
     const began = Date.now();
-    const asked = await phone.client.post("/api/spawn", { prompt: "cuide disso", repo: "arvore-hub", where: "cloud" });
+    const asked = await phone.client.post("/api/spawn", { prompt: "cuide disso", repo: "acme-hub", where: "cloud" });
 
     assert.equal(asked.status, 202, asked.error);
     assert.ok(

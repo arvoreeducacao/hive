@@ -85,13 +85,13 @@ test("a block tab says its number, its label, how full it is and whether anyone 
 });
 
 test("mirroring somebody hides the workspace chip and puts their face on the bar", () => {
-  world({ mirrorDev: "jott4", team: { devs: [{ dev: "jott4", up: true, seats: [1, 2, 3] }] } });
+  world({ mirrorDev: "juno", team: { devs: [{ dev: "juno", up: true, seats: [1, 2, 3] }] } });
   const model = blocksViewModel();
   assert.equal(model.chip, null);
   assert.equal(model.open, null);
-  assert.equal(model.mirror.dev, "jott4");
+  assert.equal(model.mirror.dev, "juno");
   assert.equal(model.mirror.count, 3);
-  assert.equal(model.mirror.title, "jott4's hive — read-only");
+  assert.equal(model.mirror.title, "juno's hive — read-only");
   assert.match(model.mirror.avatar, A_FACE);
 });
 
@@ -107,19 +107,19 @@ test("the strip says which block you are on and what is waiting, with the bold p
 test("with nothing to say the strip is a dash, and a mirror says whose hive it is", () => {
   world();
   assert.deepEqual(stripViewModel(null, []), { key: "strip", mirrorOf: false, num: "—", seats: "", bold: "" });
-  world({ mirrorDev: "jott4", team: { devs: [{ dev: "jott4", up: true, seats: [seat("a", { state: "needs" }), seat("b")] }] } });
+  world({ mirrorDev: "juno", team: { devs: [{ dev: "juno", up: true, seats: [seat("a", { state: "needs" }), seat("b")] }] } });
   const mirror = stripViewModel(null, []);
   assert.equal(mirror.mirrorOf, true);
-  assert.equal(mirror.num, "mirror · jott4");
+  assert.equal(mirror.num, "mirror · juno");
   assert.equal(mirror.seats, "2 seats · read-only · ");
-  assert.equal(mirror.bold, "1 need jott4");
+  assert.equal(mirror.bold, "1 need juno");
 });
 
 test("a row is keyed by the machine, so two computers of one person never share a line", () => {
   world({
     mirrorKey: "k-rafa",
     team: { devs: [
-      { dev: "jott4", key: "k-jott4", machine: "air", up: true, seats: [1, 2] },
+      { dev: "juno", key: "k-juno", machine: "air", up: true, seats: [1, 2] },
       { dev: "rafa", key: "k-rafa", machine: "studio", up: true, seats: [] },
       { dev: "ana", key: "k-ana", machine: "mini", up: false, seats: [] }
     ] }
@@ -128,11 +128,11 @@ test("a row is keyed by the machine, so two computers of one person never share 
   assert.deepEqual(model.groups.map((g) => g.key), ["team"], "nothing of mine is running, so there is no group of mine");
   const [team] = model.groups;
   assert.equal(team.count, 1);
-  assert.deepEqual(team.devs.map((one) => one.key), ["k-jott4", "k-rafa", "k-ana"]);
-  assert.deepEqual(team.devs.map((one) => one.name), ["jott4", "rafa", "ana"],
+  assert.deepEqual(team.devs.map((one) => one.key), ["k-juno", "k-rafa", "k-ana"]);
+  assert.deepEqual(team.devs.map((one) => one.name), ["juno", "rafa", "ana"],
     "one machine each, so the label says the person and never the hardware");
   assert.deepEqual(team.devs.map((one) => one.tally), ["2", "—", "zzz"]);
-  assert.deepEqual(team.devs.map((one) => one.hint), ["jott4 — 2 seats", "rafa — nothing running", "ana — server asleep"]);
+  assert.deepEqual(team.devs.map((one) => one.hint), ["juno — 2 seats", "rafa — nothing running", "ana — server asleep"]);
   assert.deepEqual(team.devs.map((one) => one.here), [false, true, false]);
   assert.deepEqual(team.devs.map((one) => one.quiet), [false, true, true]);
   assert.match(team.devs[0].avatar, A_FACE);
@@ -169,16 +169,16 @@ test("my machines sit in a group of my own, and the team group goes back to mean
 
 test("every knock in the dock names who asked, for which seat, and both answers", () => {
   const at = Date.now() - 120000;
-  world({ knocks: [{ from: "jott4", seat: "hive-3", at }], sessions: [seat("hive-3", { title: "the reader" })] });
+  world({ knocks: [{ from: "juno", seat: "hive-3", at }], sessions: [seat("hive-3", { title: "the reader" })] });
   const model = knocksViewModel();
   assert.equal(model.title, "wants the keyboard");
   const one = model.knocks[0];
-  assert.equal(one.key, `jott4:hive-3:${at}`, "two knocks from the same mate for the same seat are still two rows");
-  assert.equal(one.from, "jott4");
+  assert.equal(one.key, `juno:hive-3:${at}`, "two knocks from the same mate for the same seat are still two rows");
+  assert.equal(one.from, "juno");
   assert.equal(one.seat, "hive-3");
   assert.match(one.avatar, A_FACE);
   assert.equal(one.line, "the reader · 2 min");
-  assert.equal(one.hint, "jott4 asked for the keyboard of the reader — 2 min ago");
+  assert.equal(one.hint, "juno asked for the keyboard of the reader — 2 min ago");
   assert.equal(one.yes, "lend it");
   assert.equal(one.no, "not now");
   world({ knocks: [{ from: "a", seat: "s1" }, { from: "b", seat: "s2" }] });
@@ -217,7 +217,7 @@ test("the bar meters the two windows that can stop you, and the popover blocks e
 test("a meter never fills past the end of the track, and no login signed in keeps the bar away", () => {
   world({ limits: { accounts: [{ account: "default", signedIn: true, limits: [{ kind: "session", percent: 140 }] }], tightest: "default" }, sessions: [seat("a", { account: "" })] });
   assert.equal(limitChipViewModel().accounts[0].parts[0].width, "100%");
-  world({ limits: { accounts: [{ account: "arvore", signedIn: false, limits: [], error: "not signed in" }], tightest: "" }, sessions: [seat("a", { account: "" })] });
+  world({ limits: { accounts: [{ account: "acme", signedIn: false, limits: [], error: "not signed in" }], tightest: "" }, sessions: [seat("a", { account: "" })] });
   const away = limitChipViewModel();
   assert.equal(away.hidden, true);
   assert.deepEqual(away.accounts, []);
@@ -227,7 +227,7 @@ test("a meter never fills past the end of the track, and no login signed in keep
 test("a login the plan refused keeps its place, with a dash and the hour it comes back", () => {
   const until = Date.parse("2026-08-29T11:20:00Z");
   world({
-    limits: { accounts: [{ account: "arvore", provider: "claude", signedIn: true, limits: [], until }], tightest: "" },
+    limits: { accounts: [{ account: "acme", provider: "claude", signedIn: true, limits: [], until }], tightest: "" },
     sessions: [seat("a", { account: "" })]
   });
   const foot = limitChipViewModel();
@@ -343,12 +343,12 @@ test("the label of the block is written into the real input, and left alone whil
 });
 
 test("a mirrored hive hands the label over to whoever owns it", () => {
-  world({ mirrorDev: "jott4", team: { devs: [{ dev: "jott4", up: true, seats: [] }] } });
+  world({ mirrorDev: "juno", team: { devs: [{ dev: "juno", up: true, seats: [] }] } });
   const inp = $("f-label");
   inp.blur();
   paintStrip(null, []);
   assert.equal(inp.disabled, true);
-  assert.equal(inp.value, "jott4's hive");
+  assert.equal(inp.value, "juno's hive");
   assert.equal(inp.title, "another hive — the label is theirs to write");
 });
 
@@ -379,7 +379,7 @@ test("what the bar does besides handing the model over is still done", () => {
 
 test("the nudge fills the picker with the chats that can answer, and hides it for a plain knock", () => {
   world({ sessions: [seat("a", { title: "the reader" }), seat("sh", { kind: "shell" })] });
-  const knock = { from: "jott4", seat: "a", at: Date.now(), kind: "ask", text: "posso?" };
+  const knock = { from: "juno", seat: "a", at: Date.now(), kind: "ask", text: "posso?" };
   st.knocksOpen = [knock];
   st.nudgeQueue = [knock];
   paintNudge();
@@ -389,7 +389,7 @@ test("the nudge fills the picker with the chats that can answer, and hides it fo
   assert.equal($("nudge-seat").innerHTML, '<option value="a">the reader</option>', "a shell is not a chat that can answer");
   assert.equal($("nudge-yes").disabled, false);
   assert.equal($("nudge-yes").textContent, phrase("let it in"));
-  const plain = { from: "jott4", seat: "a", at: Date.now() };
+  const plain = { from: "juno", seat: "a", at: Date.now() };
   st.knocksOpen = [plain];
   st.nudgeQueue = [plain];
   paintNudge();

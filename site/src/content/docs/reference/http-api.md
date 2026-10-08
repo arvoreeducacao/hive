@@ -3,6 +3,8 @@ title: HTTP API
 description: The routes the server answers, and what each one is for.
 sidebar:
   order: 1
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 :::note[This page is the source]

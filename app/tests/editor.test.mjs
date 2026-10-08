@@ -28,7 +28,7 @@ function fresh() {
   asked.length = 0;
 }
 
-const FILE = { repo: "api-arvore", name: "api-arvore", branch: "main", path: "src/shared/cron-lock.service.ts", where: "local" };
+const FILE = { repo: "api", name: "api", branch: "main", path: "src/shared/cron-lock.service.ts", where: "local" };
 const OTHER = { ...FILE, path: "src/shared/redis.service.ts" };
 
 test("the file lands in a tile of the block, and the tile is not a seat", async () => {
@@ -89,7 +89,7 @@ test("the file is read from the side it lives on", async () => {
   await settle();
   assert.equal(asked.length, 1);
   assert.match(asked[0], /where=cloud/);
-  assert.match(asked[0], /repo=api-arvore/);
+  assert.match(asked[0], /repo=api/);
   assert.match(asked[0], /path=src%2Fshared%2Fcron-lock\.service\.ts/);
   assert.equal(editorInBlock().tabs[0].text, "the file");
   assert.equal(editorInBlock().tabs[0].loading, false);
@@ -127,14 +127,14 @@ test("a full block opens the editor in a block that has room", async () => {
 });
 
 test("the key of a file is where it lives plus repo plus path", () => {
-  assert.equal(fileKey(FILE), "local|api-arvore|src/shared/cron-lock.service.ts");
-  assert.equal(fileKey({ ...FILE, where: "cloud" }), "cloud|api-arvore|src/shared/cron-lock.service.ts");
+  assert.equal(fileKey(FILE), "local|api|src/shared/cron-lock.service.ts");
+  assert.equal(fileKey({ ...FILE, where: "cloud" }), "cloud|api|src/shared/cron-lock.service.ts");
   assert.equal(baseName("a/b/c.ts"), "c.ts");
 });
 
 test("the language comes from the extension, and an unknown one still opens", () => {
   assert.equal(monacoLanguageOf("a/b/cron-lock.service.ts"), "typescript");
-  assert.equal(monacoLanguageOf("lib/arvore/jobs/cron_lock.ex"), "elixir");
+  assert.equal(monacoLanguageOf("lib/acme/jobs/cron_lock.ex"), "elixir");
   assert.equal(monacoLanguageOf("infra/Dockerfile"), "dockerfile");
   assert.equal(monacoLanguageOf("notes"), "plaintext");
 });
@@ -157,7 +157,7 @@ test("the view model says which side the file lives on, and what the editor is d
   fresh();
   const ed = openInEditor({ ...FILE, where: "cloud" });
   await settle();
-  assert.deepEqual(fileViewModel(ed).status.where.map((w) => w.text), ["pod", "api-arvore · main", FILE.path]);
+  assert.deepEqual(fileViewModel(ed).status.where.map((w) => w.text), ["pod", "api · main", FILE.path]);
   assert.equal(fileViewModel(ed).status.said, "");
   ed.saving = true;
   assert.equal(fileViewModel(ed).status.said, "saving…");

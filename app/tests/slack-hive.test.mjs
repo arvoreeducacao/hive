@@ -74,17 +74,17 @@ test("a chats file that is not there reads as no chats", async () => {
 });
 
 test("the mission opens with their own words, so the chat is named after the ask", () => {
-  const said = missionForSlack({ text: "sobe o gráfico de leitura", channelName: "teste", person: "João" });
+  const said = missionForSlack({ text: "sobe o gráfico de leitura", channelName: "teste", person: "Jonas" });
   assert.ok(said.startsWith("sobe o gráfico de leitura"));
   assert.match(said, /#teste/);
   assert.match(said, /reply_on_slack/);
   assert.match(said, /sobe o gráfico de leitura/);
-  assert.match(missionForSlack({ text: "oi", person: "João", direct: true }), /a direct message/);
+  assert.match(missionForSlack({ text: "oi", person: "Jonas", direct: true }), /a direct message/);
 });
 
 test("a relayed message names who said it and repeats the way back", () => {
-  const said = saidOnSlack({ text: "e agora?", person: "João" });
-  assert.match(said, /João/);
+  const said = saidOnSlack({ text: "e agora?", person: "Jonas" });
+  assert.match(said, /Jonas/);
   assert.match(said, /reply_on_slack/);
   assert.match(said, /e agora\?/);
 });
@@ -112,22 +112,22 @@ test("a long answer is cut on whitespace, never mid word", () => {
 });
 
 test("the thread so far keeps the newest lines and cuts the long ones", () => {
-  const many = Array.from({ length: 30 }, (_, at) => ({ who: "João", text: `linha ${at}` }));
+  const many = Array.from({ length: 30 }, (_, at) => ({ who: "Jonas", text: `linha ${at}` }));
   const kept = earlierOnSlack(many);
   assert.equal(kept.length, 20);
-  assert.equal(kept[0], "João: linha 10");
-  assert.equal(kept.at(-1), "João: linha 29");
-  assert.ok(earlierOnSlack([{ who: "João", text: "a".repeat(900) }])[0].endsWith("…"));
-  assert.deepEqual(earlierOnSlack([{ who: "João", text: "   " }]), []);
+  assert.equal(kept[0], "Jonas: linha 10");
+  assert.equal(kept.at(-1), "Jonas: linha 29");
+  assert.ok(earlierOnSlack([{ who: "Jonas", text: "a".repeat(900) }])[0].endsWith("…"));
+  assert.deepEqual(earlierOnSlack([{ who: "Jonas", text: "   " }]), []);
 });
 
 test("a mission opened inside a thread quotes it and says where it lives", () => {
   const said = missionForSlack({
     text: "e agora?",
     channelName: "teste",
-    person: "João",
-    link: "https://leianaarvore.slack.com/archives/C1/p1",
-    earlier: ["Bruna: o relatório parou", "João: desde quinta"]
+    person: "Jonas",
+    link: "https://acme.slack.com/archives/C1/p1",
+    earlier: ["Bruna: o relatório parou", "Jonas: desde quinta"]
   });
   assert.ok(said.startsWith("e agora?"));
   assert.match(said, /thread that was already running/);

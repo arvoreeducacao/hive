@@ -31,14 +31,14 @@ test("links only for http(s), attributes escaped", () => {
 });
 
 test("a bare url becomes a link, trailing punctuation stays out", () => {
-  const out = renderMarkdown("Migration: https://github.com/arvoreeducacao/migrations/pull/481, depois o resto.");
-  assert.ok(out.includes('<a href="https://github.com/arvoreeducacao/migrations/pull/481" target="_blank" rel="noreferrer">https://github.com/arvoreeducacao/migrations/pull/481</a>,'));
+  const out = renderMarkdown("Migration: https://github.com/acme/migrations/pull/481, depois o resto.");
+  assert.ok(out.includes('<a href="https://github.com/acme/migrations/pull/481" target="_blank" rel="noreferrer">https://github.com/acme/migrations/pull/481</a>,'));
 });
 
 test("a bare url inside a list item is a link too", () => {
-  const out = renderMarkdown("- **Backend**: https://github.com/arvoreeducacao/api-arvore/pull/2531");
+  const out = renderMarkdown("- **Backend**: https://github.com/acme/api/pull/2531");
   assert.ok(out.includes("<b>Backend</b>"));
-  assert.ok(out.includes('href="https://github.com/arvoreeducacao/api-arvore/pull/2531"'));
+  assert.ok(out.includes('href="https://github.com/acme/api/pull/2531"'));
 });
 
 test("a url already in a markdown link is not linked twice", () => {
@@ -60,9 +60,9 @@ test("underscores inside a bare url stay literal", () => {
 });
 
 test("an image with a local path becomes a shot link", () => {
-  const out = renderMarkdown("![preview](/Users/joao/arvore-hub/.hive/assets/preview-caminho.png)");
+  const out = renderMarkdown("![preview](/Users/dev/acme-hub/.hive/assets/preview-caminho.png)");
   assert.ok(out.includes('class="md-shot"'));
-  assert.ok(out.includes('data-path="/Users/joao/arvore-hub/.hive/assets/preview-caminho.png"'));
+  assert.ok(out.includes('data-path="/Users/dev/acme-hub/.hive/assets/preview-caminho.png"'));
   assert.ok(out.includes(">preview</a>"));
 });
 

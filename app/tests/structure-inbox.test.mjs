@@ -36,9 +36,9 @@ const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
 
 const SEATS = {
   quiet: { state: "idle", title: "revisor diario", finish: { seq: 1, at: ago(60 * 30), text: "Retro de ontem enviada no Hive.\n\nVolto às 19h." } },
-  asks: { state: "needs", title: "sessao crm expirada", trees: [{ repo: "arvore-crm-web", branch: "joao/sessao-expirada" }], finish: { seq: 2, at: ago(2), text: "Achei por que a **sessão** cai.\n\n- item 1\n- item 2\n\nJá posso abrir PR do item 1 no `arvore-crm-web`?" } },
+  asks: { state: "needs", title: "sessao crm expirada", trees: [{ repo: "crm-web", branch: "jonas/sessao-expirada" }], finish: { seq: 2, at: ago(2), text: "Achei por que a **sessão** cai.\n\n- item 1\n- item 2\n\nJá posso abrir PR do item 1 no `crm-web`?" } },
   busy: { state: "working", title: "hive raycast visual", now: "Integração bate com o canvas nos dois visuais.", verb: "Bash", measure: "15ms", liveSince: ago(0) },
-  back: { state: "done", title: "valores incoerentes", trees: [{ repo: "oms-web", branch: "joao/valores-lote" }], finish: { seq: 3, at: ago(6), text: "Não é bug de cálculo: o Pipeline soma o prometido.\n\nOs outros dois lotes batem." } }
+  back: { state: "done", title: "valores incoerentes", trees: [{ repo: "oms-web", branch: "jonas/valores-lote" }], finish: { seq: 3, at: ago(6), text: "Não é bug de cálculo: o Pipeline soma o prometido.\n\nOs outros dois lotes batem." } }
 };
 
 function lay() {
@@ -56,8 +56,8 @@ function lay() {
   st.seatLayout = "grid";
   st.planeOn = false;
   st.mirrorDev = "";
-  st.prs = [{ session: "back", repo: "arvoreeducacao/oms-web", number: 35, ci: "failed", url: "https://github.com/arvoreeducacao/oms-web/pull/35", key: "pr35" }];
-  st.team = { me: "jott4", devs: [{ dev: "jott4", key: "k-me", seats: [] }, { dev: "mees", key: "k-mees", up: true, seats: [{ name: "x", title: "fila do time", state: "working", now: "rodando a suíte" }] }] };
+  st.prs = [{ session: "back", repo: "acme/oms-web", number: 35, ci: "failed", url: "https://github.com/acme/oms-web/pull/35", key: "pr35" }];
+  st.team = { me: "juno", devs: [{ dev: "juno", key: "k-me", seats: [] }, { dev: "mees", key: "k-mees", up: true, seats: [{ name: "x", title: "fila do time", state: "working", now: "rodando a suíte" }] }] };
   render();
 }
 
@@ -79,7 +79,7 @@ test("the inbox is built and says it is ready", () => {
 });
 
 test("the last words of a seat come from what it left: the question when it asks, the lead when it answered, the status while it works", () => {
-  assert.equal(inbox.lastWords({ state: "needs", finish: SEATS.asks.finish }), "Já posso abrir PR do item 1 no arvore-crm-web?");
+  assert.equal(inbox.lastWords({ state: "needs", finish: SEATS.asks.finish }), "Já posso abrir PR do item 1 no crm-web?");
   assert.equal(inbox.lastWords({ state: "needs", asks: [{ id: "a", questions: [{ question: "Qual escola?" }] }], finish: SEATS.asks.finish }), "Qual escola?");
   assert.equal(inbox.lastWords({ state: "done", finish: SEATS.back.finish }), "Não é bug de cálculo: o Pipeline soma o prometido.");
   assert.equal(inbox.lastWords({ state: "working", now: "rodando a suíte", finish: SEATS.back.finish }), "rodando a suíte");
@@ -101,8 +101,8 @@ test("entering wears the inbox: the queue holds every seat of every block, order
   assert.deepEqual(groups, ["Asking for you", "Answered", "Working", "Ready and still"]);
   const ask = $("structure-root").querySelector('.ix-row[data-key="asks"]');
   assert.match(ask.textContent, /Já posso abrir PR do item 1/);
-  assert.match(ask.textContent, /arvore-crm-web/);
-  assert.match(ask.textContent, /joao\/sessao-expirada/);
+  assert.match(ask.textContent, /crm-web/);
+  assert.match(ask.textContent, /jonas\/sessao-expirada/);
   assert.match(ask.querySelector(".ix-time").textContent, /^2m$/);
   const back = $("structure-root").querySelector('.ix-row[data-key="back"]');
   assert.match(back.querySelector(".pr.fail").textContent, /oms-web#35/);

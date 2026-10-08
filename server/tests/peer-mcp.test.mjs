@@ -19,7 +19,7 @@ const HERE = fileURLToPath(new URL("..", import.meta.url));
 async function hive() {
   const base = await mkdtemp(join(tmpdir(), "hive-peer-"));
   for (const dir of ["sessions", "sock", "status", "events"]) await mkdir(join(base, dir), { recursive: true });
-  await writeFile(join(base, "sessions", "asker.json"), JSON.stringify({ session_id: "s1", cwd: "/w/worktrees/api-arvore/asker", model_id: "opus" }));
+  await writeFile(join(base, "sessions", "asker.json"), JSON.stringify({ session_id: "s1", cwd: "/w/worktrees/api/asker", model_id: "opus" }));
   await writeFile(join(base, "sessions", "answerer.json"), JSON.stringify({ session_id: "s2", cwd: "/w/worktrees/frontend/answerer", model_id: "sonnet" }));
   await writeFile(join(base, "status", "answerer.md"), "title: o form\n09:12 [working] ajustando o form de cartão\n");
   await writeFile(join(base, "events", "asker.ndjson"), `${JSON.stringify({ seq: 1, type: "driver", subtype: "started" })}\n`);

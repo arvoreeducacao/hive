@@ -39,11 +39,11 @@ test("main sets the picker preload only for seat browser tabs", () => {
 
 test("a pick coming up from the page's own preload becomes a reference the seat can read", async () => {
   const yard = document.createElement("div");
-  const frame = bornWebFrame(yard, "picker-seat", { id: "t1", url: "https://arvore.dev/" });
+  const frame = bornWebFrame(yard, "picker-seat", { id: "t1", url: "https://example.com/" });
   const calls = await dialled(() => {
     const ev = new dom.Event("ipc-message");
     ev.channel = "hive-ask";
-    ev.args = [{ selector: "main > h1", tag: "h1", text: "Olá", said: "", url: "https://arvore.dev/" }];
+    ev.args = [{ selector: "main > h1", tag: "h1", text: "Olá", said: "", url: "https://example.com/" }];
     frame.dispatchEvent(ev);
   });
   assert.equal(calls.length, 1, "the webview heard nothing coming up from the page");
@@ -56,7 +56,7 @@ test("the picker crop is captured to the element rect and posted", async () => {
   const rects = [];
   const frame = { capturePage: async (r) => { rects.push(r); return { toDataURL: () => "data:image/png;base64,ok" }; } };
   const rect = { x: 4, y: 8, width: 120, height: 40 };
-  const calls = await dialled(() => sendPickReference("a", frame, { selector: ".card", rect, url: "https://arvore.dev/" }));
+  const calls = await dialled(() => sendPickReference("a", frame, { selector: ".card", rect, url: "https://example.com/" }));
   assert.deepEqual(rects, [rect], "the crop must follow the element, not the whole page");
   assert.equal(calls[0].url, "/api/browser/reference");
   assert.equal(calls[0].body.crop, "data:image/png;base64,ok");
@@ -136,13 +136,13 @@ test("an empty question never becomes a comment", async () => {
 });
 
 test("off the shelf, the question still reaches the seat as a reference carrying the words", async () => {
-  seatOnAPage("web-seat", { id: "t1", kind: "page", url: "https://arvore.dev/" });
+  seatOnAPage("web-seat", { id: "t1", kind: "page", url: "https://example.com/" });
   const frame = { capturePage: async () => ({ toDataURL: () => "data:image/png;base64,ok" }) };
   const calls = await dialled(() => askOnTheElement("web-seat", frame, {
     said: "aqui o contraste está baixo",
     selector: "main > h1",
     rect: { x: 0, y: 0, width: 10, height: 10 },
-    url: "https://arvore.dev/"
+    url: "https://example.com/"
   }));
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, "/api/browser/reference");
@@ -255,7 +255,7 @@ test("where the person is standing is told once, not on every beat", async () =>
 });
 
 test("on a page that is not on the shelf, nobody is told where you are", async () => {
-  seatOnAPage("out-seat", { id: "t1", kind: "page", url: "https://arvore.dev/" });
+  seatOnAPage("out-seat", { id: "t1", kind: "page", url: "https://example.com/" });
   const calls = await dialled(() => standOnThePage("out-seat", "qualquer"));
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].body, { seat: "out-seat", slug: "", tab: "", el: "" });

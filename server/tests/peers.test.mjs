@@ -32,8 +32,8 @@ async function stand(name) {
 }
 
 before(async () => {
-  mine = await stand("joao");
-  theirs = await stand("vitor");
+  mine = await stand("jonas");
+  theirs = await stand("vini");
   mineUrl = mine.url;
   theirsUrl = theirs.url;
 });
@@ -88,7 +88,7 @@ test("a deep link with no server to knock at is refused", () => {
 
 test("an invite burns on first use and cannot be replayed", () => {
   const opened = openInvite([], { url: "https://x", fingerprint: "SHA256:" + "a".repeat(43), now: 1000 });
-  const first = redeemInvite(opened.invites, { token: opened.invite.token, now: 1001, by: "vitor" });
+  const first = redeemInvite(opened.invites, { token: opened.invite.token, now: 1001, by: "vini" });
   assert.ok(!first.error);
   const again = redeemInvite(first.invites, { token: opened.invite.token, now: 1002 });
   assert.match(again.error, /already used/);
@@ -110,14 +110,14 @@ test("token comparison does not leak on length or content", () => {
 test("a peer needs a readable address and a real key", () => {
   assert.match(peerOf({ url: "não é url", publicSsh: newIdentity().publicSsh }).error, /no address/);
   assert.match(peerOf({ url: "https://x", publicSsh: "ssh-rsa AAAA" }).error, /ed25519/);
-  const made = peerOf({ url: "https://x/", publicSsh: newIdentity("vitor").publicSsh, name: "vitor" });
+  const made = peerOf({ url: "https://x/", publicSsh: newIdentity("vini").publicSsh, name: "vini" });
   assert.equal(made.peer.url, "https://x");
   assert.match(made.peer.fingerprint, /^SHA256:/);
 });
 
 test("one link makes both servers know each other, mutually", async () => {
-  const owner = await paired(theirs, "mac", "vitor's mac");
-  const invited = await paired(mine, "mac", "joao's mac");
+  const owner = await paired(theirs, "mac", "vini's mac");
+  const invited = await paired(mine, "mac", "jonas's mac");
 
   const opened = await owner.client.post("/api/invites", {});
   assert.equal(opened.ok, true, opened.error);
@@ -132,7 +132,7 @@ test("one link makes both servers know each other, mutually", async () => {
 });
 
 test("a used link cannot bring a second server in", async () => {
-  const owner = await paired(theirs, "mac", "vitor again");
+  const owner = await paired(theirs, "mac", "vini again");
   const opened = await owner.client.post("/api/invites", {});
   const stranger = await stand("intruso");
   const theirClient = await paired(stranger, "mac", "stranger's mac");
@@ -148,10 +148,10 @@ test("a used link cannot bring a second server in", async () => {
 });
 
 test("the panel a peer pushes lands on the board, marked as a peer's", async () => {
-  const theirMac = await paired(theirs, "mac", "vitor publishing");
-  const myMac = await paired(mine, "mac", "joao reading");
+  const theirMac = await paired(theirs, "mac", "vini publishing");
+  const myMac = await paired(mine, "mac", "jonas reading");
 
-  const put = await theirMac.client.panel({ seats: [{ name: "assento-do-vitor", state: "working" }] });
+  const put = await theirMac.client.panel({ seats: [{ name: "assento-do-vini", state: "working" }] });
   assert.equal(put.ok, true, put.error);
 
   for (let round = 0; round < 60; round += 1) {
@@ -159,7 +159,7 @@ test("the panel a peer pushes lands on the board, marked as a peer's", async () 
     const row = (board.body?.board || []).find((one) => one.peer);
     if (row) {
       assert.equal(row.fingerprint, theirs.broker.identity.fingerprint);
-      assert.equal(row.panel.seats[0].name, "assento-do-vitor");
+      assert.equal(row.panel.seats[0].name, "assento-do-vini");
       assert.equal(row.stale, false);
       return;
     }
@@ -169,7 +169,7 @@ test("the panel a peer pushes lands on the board, marked as a peer's", async () 
 });
 
 test("reading the board never asks the peer — it answers from what already arrived", async () => {
-  const myMac = await paired(mine, "mac", "joao counting");
+  const myMac = await paired(mine, "mac", "jonas counting");
   const before = theirs.broker.hub.delivered;
   for (let round = 0; round < 5; round += 1) {
     const board = await myMac.client.board();
@@ -179,8 +179,8 @@ test("reading the board never asks the peer — it answers from what already arr
 });
 
 test("a message to a peer's key crosses to the other server and lands on their mac", async () => {
-  const theirMac = await paired(theirs, "mac", "vitor writing");
-  const myMac = await paired(mine, "mac", "joao writing");
+  const theirMac = await paired(theirs, "mac", "vini writing");
+  const myMac = await paired(mine, "mac", "jonas writing");
   assert.ok(mine.broker.peers.find(theirs.broker.identity.fingerprint), "the two servers are not paired, so this proves nothing");
 
   const heard = [];
@@ -204,7 +204,7 @@ test("a message to a peer's key crosses to the other server and lands on their m
 test("a peer's key is answered by the peer road, never by the local mailbox it also sits in", async () => {
   const target = theirs.broker.identity.fingerprint;
   assert.ok(mine.broker.roster.find(target), "the peer stopped being on the roster, and this guard is about that overlap");
-  const myMac = await paired(mine, "mac", "joao routing");
+  const myMac = await paired(mine, "mac", "jonas routing");
 
   const before = mine.broker.hub.waiting(target);
   const sent = await myMac.client.say(target, { text: "nao fica em casa" }, "knock");
@@ -220,7 +220,7 @@ test("only a paired server may push a peer panel", async () => {
 });
 
 test("forgetting a peer drops it and its panel", async () => {
-  const myMac = await paired(mine, "mac", "joao forgetting");
+  const myMac = await paired(mine, "mac", "jonas forgetting");
   const target = theirs.broker.identity.fingerprint;
   if (!mine.broker.peers.find(target)) return;
 

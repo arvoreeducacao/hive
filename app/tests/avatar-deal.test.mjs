@@ -27,14 +27,14 @@ const slots = (map) => [...map.values()].map(faceSlot);
 const shot = (map) => [...map].map(([d, s]) => `${d}=${faceSlot(s)}`).sort().join(",");
 
 test("nine people, nine different faces", () => {
-  const dealt = dealFaces(roster("art", "guilherme", "joao", "joaobl", "jott4", "pedro", "rafaelandrade", "ricardo", "vitor"));
+  const dealt = dealFaces(roster("art", "guilherme", "jonas", "jonasb", "juno", "pedro", "rosa", "renato", "vini"));
   assert.equal(dealt.size, 9);
   assert.equal(new Set(slots(dealt)).size, 9);
 });
 
 test("the same roster deals the same faces however it arrives", () => {
   /* the rows come sorted by how busy people are, which is a different order on every mac */
-  const base = roster("vitor", "art", "joao", "pedro", "zed");
+  const base = roster("vini", "art", "jonas", "pedro", "zed");
   const shuffles = [base, [...base].reverse(), [base[2], base[4], base[0], base[3], base[1]], [base[3], base[1], base[4], base[2], base[0]]];
   const seen = new Set(shuffles.map((r) => shot(dealFaces(r))));
   assert.equal(seen.size, 1, "two hives would have drawn different faces for the same team");
@@ -46,9 +46,9 @@ test("a face somebody wrote down is a face they keep", () => {
 });
 
 test("two people who chose the same are separated by name, not by luck", () => {
-  const dealt = dealFaces([{ dev: "vitor", avatar: "ball/dark/blue" }, { dev: "art", avatar: "ball/dark/blue" }]);
+  const dealt = dealFaces([{ dev: "vini", avatar: "ball/dark/blue" }, { dev: "art", avatar: "ball/dark/blue" }]);
   assert.equal(faceSlot(dealt.get("art")), "ball/blue", "the earlier name keeps it");
-  assert.notEqual(faceSlot(dealt.get("vitor")), "ball/blue");
+  assert.notEqual(faceSlot(dealt.get("vini")), "ball/blue");
   assert.equal(new Set(slots(dealt)).size, 2);
 });
 

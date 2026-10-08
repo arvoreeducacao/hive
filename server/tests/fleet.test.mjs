@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { BENCH, HERE, benchOf, fleetOf, seatsOfPanel, seatOfSession } from "../fleet.mjs";
 
 const rowOf = (seats, extra = {}) => ({
-  fingerprint: "SHA256:mac-do-joao",
+  fingerprint: "SHA256:mac-do-jonas",
   at: 1000,
-  panel: { v: 1, dev: "joao", at: 1000, seats, ...(extra.panel || {}) },
+  panel: { v: 1, dev: "jonas", at: 1000, seats, ...(extra.panel || {}) },
   ...extra
 });
 
@@ -23,7 +23,7 @@ test("a seat of the machine at home is the Mac's, and says which machine it came
   ]), 1000);
   assert.deepEqual(seats.map((one) => one.name), ["no-mac"]);
   assert.equal(seats[0].where, BENCH, "the phone calls the machine at home mac, not local");
-  assert.equal(seats[0].key, "SHA256:mac-do-joao", "without the key the phone does not know who to talk to");
+  assert.equal(seats[0].key, "SHA256:mac-do-jonas", "without the key the phone does not know who to talk to");
   assert.equal(seats[0].asleep, false);
 });
 
@@ -31,11 +31,11 @@ test("the fleet joins both machines, each under the name the phone uses", () => 
   const fleet = fleetOf({
     sessions: [{ name: "no-pod", state: "working" }],
     rows: [rowOf([{ name: "no-mac", where: "local", state: "idle" }])],
-    pod: "joao",
+    pod: "jonas",
     at: 1000
   });
   assert.deepEqual(fleet.sessions.map((one) => [one.name, one.where]), [["no-mac", BENCH], ["no-pod", HERE]]);
-  assert.deepEqual(fleet.pod, { name: "joao", up: true });
+  assert.deepEqual(fleet.pod, { name: "jonas", up: true });
 });
 
 test("a seat the pod and the panel both count shows up once", () => {
@@ -63,5 +63,5 @@ test("the machine at home asleep stays on the list, saying it is asleep", () => 
   assert.equal(bench.asleep, true);
   assert.equal(bench.avatar, "cloud/surprised/pink");
   assert.equal(bench.wear, "hat:cap", "the bench wears what the panel says");
-  assert.equal(bench.key, "SHA256:mac-do-joao");
+  assert.equal(bench.key, "SHA256:mac-do-jonas");
 });

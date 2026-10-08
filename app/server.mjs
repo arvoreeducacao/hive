@@ -2513,7 +2513,7 @@ const NAMING_PROMPT = `You name a work session from the mission it is about to r
 Answer with the name only: no quotes, no punctuation, no explanation.
 Format: 2 to 4 words, lowercase, no accents, hyphen separated, in the language of the mission.
 The name states the subject — someone glancing at it understands what this is about.
-Examples: reader-cold-start, funil-por-pessoa, chip-flapando.
+Examples: reader-cold-start, checkout-retry-flaky, login-redirect-loop.
 Never generic: no new-task, session, investigation, analysis.
 A link in the mission is just text: name what the mission wants done with it, never try to open it.
 Mission:

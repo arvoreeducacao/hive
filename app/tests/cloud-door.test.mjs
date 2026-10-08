@@ -7,7 +7,7 @@ const answering = (body, ok = true, status = 200) => async () => ({ ok, status, 
 
 test("a hive with no address to reach is told so, and never invents one out of a name", async () => {
   const never = async () => { throw new Error("the door must not be asked when there is no address"); };
-  for (const env of [{}, { HIVE_DEV: "joao", HIVE_DOOR_DOMAIN: "example.com" }, { HIVE_POD: "ws-joao-0" }]) {
+  for (const env of [{}, { HIVE_DEV: "jonas", HIVE_DOOR_DOMAIN: "example.com" }, { HIVE_POD: "ws-jonas-0" }]) {
     const found = await findCloudServer({ env, fetchImpl: never });
     assert.equal(found.url, "", `${JSON.stringify(env)} became an address`);
     assert.equal(found.error, NO_ADDRESS);
@@ -17,9 +17,9 @@ test("a hive with no address to reach is told so, and never invents one out of a
 test("the hive takes its name from the server that answers, not from whoever is typing", async () => {
   const found = await findCloudServer({
     env: { HIVE_SERVER_URL: "https://guardado", HIVE_SERVER_KEY: KEY },
-    fetchImpl: answering({ fingerprint: KEY, name: "ws-joao" })
+    fetchImpl: answering({ fingerprint: KEY, name: "ws-jonas" })
   });
-  assert.equal(found.name, "ws-joao");
+  assert.equal(found.name, "ws-jonas");
   const unnamed = await findCloudServer({
     env: { HIVE_SERVER_URL: "https://guardado", HIVE_SERVER_KEY: KEY, HIVE_SERVER_NAME: "o que estava escrito" },
     fetchImpl: answering({ fingerprint: KEY })
@@ -56,9 +56,9 @@ test("what is written down is confirmed with the door, and kept when it still ma
 test("a pod whose volume was recreated has a new key, and the app takes the new one", async () => {
   const OLD = `SHA256:${"o".repeat(43)}`;
   const NEW = `SHA256:${"n".repeat(43)}`;
-  let kept = `HIVE_SERVER_URL=https://hive-joao.example.com\nHIVE_SERVER_KEY=${OLD}\n`;
+  let kept = `HIVE_SERVER_URL=https://hive-jonas.example.com\nHIVE_SERVER_KEY=${OLD}\n`;
   const found = await findCloudServer({
-    env: { HIVE_SERVER_URL: "https://hive-joao.example.com", HIVE_SERVER_KEY: OLD },
+    env: { HIVE_SERVER_URL: "https://hive-jonas.example.com", HIVE_SERVER_KEY: OLD },
     read: () => kept,
     write: (text) => { kept = text; },
     fetchImpl: answering({ fingerprint: NEW })
@@ -71,7 +71,7 @@ test("a pod whose volume was recreated has a new key, and the app takes the new 
 
 test("a door that is briefly down does not throw away the key we already had", async () => {
   const found = await findCloudServer({
-    env: { HIVE_SERVER_URL: "https://hive-joao.example.com", HIVE_SERVER_KEY: KEY },
+    env: { HIVE_SERVER_URL: "https://hive-jonas.example.com", HIVE_SERVER_KEY: KEY },
     fetchImpl: async () => { throw new Error("503"); }
   });
   assert.equal(found.found, "kept");
@@ -84,14 +84,14 @@ test("what the door says is written down, so the next boot does not ask again", 
   const found = await findCloudServer({
     read: () => kept,
     write: (text) => { kept = text; },
-    env: { HIVE_SERVER_URL: "https://hive-joao.example.com" },
+    env: { HIVE_SERVER_URL: "https://hive-jonas.example.com" },
     fetchImpl: answering({ fingerprint: KEY })
   });
   assert.equal(found.found, "asked");
-  assert.equal(found.url, "https://hive-joao.example.com");
+  assert.equal(found.url, "https://hive-jonas.example.com");
   assert.equal(found.key, KEY);
   assert.match(kept, /HIVE_OTHER=fica/);
-  assert.match(kept, /HIVE_SERVER_URL=https:\/\/hive-joao\.example\.com/);
+  assert.match(kept, /HIVE_SERVER_URL=https:\/\/hive-jonas\.example\.com/);
   assert.match(kept, new RegExp(`HIVE_SERVER_KEY=${KEY.replace(/[+/]/g, "\\$&")}`));
 });
 
@@ -110,7 +110,7 @@ test("writing the address twice leaves one of each line, not two", () => {
 test("a door that does not answer leaves nothing written down", async () => {
   let kept = "HIVE_A=1\n";
   const found = await findCloudServer({
-    env: { HIVE_SERVER_URL: "https://hive-joao.example.com" },
+    env: { HIVE_SERVER_URL: "https://hive-jonas.example.com" },
     read: () => kept,
     write: (text) => { kept = text; },
     fetchImpl: async () => { throw new Error("timeout"); }

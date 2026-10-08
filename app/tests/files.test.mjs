@@ -43,15 +43,15 @@ const row = (repo, branch, path) => `${repo}\t${branch}\t${path}`;
 
 test("the index walk reads repo, branch and path out of every line", () => {
   const rows = files.readIndexWalk([
-    row("api-arvore", "main", "src/app.ts"),
-    row(".worktrees/fix/api-arvore", "fix/lock", "src/app.ts"),
+    row("api", "main", "src/app.ts"),
+    row(".worktrees/fix/api", "fix/lock", "src/app.ts"),
     "garbage without tabs",
     ""
   ].join("\n"));
   assert.equal(rows.length, 2);
-  assert.deepEqual(rows[0], { repo: "api-arvore", name: "api-arvore", branch: "main", path: "src/app.ts" });
-  assert.equal(rows[1].name, "api-arvore", "a worktree keeps the name of the repo it is a copy of");
-  assert.equal(rows[1].repo, ".worktrees/fix/api-arvore");
+  assert.deepEqual(rows[0], { repo: "api", name: "api", branch: "main", path: "src/app.ts" });
+  assert.equal(rows[1].name, "api", "a worktree keeps the name of the repo it is a copy of");
+  assert.equal(rows[1].repo, ".worktrees/fix/api");
 });
 
 test(".hiveignore takes out what git has no opinion about", () => {
@@ -68,9 +68,9 @@ test(".hiveignore takes out what git has no opinion about", () => {
 
 test("the name of the file wins over the path, and a tight match wins over a scattered one", () => {
   const rows = files.readIndexWalk([
-    row("api-arvore", "main", "src/shared/services/cron-lock.service.ts"),
+    row("api", "main", "src/shared/services/cron-lock.service.ts"),
     row("docusaurus-to-md", "main", "pnpm-lock.yaml"),
-    row("api-arvore", "main", "src/modules/catalogation/create-converse-com-livro-feedback.use-case.ts")
+    row("api", "main", "src/modules/catalogation/create-converse-com-livro-feedback.use-case.ts")
   ].join("\n"));
   const found = files.rankIndex(rows, "cronlock", 3);
   assert.equal(found[0].path, "src/shared/services/cron-lock.service.ts");
@@ -94,14 +94,14 @@ test("a path nothing matches is left out", () => {
 
 test("the same file in three worktrees is one row that says how many copies exist", () => {
   const rows = files.readIndexWalk([
-    row(".worktrees/fix/api-arvore", "fix/lock", "src/shared/cron-lock.service.ts"),
-    row("api-arvore", "main", "src/shared/cron-lock.service.ts"),
-    row(".worktrees/other/api-arvore", "other", "src/shared/cron-lock.service.ts")
+    row(".worktrees/fix/api", "fix/lock", "src/shared/cron-lock.service.ts"),
+    row("api", "main", "src/shared/cron-lock.service.ts"),
+    row(".worktrees/other/api", "other", "src/shared/cron-lock.service.ts")
   ].join("\n"));
   const found = files.rankIndex(rows, "cron-lock.service.ts", 10);
   assert.equal(found.length, 1);
   assert.equal(found[0].copies, 3);
-  assert.equal(found[0].repo, "api-arvore", "the copy outside .worktrees is the one it offers");
+  assert.equal(found[0].repo, "api", "the copy outside .worktrees is the one it offers");
 });
 
 test("an empty query still answers, so ⌘P opens on something", () => {
@@ -111,19 +111,19 @@ test("an empty query still answers, so ⌘P opens on something", () => {
 
 test("the search walk splits repo, path, line and the line itself", () => {
   const hits = files.readSearchWalk([
-    "api-arvore\tsrc/a.ts:21:  async runExclusively(",
-    "api-arvore\tsrc/b.ts:9:const url = 'http://x:8080/a:b'",
+    "api\tsrc/a.ts:21:  async runExclusively(",
+    "api\tsrc/b.ts:9:const url = 'http://x:8080/a:b'",
     "no tab here",
-    "api-arvore\tsrc/c.ts:not-a-number:x"
+    "api\tsrc/c.ts:not-a-number:x"
   ].join("\n"));
   assert.equal(hits.length, 2);
-  assert.deepEqual(hits[0], { repo: "api-arvore", name: "api-arvore", path: "src/a.ts", line: 21, text: "  async runExclusively(" });
+  assert.deepEqual(hits[0], { repo: "api", name: "api", path: "src/a.ts", line: 21, text: "  async runExclusively(" });
   assert.equal(hits[1].text, "const url = 'http://x:8080/a:b'", "colons inside the line survive");
 });
 
 test("a path that tries to leave the repo is refused", () => {
-  assert.ok(files.isRepoRel("api-arvore"));
-  assert.ok(files.isRepoRel(".worktrees/fix/api-arvore"));
+  assert.ok(files.isRepoRel("api"));
+  assert.ok(files.isRepoRel(".worktrees/fix/api"));
   assert.ok(!files.isRepoRel("../etc"));
   assert.ok(!files.isRepoRel("/etc"));
   assert.ok(files.isFileRel("src/app.ts"));

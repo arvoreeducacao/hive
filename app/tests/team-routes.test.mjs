@@ -12,8 +12,8 @@ function teamHarness(overrides = {}) {
   };
   const keyboards = new Map();
   const owing = new Map();
-  let dev = "joao";
-  let pokers = ["joao"];
+  let dev = "jonas";
+  let pokers = ["jonas"];
   const context = {
     bodyOf: async (req) => req.body || {},
     getDev: () => dev,
@@ -80,15 +80,15 @@ test("the team room registers all inline knock and team routes with their exact 
 test("knock polling follows notes, drains pokes and movement, and reports live loans", async () => {
   const hive = teamHarness();
   hive.state.knocking = [{ from: "art", seat: "old", stale: true }, { from: "art", seat: "work" }];
-  hive.state.poking = [{ from: "vitor" }];
+  hive.state.poking = [{ from: "vini" }];
   hive.state.teamMoved = true;
   hive.keyboards.set("work", { with: "art", until: Date.now() + 60000 });
-  hive.keyboards.set("gone", { with: "vitor", until: 1 });
+  hive.keyboards.set("gone", { with: "vini", until: 1 });
 
   assert.deepEqual(await hive.call("/api/knocks"), [{
     value: {
       knocks: [{ from: "art", seat: "work" }],
-      pokes: [{ from: "vitor" }],
+      pokes: [{ from: "vini" }],
       moved: true,
       lent: [{ seat: "work", with: "art", until: hive.keyboards.get("work").until }]
     },
@@ -108,7 +108,7 @@ test("answering an incoming question either declines remotely or delivers and re
   assert.deepEqual(declined.calls, [["noteToPeer", "art", "answer", {
     v: 1,
     kind: "answer",
-    from: "joao",
+    from: "jonas",
     seat: "checkout",
     at: 1000,
     id: "q1",
@@ -161,12 +161,12 @@ test("answering a knock lends the keyboard after refreshing it, while revoke dro
 test("knock, poke and bye preserve their note kinds, payloads, permissions and transport failures", async () => {
   const hive = teamHarness();
   await hive.call("/api/team/knock", { body: { dev: "art", seat: "worker" } });
-  await hive.call("/api/team/poke", { body: { dev: "vitor" } });
+  await hive.call("/api/team/poke", { body: { dev: "vini" } });
   await hive.call("/api/team/bye", { body: { dev: "art", seat: "worker" } });
   assert.deepEqual(hive.calls, [
-    ["noteToPeer", "art", "knock", { v: 1, kind: "knock", from: "joao", seat: "worker", at: 1000 }],
-    ["noteToPeer", "vitor", "poke", { v: 1, kind: "poke", from: "joao", at: 1000, id: "joao:1000" }],
-    ["noteToPeer", "art", "knock", { v: 1, kind: "bye", from: "joao", seat: "worker", at: 1000 }]
+    ["noteToPeer", "art", "knock", { v: 1, kind: "knock", from: "jonas", seat: "worker", at: 1000 }],
+    ["noteToPeer", "vini", "poke", { v: 1, kind: "poke", from: "jonas", at: 1000, id: "jonas:1000" }],
+    ["noteToPeer", "art", "knock", { v: 1, kind: "bye", from: "jonas", seat: "worker", at: 1000 }]
   ]);
 
   const forbidden = teamHarness({ getPokers: () => [] });
@@ -181,11 +181,11 @@ test("knock, poke and bye preserve their note kinds, payloads, permissions and t
 
 test("a hello leaves by the poke's road, under the poke's allowlist, with its one word on it", async () => {
   const hive = teamHarness();
-  await hive.call("/api/team/poke", { body: { dev: "vitor", hello: true } });
-  await hive.call("/api/team/poke", { body: { dev: "vitor", hello: "yes" } });
+  await hive.call("/api/team/poke", { body: { dev: "vini", hello: true } });
+  await hive.call("/api/team/poke", { body: { dev: "vini", hello: "yes" } });
   assert.deepEqual(hive.calls, [
-    ["noteToPeer", "vitor", "poke", { v: 1, kind: "poke", from: "joao", at: 1000, id: "joao:1000", hello: true }],
-    ["noteToPeer", "vitor", "poke", { v: 1, kind: "poke", from: "joao", at: 1000, id: "joao:1000" }]
+    ["noteToPeer", "vini", "poke", { v: 1, kind: "poke", from: "jonas", at: 1000, id: "jonas:1000", hello: true }],
+    ["noteToPeer", "vini", "poke", { v: 1, kind: "poke", from: "jonas", at: 1000, id: "jonas:1000" }]
   ]);
   const forbidden = teamHarness({ getPokers: () => [] });
   assert.deepEqual(await forbidden.call("/api/team/poke", { body: { dev: "art", hello: true } }), [
@@ -260,12 +260,12 @@ test("team reads the whole board or one validated hive with the same force seman
 });
 
 test("a knock and a poke stop at the asker's own door when the other hive closed theirs", async () => {
-  const closed = new Set(["joao"]);
+  const closed = new Set(["jonas"]);
   const { call, calls, setDev } = teamHarness({ peerTakesKnocks: (dev) => !closed.has(dev) });
   setDev("rafa");
-  const knock = await call("/api/team/knock", { body: { dev: "joao", seat: "hive-1" } });
+  const knock = await call("/api/team/knock", { body: { dev: "jonas", seat: "hive-1" } });
   assert.deepEqual(knock, [{ value: { error: "that hive is not taking knocks right now" }, status: 403 }]);
-  const poke = await call("/api/team/poke", { body: { dev: "joao" } });
+  const poke = await call("/api/team/poke", { body: { dev: "jonas" } });
   assert.deepEqual(poke, [{ value: { error: "this hive does not do that" }, status: 403 }]);
   assert.ok(!calls.some((one) => one[0] === "noteToPeer"), "nothing left for a closed door");
 });

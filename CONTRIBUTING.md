@@ -1,5 +1,9 @@
 # Contributing
 
+Hive is alpha. Issues about what breaks or reads wrong are the most useful thing
+you can send right now. Before a large pull request, open an issue first: the
+code still moves fast, and what you build on may change under you.
+
 ## Getting it running
 
 ```

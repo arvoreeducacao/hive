@@ -30,13 +30,13 @@ function cut(text, from, to, what) {
 }
 
 const SHELF = {
-  repo: "https://github.com/arvoreeducacao/artefatos",
+  repo: "https://github.com/acme/artifacts",
   pages: [
     {
       slug: "chat-orquestrador",
       title: "Chat Orquestrador",
       label: "em-revisao",
-      owner: "joao",
+      owner: "jonas",
       at: 20,
       tabs: {
         documento: { versions: [{ n: 1, label: "rascunho", at: 10 }, { n: 2, label: "em-revisao", at: 20 }] },

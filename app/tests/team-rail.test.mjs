@@ -8,7 +8,7 @@ const { mountTeamRail } = await import(new URL("../src/views.js", import.meta.ur
 
 const dev = (over = {}) => { const one = { dev: "guilherme", up: true, seats: [], ...over }; return { key: `k-${one.dev}`, machine: one.dev, ...one }; };
 const seats = (n) => Array.from({ length: n }, (_, i) => ({ name: `s${i}`, state: "needs" }));
-const team = (...devs) => { st.team = { me: "rick", sharing: true, poke: true, devs }; };
+const team = (...devs) => { st.team = { me: "rita", sharing: true, poke: true, devs }; };
 const onlyGroup = () => { const g = teamRailViewModel().groups; return g.find((one) => one.devs.length) || g[0]; };
 const tallyOf = (d) => { team(d); return onlyGroup().devs[0].tally; };
 

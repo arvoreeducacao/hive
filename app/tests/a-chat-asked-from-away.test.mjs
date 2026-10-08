@@ -48,7 +48,7 @@ test("a chat asked from another device of yours is born the same way", async () 
 
 test("what the asker sent is carried whole, the flag is the only thing added", async () => {
   const { open, seen } = bench(PHONE, "spawn");
-  await open({ prompt: "abre", where: "cloud", model: "opus", account: "arvore", repo: "hub", agent: "codex" });
+  await open({ prompt: "abre", where: "cloud", model: "opus", account: "acme", repo: "hub", agent: "codex" });
   const [asked] = seen;
-  assert.deepEqual(asked, { prompt: "abre", where: "cloud", model: "opus", account: "arvore", repo: "hub", agent: "codex", structured: true });
+  assert.deepEqual(asked, { prompt: "abre", where: "cloud", model: "opus", account: "acme", repo: "hub", agent: "codex", structured: true });
 });

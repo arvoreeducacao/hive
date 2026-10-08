@@ -3,6 +3,8 @@ title: Run your own server
 description: One container, one volume, one key — where state lives and how the server learns to trust you.
 sidebar:
   order: 1
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 

@@ -3,6 +3,8 @@ title: The three pieces
 description: A desktop app, a server, a phone app — and only one of them keeps state.
 sidebar:
   order: 2
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 Three pieces, and only one of them keeps state.

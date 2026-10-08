@@ -13,7 +13,7 @@ const { openPageInASeat } = await app("page-in-a-seat");
 const { drafts } = await app("draft-seat");
 
 const SHELF = {
-  repo: "https://github.com/arvoreeducacao/artefatos",
+  repo: "https://github.com/acme/artifacts",
   me: "art",
   pages: [{
     slug: "guarda-roupa-do-avatar-do-hive", title: "Guarda-roupa do avatar do Hive", label: "in-review", owner: "art", at: 20,

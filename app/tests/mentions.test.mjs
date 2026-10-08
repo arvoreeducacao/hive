@@ -26,7 +26,7 @@ test("the chat is called by the name it goes by, cut to one token", () => {
   assert.equal(seatLabel(fleet[1]), "retry do webhook");
   assert.equal(seatHandle(fleet[1]), "retry-do-webhook");
   assert.equal(seatHandle({ name: "so-o-nome", title: "" }), "so-o-nome", "a chat that has not named itself yet is still reachable");
-  assert.equal(seatHandle({ name: "x", title: "Revisar a Árvore!" }), "revisar-a-arvore");
+  assert.equal(seatHandle({ name: "x", title: "Revisar a Sessão!" }), "revisar-a-sessao");
 });
 
 test("the name the person reads is the name they can write", () => {
@@ -177,66 +177,66 @@ test("the handle tells the peer which tools reach it", () => {
 });
 
 const team = [
-  { dev: "vitor", up: true, sharing: true, seats: [
+  { dev: "vini", up: true, sharing: true, seats: [
     { name: "api-payload", title: "dto do pagamento", where: "cloud", model: "opus", state: "working", now: "montando o dto" },
     { name: "b", title: "b" },
     { name: "c", title: "base de dados do mcp", where: "local", state: "blocked", now: "o postgres nao sobe" }
   ] },
-  { dev: "rafaelandrade", up: true, sharing: true, seats: [{ name: "d" }] },
-  { dev: "ricardo", up: true, sharing: false, seats: [] },
+  { dev: "rosa", up: true, sharing: true, seats: [{ name: "d" }] },
+  { dev: "renato", up: true, sharing: false, seats: [] },
   { dev: "art", up: false, sharing: false, seats: [] },
-  { dev: "joao", up: true, sharing: true, seats: [{ name: "e" }] },
+  { dev: "jonas", up: true, sharing: true, seats: [{ name: "e" }] },
 ];
 
 test("the people menu puts whoever can be reached first, and never yourself", () => {
-  const devs = personChoices(team, "", "joao").map((r) => r.dev);
-  assert.ok(!devs.includes("joao"));
-  assert.deepEqual(devs.slice(0, 2), ["rafaelandrade", "vitor"]);
-  assert.deepEqual(devs.slice(2), ["art", "ricardo"]);
+  const devs = personChoices(team, "", "jonas").map((r) => r.dev);
+  assert.ok(!devs.includes("jonas"));
+  assert.deepEqual(devs.slice(0, 2), ["rosa", "vini"]);
+  assert.deepEqual(devs.slice(2), ["art", "renato"]);
 });
 
 test("the people menu matches on the start of the name", () => {
-  assert.deepEqual(personChoices(team, "vi", "joao").map((r) => r.dev), ["vitor"]);
-  assert.deepEqual(personChoices(team, "ra", "joao").map((r) => r.dev), ["rafaelandrade"]);
+  assert.deepEqual(personChoices(team, "vi", "jonas").map((r) => r.dev), ["vini"]);
+  assert.deepEqual(personChoices(team, "ro", "jonas").map((r) => r.dev), ["rosa"]);
 });
 
 test("a person mention hands the person over and leaves the message where it was", () => {
-  const out = expandPeople("pergunta pro ~vitor qual é o formato", team, "joao", "checkout");
-  assert.deepEqual(out.people, ["vitor"]);
-  assert.match(out.text, /\[hive\] person: vitor · hive open · 3 seats awake/);
+  const out = expandPeople("pergunta pro ~vini qual é o formato", team, "jonas", "checkout");
+  assert.deepEqual(out.people, ["vini"]);
+  assert.match(out.text, /\[hive\] person: vini · hive open · 3 seats awake/);
   assert.match(out.text, /approves before it lands/);
-  assert.match(out.text, /\[hive\] you are: joao · checkout/);
-  assert.ok(out.text.endsWith("pergunta pro ~vitor qual é o formato"));
+  assert.match(out.text, /\[hive\] you are: jonas · checkout/);
+  assert.ok(out.text.endsWith("pergunta pro ~vini qual é o formato"));
 });
 
 test("the person mention hands over which chats they have open, not only how many", () => {
-  const out = expandPeople("~vitor quem ta no banco?", team, "joao", "checkout");
+  const out = expandPeople("~vini quem ta no banco?", team, "jonas", "checkout");
   assert.match(out.text, /their chats/);
   assert.match(out.text, /- api-payload "dto do pagamento" · cloud · opus · working · "montando o dto"/);
   assert.match(out.text, /- c "base de dados do mcp" · local · blocked · "o postgres nao sobe"/, "naming the chat is the whole point of the handle");
 });
 
 test("a chat whose title only repeats its name is not said twice", () => {
-  const out = expandPeople("~vitor oi", team, "joao", "checkout");
+  const out = expandPeople("~vini oi", team, "jonas", "checkout");
   assert.match(out.text, /^ {2}- b$/m);
 });
 
 test("a long list of chats is cut and says how many were left out", () => {
-  const many = [{ dev: "vitor", up: true, sharing: true, seats: Array.from({ length: 15 }, (_, i) => ({ name: `s${i}`, title: `chat ${i}` })) }];
-  const out = expandPeople("~vitor oi", many, "joao", "checkout");
+  const many = [{ dev: "vini", up: true, sharing: true, seats: Array.from({ length: 15 }, (_, i) => ({ name: `s${i}`, title: `chat ${i}` })) }];
+  const out = expandPeople("~vini oi", many, "jonas", "checkout");
   assert.match(out.text, /and 3 more/);
   assert.ok(!out.text.includes("s12"));
 });
 
 test("with the hive open but no chat, the handle stops at the count", () => {
-  const alone = [{ dev: "vitor", up: true, sharing: true, seats: [] }];
-  const out = expandPeople("~vitor oi", alone, "joao", "checkout");
+  const alone = [{ dev: "vini", up: true, sharing: true, seats: [] }];
+  const out = expandPeople("~vini oi", alone, "jonas", "checkout");
   assert.ok(!out.text.includes("their chats"));
 });
 
 test("a ~ that fits nobody was never a mention — paths and shell lines keep working", () => {
   for (const line of ["~/src/app", "cd ~", "roda ~npm test", "~", "!ls -la", "que susto!"]) {
-    const out = expandPeople(line, team, "joao", "checkout");
+    const out = expandPeople(line, team, "jonas", "checkout");
     assert.equal(out.text, line, line);
     assert.deepEqual(out.people, []);
   }
@@ -251,39 +251,39 @@ test("a line that opens with ! is a shell line, and two of them keep it out of t
 });
 
 test("a person mention works at the start of the line, because the name is what decides", () => {
-  const out = expandPeople("~vitor sabe o formato?", team, "joao", "checkout");
-  assert.deepEqual(out.people, ["vitor"]);
+  const out = expandPeople("~vini sabe o formato?", team, "jonas", "checkout");
+  assert.deepEqual(out.people, ["vini"]);
 });
 
 test("mentioning someone with the hive closed is refused where it can still be changed", () => {
-  for (const dev of ["ricardo", "art"]) {
-    const out = expandPeople(`pergunta pro ~${dev}`, team, "joao", "checkout");
+  for (const dev of ["renato", "art"]) {
+    const out = expandPeople(`pergunta pro ~${dev}`, team, "jonas", "checkout");
     assert.match(out.error, new RegExp(dev));
     assert.match(out.error, /hive closed/);
   }
 });
 
 test("a name that fits two people stops the send", () => {
-  const two = [...team, { dev: "vitoria", up: true, sharing: true, seats: [] }];
-  const out = expandPeople("chama o ~vito", two, "joao", "checkout");
+  const two = [...team, { dev: "vinicia", up: true, sharing: true, seats: [] }];
+  const out = expandPeople("chama o ~vin", two, "jonas", "checkout");
   assert.match(out.error, /fits 2 people/);
-  assert.match(out.error, /vitor, vitoria/);
+  assert.match(out.error, /vini, vinicia/);
 });
 
 test("the same person named twice is handed over once", () => {
-  const out = expandPeople("o ~vitor e depois o ~vitor de novo", team, "joao", "checkout");
-  assert.deepEqual(out.people, ["vitor"]);
+  const out = expandPeople("o ~vini e depois o ~vini de novo", team, "jonas", "checkout");
+  assert.deepEqual(out.people, ["vini"]);
   assert.equal(out.text.match(/\[hive\] person:/g).length, 1);
 });
 
 test("a handle going to a tui is flattened to one line", () => {
-  const out = expandPeople("alinha com o ~vitor", team, "joao", "checkout", true);
+  const out = expandPeople("alinha com o ~vini", team, "jonas", "checkout", true);
   assert.ok(!out.text.includes("\n"));
-  assert.match(out.text, /\[hive\] person: vitor/);
+  assert.match(out.text, /\[hive\] person: vini/);
 });
 
 test("what the menu says about someone it cannot reach", () => {
-  assert.match(personSays({ dev: "ricardo", up: true, sharing: false, seats: [] }).state, /hive closed/);
+  assert.match(personSays({ dev: "renato", up: true, sharing: false, seats: [] }).state, /hive closed/);
   assert.match(personSays({ dev: "art", up: false, sharing: false, seats: [] }).state, /server asleep/);
   assert.match(personSays({ dev: "rafa", up: true, sharing: true, seats: [{ name: "x" }] }).meta, /1 seat awake/);
 });

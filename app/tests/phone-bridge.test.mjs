@@ -34,7 +34,7 @@ async function stage() {
   const broker = createSyncBroker({
     dataDir: join(root, "broker"),
     audience: pod.fingerprint,
-    owner: "joao",
+    owner: "jonas",
     trusted: (fp) => (fp === mac.fingerprint ? { signer: rawOfSsh(mac.publicSsh), name: "mac", kind: "mac" } : null)
   });
   const http = createServer((request, response) => {
@@ -50,7 +50,7 @@ async function stage() {
     connection.on("data", (chunk) => {
       const said = JSON.parse(String(chunk).trim());
       typed.push(said);
-      const reply = said.type === "control" ? (said.op === "catalog" ? { ok: true, models: [{ value: "opus-5", label: "Opus 5", efforts: ["low", "high"] }], current: { model: "opus-5", effort: "high", account: "arvore" } } : { ok: true, model: said.model, level: said.level }) : { ok: true };
+      const reply = said.type === "control" ? (said.op === "catalog" ? { ok: true, models: [{ value: "opus-5", label: "Opus 5", efforts: ["low", "high"] }], current: { model: "opus-5", effort: "high", account: "acme" } } : { ok: true, model: said.model, level: said.level }) : { ok: true };
       connection.write(`${JSON.stringify(reply)}\n`);
     });
   });
@@ -66,7 +66,7 @@ async function stage() {
 }
 
 test("the sync door hangs off the server address", () => {
-  assert.equal(syncHostOf("https://hive-joao.example.com/"), "https://hive-joao.example.com/sync");
+  assert.equal(syncHostOf("https://hive-jonas.example.com/"), "https://hive-jonas.example.com/sync");
   assert.equal(syncHostOf("http://127.0.0.1:8791"), "http://127.0.0.1:8791/sync");
 });
 
@@ -83,7 +83,7 @@ test("with the switch on, the bridge enrolls this machine, mints a code, hands t
     seats: async () => seats,
     profile: () => ({ avatar: "cloud/curious/blue", wear: "hat:cap" }),
     enabled: async () => on,
-    machineName: () => "mac do joao"
+    machineName: () => "mac do jonas"
   });
   try {
     const said = await bridge.tick();
@@ -125,7 +125,7 @@ test("with the switch on, the bridge enrolls this machine, mints a code, hands t
     await waitFor(() => phone.replica.get("cadencia").events.some((one) => one.value?.type === "intent-done" && one.value.reply?.models));
     const catalog = phone.replica.get("cadencia").events.find((one) => one.value?.type === "intent-done" && one.value.reply?.models).value.reply;
     assert.equal(catalog.models[0].label, "Opus 5");
-    assert.deepEqual(catalog.current, { model: "opus-5", effort: "high", account: "arvore" });
+    assert.deepEqual(catalog.current, { model: "opus-5", effort: "high", account: "acme" });
     await phone.intend("cadencia", { type: "control", op: "setModel", model: "opus-5" });
     await waitFor(() => it.typed.some((one) => one.type === "control" && one.op === "setModel"));
     assert.equal(it.typed.find((one) => one.op === "setModel").model, "opus-5");
@@ -180,7 +180,7 @@ test("a chat asked for from the phone is opened by the bridge with the desktop's
     identity: it.mac,
     door: async () => ({ url: it.url, audience: it.pod.fingerprint }),
     seats: async () => opened.map((one) => ({ name: one.name, title: one.name })),
-    machineName: () => "mac do joao",
+    machineName: () => "mac do jonas",
     spawn: async (mission) => {
       if (/fail/.test(mission.prompt)) return { error: "no seat left on this machine" };
       const made = { id: `n${opened.length + 1}`, name: `chat-${opened.length + 1}`, where: mission.where, prompt: mission.prompt };
@@ -229,7 +229,7 @@ test("a bridge with no opener says so to the phone instead of staying quiet", as
     identity: it.mac,
     door: async () => ({ url: it.url, audience: it.pod.fingerprint }),
     seats: async () => [],
-    machineName: () => "mac do joao"
+    machineName: () => "mac do jonas"
   });
   try {
     await bridge.tick();
@@ -255,7 +255,7 @@ test("the bridge answers the phone's asks with what the desktop knows, and says 
     identity: it.mac,
     door: async () => ({ url: it.url, audience: it.pod.fingerprint }),
     seats: async () => [],
-    machineName: () => "mac do joao",
+    machineName: () => "mac do jonas",
     answer: async (kind, payload) => {
       if (kind === "people") return { people: [{ name: "mateus", up: true }, { name: "lucas", up: false }] };
       if (kind === "files") return { files: [`src/${payload.q}.ts`, `docs/${payload.q}.md`] };

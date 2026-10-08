@@ -21,24 +21,24 @@ const chipModel = (tree) => tileChipsModel(seatWith(tree))[0];
 const chipNode = (tree) => createTile(seatWith(tree)).querySelector(".t-chips .c");
 
 test("the chip carries the repo and the tail of the branch, because the card has no room for the rest", () => {
-  const chip = chipModel({ repo: "api-arvore", branch: "jott4-/-mcp-despachante-readonly", path: "/x/api-arvore", main: true });
-  assert.equal(chip.text, "api-arvore");
+  const chip = chipModel({ repo: "api", branch: "juno-/-mcp-despachante-readonly", path: "/x/api", main: true });
+  assert.equal(chip.text, "api");
   assert.equal(chip.twig, "mcp-despachante-readonly");
-  assert.ok(!chip.twig.includes("jott4-"), "the owner prefix is in the tooltip, not on the card");
+  assert.ok(!chip.twig.includes("juno-"), "the owner prefix is in the tooltip, not on the card");
 });
 
 test("the whole branch and the folder are in the tooltip, so nothing is only shortened away", () => {
-  const chip = chipModel({ repo: "dev-workspaces", branch: "joao/-/humor", path: "/Users/x/hive-humor", main: false });
-  assert.equal(chip.title, "/Users/x/hive-humor\njoao/-/humor\nworktree");
+  const chip = chipModel({ repo: "dev-workspaces", branch: "jonas/-/humor", path: "/Users/x/hive-humor", main: false });
+  assert.equal(chip.title, "/Users/x/hive-humor\njonas/-/humor\nworktree");
 });
 
 test("a worktree is marked apart from the repo's own folder", () => {
-  const apart = chipModel({ repo: "dev-workspaces", branch: "joao/-/humor", path: "/Users/x/hive-humor", main: false });
+  const apart = chipModel({ repo: "dev-workspaces", branch: "jonas/-/humor", path: "/Users/x/hive-humor", main: false });
   const home = chipModel({ repo: "dev-workspaces", branch: "main", path: "/Users/x/dev-workspaces", main: true });
   assert.equal(apart.cls, "tree apart");
   assert.equal(home.cls, "tree");
   assert.ok(!home.title.includes("worktree"), "the repo's own folder is not called a worktree");
-  assert.equal(chipNode({ repo: "dev-workspaces", branch: "joao/-/humor", path: "/Users/x/hive-humor", main: false }).className, "c tree apart");
+  assert.equal(chipNode({ repo: "dev-workspaces", branch: "jonas/-/humor", path: "/Users/x/hive-humor", main: false }).className, "c tree apart");
   assert.equal(chipNode({ repo: "dev-workspaces", branch: "main", path: "/Users/x/dev-workspaces", main: true }).className, "c tree");
 });
 
@@ -50,7 +50,7 @@ test("a detached head has no branch to shorten and the chip is just the repo", (
 });
 
 test("the repo is the half the chip may cut, and the branch is the half that survives", () => {
-  const node = chipNode({ repo: "dev-workspaces", branch: "joao/-/uma-conexao-por-pod", path: "/x", main: false });
+  const node = chipNode({ repo: "dev-workspaces", branch: "jonas/-/uma-conexao-por-pod", path: "/x", main: false });
   assert.equal(node.querySelector("span.tx").textContent, "dev-workspaces");
   assert.equal(node.querySelector("b").textContent, "uma-conexao-por-pod");
 
@@ -74,7 +74,7 @@ test("a branch with no slashes is left whole", () => {
 });
 
 test("the dash of the <quem>/-/<o-que> separator does not survive into the chip", () => {
-  assert.equal(shortBranch("jott4-/-mcp-despachante-readonly"), "mcp-despachante-readonly");
-  assert.equal(shortBranch("joao-cunha/-/painel-de-pedidos"), "painel-de-pedidos");
+  assert.equal(shortBranch("juno-/-mcp-despachante-readonly"), "mcp-despachante-readonly");
+  assert.equal(shortBranch("jorge/-/painel-de-pedidos"), "painel-de-pedidos");
   assert.equal(shortBranch("oms/a2b-conector"), "a2b-conector");
 });

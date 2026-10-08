@@ -161,11 +161,11 @@ test("the screenshot comes back on stdout as bytes, not through a temporary file
 test("an app that will not launch answers with the bundle ids that look like the one asked for", async () => {
   const { exec } = fakeExec([
     ["simctl launch", no("Unable to lookup app")],
-    ["listapps", ok('CFBundleIdentifier = "br.com.arvore.biblion"; CFBundleIdentifier = "com.apple.Maps";')]
+    ["listapps", ok('CFBundleIdentifier = "com.example.reader"; CFBundleIdentifier = "com.apple.Maps";')]
   ]);
   const drive = createIosDriver({ tools, exec });
-  const opened = await drive.openApp("BBB", "br.com.outra.biblion");
-  assert.match(opened.error, /br\.com\.arvore\.biblion/);
+  const opened = await drive.openApp("BBB", "com.other.reader");
+  assert.match(opened.error, /com\.example\.reader/);
   assert.ok(!opened.error.includes("com.apple.Maps"));
 });
 

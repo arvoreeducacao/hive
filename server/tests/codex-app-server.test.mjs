@@ -40,13 +40,13 @@ const SHELL_TURN = [
 ];
 
 test("codex app-server: the spawn carries yolo, the question flag and the hive mcp", () => {
-  const args = appServerArgs({ seat: "orca", base: "/Users/joao/.hive" });
+  const args = appServerArgs({ seat: "orca", base: "/Users/dev/.hive" });
   assert.equal(args[0], "app-server");
   assert.ok(args.includes("default_mode_request_user_input"));
   assert.ok(args.includes('approval_policy="never"'));
   assert.ok(args.includes('sandbox_mode="danger-full-access"'));
   const peer = peerEntry();
-  assert.ok(args.includes(`mcp_servers.hive={command=${JSON.stringify(process.execPath)},args=[${JSON.stringify(peer)}],env={HIVE_SEAT="orca",HIVE_STATE_DIR="/Users/joao/.hive"}}`));
+  assert.ok(args.includes(`mcp_servers.hive={command=${JSON.stringify(process.execPath)},args=[${JSON.stringify(peer)}],env={HIVE_SEAT="orca",HIVE_STATE_DIR="/Users/dev/.hive"}}`));
   assert.ok(!appServerArgs().some((a) => a.startsWith("mcp_servers")));
   assert.ok(appServerArgs({ autocompact: 150000 }).includes("model_auto_compact_token_limit=150000"), "the hive's ceiling becomes codex's own auto-compact limit");
   assert.ok(!appServerArgs({ autocompact: 0 }).some((a) => a.startsWith("model_auto_compact")));
@@ -54,15 +54,15 @@ test("codex app-server: the spawn carries yolo, the question flag and the hive m
 });
 
 test("codex app-server: the hub gateway rides along as one streamable http mcp server named hub", () => {
-  const lines = gatewayMcpConfig(["arvore-mysql", "signoz"], 4671);
+  const lines = gatewayMcpConfig(["acme-mysql", "signoz"], 4671);
   assert.deepEqual(lines, ['mcp_servers.hub={url="http://127.0.0.1:4671/mcp/hub",bearer_token_env_var="HIVE_MCP_GATEWAY_TOKEN"}'], "however many servers the gateway hosts, codex gets one: hub");
   assert.deepEqual(gatewayMcpConfig([], 4671, false), []);
   assert.equal(gatewayMcpConfig([], 4671).length, 1, "an empty gateway still discovers servers added later");
   assert.equal(codexMcpName("super-postgresql"), "super_postgresql");
-  const args = appServerArgs({ seat: "orca", base: "/Users/joao/.hive", gateway: { port: 4671, servers: ["arvore-mysql"] } });
+  const args = appServerArgs({ seat: "orca", base: "/Users/dev/.hive", gateway: { port: 4671, servers: ["acme-mysql"] } });
   assert.ok(args.includes(lines[0]));
   assert.ok(args.some((a) => a.startsWith("mcp_servers.hive=")));
-  const without = appServerArgs({ seat: "orca", base: "/Users/joao/.hive", gateway: null });
+  const without = appServerArgs({ seat: "orca", base: "/Users/dev/.hive", gateway: null });
   assert.ok(!without.some((a) => a.startsWith("mcp_servers.hub")));
   assert.ok(!appServerArgs({ seat: "orca", base: "/x", gateway: { port: 4671, servers: [], hub: false } }).some((a) => a.startsWith("mcp_servers.hub")));
 });
@@ -71,7 +71,7 @@ test("codex app-server: the hub's remote http servers ride along too, the gatewa
   const mcpJson = JSON.stringify({ mcpServers: {
     figma: { type: "http", url: "https://mcp.figma.com/mcp" },
     "granola-meeting-recording": { type: "http", url: "https://mcp.granola.ai/mcp", headers: { "X-Key": "${GRANOLA_KEY}" } },
-    "arvore-mysql": { type: "http", url: "http://127.0.0.1:4671/mcp/arvore-mysql", headers: { Authorization: "Bearer ${HIVE_MCP_GATEWAY_TOKEN}" } },
+    "acme-mysql": { type: "http", url: "http://127.0.0.1:4671/mcp/acme-mysql", headers: { Authorization: "Bearer ${HIVE_MCP_GATEWAY_TOKEN}" } },
     local: { command: "node", args: ["x.mjs"] },
     odd: { type: "sse", url: "https://x/sse" },
   } });
@@ -336,11 +336,11 @@ test("codex app-server: the stdio servers of config.toml that the gateway alread
   const toml = `
 model = "gpt-5"
 
-[mcp_servers.arvore_mysql]
+[mcp_servers.acme_mysql]
 command = "npx"
-args = ["-y", "@arvoretech/mysql-mcp"]
+args = ["-y", "@acme/mysql-mcp"]
 
-[mcp_servers.arvore_mysql.env]
+[mcp_servers.acme_mysql.env]
 MYSQL_HOST = "x"
 
 [mcp_servers."super-postgresql_direnv"]
@@ -352,17 +352,17 @@ url = "https://mcp.figma.com/mcp"
 [mcp_servers.playwright]
 command = "npx"
 
-mcp_servers.hubspot = { command = "npx", args = ["-y", "@arvoretech/hubspot-mcp"] }
+mcp_servers.hubspot = { command = "npx", args = ["-y", "@acme/hubspot-mcp"] }
 mcp_servers.linear = { url = "https://mcp.linear.app/mcp" }
 `;
-  assert.deepEqual(codexStdioServers(toml), ["arvore_mysql", "super-postgresql_direnv", "playwright", "hubspot"]);
+  assert.deepEqual(codexStdioServers(toml), ["acme_mysql", "super-postgresql_direnv", "playwright", "hubspot"]);
   assert.deepEqual(codexStdioServers(""), []);
-  const { disabled, kept } = codexServersToDisable(codexStdioServers(toml), ["arvore-mysql", "super-postgresql", "hubspot", "clickhouse"]);
-  assert.deepEqual(disabled, ["arvore_mysql", "super-postgresql_direnv", "hubspot"]);
+  const { disabled, kept } = codexServersToDisable(codexStdioServers(toml), ["acme-mysql", "super-postgresql", "hubspot", "clickhouse"]);
+  assert.deepEqual(disabled, ["acme_mysql", "super-postgresql_direnv", "hubspot"]);
   assert.deepEqual(kept, ["playwright"]);
-  assert.deepEqual(disabledMcpConfig(disabled), ["mcp_servers.arvore_mysql.enabled=false", "mcp_servers.super_postgresql_direnv.enabled=false", "mcp_servers.hubspot.enabled=false"]);
-  const args = appServerArgs({ seat: "orca", base: "/x", gateway: { port: 4671, servers: ["arvore-mysql"] }, disabled });
-  assert.ok(args.includes("mcp_servers.arvore_mysql.enabled=false"));
+  assert.deepEqual(disabledMcpConfig(disabled), ["mcp_servers.acme_mysql.enabled=false", "mcp_servers.super_postgresql_direnv.enabled=false", "mcp_servers.hubspot.enabled=false"]);
+  const args = appServerArgs({ seat: "orca", base: "/x", gateway: { port: 4671, servers: ["acme-mysql"] }, disabled });
+  assert.ok(args.includes("mcp_servers.acme_mysql.enabled=false"));
   assert.ok(!appServerArgs({ seat: "orca", base: "/x" }).some((a) => a.endsWith(".enabled=false")));
   assert.equal(codexConfigPath({ CODEX_HOME: "/accounts/b/.codex" }), "/accounts/b/.codex/config.toml");
   assert.ok(codexConfigPath({}).endsWith("/.codex/config.toml"));

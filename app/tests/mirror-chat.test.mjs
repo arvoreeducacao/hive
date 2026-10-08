@@ -32,9 +32,9 @@ const { mountMirror } = await import(new URL("../src/views.js", import.meta.url)
 const NOTHING = { side() {}, keyboard() {}, say() {}, wireTalk() {} };
 
 const seat = { name: "b2", title: "Persist merged PRs", state: "working", when: "at 20:00", where: "local" };
-const row = { dev: "joao", up: true, seats: [seat] };
+const row = { dev: "jonas", up: true, seats: [seat] };
 
-st.team = { me: "vitor", sharing: true, devs: [row] };
+st.team = { me: "vini", sharing: true, devs: [row] };
 
 function card(one, its, { shown = false } = {}) {
   const was = st.mirrorOpen;
@@ -68,8 +68,8 @@ test("a seat title written by someone else is escaped on the way in", () => {
 });
 
 test("a seat away from home names whose server it is, one on a laptop names the person", () => {
-  assert.match(card({ ...seat, where: "cloud" }, row, { shown: true }).innerHTML, /joao's server/);
-  assert.match(card(seat, row, { shown: true }).innerHTML, /joao's machine/);
+  assert.match(card({ ...seat, where: "cloud" }, row, { shown: true }).innerHTML, /jonas's server/);
+  assert.match(card(seat, row, { shown: true }).innerHTML, /jonas's machine/);
   assert.doesNotMatch(card({ ...seat, where: "cloud" }, row, { shown: true }).innerHTML, /ws-|pod/,
     "the screen names one deployment's way of hosting instead of whose server it is");
 });
@@ -109,11 +109,11 @@ test("the chat stops reading the moment the keyboard is not ours", () => {
 });
 
 test("the mirrored chat runs off the modules it names, and paints a card that is really there", () => {
-  st.mirrorDev = "joao";
+  st.mirrorDev = "jonas";
   st.mirrorOpen = null;
-  st.team = { me: "vitor", sharing: true, devs: [{ ...row, seats: [{ ...seat, keyboard: { with: "vitor", turns: [{ who: "you", text: "**bold**" }] } }] }] };
+  st.team = { me: "vini", sharing: true, devs: [{ ...row, seats: [{ ...seat, keyboard: { with: "vini", turns: [{ who: "you", text: "**bold**" }] } }] }] };
   renderMirror();
-  const painted = $("mirror").querySelector('[data-key="joao/b2"]');
+  const painted = $("mirror").querySelector('[data-key="jonas/b2"]');
   assert.ok(painted, "the deck painted no card for the seat it was given");
   assert.equal(painted.querySelector(".t-name").textContent, "Persist merged PRs");
   const said = card(st.team.devs[0].seats[0], st.team.devs[0]).innerHTML;
@@ -121,9 +121,9 @@ test("the mirrored chat runs off the modules it names, and paints a card that is
   assert.match(said, /<div class="turn md you"/);
   assert.match(said, /<b>bold<\/b>/, "the turn reached the page as flat text");
   st.mirrorDev = "";
-  st.team = { me: "vitor", sharing: true, devs: [row] };
+  st.team = { me: "vini", sharing: true, devs: [row] };
   renderMirror();
-  assert.equal($("mirror").querySelector('[data-key="joao/b2"]'), null, "leaving the hive left its card behind");
+  assert.equal($("mirror").querySelector('[data-key="jonas/b2"]'), null, "leaving the hive left its card behind");
 });
 
 test("a turn is written by the markdown renderer, not flattened by hand", () => {

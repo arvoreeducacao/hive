@@ -3,6 +3,8 @@ title: Seats
 description: A seat is one agent session — a tile on a wall with a real terminal behind it.
 sidebar:
   order: 1
+banner:
+  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
 ---
 
 A **seat** is one agent session. On screen it is a tile on a wall; behind the

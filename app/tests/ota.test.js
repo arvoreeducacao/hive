@@ -302,8 +302,8 @@ test("a build with no commit under it is never stamped", () => {
 });
 
 test("a release repository with no name is never asked for releases", () => {
-  assert.equal(releasesQuery("arvoreeducacao/dev-workspaces"), "repos/arvoreeducacao/dev-workspaces/releases?per_page=100");
-  for (const nameless of [undefined, null, "", "   ", "undefined", "arvoreeducacao", "a/b/c", "a b/c"]) {
+  assert.equal(releasesQuery("acme/hive"), "repos/acme/hive/releases?per_page=100");
+  for (const nameless of [undefined, null, "", "   ", "undefined", "acme", "a/b/c", "a b/c"]) {
     assert.equal(releasesQuery(nameless), "", `${nameless} is not a repository, and asking for it 404s in silence`);
   }
 });
