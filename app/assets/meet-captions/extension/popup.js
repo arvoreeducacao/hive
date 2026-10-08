@@ -7,14 +7,14 @@
       aveiaAs: (email) => (email ? `Conectada como ${email}` : "Conectada"), aveiaNone: "Ainda não conectada.", aveiaOff: "Esta instalação não tem um endereço do Aveia configurado. Grave pelo Hive.", aveiaExpired: "A conexão expirou.", connect: "Entrar no Aveia para conectar", out: "Desconectar",
       hiveReady: "Pronto neste computador.", hiveMissing: "Não encontrei o Hive neste computador. Só quem tem o app instalado grava nele.", hiveShut: "O Hive está fechado. Abra o app para gravar nele.", hiveOff: "Desmarcado no menu da chamada.",
       localTitle: "Desenvolvimento", localOff: "Para conectar a um Aveia rodando em localhost, permita o acesso e abra /conectar-extensao nele.", localOn: "Acesso a localhost permitido. Abra /conectar-extensao no Aveia local para conectar.", localAllow: "Permitir localhost",
-      language: "Idioma das legendas", languageSay: "Ao gravar, a extensão põe as legendas do Meet neste idioma."
+      hiveOnly: "Hive · legendas do Meet", language: "Idioma das legendas", languageSay: "Ao gravar, a extensão põe as legendas do Meet neste idioma."
     }
     : {
       lead: "Records Google Meet calls from their captions. Open a call and use the Record button beside Meet's own buttons.",
       aveiaAs: (email) => (email ? `Connected as ${email}` : "Connected"), aveiaNone: "Not connected yet.", aveiaOff: "This install has no Aveia address configured. Record with the Hive.", aveiaExpired: "The connection expired.", connect: "Sign in to Aveia to connect", out: "Disconnect",
       hiveReady: "Ready on this computer.", hiveMissing: "The Hive was not found on this computer. Only people with the app installed record in it.", hiveShut: "The Hive is closed. Open the app to record in it.", hiveOff: "Unticked in the call's menu.",
       localTitle: "Development", localOff: "To connect to an Aveia running on localhost, allow the access and open /conectar-extensao on it.", localOn: "Access to localhost allowed. Open /conectar-extensao on the local Aveia to connect.", localAllow: "Allow localhost",
-      language: "Caption language", languageSay: "When recording, the extension sets Meet's captions to this language."
+      hiveOnly: "Hive · Meet captions", language: "Caption language", languageSay: "When recording, the extension sets Meet's captions to this language."
     };
   const at = (id) => document.getElementById(id);
   const tongue = globalThis.AveiaCaptionLanguage;
@@ -44,6 +44,13 @@
     at("language-pick").value = tongue.prefOf(kept);
   }
 
+  const AVEIA_ON = !!(globalThis.AveiaOrigin && globalThis.AveiaOrigin.DEFAULT_BASE);
+  if (!AVEIA_ON) {
+    at("name").textContent = SAY.hiveOnly;
+    document.title = SAY.hiveOnly;
+    at("aveia-part").hidden = true;
+    at("local-part").hidden = true;
+  }
   at("lead").textContent = SAY.lead;
   at("language-label").textContent = SAY.language;
   at("language-say").textContent = SAY.languageSay;

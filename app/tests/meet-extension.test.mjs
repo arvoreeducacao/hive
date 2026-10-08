@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { AVEIA_MARK, CAPTION_FILES, aveiaOriginOf, installCaptionBridge, manifestFor, pointAtAveia } from "../lib/meeting-captions.mjs";
+import { AVEIA_MARK, CAPTION_FILES, HIVE_ONLY_DESCRIPTION, HIVE_ONLY_NAME, aveiaOriginOf, installCaptionBridge, manifestFor, pointAtAveia } from "../lib/meeting-captions.mjs";
 import { deploymentAddress, pack } from "../assets/meet-captions/pack.mjs";
 
 const HERE = fileURLToPath(new URL("..", import.meta.url));
@@ -461,7 +461,7 @@ test("with no address configured the extension is set up for the hive alone, wit
         assert.equal("homepage_url" in manifest, false);
         assert.deepEqual(manifest.content_scripts, [{ matches: ["https://meet.google.com/*"], js: ["caption-parse.js", "caption-language.js", "content.js"], run_at: "document_idle" }]);
         assert.equal(manifest.version, "2.0.1");
-        assert.equal(manifest.name, "Aveia");
+        assert.equal(manifest.name, HIVE_ONLY_NAME);
       }
       assert.deepEqual(chrome.host_permissions, ["https://meet.google.com/*"]);
       assert.deepEqual(chrome.optional_host_permissions, ["http://localhost/*", "http://127.0.0.1/*"]);
@@ -478,7 +478,19 @@ test("with no address configured the extension is set up for the hive alone, wit
     } finally { rmSync(root, { recursive: true, force: true }); }
   }
   const pruned = JSON.parse(manifestFor(JSON.stringify({ a: AVEIA_MARK, list: ["x", `${AVEIA_MARK}/*`], content_scripts: [{ matches: [`${AVEIA_MARK}/*`], js: ["a.js"] }], kept: { matches: ["x"] } }), ""));
-  assert.deepEqual(pruned, { list: ["x"], content_scripts: [], kept: { matches: ["x"] } });
+  assert.deepEqual(pruned, { list: ["x"], content_scripts: [], kept: { matches: ["x"] }, name: HIVE_ONLY_NAME, description: HIVE_ONLY_DESCRIPTION });
+});
+
+test("an extension built without an aveia is named for the hive, and one built for an aveia keeps the aveia name", () => {
+  for (const file of ["manifest.chrome.json", "manifest.firefox.json"]) {
+    const text = readFileSync(join(EXT, file), "utf8");
+    const alone = JSON.parse(manifestFor(text, ""));
+    assert.equal(alone.name, HIVE_ONLY_NAME, `${file} still calls itself Aveia with no Aveia in it`);
+    assert.equal((alone.action || alone.browser_action).default_title, HIVE_ONLY_NAME);
+    assert.doesNotMatch(alone.description, /Aveia/);
+    const paired = JSON.parse(manifestFor(text, "https://aveia.example.com"));
+    assert.equal(paired.name, "Aveia");
+  }
 });
 
 test("an extension with no aveia address records in the hive and never speaks to the network", async () => {

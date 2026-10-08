@@ -4,7 +4,7 @@ import { execFile, spawn } from "node:child_process";
 import { open, readFile } from "node:fs/promises";
 import { chmodSync, closeSync, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { CREDENTIAL_SAVED, loginConfirmed } from "./lib/server-login.mjs";
-import { serverGuideOf } from "./lib/server-guide.mjs";
+import { meetingsGuideOf, serverGuideOf } from "./lib/server-guide.mjs";
 import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promises";
 import { parse as parseJsonc, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
 import { createHash, randomUUID } from "node:crypto";
@@ -145,7 +145,9 @@ for (const [name, definition] of Object.entries({
 })) hljs.registerLanguage(name, definition);
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const SERVER_GUIDE = (() => { try { return serverGuideOf(JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"))); } catch { return ""; } })();
+const APP_PACKAGE = (() => { try { return JSON.parse(readFileSync(join(HERE, "package.json"), "utf8")); } catch { return {}; } })();
+const SERVER_GUIDE = serverGuideOf(APP_PACKAGE);
+const MEETINGS_GUIDE = meetingsGuideOf(APP_PACKAGE);
 const IS_WINDOWS = process.platform === "win32";
 
 if (IS_WINDOWS) process.env.MSYS2_ARG_CONV_EXCL = "*";
@@ -6621,6 +6623,7 @@ const meetingRoutes = registerMeetingRoutes(on, {
   onThePod: () => HIVE_HOME.startsWith("/workspace/"),
   captionAssets: join(HERE, "assets", "meet-captions"),
   aveiaUrl: () => AVEIA_URL,
+  meetingsGuide: MEETINGS_GUIDE,
   sock: () => SOCK,
   summarize: async ({ model, prompt, input }) => {
     const ask = summarizerCommand({ claude: theClaude(), model, prompt });

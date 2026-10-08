@@ -49,6 +49,7 @@ function harness({ config = { stt: true }, status, summarize, me = "ana", onTheP
     bridge: { status: () => ({ supported: true, chrome: { found: true, ready: false }, firefox: { found: false, ready: false } }), install: (asked) => { calls.installed = asked; return { ok: true, supported: true, chrome: { found: true, ready: true }, firefox: { found: false, ready: false } }; }, open: (asked) => (asked.which === "firefox" ? { error: "set the extension up first" } : { ok: true, dir: "/home/x/hive-meet-captions/chrome" }) },
     captionAssets: "/app/assets/meet-captions",
     aveiaUrl: () => "https://aveia.example",
+    meetingsGuide: "https://github.com/someone/hive/blob/main/docs/meetings.md",
     sock: () => "/tmp/hive.sock",
   });
   const call = async (method, path, { body = null, query = "", sound = null } = {}) => {
@@ -348,7 +349,10 @@ test("a meeting started from the browser ends by itself when the call's tab goes
 test("setting up the extension hands the bridge the socket of this hive and the address aveia is configured at", async () => {
   const h = harness();
   try {
-    assert.equal((await h.call("GET", "/api/meetings/extension")).data.chrome.ready, false);
+    const status = (await h.call("GET", "/api/meetings/extension")).data;
+    assert.equal(status.chrome.ready, false);
+    assert.equal(status.aveia, "https://aveia.example", "the meetings screen can say which aveia the captions go to");
+    assert.equal(status.guide, "https://github.com/someone/hive/blob/main/docs/meetings.md");
     const done = await h.call("POST", "/api/meetings/extension/install", { body: {} });
     assert.equal(done.data.chrome.ready, true);
     assert.equal(h.calls.installed.sock, "/tmp/hive.sock");

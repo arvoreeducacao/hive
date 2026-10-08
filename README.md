@@ -100,6 +100,10 @@ other people all need a server you host yourself (above, and
 [docs/run-your-own.md](docs/run-your-own.md)). On the app alone, everything runs on
 your machine and nothing is reachable from outside.
 
+**Meetings and Aveia.** The hive records Meet calls from their captions, on your
+machine. Sending them to Aveia, a separate meetings service, is optional and
+needs an Aveia you host yourself: [docs/meetings.md](docs/meetings.md).
+
 ## What holds it together
 
 Three pieces, and only one of them keeps state: a desktop app, a server, a phone

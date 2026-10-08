@@ -12,3 +12,9 @@ test("an app with no repository to point at offers no link instead of a wrong on
   assert.equal(serverGuideOf({ homepage: "https://example.com/hive" }), "");
   assert.equal(serverGuideOf(null), "");
 });
+
+test("the meetings guide sits beside the server guide, in the same repository", async () => {
+  const { meetingsGuideOf } = await import("../lib/server-guide.mjs");
+  assert.equal(meetingsGuideOf({ homepage: "https://github.com/someone/hive" }), "https://github.com/someone/hive/blob/main/docs/meetings.md");
+  assert.equal(meetingsGuideOf({}), "");
+});

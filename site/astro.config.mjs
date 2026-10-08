@@ -50,6 +50,7 @@ export default defineConfig({
             { label: 'Run your own server', slug: 'guides/run-your-own' },
             { label: 'Connect your phone', slug: 'guides/phone' },
             { label: 'Invite someone', slug: 'guides/invite' },
+            { label: 'Meetings and Aveia', slug: 'guides/meetings' },
           ],
         },
         {

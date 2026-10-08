@@ -118,10 +118,21 @@ export function pointAtAveia(text, address) {
   return String(text).split(AVEIA_MARK).join(aveiaOriginOf(address));
 }
 
+export const HIVE_ONLY_NAME = "Hive · Meet captions";
+export const HIVE_ONLY_DESCRIPTION = "Records Google Meet calls from their captions, in the Hive on this computer.";
+
+function asHiveOnly(manifest) {
+  const named = { ...manifest, name: HIVE_ONLY_NAME, description: HIVE_ONLY_DESCRIPTION };
+  for (const key of ["action", "browser_action"]) {
+    if (named[key]) named[key] = { ...named[key], default_title: HIVE_ONLY_NAME };
+  }
+  return named;
+}
+
 export function manifestFor(text, address, shape = (manifest) => manifest) {
   const origin = aveiaOriginOf(address);
   const read = JSON.parse(origin ? pointAtAveia(text, origin) : text);
-  return `${JSON.stringify(shape(origin ? read : withoutAveia(read)), null, 2)}\n`;
+  return `${JSON.stringify(shape(origin ? read : asHiveOnly(withoutAveia(read))), null, 2)}\n`;
 }
 
 export function writeExtension({ from, into, manifest, aveia = "", shape }) {

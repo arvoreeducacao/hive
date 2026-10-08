@@ -57,12 +57,21 @@ export function extensionSaid(ext) {
   return { text: phrase("not set up yet"), worry: false };
 }
 
+export function aveiaSaid(ext) {
+  if (ext.aveia) return phrase("The extension also sends the captions to your Aveia at {origin}.", { origin: esc(ext.aveia) });
+  const guide = ext.guide
+    ? `<a href="${esc(ext.guide)}" target="_blank" rel="noreferrer">${phrase("the meetings guide ↗")}</a>`
+    : `${phrase("the meetings guide")} (<code>docs/meetings.md</code>)`;
+  return phrase("Optional: the captions can also go to an Aveia you host yourself. Without one, everything stays in the hive. How to set it up: {guide}.", { guide });
+}
+
 function paintExtension() {
   const ext = held?.ext;
   $("mt-ext-row").hidden = !ext?.supported;
   if (!ext?.supported) return;
   const said = extensionSaid(ext);
   $("mt-ext-state").textContent = said.text;
+  $("mt-ext-aveia").innerHTML = aveiaSaid(ext);
   const ready = ext.chrome?.ready || ext.firefox?.ready;
   $("mt-ext-install").textContent = ready ? phrase("set it up again") : phrase("set up the browser extension");
   $("mt-ext-steps").hidden = !ready;

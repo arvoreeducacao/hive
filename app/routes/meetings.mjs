@@ -8,7 +8,7 @@ import { sttModel } from "../lib/stt-download.mjs";
 import { STT_SAMPLE_RATE } from "../lib/stt-engine.mjs";
 import { soundBody } from "./stt.mjs";
 import { createOutputTap, listOutputs, loudEnough } from "../lib/meeting-outputs.mjs";
-import { captionStatus, createCaptionWatch, installCaptionBridge, openCaptionFolder, upsertCaption } from "../lib/meeting-captions.mjs";
+import { aveiaOriginOf, captionStatus, createCaptionWatch, installCaptionBridge, openCaptionFolder, upsertCaption } from "../lib/meeting-captions.mjs";
 
 export const MEETINGS_PULL_EVERY = 30000;
 export const CHUNK_CEILING = 8 << 20;
@@ -20,7 +20,7 @@ export function registerMeetingRoutes(on, context) {
   const {
     bodyOf, home, me, shelf, readConfig, engine, summarize, people = async () => [], onThePod = () => false,
     now = Date.now, newId = newMeetingId, log = () => {}, outputs = listOutputs, openOutput = createOutputTap,
-    captionAssets = "", sock = "", aveiaUrl = "", bridge = { status: captionStatus, install: installCaptionBridge, open: openCaptionFolder }
+    captionAssets = "", sock = "", aveiaUrl = "", meetingsGuide = "", bridge = { status: captionStatus, install: installCaptionBridge, open: openCaptionFolder }
   } = context;
   const watch = createCaptionWatch({ now });
 
@@ -262,7 +262,7 @@ export function registerMeetingRoutes(on, context) {
     return true;
   };
 
-  on("GET", "/api/meetings/extension", async (req, res, url, json) => json({ ...bridge.status({ home }), ...watch.state(), call: callOpen() }));
+  on("GET", "/api/meetings/extension", async (req, res, url, json) => json({ ...bridge.status({ home }), ...watch.state(), call: callOpen(), aveia: aveiaOriginOf(typeof aveiaUrl === "function" ? aveiaUrl() : aveiaUrl), guide: meetingsGuide }));
 
   on("POST", "/api/meetings/extension/install", async (req, res, url, json) => {
     if (onThePod()) return json({ error: "the browser extension is set up on your own machine" }, 409);
