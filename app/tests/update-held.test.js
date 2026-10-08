@@ -61,7 +61,7 @@ test("a refused update says on the pill why, instead of quietly going back to gr
   assert.equal(s.pill().classList.contains("held"), true, "the pill has to show it stopped");
   assert.equal(s.pill().classList.contains("busy"), false, "the bar cannot keep pretending it is working");
   assert.equal(s.pill().hidden, false);
-  assert.equal(s.said("upd-step").textContent, "did not go");
+  assert.equal(s.said("upd-step").textContent, "update failed");
   assert.match(s.pill().title, /carries no Hive-arm64\.zip/);
 });
 

@@ -279,7 +279,7 @@ function seatNoticeModel(s) {
     name: s.title || s.name,
     title: needs ? s.title || s.name : phrase("{name} answered", { name: s.title || s.name }),
     at: [bi >= 0 ? `b${blockNumber(bi)}` : "", phrase("now")].filter(Boolean).join(" · "),
-    say: String(s.now || s.summary || (needs ? phrase("it stopped and asks you something") : phrase("it finished its turn and is waiting for you"))).slice(0, 220),
+    say: String(s.now || s.summary || (needs ? phrase("it stopped to ask you something") : phrase("it finished its turn and is waiting for you"))).slice(0, 220),
     go: needs ? phrase("Answer") : phrase("Open"),
     keys: keyHint("calls"),
     stays: !needs

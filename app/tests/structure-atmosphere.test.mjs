@@ -108,7 +108,7 @@ test("the headline counts the whole fleet by what it asks of you, in english and
   const story = atmosphere.storyOf(fleet, english);
   assert.deepEqual(story.lead, { key: "asks", name: "asks", says: "wants to open the PR of item 1" });
   assert.deepEqual(story.tally, [["answered", 1], ["working", 1], ["stalled", 1], ["ready", 1], ["idle", 1]]);
-  assert.equal(atmosphere.storyOf([seatOf("x", "needs", 0)], portuguese).lead.says, PT_BR["it stopped and asks you something"]);
+  assert.equal(atmosphere.storyOf([seatOf("x", "needs", 0)], portuguese).lead.says, PT_BR["it stopped to ask you something"]);
 });
 
 test("tab walks the seats that need you, across blocks, and wraps", () => {

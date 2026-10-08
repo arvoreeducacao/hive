@@ -92,7 +92,7 @@ export function groupsOf(list, { scope, me, now = Date.now() }) {
 
 function blankModel(m) {
   if (m.trouble) return { warn: true, head: phrase("The meetings did not load"), say: m.trouble, act: "", actSay: "" };
-  if (m.listening.why === "pod") return { warn: false, head: phrase("From here you can read, not record"), say: phrase("Recording uses the microphone and the engine of your own machine. In the hive on the server the list and the team's notes stay open."), act: "", actSay: "" };
+  if (m.listening.why === "pod") return { warn: false, head: phrase("From here you can read, not record"), say: phrase("Recording uses the microphone and the engine of your own machine. On the server's hive, the list and the team's notes are still available."), act: "", actSay: "" };
   if (!m.listening.ready && !st.stt?.unsupported) {
     const coming = st.stt?.download ? downloadSaid(st.stt.download) : "";
     return {
@@ -166,12 +166,12 @@ export function meetingsViewModel() {
       hearing: phrase("listening… the next piece turns into words in a few seconds"),
       writing: phrase("Finishing the last piece and asking for the notes. You can close this — the meeting shows up in the list when it is ready."),
       writingHead: phrase("Writing the notes"),
-      failedHead: phrase("The transcript is saved, the notes did not come out"),
+      failedHead: phrase("The transcript is saved, but the notes could not be written"),
       failed: phrase("The model did not answer. Nothing was lost: the words of the meeting are under Transcript."),
       noWords: phrase("Nothing was said in this meeting, so there are no notes."),
       noLines: phrase("No words yet."),
       madeBy: phrase("Notes by {model}, from the transcript made on this machine"),
-      captions: phrase("Meet captions"), captionsSay: phrase("The captions of the call are coming from the browser, with who said what. The sound keeps being heard, and takes over if they stop."),
+      captions: phrase("Meet captions"), captionsSay: phrase("The captions of the call are coming from the browser, with who said what. The audio is still captured, and takes over if they stop."),
       micOnly: phrase("Recording only your microphone — the system did not hand over the computer's sound, so the other side of the call is not written down."),
       whoHead: phrase("Who sees this meeting"), whoTeam: phrase("The whole team"), whoTeamSay: phrase("notes and transcript show up in everyone's list"),
       whoMe: phrase("Only you"), whoMeSay: phrase("stays on this machine and goes to no one"),
@@ -279,7 +279,7 @@ export async function startRecording() {
   const m = st.meetings;
   if (rec || m.setting) return false;
   if (!m.listening.ready) {
-    if (m.listening.why === "pod") { showNotice(phrase("From here you can read, not record"), phrase("Recording uses the microphone and the engine of your own machine. In the hive on the server the list and the team's notes stay open.")); return false; }
+    if (m.listening.why === "pod") { showNotice(phrase("From here you can read, not record"), phrase("Recording uses the microphone and the engine of your own machine. On the server's hive, the list and the team's notes are still available.")); return false; }
     if (st.stt?.unsupported) { showNotice(phrase("This machine cannot record"), st.stt.unsupported); return false; }
     if (st.stt?.download) { showNotice(phrase("Transcription is not set up yet"), downloadSaid(st.stt.download)); return false; }
     const bring = await ask(phrase("Transcription is not set up yet"), esc(phrase("The words are written on this machine, by the same engine dictation uses. It is one download of about 855 MB.")), phrase("Download and set up"));
@@ -427,7 +427,7 @@ async function changeWho(who, people) {
     const said = await apiPost("/api/meetings/edit", { id: one.id, who, ...(people ? { people } : {}) });
     if (said.warning) showNotice(phrase("saved here, not sent to the team yet"), said.warning);
   } catch (wrong) {
-    showNotice(phrase("that did not save"), String(wrong?.message || wrong));
+    showNotice(phrase("could not save that"), String(wrong?.message || wrong));
   }
   await pullMeetings();
 }
@@ -451,7 +451,7 @@ async function removeMeeting(id) {
     phrase("delete")
   );
   if (!yes) return;
-  await apiPost("/api/meetings/remove", { id: one.id }).catch((wrong) => showNotice(phrase("that did not delete"), String(wrong?.message || wrong)));
+  await apiPost("/api/meetings/remove", { id: one.id }).catch((wrong) => showNotice(phrase("could not delete that"), String(wrong?.message || wrong)));
   st.meetings.menu = false;
   if (st.meetings.pick === one.id) st.meetings.pick = "";
   await pullMeetings();
@@ -467,7 +467,7 @@ async function renameMeeting(title) {
 async function redoNotes() {
   const one = st.meetings.open;
   if (!one) return;
-  await apiPost("/api/meetings/summarize", { id: one.id }).catch((wrong) => showNotice(phrase("the notes were not asked for"), String(wrong?.message || wrong)));
+  await apiPost("/api/meetings/summarize", { id: one.id }).catch((wrong) => showNotice(phrase("could not ask for the notes"), String(wrong?.message || wrong)));
   await pullMeetings();
 }
 

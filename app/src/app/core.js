@@ -376,7 +376,7 @@ const ACTION_SAID = {
   release: "release the terminal keyboard",
   copy: "copy the terminal selection",
   archive: "archive the focused chat — it stops, and comes back the same",
-  kill: "kill the focused chat — it stops for good and the seat frees",
+  kill: "kill the focused chat — it stops for good and the seat is freed",
   palette: "search anything — sessions, blocks, commands",
   openFile: "open a file — any repo, this machine or the server",
   searchCode: "search the code of every repo",

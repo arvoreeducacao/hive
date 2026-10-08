@@ -339,11 +339,11 @@ async function applyUpdate() {
   try {
     const r = await fetch("/api/update/apply", { method: "POST" });
     const d = await r.json();
-    if (d.error) return holdUpdate(phrase("did not go"), d.error);
+    if (d.error) return holdUpdate(phrase("update failed"), d.error);
     if (d.note) return holdUpdate(phrase("your turn"), d.note);
-    if (!d.ok) return holdUpdate(phrase("did not go"), phrase("the update stopped without saying why"));
+    if (!d.ok) return holdUpdate(phrase("update failed"), phrase("the update stopped without saying why"));
   } catch {
-    holdUpdate(phrase("did not go"), phrase("the app lost the server while it was updating — nothing was replaced"));
+    holdUpdate(phrase("update failed"), phrase("the app lost the server while it was updating — nothing was replaced"));
   }
 }
 

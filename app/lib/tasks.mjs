@@ -247,7 +247,7 @@ export function imageFromDataUrl(url) {
   const found = String(url || "").match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
   if (!found) return { error: "the group picture has to be a png, jpg or webp" };
   const bytes = Buffer.from(found[2], "base64");
-  if (bytes.length > GROUP_IMAGE_MAX) return { error: "the group picture stops at 200 KB — pick a smaller one" };
+  if (bytes.length > GROUP_IMAGE_MAX) return { error: "the group picture can be at most 200 KB — pick a smaller one" };
   const kind = imageKindOf(bytes);
   if (!kind) return { error: "the group picture has to be a png, jpg or webp" };
   return { bytes, kind };

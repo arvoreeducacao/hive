@@ -471,7 +471,7 @@ function pageLogin() {
     ${icon("login")}
     <h2>${phrase("Last door: log Claude in on the server.")}</h2>
     <p class="lead">${phrase("The app opens")} <code>claude auth login</code> ${phrase("inside the server, hands you the authorization link, and takes the code back. It also pre-accepts the trust and bypass dialogs and starts Remote Control, so cloud chats never stall on a prompt nobody sees.")}</p>
-    <p class="sub">${phrase("About 15 seconds to bring the link.")}</p>
+    <p class="sub">${phrase("About 15 seconds to get the link.")}</p>
   </div>`;
 }
 

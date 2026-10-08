@@ -68,7 +68,7 @@ function paintExtension() {
   $("mt-ext-steps").hidden = !ready;
   const boxed = (ext.sandboxed || []).filter((one) => one.ok).map((one) => one.app);
   $("mt-ext-sandbox").hidden = !boxed.length;
-  $("mt-ext-sandbox").textContent = boxed.length ? phrase("{apps} runs in a sandbox: it was let in to reach the hive. Close it completely and open it again before loading the extension.", { apps: boxed.join(", ") }) : "";
+  $("mt-ext-sandbox").textContent = boxed.length ? phrase("{apps} runs in a sandbox and was just given access to the hive. Close it completely and open it again before loading the extension.", { apps: boxed.join(", ") }) : "";
   $("mt-ext-chrome").textContent = ext.chromeDir || "";
   $("mt-ext-firefox").textContent = ext.firefoxDir || "";
 }

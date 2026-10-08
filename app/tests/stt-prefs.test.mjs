@@ -54,7 +54,7 @@ test("the line under the switch says what this machine actually has", () => {
   assert.match(sttStateSaid(sound({ ready: true, backend: "Vulkan1", model: { ...MODEL, state: "ready" } })).text, /Vulkan1/);
   assert.equal(sttStateSaid(sound({ trouble: "the download stopped" })).worry, true);
   assert.equal(sttStateSaid(sound({ unsupported: "no build for this machine" })).worry, true);
-  assert.match(sttStateSaid(sound({ model: { ...MODEL, state: "partial" } })).text, /bring it again/);
+  assert.match(sttStateSaid(sound({ model: { ...MODEL, state: "partial" } })).text, /download it again/);
 });
 
 test("nothing the person reads ever names Handy", () => {
@@ -65,13 +65,13 @@ test("nothing the person reads ever names Handy", () => {
 });
 
 test("the button says what it will do, and it is not always a download", () => {
-  assert.match(sttActionSaid(sound()), /bring the model down/);
+  assert.match(sttActionSaid(sound()), /download the model/);
   assert.match(sttActionSaid(sound({ model: { ...MODEL, state: "handy" } })), /set dictation up/);
   assert.match(sttActionSaid(sound({ model: { ...MODEL, state: "ready" } })), /set dictation up/);
   paintStt(sound({ model: { ...MODEL, state: "handy" } }));
   assert.match($("stt-get").textContent, /set dictation up/);
   paintStt(sound());
-  assert.match($("stt-get").textContent, /bring the model down/);
+  assert.match($("stt-get").textContent, /download the model/);
 });
 
 test("the buttons of this section are drawn as buttons, not as words", () => {
@@ -181,7 +181,7 @@ test("the model picker lists every model with its weight and whether it is here,
   assert.equal(pick.options.length, 2);
   assert.equal(pick.value, "whisper-medium");
   assert.equal(pick.disabled, false);
-  assert.match(pick.options[1].textContent, /Parakeet TDT 0.6B v3 Q8_0 · 705 MB · to bring down/);
+  assert.match(pick.options[1].textContent, /Parakeet TDT 0.6B v3 Q8_0 · 705 MB · not downloaded/);
   assert.match(modelOptionSaid({ ...MODELS[1], state: "handy" }), /on this machine/);
   assert.match(modelOptionSaid({ ...MODELS[1], state: "partial" }), /half downloaded/);
 });
@@ -197,7 +197,7 @@ test("picking another model writes it to the config file and asks the hive again
   assert.ok(calls.some((one) => one.path === "/api/stt/status"));
 });
 
-test("bringing down and deleting name the model in use", async () => {
+test("downloading and deleting name the model in use", async () => {
   st.stt = sound({ model: { ...MODEL, id: "parakeet-v3" } });
   calls.length = 0;
   $("stt-get").click();

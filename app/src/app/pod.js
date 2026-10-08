@@ -152,7 +152,7 @@ function wsPlanModel(plan, chosen) {
 }
 
 function wsFieldsOf(a) {
-  const scopeField = { id: "ws-in-scope", field: "scope", label: phrase("worth in (empty: every repository)"), placeholder: phrase("repository names, separated by commas"), value: a.scope || "" };
+  const scopeField = { id: "ws-in-scope", field: "scope", label: phrase("applies to (empty: every repository)"), placeholder: phrase("repository names, separated by commas"), value: a.scope || "" };
   if (a.what === "skill") {
     return [
       { id: "ws-in-name", field: "name", label: phrase("name"), placeholder: "copy-check-mobile", value: a.name || "" },
@@ -179,7 +179,7 @@ function wsItemModel(a) {
     fields: wsFieldsOf(a),
     note: mcp
       ? phrase("Goes into .mcp.json and, for a command, into the servers.json of the gateway, which reloads by itself. The hive keeps no secret: variables come from the .env of the hub.")
-      : phrase("Creates .claude/skills/<name>/SKILL.md for you to write, records where it is worth in hive.json, and lists it in the AGENTS.md index, which is how Codex, Kimi and Kiro see it."),
+      : phrase("Creates .claude/skills/<name>/SKILL.md for you to write, records where it applies in hive.json, and lists it in the AGENTS.md index, which is how Codex, Kimi and Kiro see it."),
     error: a.error || "", busy: Boolean(a.busy),
     cancelSay: phrase("cancel"), planSay: phrase("see what changes"), backSay: phrase("back"),
     applySay: phrase("write"),
@@ -239,10 +239,10 @@ function wsAttentionRows(w) {
   const unserved = mcps.filter((m) => m.declared && !m.wired);
   if (unserved.length) {
     const first = unserved[0];
-    rows.push({ key: "mcp-serve", what: "mcp-serve", name: first.name, scope: (first.repos || []).join(", "), say: phrase("{n} in hive.json with no url and no command, so the hive knows where they are worth but not how to reach them: {names}", { n: unserved.length, names: wsNames(unserved.map((m) => m.name)) }), act: unserved.length > 1 ? phrase("set them up one by one") : phrase("set it up") });
+    rows.push({ key: "mcp-serve", what: "mcp-serve", name: first.name, scope: (first.repos || []).join(", "), say: phrase("{n} in hive.json with no url and no command, so the hive knows where they apply but not how to reach them: {names}", { n: unserved.length, names: wsNames(unserved.map((m) => m.name)) }), act: unserved.length > 1 ? phrase("set them up one by one") : phrase("set it up") });
   }
   const wired = mcps.filter((m) => m.wired && !m.declared);
-  if (wired.length) rows.push({ key: "mcp-line", what: "mcp-line", name: "", say: phrase("{n} reachable (in .mcp.json or servers.json), but not in hive.json, so the hive does not know where they are worth: {names}", { n: wired.length, names: wsNames(wired.map((m) => m.name)) }), act: wired.length > 1 ? phrase("write them into hive.json") : phrase("write it into hive.json") });
+  if (wired.length) rows.push({ key: "mcp-line", what: "mcp-line", name: "", say: phrase("{n} reachable (in .mcp.json or servers.json), but not in hive.json, so the hive does not know where they apply: {names}", { n: wired.length, names: wsNames(wired.map((m) => m.name)) }), act: wired.length > 1 ? phrase("write them into hive.json") : phrase("write it into hive.json") });
   return rows;
 }
 
@@ -423,7 +423,7 @@ function wsSaidAfter(a, got) {
     const gone = got.plan?.files?.find((f) => f.file === ".env" && f.verdict === "missing")?.missing || [];
     const keys = missing.length ? missing : gone;
     return { what: "mcp", text: keys.length
-      ? phrase("{name} is in, but without credential: set {keys} in the .env of the hub", { name: a.name, keys: keys.join(", ") })
+      ? phrase("{name} is in, but has no credentials: set {keys} in the .env of the hub", { name: a.name, keys: keys.join(", ") })
       : got.gateway?.reached ? phrase("{name} is in; the gateway reloaded", { name: a.name }) : phrase("{name} is in", { name: a.name }) };
   }
   const skillFile = `.claude/skills/${a.name}/SKILL.md`;
@@ -609,7 +609,7 @@ function ptPillModel(one) {
 }
 
 function ptDeviceActModels(one) {
-  return [{ key: "revoke", kind: "button", cls: "btn risk", pt: "revoke", dataKey: one.fingerprint, say: phrase("take out") }];
+  return [{ key: "revoke", kind: "button", cls: "btn risk", pt: "revoke", dataKey: one.fingerprint, say: phrase("revoke") }];
 }
 
 function portariaViewModel() {
@@ -654,7 +654,7 @@ function portariaViewModel() {
           : phrase("in since {when} · sees your seat cards and can ask for the keyboard", { when: ptAgo(one.knownAt) }),
         pill: { cls: `pt-pill ${one.fromFile ? "wait" : "ok"}`, say: one.fromFile ? phrase("by file") : phrase("inside") },
         ghost: "",
-        acts: [{ key: "forget", kind: "button", cls: "btn risk", pt: "forget", dataKey: one.fingerprint, say: phrase("take out") }]
+        acts: [{ key: "forget", kind: "button", cls: "btn risk", pt: "forget", dataKey: one.fingerprint, say: phrase("revoke") }]
       })),
       ...invites.map((one) => ({
         key: `invite:${one.link}`, icon: "i-user", title: phrase("an open invite"),
@@ -675,7 +675,7 @@ function portariaViewModel() {
     link: st.portariaLink,
     goSay: phrase("go in"),
     said: st.portariaSaid,
-    foot: phrase("Taking an access out drops whatever is open on it, right away. An invite lasts seven days and works once.")
+    foot: phrase("Revoking access drops whatever is open on it, right away. An invite lasts seven days and works once.")
   };
 }
 
@@ -763,7 +763,7 @@ $("pt-body").addEventListener("click", async (e) => {
     return paintPortaria();
   }
   if (what === "revoke" || what === "forget" || what === "cancel") {
-    const label = what === "cancel" ? phrase("cancel this invite?") : phrase("take this access out? whatever is open on it drops now.");
+    const label = what === "cancel" ? phrase("cancel this invite?") : phrase("revoke this access? whatever is open on it drops now.");
     if (!window.confirm(label)) return;
   }
   hit.disabled = true;

@@ -166,7 +166,7 @@ function snoozedRailModel() {
       const title = s.title || s.name;
       return {
         key: s.name, name: s.name, state: s.state, title,
-        hint: `${title} — ${phrase("hidden, comes back when it works · click brings it now")}`,
+        hint: `${title} — ${phrase("hidden, comes back when it works · click to bring it back now")}`,
         action: phrase("bring it back")
       };
     })
@@ -296,7 +296,7 @@ function seatRailItem(s, now) {
   const live = liveTitle(s);
   return {
     key: s.name, name: s.name, where: s.where, state: s.state, title: s.title || s.name, naming: !!s.naming,
-    hint: `${s.title || s.name} — ${away ? phrase("in a window of its own — click brings it back") : said}${live ? ` · ${live}` : ""}`,
+    hint: `${s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : said}${live ? ` · ${live}` : ""}`,
     said, meta: meta.said, tone: meta.tone, away
   };
 }
@@ -526,7 +526,7 @@ function railViewModel() {
         const away = detached.has(s.name);
         return {
           key: s.name, name: s.name, state: s.state, title: s.title || s.name, naming: !!s.naming,
-          hint: `${s.title || s.name} — ${away ? phrase("in a window of its own — click brings it back") : phrase(LABEL[s.state])}`,
+          hint: `${s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : phrase(LABEL[s.state])}`,
           colour: stateColor(s.state), glyph: GLYPH[s.state], here: bi === st.block,
           live: liveOf(s).length, liveTitle: liveTitle(s), tag: away ? "↗" : bi >= 0 ? "b" + (bi + 1) : ""
         };

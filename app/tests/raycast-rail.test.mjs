@@ -154,7 +154,7 @@ test("a seat living in a window of its own says so, and wears an arrow", () => {
   flag(true);
   const model = world({ data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana" })], archived: [] }, detached: ["a"] });
   const [a] = model.groups[0].items;
-  assert.equal(a.hint, "Ana — in a window of its own — click brings it back");
+  assert.equal(a.hint, "Ana — in a window of its own — click to bring it back");
   assert.equal(a.away, true);
 });
 

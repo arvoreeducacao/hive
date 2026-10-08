@@ -136,7 +136,7 @@ function worktreeRowModel(row, biggest) {
       ? phrase("only the admin folder is left")
       : row.touched ? phrase("touched {when} ago", { when: ago(new Date(row.touched).toISOString()) }) : phrase("never read"),
     busy: st.wtBusy === row.path,
-    delSay: st.wtBusy === row.path ? phrase("going…") : phrase("delete")
+    delSay: st.wtBusy === row.path ? phrase("deleting…") : phrase("delete")
   };
 }
 
@@ -355,7 +355,7 @@ async function askWorktreeSweep(at) {
   if (!st.wt?.sweep) return;
   const yes = await ask(
     phrase("Sweep the idle worktrees?"),
-    phrase("{n} folders go and {size} comes back. Every branch stays, and anything still holding work is left where it is.", { n: st.wt.sweep, size: st.wt.sized ? bytes(st.wt.idleBytes) : "…" }),
+    phrase("{n} folders go and {size} is freed. Every branch stays, and anything still holding work is left where it is.", { n: st.wt.sweep, size: st.wt.sized ? bytes(st.wt.idleBytes) : "…" }),
     phrase("sweep them"),
     { at }
   );

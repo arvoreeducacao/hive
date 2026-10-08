@@ -75,7 +75,7 @@ test("the rows follow the blocks: b1 first, then b2, each in the order of its pa
 test("a seat living in a window of its own says so, and wears an arrow instead of a block number", () => {
   const model = world({ data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana" })], archived: [] }, detached: ["a"] });
   const [a] = model.groups[0].items;
-  assert.equal(a.hint, "Ana — in a window of its own — click brings it back");
+  assert.equal(a.hint, "Ana — in a window of its own — click to bring it back");
   assert.equal(a.tag, "↗");
 });
 

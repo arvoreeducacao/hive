@@ -5442,7 +5442,7 @@ function stageAppImage(file) {
   const head = leadBytes(file);
   if (head.length !== 4 || head[0] !== 0x7f || head.slice(1, 4).toString() !== "ELF") {
     updatePhase = { step: "", done: 0, total: 0 };
-    return { error: "what came down is not a Linux executable, so it stays where it is" };
+    return { error: "the download is not a Linux executable, so it stays where it is" };
   }
   try { chmodSync(file, 0o755); } catch {}
   updateCache = { at: 0, data: null, running: false, remoteSha: "" };
@@ -5460,7 +5460,7 @@ function stageRpm(file) {
   const head = leadBytes(file);
   if (head.length !== 4 || head[0] !== 0xed || head[1] !== 0xab || head[2] !== 0xee || head[3] !== 0xdb) {
     updatePhase = { step: "", done: 0, total: 0 };
-    return { error: "what came down is not an rpm package, so it stays where it is" };
+    return { error: "the download is not an rpm package, so it stays where it is" };
   }
   updateCache = { at: 0, data: null, running: false, remoteSha: "" };
   updatePhase = { step: "restarting", done: 0, total: 0 };
@@ -5477,7 +5477,7 @@ function stageInstaller(file) {
   const head = leadBytes(file);
   if (head.length < 2 || head[0] !== 0x4d || head[1] !== 0x5a) {
     updatePhase = { step: "", done: 0, total: 0 };
-    return { error: "what came down is not a Windows installer, so it stays where it is" };
+    return { error: "the download is not a Windows installer, so it stays where it is" };
   }
   updateCache = { at: 0, data: null, running: false, remoteSha: "" };
   updatePhase = { step: "restarting", done: 0, total: 0 };
@@ -5573,7 +5573,7 @@ async function applyPublished(state) {
   const signed = await shr(...inBash(verifyScript({ bundle: fresh, team: RELEASE_TEAM })), { timeout: 120000 });
   if (!signed.ok) {
     updatePhase = { step: "", done: 0, total: 0 };
-    return { error: `what came down is not a Hive signed by the team's certificate, so it stays where it is: ${signed.error.slice(0, 160)}` };
+    return { error: `the download is not a Hive signed by the team's certificate, so it stays where it is: ${signed.error.slice(0, 160)}` };
   }
   updateCache = { at: 0, data: null, running: false, remoteSha: "" };
   updatePhase = { step: "restarting", done: 0, total: 0 };

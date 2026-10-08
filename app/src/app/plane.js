@@ -409,8 +409,8 @@ function planeThingRows(id) {
     { sep: true },
     {
       label: st.planePicked.size > 1 && st.planePicked.has(id)
-        ? phrase("take these {n} away", { n: st.planePicked.size })
-        : (area ? phrase("take the area away — the seats stay") : phrase("take the note away")),
+        ? phrase("remove these {n}", { n: st.planePicked.size })
+        : (area ? phrase("remove the area — the seats stay") : phrase("remove the note")),
       danger: true,
       go: () => dropPlanePicked(st.planePicked.has(id) ? st.planePicked : new Set([id]))
     }
@@ -520,7 +520,7 @@ function raycastPlaneBar(id, one) {
   return {
     ...planeBarViewModel(id, one),
     raycast: true,
-    remove: planeIsArea(id) ? phrase("take the area away") : phrase("remove"),
+    remove: planeIsArea(id) ? phrase("remove the area") : phrase("remove"),
     removeKey: keyLabel({ code: "Backspace" })
   };
 }
@@ -1146,7 +1146,7 @@ function paintPlaneMarks(alive) {
     if (tag.style.top !== top) tag.style.top = top;
     const says = link.task ? shortTask(link.task) : phrase("together");
     if (tag.textContent !== says) tag.textContent = says;
-    const title = phrase("{a} and {b} are on this together — click to take the line away", { a: link.from, b: link.to }) +
+    const title = phrase("{a} and {b} are on this together — click to remove the line", { a: link.from, b: link.to }) +
       (link.task ? `\n\n${link.task}` : "");
     if (tag.title !== title) tag.title = title;
   }

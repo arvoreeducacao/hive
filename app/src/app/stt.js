@@ -180,7 +180,7 @@ export async function stopTalking({ cancel = false } = {}) {
   tell("writing", "", seconds);
   try {
     const out = await apiBinary("/api/stt/transcribe", pcm);
-    if (!out.text) { settle(phrase("no words came out of that")); return ""; }
+    if (!out.text) { settle(phrase("could not make out any words")); return ""; }
     putWords(out.text, box);
     settle("");
     return out.text;

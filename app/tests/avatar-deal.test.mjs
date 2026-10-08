@@ -295,7 +295,7 @@ test("keeping the face writes it down, which is what holds the pair", async () =
 
   answers(false);
   await onGateClick({ target: keep });
-  assert.match(st.gateSaid, /your face could not be written down/, "keep must persist, or the pair is yours only by luck");
+  assert.match(st.gateSaid, /your face could not be saved/, "keep must persist, or the pair is yours only by luck");
   assert.equal(gate.hidden, false, "and when it did not, the gate says so instead of pretending");
   assert.equal(keep.disabled, false, "so the person can try again");
 

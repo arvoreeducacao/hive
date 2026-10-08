@@ -83,7 +83,7 @@ function historyViewModel() {
       when: ago(new Date(s.at).toISOString()),
       peekSay: phrase("preview"), peekHint: phrase("read the conversation before reviving it"),
       down: s.where === "cloud" && agentOfRow(s) === "claude",
-      downSay: phrase("bring it local"), downHint: phrase("copy the transcript off the server and continue it on this machine"),
+      downSay: phrase("continue here"), downHint: phrase("copy the transcript off the server and continue it on this machine"),
       reviveSay: phrase("revive")
     }))
   };
@@ -256,7 +256,7 @@ async function bringLocal(btn) {
   const s = st.histSessions[Number(btn.dataset.down)];
   if (!s) return;
   btn.disabled = true;
-  btn.textContent = phrase("bringing it down…");
+  btn.textContent = phrase("copying it here…");
   try {
     const r = await (await fetch("/api/bring-local", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -267,7 +267,7 @@ async function bringLocal(btn) {
     pull();
   } catch {
     btn.disabled = false;
-    btn.textContent = phrase("bring it local");
+    btn.textContent = phrase("continue here");
   }
 }
 

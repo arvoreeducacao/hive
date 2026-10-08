@@ -340,7 +340,7 @@ function mentionModel() {
     chats: m.items.filter((one) => one.kind === "chat").map((one) => ({ ...one, on: m.items[m.index] === one })),
     peopleSay: phrase("people"),
     chatsSay: phrase("chats"),
-    hint: phrase("↑ ↓ pick · enter puts it · esc closes")
+    hint: phrase("↑ ↓ pick · enter inserts · esc closes")
   };
 }
 
@@ -573,7 +573,7 @@ function readPicture(file) {
       URL.revokeObjectURL(url);
       const data = canvas.toDataURL("image/webp", 0.85);
       const size = Math.ceil((data.length - data.indexOf(",") - 1) * 0.75);
-      resolve(size > PICTURE_MAX ? { error: phrase("the group picture stops at 200 KB — pick a smaller one") } : { data });
+      resolve(size > PICTURE_MAX ? { error: phrase("the group picture can be at most 200 KB — pick a smaller one") } : { data });
     };
     img.onerror = () => { URL.revokeObjectURL(url); resolve({ error: phrase("the group picture has to be a png, jpg or webp") }); };
     img.src = url;

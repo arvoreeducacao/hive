@@ -109,7 +109,7 @@ test("a write that never landed keeps the gate and says so", async () => {
   await wrote(() => onGateClick(keep()), false);
   assert.equal(g.up(), true, "the gate closed on a write that never landed");
   assert.equal(faceIsSettled(), false);
-  assert.match(g.said().bad, /could not be written down/);
+  assert.match(g.said().bad, /could not be saved/);
   assert.match(g.said().bad, /~\/\.hive\/config\.jsonc/, "it does not say which file refused it");
 });
 
@@ -117,7 +117,7 @@ test("a write that lands after one that did not clears what the gate said", asyn
   const g = gate();
   g.feed({}, { avatar: false });
   await wrote(() => onGateClick(keep()), false);
-  assert.match(g.said().bad, /could not be written down/);
+  assert.match(g.said().bad, /could not be saved/);
   await wrote(() => onGateClick(keep()));
   assert.equal(st.gateSaid, "", "the gate closed still carrying the complaint of the last try");
   assert.equal(g.up(), false);

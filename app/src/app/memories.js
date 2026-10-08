@@ -427,7 +427,7 @@ function blockedModel(answer) {
       label: phrase("no access"),
       head: answer.state === "refused" ? phrase("The memory server refused the Hive's token") : phrase("The Hive does not read the shared memory yet"),
       lines: (answer.state === "refused"
-        ? [phrase("{key} in the hub .env was turned down. Ask for a new read token and put it in its place.", { key: answer.key })]
+        ? [phrase("{key} in the hub .env was rejected. Ask for a new read token and put it in its place.", { key: answer.key })]
         : [phrase("The read token {key} is missing from the hub .env. On a server, it arrives through {script}.", { key: answer.key, script: "pod-env.sh" }), phrase("The hive doctor shows the same warning.")])
         .map((line) => withCodes(line, [answer.key, "pod-env.sh"])),
       button: phrase("Open the doctor")

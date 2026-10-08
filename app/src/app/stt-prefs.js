@@ -29,9 +29,9 @@ export function sizeSaid(bytes) {
 export function downloadSaid(step) {
   if (!step) return "";
   const what = step.what === "model" ? (step.name || phrase("the model")) : phrase("the engine");
-  if (!step.total) return `${phrase("bringing down")} ${what}…`;
+  if (!step.total) return `${phrase("downloading")} ${what}…`;
   const done = Math.min(100, Math.round((step.downloaded / step.total) * 100));
-  return `${phrase("bringing down")} ${what} — ${done}% ${phrase("of")} ${sizeSaid(step.total)}`;
+  return `${phrase("downloading")} ${what} — ${done}% ${phrase("of")} ${sizeSaid(step.total)}`;
 }
 
 export function downloadPart(step) {
@@ -53,15 +53,15 @@ export function sttStateSaid(sound) {
     const on = sound.backend ? ` · ${esc(sound.backend)}` : "";
     return { text: `${named}${on}`, worry: false };
   }
-  if (model.state === "partial") return { text: phrase("half of the model came down — bring it again to finish"), worry: true };
+  if (model.state === "partial") return { text: phrase("the download stopped halfway — download it again to finish"), worry: true };
   if (modelIsHere(sound)) return { text: `${phrase("the model is already on this machine")} — ${named} · ${phrase("dictation still needs setting up")}`, worry: false };
-  return { text: `${phrase("the model is not on this machine yet")} — ${named} ${phrase("to bring down")}`, worry: false };
+  return { text: `${phrase("the model is not on this machine yet")} — ${named} ${phrase("to download")}`, worry: false };
 }
 
 export function modelStateSaid(state) {
   if (state === "ready" || state === "handy") return phrase("on this machine");
   if (state === "partial") return phrase("half downloaded");
-  return phrase("to bring down");
+  return phrase("not downloaded");
 }
 
 export function modelOptionSaid(model) {
@@ -76,7 +76,7 @@ function paintModels(pick, models) {
 }
 
 export function sttActionSaid(sound) {
-  return modelIsHere(sound) ? phrase("set dictation up") : phrase("bring the model down");
+  return modelIsHere(sound) ? phrase("set dictation up") : phrase("download the model");
 }
 
 export function languageChoices(detects = true) {
@@ -169,7 +169,7 @@ export function bootSttPrefs() {
   $("stt-drop").addEventListener("click", async () => {
     const sure = await ask(
       phrase("delete the dictation model?"),
-      phrase("it leaves this machine and dictation stops working until you bring it down again."),
+      phrase("it leaves this machine and dictation stops working until you download it again."),
       phrase("delete it")
     );
     if (!sure) return;

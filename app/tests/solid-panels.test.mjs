@@ -449,7 +449,7 @@ test("a worktree row says what is holding it and how much of the biggest one it 
 test("the row being deleted says it is going and refuses another click", () => {
   const model = worktrees({ wt: { hub: "/hub", at: 0, trees: [tree()], idle: 0, sweep: 0 }, wtBusy: "/w/one" });
   assert.equal(model.groups[0].rows[0].busy, true);
-  assert.equal(model.groups[0].rows[0].delSay, "going…");
+  assert.equal(model.groups[0].rows[0].delSay, "deleting…");
 });
 
 test("with nothing to sweep the sweep button says so and stays out of reach", () => {
@@ -543,8 +543,8 @@ test("a manifest that read carries its counts, and every skill and mcp says whic
     ["repo-line", "extra", "repository", "extra is on disk, but not in hive.json", "write it into hive.json"],
     ["skill-line", "", "skills", "1 folder(s) in .claude/skills, but not in hive.json: pr-lens", "write it into hive.json"],
     ["skill-file", "mobile-app", "skill", "mobile-app is in hive.json, but .claude/skills/mobile-app/SKILL.md does not exist", "create the SKILL.md"],
-    ["mcp-serve", "criar-postgresql", "mcp", "1 in hive.json with no url and no command, so the hive knows where they are worth but not how to reach them: criar-postgresql", "set it up"],
-    ["mcp-line", "", "mcp", "1 reachable (in .mcp.json or servers.json), but not in hive.json, so the hive does not know where they are worth: sentry", "write it into hive.json"]
+    ["mcp-serve", "criar-postgresql", "mcp", "1 in hive.json with no url and no command, so the hive knows where they apply but not how to reach them: criar-postgresql", "set it up"],
+    ["mcp-line", "", "mcp", "1 reachable (in .mcp.json or servers.json), but not in hive.json, so the hive does not know where they apply: sentry", "write it into hive.json"]
   ]);
 });
 
@@ -567,7 +567,7 @@ test("many divergences fold their names, the clone queue is a live row with stop
   assert.deepEqual(model.attention.rows.map((r) => [r.what, r.say, r.act]), [
     ["clone-all", "5 in hive.json, but not on disk: a, b, c, +2", "clone them all"],
     ["skill-line", "5 folder(s) in .claude/skills, but not in hive.json: s1, s2, s3, +2", "write them into hive.json"],
-    ["mcp-serve", "2 in hive.json with no url and no command, so the hive knows where they are worth but not how to reach them: m1, m2", "set them up one by one"]
+    ["mcp-serve", "2 in hive.json with no url and no command, so the hive knows where they apply but not how to reach them: m1, m2", "set them up one by one"]
   ]);
   assert.equal(model.attention.rows[2].scope, "a, b");
   assert.equal(model.attention.count, 12);

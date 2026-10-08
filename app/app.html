@@ -2980,6 +2980,10 @@
   .stt-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 300ms var(--ease); }
   .stt-act { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0 6px; }
   .stt-act button[hidden] { display: none; }
+  #stt-box { display: grid; gap: 14px; }
+  #stt-box[hidden] { display: none; }
+  #stt-box #stt-state { margin-top: 6px; }
+  #stt-box .stt-act { margin-bottom: 0; }
   .slack-code[hidden] { display: none; }
   .slack-code-say { display: inline-block; font-family: var(--mono); font-size: 22px; letter-spacing: 0.12em; padding: 8px 14px; border-radius: var(--r-row); background: var(--well); border: 1px solid var(--line); color: var(--txt); user-select: all; margin: 4px 0 8px; }
   .stt-act button { font-family: var(--mono); font-size: 11px; color: var(--txt-2); border: 1px solid var(--line-2); border-radius: var(--r1); padding: 9px 12px; }
@@ -5202,13 +5206,14 @@ try {
     <p class="hint" data-t>Talk instead of typing. The model runs on this machine and the sound never leaves it. Nothing is downloaded until you ask for it here.</p>
     <div><label for="t-stt" data-t>talk instead of typing</label><div class="sound-row wide"><span class="plain" id="stt-say" data-t>off</span><button class="ghost flip" id="t-stt" type="button"></button></div></div>
     <div id="stt-box" hidden>
-      <div><label for="f-stt-model" data-t>the model that listens</label><select id="f-stt-model"></select></div>
-      <div class="stt-line" id="stt-state"></div>
-      <div class="stt-bar" id="stt-bar" hidden><i></i></div>
-      <div class="stt-act">
-        <button type="button" class="ghost" id="stt-get" hidden></button>
-        <button type="button" class="ghost" id="stt-stop" hidden data-t>stop the download</button>
-        <button type="button" class="ghost" id="stt-drop" hidden data-t>delete it from this machine</button>
+      <div><label for="f-stt-model" data-t>the model that listens</label><select id="f-stt-model"></select>
+        <div class="stt-line" id="stt-state"></div>
+        <div class="stt-bar" id="stt-bar" hidden><i></i></div>
+        <div class="stt-act">
+          <button type="button" class="ghost" id="stt-get" hidden></button>
+          <button type="button" class="ghost" id="stt-stop" hidden data-t>stop the download</button>
+          <button type="button" class="ghost" id="stt-drop" hidden data-t>delete it from this machine</button>
+        </div>
       </div>
       <div><label for="f-stt-mic" data-t>the microphone dictation listens to</label><select id="f-stt-mic"></select></div>
       <div><label for="f-stt-lang" data-t>the language you talk in</label><select id="f-stt-lang"></select></div>
@@ -5224,7 +5229,7 @@ try {
     <div><label for="t-mt-system" data-t>record the computer's sound too</label><div class="sound-row wide"><span class="plain" id="mt-system-say"></span><button class="ghost flip" id="t-mt-system" type="button"></button></div></div>
     <div id="mt-ext-row" hidden>
       <label data-t>captions from Google Meet</label>
-      <p class="hint" data-t>A browser extension hands the captions of a Meet call to the hive, with the name of who spoke. While they arrive they are what gets written down; the microphone and the computer's sound keep being heard and take over if they stop.</p>
+      <p class="hint" data-t>A browser extension hands the captions of a Meet call to the hive, with the name of who spoke. While they arrive they are what gets written down; the microphone and the computer's sound are still captured and take over if they stop.</p>
       <div class="stt-line" id="mt-ext-state"></div>
       <div class="stt-act"><button type="button" class="ghost" id="mt-ext-install"></button></div>
       <div id="mt-ext-steps" hidden>

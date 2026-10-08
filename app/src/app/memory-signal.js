@@ -122,7 +122,7 @@ function memoryChip(s) {
   const held = memoryOfSeat.get(s.name);
   const sent = held?.sentAt ? phrase("last conversation sent {at}", { at: clockSay(held.sentAt) }) : "";
   if (held?.state === "on") return { key: "memory", cls: "memory on", memory: "on", title: [phrase("reads the team memory before each message"), sent].filter(Boolean).join("\n"), text: phrase("team memory") };
-  if (held?.state === "limited") return { key: "memory", cls: "memory limited", memory: "limited", title: [phrase("the shared memory is out — only the curated ones answer; it comes back on its own"), sent].filter(Boolean).join("\n"), text: phrase("limited memory") };
+  if (held?.state === "limited") return { key: "memory", cls: "memory limited", memory: "limited", title: [phrase("the shared memory is down — only the curated ones answer; it comes back on its own"), sent].filter(Boolean).join("\n"), text: phrase("limited memory") };
   if (held?.state === "login") return { key: "memory", cls: "memory login", memory: "login", title: phrase("the team memory is off on this machine — click to sign in with {command}", { command: MEMORY_LOGIN_COMMAND }), text: phrase("memory off · sign in") };
   if (held?.state === "incognito") return { key: "memory", cls: "memory incognito", memory: "incognito", title: phrase("incognito: reads the memory, but this conversation is not sent"), text: phrase("incognito · not saved") };
   return null;

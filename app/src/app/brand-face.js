@@ -121,7 +121,7 @@ async function onGateClick(e) {
      the person has already answered, so being asked again reads as the app not listening. the
      answer counts once it is in the file, and until then the gate stays and says so. */
   if (!(await saveAvatar())) {
-    st.gateSaid = phrase("your face could not be written down in {n} — nothing was saved", { n: st.configPath });
+    st.gateSaid = phrase("your face could not be saved to {n} — nothing changed", { n: st.configPath });
     b.disabled = false;
     return paintGate();
   }

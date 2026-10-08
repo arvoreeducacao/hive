@@ -100,7 +100,7 @@ const clip = (text, room) => (text.length > room ? `${text.slice(0, room - 1).tr
 function leadOf(seats, phrase) {
   const first = seats.find((one) => one.state === "needs") || seats.find((one) => one.state === "answered") || seats.find((one) => one.state === "working");
   if (!first) return null;
-  const fallback = first.state === "needs" ? "it stopped and asks you something" : first.state === "answered" ? "it finished its turn and is waiting for you" : "";
+  const fallback = first.state === "needs" ? "it stopped to ask you something" : first.state === "answered" ? "it finished its turn and is waiting for you" : "";
   return { key: first.key, name: first.title || first.name || first.key, says: clip(String(first.now || first.summary || (fallback && phrase(fallback))).replace(/\s+/g, " ").trim(), 150) };
 }
 

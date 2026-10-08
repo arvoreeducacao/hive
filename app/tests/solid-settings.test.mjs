@@ -491,8 +491,8 @@ test("asked for all of them, the panel stops saying there are more", () => {
 });
 
 test("an update that stopped says why on the panel and offers to try again", () => {
-  const model = run(notesWorld({ held: { lead: "did not go", why: "no zip in that release" } }), relnotes, "relnotesViewModel")();
-  assert.deepEqual(model.why, { lead: "did not go", said: "no zip in that release" });
+  const model = run(notesWorld({ held: { lead: "update failed", why: "no zip in that release" } }), relnotes, "relnotesViewModel")();
+  assert.deepEqual(model.why, { lead: "update failed", said: "no zip in that release" });
   assert.equal(model.go, "try again");
 });
 
