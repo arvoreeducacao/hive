@@ -221,6 +221,7 @@ export async function buildContext(options = {}) {
     memoryPlugin: readings.MEMORY_PLUGIN,
     trustedDirs: readings.TRUSTED_DIRS,
     home,
+    stateDir: env.HIVE_STATE_DIR || env.HIVE_HOME || join(home, ".hive"),
     hub,
     repo,
     configPath,
@@ -310,7 +311,7 @@ export async function runChecks(ctx, options = {}) {
     const session = ctx.tmuxSession || seatWindowSession(ctx.home || "");
     const { rows, windows } = await processes({ platform, session, timeout: T.local });
     if (!Array.isArray(windows)) return { measured: false, rows: [] };
-    return { measured: true, rows: strays(rows, windows) };
+    return { measured: true, rows: strays(rows, windows, { hive: ctx.stateDir }) };
   };
 
   const checks = [

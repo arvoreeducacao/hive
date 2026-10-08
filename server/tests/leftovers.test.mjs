@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { commandOf, headOf, isMachinery, leftoversOf, parseRows, reap, readTable, seatsWithADriver, strays, tagOf } from "../engine/leftovers.mjs";
+import { commandOf, headOf, isMachinery, leftoversOf, parseRows, reap, reapSeat, readTable, seatsWithADriver, strays, tagOf } from "../engine/leftovers.mjs";
 
 const MAC_TABLE = [
   "  501 01-02:03:04 0:00.10 /usr/bin/node /hive/server/engine/driver.mjs --name alpha --cwd /repo HIVE_SEAT=alpha HIVE_SIDE=local PATH=/usr/bin",
@@ -27,7 +27,7 @@ test("the command stops where the environment starts, and a flag with an equals 
 test("a mac table turns into rows with pid, age, cpu, command and the seat that started them", () => {
   const rows = parseRows(MAC_TABLE);
   assert.equal(rows.length, 6);
-  assert.deepEqual(rows[1], { pid: 502, etime: "02:03:04", cpu: "9:24.00", command: "node tests/browser-navigate.test.mjs", seat: "alpha" });
+  assert.deepEqual(rows[1], { pid: 502, etime: "02:03:04", cpu: "9:24.00", command: "node tests/browser-navigate.test.mjs", seat: "alpha", hive: "/Users/dev/.hive" });
   assert.equal(rows[2].seat, "beta");
   assert.equal(rows[4].seat, "impostor", "the tag inside a shell's own argument still counts: the shell was born of that seat");
   assert.equal(rows[5].seat, "");
@@ -85,9 +85,9 @@ test("on linux the environment comes from /proc, on a mac from ps -E, and on win
   const linux = await readTable({
     platform: "linux",
     run: async (cmd, args) => { calls.push([cmd, args]); return { ok: true, out: "  77 01:00 0:02.00 node serve.mjs\n" }; },
-    environ: (pid) => (pid === 77 ? "HOME=/h\0HIVE_SEAT=gamma\0" : "")
+    environ: (pid) => (pid === 77 ? "HOME=/h\0HIVE_SEAT=gamma\0HIVE_STATE_DIR=/h/.hive\0" : "")
   });
-  assert.deepEqual(linux, [{ pid: 77, etime: "01:00", cpu: "0:02.00", command: "node serve.mjs", seat: "gamma" }]);
+  assert.deepEqual(linux, [{ pid: 77, etime: "01:00", cpu: "0:02.00", command: "node serve.mjs", seat: "gamma", hive: "/h/.hive" }]);
   assert.deepEqual(calls[0], ["ps", ["-ww", "-eo", "pid=,etime=,time=,args="]]);
   const mac = await readTable({ platform: "darwin", run: async (cmd, args) => { calls.push([cmd, args]); return { ok: true, out: MAC_TABLE }; } });
   assert.equal(mac.length, 6);
@@ -105,4 +105,30 @@ test("a chat whose driver is still running is alive whatever the tmux window is 
   ];
   assert.deepEqual([...seatsWithADriver(rows)], ["alpha", "beta"]);
   assert.deepEqual(strays(rows, ["renamed-window"], { self: 1 }).map((row) => row.pid), [30]);
+});
+
+const TWO_HIVES = [
+  "  701 01:00 0:00.10 node tests/a.test.mjs HIVE_SEAT=asker HIVE_STATE_DIR=/Users/dev/.hive",
+  "  702 01:00 0:00.10 node tests/b.test.mjs HIVE_SEAT=asker HIVE_STATE_DIR=/tmp/trial/.hive",
+  "  703 01:00 0:00.10 node /x/server/engine/driver.mjs --name first-flight HIVE_SEAT=first-flight HIVE_STATE_DIR=/tmp/trial/.hive",
+  "  704 01:00 0:00.10 node dev-server HIVE_SEAT=first-flight HIVE_STATE_DIR=/Users/dev/.hive"
+].join("\n");
+
+test("a second hive on the same machine never sees the first one's chats as its own strays", () => {
+  const rows = parseRows(TWO_HIVES);
+  assert.deepEqual(strays(rows, [], { self: 1, hive: "/tmp/trial/.hive" }).map((row) => row.pid), [702]);
+  assert.deepEqual(strays(rows, [], { self: 1, hive: "/Users/dev/.hive/" }).map((row) => row.pid), [701, 704], "a driver of the other hive keeps none of this one's chats alive");
+});
+
+test("closing a chat stops only the processes of that chat in this hive, not a chat of the same name in another one", async () => {
+  const killed = [];
+  const kill = (pid, signal) => {
+    if (signal === 0) { const gone = new Error("gone"); gone.code = "ESRCH"; throw gone; }
+    killed.push(pid);
+    return true;
+  };
+  const run = async () => ({ ok: true, out: TWO_HIVES });
+  const said = await reapSeat("first-flight", { platform: "darwin", run, kill, self: 1, hive: "/tmp/trial/.hive" });
+  assert.deepEqual(said.asked, [703]);
+  assert.deepEqual(killed, [703]);
 });

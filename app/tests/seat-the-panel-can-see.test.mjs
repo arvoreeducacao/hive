@@ -55,6 +55,13 @@ test("closing a seat closes every window with its name, not the first one tmux f
   assert.match(sweep, /for \(const id of ids\) await sh\(TMUX, \["kill-window", "-t", id\]/, "only one of the copies goes, and the tile stays");
 });
 
+test("closing a seat stops only the processes this hive started, never a chat of the same name in another hive on the machine", () => {
+  const reaping = slice("async function reapSeatLeftovers(", "async function closeEndedSeat(");
+  const calls = reaping.match(/leftoversOf\(name, [^\n]*\)/g) || [];
+  assert.equal(calls.length, 2, "the reaper and the panel that lists what a seat left behind both read the process table");
+  for (const call of calls) assert.match(call, /hive: HIVE_HOME/, "without the hive, the other hive's chat with the same name loses its processes");
+});
+
 test("the local session is only dead when tmux says so twice", () => {
   const reconcile = slice("async function reconcileLocalFleet()", "function tellSeatsNobodyLooksYet()");
   assert.match(reconcile, /await localSessionSeenTwice\(\)/, "one 'no server running' around a wake restores every seat on top of its living window");

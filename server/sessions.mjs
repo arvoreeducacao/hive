@@ -438,7 +438,7 @@ export function createSessions({
       if (windows && !launch) spawn("tmux", ["kill-window", "-t", `${session}:${name}`], { stdio: "ignore" });
       forget(name);
       try { rmSync(sockFileOf(name), { force: true }); } catch {}
-      const swept = await reapSeat(name).catch(() => ({ asked: [], forced: [] }));
+      const swept = await reapSeat(name, { hive: base }).catch(() => ({ asked: [], forced: [] }));
       const leftovers = { stopped: swept.asked.length, forced: swept.forced.length };
       return said?.ok ? { ok: true, leftovers } : { ok: true, forced: true, leftovers };
     },

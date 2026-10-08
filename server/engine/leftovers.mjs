@@ -1,11 +1,14 @@
 import { execFile } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
+import { resolve } from "node:path";
 
 export const SEAT_TAG = "HIVE_SEAT";
+export const HIVE_TAG = "HIVE_STATE_DIR";
 export const GRACE_MS = 3000;
 const POLL_MS = 150;
 
-const TAG = new RegExp(`(?:^|[\\s\\0])${SEAT_TAG}=([^\\s\\0]+)`);
+const tagPattern = (name) => new RegExp(`(?:^|[\\s\\0])${name}=([^\\s\\0]+)`);
+const TAGS = { [SEAT_TAG]: tagPattern(SEAT_TAG), [HIVE_TAG]: tagPattern(HIVE_TAG) };
 const ENV_TOKEN = /^[A-Z_][A-Z0-9_]*=/;
 const MACHINERY = /engine\/[a-z-]*driver\.mjs|claude-agent-sdk|\/claude(?:\.exe)?(?:\s|$)|codex-app-server|(?:^|\/)codex(?:\s|$)|kimi-acp|kiro-acp|opencode-server|mcp-server|\.mcp-servers\/|peer-module\.mjs|npm exec(?:\s|$)|(?:^|\/)npx(?:\s|$)|gateway\/gateway\.mjs|hive-shell/;
 
@@ -15,9 +18,14 @@ export function headOf(command) {
   return script ? `${tokens[0]} ${script}` : tokens[0] || "";
 }
 
-export function tagOf(envText) {
-  const found = TAG.exec(String(envText || ""));
+export function tagOf(envText, name = SEAT_TAG) {
+  const found = (TAGS[name] || tagPattern(name)).exec(String(envText || ""));
   return found ? found[1] : "";
+}
+
+export function sameHive(row, hive) {
+  if (!hive || !row?.hive) return true;
+  return resolve(row.hive) === resolve(hive);
 }
 
 export function commandOf(commandAndEnv) {
@@ -32,7 +40,7 @@ export function parseRows(text, { withEnv = true } = {}) {
     const found = /^\s*(\d+)\s+(\S+)\s+(\S+)\s+(.*)$/.exec(line);
     if (!found) continue;
     const rest = found[4];
-    rows.push({ pid: Number(found[1]), etime: found[2], cpu: found[3], command: withEnv ? commandOf(rest) : rest.trim(), seat: withEnv ? tagOf(rest) : "" });
+    rows.push({ pid: Number(found[1]), etime: found[2], cpu: found[3], command: withEnv ? commandOf(rest) : rest.trim(), seat: withEnv ? tagOf(rest) : "", hive: withEnv ? tagOf(rest, HIVE_TAG) : "" });
   }
   return rows;
 }
@@ -61,16 +69,20 @@ export async function readTable({ platform = process.platform, run = exec, procR
   if (!said.ok && !said.out) return [];
   const rows = parseRows(said.out, { withEnv: darwin });
   if (darwin) return rows;
-  for (const row of rows) row.seat = tagOf(environ(row.pid, procRoot));
+  for (const row of rows) {
+    const envText = environ(row.pid, procRoot);
+    row.seat = tagOf(envText);
+    row.hive = tagOf(envText, HIVE_TAG);
+  }
   return rows;
 }
 
 export const isMachinery = (command) => MACHINERY.test(headOf(command));
 
-export function leftoversOf(seat, rows, { self = process.pid } = {}) {
+export function leftoversOf(seat, rows, { self = process.pid, hive = "" } = {}) {
   if (!seat) return [];
   return rows
-    .filter((row) => row.seat === seat && row.pid !== self)
+    .filter((row) => row.seat === seat && row.pid !== self && sameHive(row, hive))
     .map((row) => ({ ...row, machinery: isMachinery(row.command) }));
 }
 
@@ -85,9 +97,10 @@ export function seatsWithADriver(rows) {
   return seats;
 }
 
-export function strays(rows, liveSeats, { self = process.pid } = {}) {
-  const live = new Set([...(liveSeats || []), ...seatsWithADriver(rows)]);
-  return rows.filter((row) => row.seat && !live.has(row.seat) && row.pid !== self);
+export function strays(rows, liveSeats, { self = process.pid, hive = "" } = {}) {
+  const ours = rows.filter((row) => sameHive(row, hive));
+  const live = new Set([...(liveSeats || []), ...seatsWithADriver(ours)]);
+  return ours.filter((row) => row.seat && !live.has(row.seat) && row.pid !== self);
 }
 
 function stillThere(pid, kill) {

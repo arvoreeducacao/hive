@@ -4225,7 +4225,7 @@ async function killEveryWindowNamed(name) {
 
 async function reapSeatLeftovers(name) {
   if (NATIVE) return { asked: [], forced: [] };
-  const rows = leftoversOf(name, await readTable(), { self: process.pid });
+  const rows = leftoversOf(name, await readTable(), { self: process.pid, hive: HIVE_HOME });
   if (!rows.length) return { asked: [], forced: [] };
   const said = await reap(rows.map((row) => row.pid));
   if (said.asked.length) console.log(`seat ${name}: stopped ${said.asked.length} process(es) it had left running${said.forced.length ? `, ${said.forced.length} by force` : ""}`);
@@ -4235,7 +4235,7 @@ async function reapSeatLeftovers(name) {
 const heldBy = (tree) => (tree.loose ? "loose" : tree.ahead ? "ahead" : tree.locked ? "locked" : "");
 
 async function seatLeftovers(name) {
-  const processes = NATIVE ? [] : leftoversOf(name, await readTable(), { self: process.pid })
+  const processes = NATIVE ? [] : leftoversOf(name, await readTable(), { self: process.pid, hive: HIVE_HOME })
     .filter((row) => !row.machinery)
     .map(({ pid, etime, cpu, command }) => ({ pid, etime, cpu, command }));
   const seat = fleet.get(seatKey("local", name));

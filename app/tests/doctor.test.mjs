@@ -1154,6 +1154,26 @@ test("leftovers: the runner reads the process table against the tmux windows sti
   assert.equal(found.fix.command, "kill 200");
 });
 
+test("leftovers: a chat of another hive on the same machine is never offered for killing", async () => {
+  const table = [
+    "  200 02:00 0:02.00 node tests/x.test.mjs HIVE_SEAT=gone HIVE_STATE_DIR=/Users/ada/.hive",
+    "  400 00:11 0:00.10 node asker.mjs HIVE_SEAT=asker HIVE_STATE_DIR=/Users/ada/other-hive"
+  ].join("\n");
+  const processes = async () => ({ rows: parseRows(table), windows: ["hub"] });
+  const items = await runChecks({ ...ctx, stateDir: "/Users/ada/.hive", hasConfig: true, configText: CONFIG, hubExists: true, platform: "darwin" }, {
+    exec: describing(), processes, ask: DOOR_ANSWERS, platform: "darwin",
+    timeouts: { local: 200, cluster: 60, node: 40, probe: 80, podCheck: 90, door: 40 }
+  });
+  const found = items.find((i) => i.id === "leftovers");
+  assert.equal(found.fix.command, "kill 200");
+  assert.doesNotMatch(found.detail, /pid 400/);
+});
+
+test("the doctor's hive is the state dir it was told about, or the .hive in the home", async () => {
+  assert.equal((await buildContext({ env: { HOME: "/Users/ada", PATH: "/usr/bin" }, home: "/Users/ada", repo: "/r" })).stateDir, "/Users/ada/.hive");
+  assert.equal((await buildContext({ env: { HOME: "/Users/ada", HIVE_STATE_DIR: "/tmp/trial/.hive", PATH: "/usr/bin" }, home: "/Users/ada", repo: "/r" })).stateDir, "/tmp/trial/.hive");
+});
+
 test("leftovers: when tmux does not list its windows, nothing is judged and no kill is offered", async () => {
   const processes = async () => ({ rows: parseRows("  200 02:00 0:02.00 node tests/x.test.mjs HIVE_SEAT=gone PATH=/usr/bin"), windows: null });
   const items = await runChecks({ ...ctx, hasConfig: true, configText: CONFIG, hubExists: true, platform: "darwin" }, {
