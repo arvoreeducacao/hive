@@ -4,7 +4,7 @@ import { execFile, spawn } from "node:child_process";
 import { mkdtemp, open, readFile } from "node:fs/promises";
 import { chmodSync, closeSync, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { CREDENTIAL_SAVED, loginConfirmed } from "./lib/server-login.mjs";
-import { meetingsGuideOf, serverGuideOf } from "./lib/server-guide.mjs";
+import { hubGuideOf, meetingsGuideOf, serverGuideOf } from "./lib/server-guide.mjs";
 import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promises";
 import { parse as parseJsonc, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
 import { createHash, randomUUID } from "node:crypto";
@@ -125,8 +125,8 @@ import { askTheDoor, findCloudServer, NO_ADDRESS } from "./lib/cloud-door.mjs";
 import { avatarFor, avatarKey } from "./assets/avatar/avatar.mjs";
 import { moodOf } from "./assets/mood.mjs";
 import { workspaceOf, readManifest } from "./lib/hub-workspace.mjs";
-import { cloudRepoOfTheHub, hubPathFrom } from "./lib/hub-path.mjs";
-import { FIRST_FLIGHT, firstFlightMission } from "./lib/first-flight.mjs";
+import { HUB_MARKERS, cloudRepoOfTheHub, hubLookOf, hubPathFrom, makeHub } from "./lib/hub-path.mjs";
+import { FIRST_FLIGHT, firstFlightAgentOf, firstFlightMission } from "./lib/first-flight.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { basename, dirname, join } from "node:path";
 import { homedir, hostname, tmpdir, userInfo } from "node:os";
@@ -157,6 +157,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const APP_PACKAGE = (() => { try { return JSON.parse(readFileSync(join(HERE, "package.json"), "utf8")); } catch { return {}; } })();
 const SERVER_GUIDE = serverGuideOf(APP_PACKAGE);
 const MEETINGS_GUIDE = meetingsGuideOf(APP_PACKAGE);
+const HUB_GUIDE = hubGuideOf(APP_PACKAGE);
 const IS_WINDOWS = process.platform === "win32";
 
 if (IS_WINDOWS) process.env.MSYS2_ARG_CONV_EXCL = "*";
@@ -6317,13 +6318,18 @@ function guessHub() {
   return HUB;
 }
 
-const HUB_MARKERS = ["hub.yaml", "CLAUDE.md", "AGENTS.md"];
-
 function hubLooks(path) {
-  const { path: folder, why } = hubPathFrom(path, homedir());
-  if (why) return { ok: false, why };
-  if (!folder || !existsSync(folder)) return { ok: false, why: "that folder does not exist" };
-  return { ok: true, instructions: HUB_MARKERS.some((file) => existsSync(join(folder, file))), env: existsSync(join(folder, ".env")) };
+  return hubLookOf(path, homedir());
+}
+
+function makeHubAt(typed) {
+  try {
+    const made = makeHub(typed, homedir());
+    invalidateOnboarding();
+    return made;
+  } catch (no) {
+    return { error: String(no?.message || no).split("\n")[0].slice(0, 160) };
+  }
 }
 
 async function localClaude() {
@@ -6419,16 +6425,17 @@ async function onboardingState(query) {
     if (server.answers && setup.ok) {
       const [sig, state] = await Promise.all([signatureLook(server.url, server.key), insideTheServer()]);
       signature = sig;
-      claudeOnServer = { loggedIn: !!state?.claude?.loggedIn, remoteControl: !!state?.remoteControl, plan: state?.claude?.plan || "" };
+      claudeOnServer = { loggedIn: !!state?.claude?.loggedIn, remoteControl: !!state?.remoteControl, plan: state?.claude?.plan || "", others: Object.keys(state?.agents || {}) };
     }
   }
 
   const flight = await firstFlightAlive();
+  const flightAgent = await firstFlightAgent();
   const data = {
     dev, hub: hubPath, hubLooks: hubLooks(typedHub),
     wantsServer: wanted,
     machine, setup, server, signature, claudeOnServer, ownerKey: servers.identity?.publicSsh || "", serverGuide: SERVER_GUIDE,
-    firstFlight: flight,
+    firstFlight: flight, flightAgent, hubGuide: HUB_GUIDE,
     finished: existsSync(ONBOARDED),
     sandbox: SANDBOX,
     at: new Date().toISOString()
@@ -6459,9 +6466,15 @@ async function runSetup(name, typedHub) {
 }
 
 
+async function firstFlightAgent() {
+  const ready = agentsToSignIn(await readProviders().catch(() => [])).filter((one) => one.ready);
+  return firstFlightAgentOf(ready);
+}
+
 async function startFirstFlight(model, { language, newChat } = {}) {
   if (await firstFlightAlive()) return { ok: true, name: FIRST_FLIGHT, already: true };
-  const bodyLike = { name: FIRST_FLIGHT, prompt: firstFlightMission(DEV || "you", { language, newChat }), where: "local", model: model || "", structured: true, agent: "claude" };
+  const agent = await firstFlightAgent();
+  const bodyLike = { name: FIRST_FLIGHT, prompt: firstFlightMission(DEV || "you", { language, newChat, agent: agent.harness }), where: "local", model: agent.id === "claude" ? model || "" : "", structured: true, agent: agent.id };
   const job = openJob(bodyLike);
   runJob(job, bodyLike);
   invalidateOnboarding();
@@ -6473,6 +6486,7 @@ async function onboardingAction(action, data) {
     return { error: `sandbox: "${action}" would touch the real cluster — skipped` };
   }
   if (action === "setup") return runSetup(data.name, data.hub);
+  if (action === "make-hub") return makeHubAt(data.hub);
   if (action === "first-flight") return startFirstFlight(data.model, { language: data.language, newChat: data.newChat });
   if (action === "finish") {
     await mkdir(HIVE_HOME, { recursive: true });

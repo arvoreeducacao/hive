@@ -42,5 +42,6 @@ test("the welcome asks for the first chat with the app's language and its new ch
   assert.match(avatars, /wAct\("first-flight", \{ model, language: st\.language, newChat: keyHint\("new"\) \}\)/);
   const server = readFileSync(join(HERE, "..", "server.mjs"), "utf8");
   assert.match(server, /startFirstFlight\(data\.model, \{ language: data\.language, newChat: data\.newChat \}\)/);
-  assert.match(server, /firstFlightMission\(DEV \|\| "you", \{ language, newChat \}\)/);
+  assert.match(server, /firstFlightMission\(DEV \|\| "you", \{ language, newChat, agent: agent\.harness \}\)/);
+  assert.match(server, /model: agent\.id === "claude" \? model \|\| "" : "", structured: true, agent: agent\.id/, "a model name only means something to claude");
 });

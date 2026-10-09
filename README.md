@@ -137,10 +137,13 @@ offers each new release on its own.
 
 **The first run** walks you through four steps, about five minutes:
 
-1. **hello**: your name, and the folder your work lives in. Point it at a folder
-   that holds your repositories; a seat opens on one of them.
+1. **hello**: your name, and your **hub**: the folder that holds your
+   repositories, side by side. A seat opens on one of them. No folder yet? Type
+   a new path and the app makes one with a starter `AGENTS.md`. What goes in a
+   hub: [docs/your-hub.md](docs/your-hub.md).
 2. **your machine**: it checks the tools above and, for anything missing, gives
-   the install command for your system.
+   the install command for your system. Each agent CLI it finds gets a
+   **sign in** button: the login opens in your browser and comes back on its own.
 3. **your key**: it makes the Ed25519 key that identifies this machine.
 4. **first flight**: opens your first chat, which introduces itself and asks you
    a question. Answer it, and you are in.

@@ -12,6 +12,7 @@ const page = [readFileSync(join(HERE, "app.html"), "utf8"), ...walk("src")].join
 const server = [
   readFileSync(join(HERE, "server.mjs"), "utf8"),
   readFileSync(join(HERE, "lib/seat-link.mjs"), "utf8"),
+  readFileSync(join(HERE, "lib/hub-path.mjs"), "utf8"),
   ...readdirSync(join(HERE, "routes")).filter((name) => name.endsWith(".mjs")).map((name) => readFileSync(join(HERE, "routes", name), "utf8"))
 ].join("\n");
 

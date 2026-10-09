@@ -11,7 +11,7 @@ const W_STEPS = [
   { id: "setup", label: "your key", short: "key" },
   { id: "server", label: "your server", short: "server" },
   { id: "authorize", label: "key on it", short: "trust" },
-  { id: "login", label: "claude on it", short: "claude" },
+  { id: "login", label: "an agent on it", short: "agent" },
   { id: "flight", label: "first flight", short: "flight" }
 ];
 

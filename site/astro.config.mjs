@@ -47,6 +47,7 @@ export default defineConfig({
         {
           label: 'Guides',
           items: [
+            { label: 'Your hub', slug: 'guides/your-hub' },
             { label: 'Run your own server', slug: 'guides/run-your-own' },
             { label: 'Connect your phone', slug: 'guides/phone' },
             { label: 'Invite someone', slug: 'guides/invite' },

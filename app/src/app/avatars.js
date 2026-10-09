@@ -316,9 +316,14 @@ function nameNote(s) {
   return `${phrase("Becomes the prefix of every branch you open:")} <code>${echo}/-/…</code>.`;
 }
 
+const hubGuideLink = () => (wb.s?.hubGuide
+  ? `<a href="${esc(wb.s.hubGuide)}" target="_blank" rel="noreferrer">${phrase("what goes in a hub ↗")}</a>`
+  : `${phrase("what goes in a hub")}: <code>docs/your-hub.md</code>`);
+
 function hubNote(s) {
   const look = s.hubLooks || {};
-  if (!look.ok) return esc(look.why || "");
+  if (look.missing) return `${esc(phrase(look.why || ""))} <button type="button" class="fix" data-w="make-hub">${phrase("create it")}</button>`;
+  if (!look.ok) return esc(phrase(look.why || ""));
   if (s.wantsServer && s.machine?.wantsCluster) return look.env ? phrase("found it, with a .env") : phrase("found it — no .env yet, the server will need one");
   return look.instructions ? phrase("found it — chats open here and read the instructions it holds") : phrase("found it — chats open here, next to your repositories");
 }
@@ -340,7 +345,7 @@ function pageHello() {
         </div>
         <div class="w-fields">
           <div><label for="w-dev">${phrase("your name in the hive")}</label><input id="w-dev" value="${esc(wb.dev)}" spellcheck="false" autocomplete="off" placeholder="${phrase("short, lowercase")}" /><p class="note${wb.nameWrong ? " bad" : ""}" id="w-dev-note">${wb.nameWrong ? phrase("the name needs 2 to 30 characters: lowercase letters, digits and hyphens") : `${nameNote(s)} ${phrase("The face is yours too — click it to change; the team sees it next to your name.")}`}</p></div>
-          <div><label for="w-hub">${phrase("where your workspace lives on this machine")}</label><input id="w-hub" value="${esc(wb.hub)}" spellcheck="false" autocomplete="off" placeholder="${phrase("/Users/you/workspace")}" /><p class="note ${s?.hubLooks?.ok ? "good" : "bad"}" id="w-hub-note">${s ? hubNote(s) : phrase("checking…")}</p></div>
+          <div><label for="w-hub">${phrase("your hub: the folder with your repositories")}</label><input id="w-hub" value="${esc(wb.hub)}" spellcheck="false" autocomplete="off" placeholder="${phrase("/Users/you/workspace")}" /><p class="note ${s?.hubLooks?.ok ? "good" : "bad"}" id="w-hub-note" role="status">${s ? hubNote(s) : phrase("checking…")}</p><p class="note">${phrase("Chats open in this folder and read its AGENTS.md or CLAUDE.md first. Keep your repositories side by side in it, and write there what every chat should know.")} ${hubGuideLink()}</p></div>
         </div>
         <div class="w-picker facepick${wb.facePicker ? " on" : ""}" id="w-picker">${wb.facePicker ? facePicker() : ""}</div>
       </div>
@@ -475,11 +480,14 @@ function pageLogin() {
       ${c.remoteControl ? "" : `<div class="w-actions"><button class="btn" data-w="control">${phrase("start remote control")}</button></div>`}
     </div>`;
   }
+  const others = c.others || [];
   return `<div class="w-page">
     ${icon("login")}
-    <h2>${phrase("Last door: log Claude in on the server.")}</h2>
-    <p class="lead">${phrase("The app opens")} <code>claude auth login</code> ${phrase("inside the server, hands you the authorization link, and takes the code back. It also pre-accepts the trust and bypass dialogs and starts Remote Control, so cloud chats never stall on a prompt nobody sees.")}</p>
+    <h2>${phrase("Last door: sign an agent in on the server.")}</h2>
+    <p class="lead">${phrase("For Claude, the app opens")} <code>claude auth login</code> ${phrase("inside the server, hands you the authorization link, and takes the code back. It also pre-accepts the trust and bypass dialogs and starts Remote Control, so cloud chats never stall on a prompt nobody sees.")}</p>
     <p class="sub">${phrase("About 15 seconds to get the link.")}</p>
+    <p class="sub">${others.length ? phrase("This server also has {list}. Those sign in with their own login command in the server's terminal; then this step is not needed.", { list: others.map((one) => `<code>${esc(one)}</code>`).join(", ") }) : phrase("Using Codex, Kimi, Kiro, Cursor or OpenCode instead? Install it on the server and sign in with its own login command in the server's terminal; then this step is not needed.")}</p>
+    <div class="w-actions"><button class="later" data-w="next">${phrase("skip — my agent is not Claude")}</button></div>
   </div>`;
 }
 
@@ -497,6 +505,17 @@ function flightCard() {
     </div></div>`;
 }
 
+function flightRuns() {
+  const agent = wb.s?.flightAgent || { id: "claude", name: "Claude" };
+  if (agent.id !== "claude") return `<p class="sub">${phrase("It runs with {agent}, the agent you signed in to.", { agent: `<b>${esc(agent.name)}</b>` })}</p>`;
+  return `<div class="w-form"><div><label for="w-model">${phrase("model")}</label><select id="w-model">
+        <option value="">${phrase("the account default")}</option>
+        <option value="haiku">${phrase("Haiku — fast and cheap, plenty for this")}</option>
+        <option value="sonnet">Sonnet</option>
+        <option value="opus">Opus</option>
+      </select></div></div>`;
+}
+
 const flightAlive = () => !!wb.s?.firstFlight || st.data.sessions.some((x) => x.name === "first-flight") || st.data.spawning.some((j) => j.name === "first-flight");
 
 function pageFlight() {
@@ -506,12 +525,7 @@ function pageFlight() {
       <h2>${phrase("Open your first chat and watch it think.")}</h2>
       <p class="lead">${phrase("This one runs on this machine with a fixed mission: introduce itself, write its status file while you watch the tile fill in, then ask you a question — so you see what")} <b>${phrase("needs you")}</b> ${phrase("looks like and answer from the app. It touches nothing but its own status file.")}</p>
       ${serverIsOptional()}
-      <div class="w-form"><div><label for="w-model">${phrase("model")}</label><select id="w-model">
-        <option value="">${phrase("the account default")}</option>
-        <option value="haiku">${phrase("Haiku 4.5 — fast and cheap, plenty for this")}</option>
-        <option value="sonnet">Sonnet 5</option>
-        <option value="opus">Opus 5</option>
-      </select></div></div>
+      ${flightRuns()}
       <div class="w-actions"><button class="later" data-w="finish">${phrase("skip — take me to the hive")}</button></div>
     </div>`;
   }
@@ -662,9 +676,15 @@ async function wRun(action, el) {
     wb.dev = dev; wb.ready = true;
     await saveAvatar();
     await wPull(false);
-    if (!wb.s?.hubLooks?.ok) return;
+    if (!wb.s?.hubLooks?.ok) { wPaint(); return $("w-hub")?.focus(); }
     if (wAllEssential(wb.s)) return startTour();
     return wGo(wFirstOpen());
+  }
+  if (action === "make-hub") {
+    wb.hub = ($("w-hub")?.value || wb.hub || "").trim();
+    const d = await wAct("make-hub", { hub: wb.hub });
+    if (d?.path) wb.hub = d.path;
+    return wPaint();
   }
   if (action === "setup") {
     wb.setupError = "";

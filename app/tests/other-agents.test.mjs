@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 
 const server = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
 const panes = readFileSync(new URL("../src/app/chat-and-panes.js", import.meta.url), "utf8");
+const hubPath = readFileSync(new URL("../lib/hub-path.mjs", import.meta.url), "utf8");
 const cut = (text, from, to) => {
   const a = text.indexOf(from);
   assert.ok(a >= 0, `${from} is not in the source`);
@@ -26,12 +27,12 @@ test("the doctor calls a machine ready with any agent signed in, codex, kimi, ki
 });
 
 test("a hub is recognised by its AGENTS.md as much as by its CLAUDE.md, and a plain folder of repositories is accepted too", () => {
-  assert.match(server, /const HUB_MARKERS = \["hub\.yaml", "CLAUDE\.md", "AGENTS\.md"\];/);
-  const looks = cut(server, "function hubLooks(path)", "async function localClaude");
+  assert.match(hubPath, /export const HUB_MARKERS = \["hub\.yaml", "CLAUDE\.md", "AGENTS\.md"\];/);
+  const looks = cut(hubPath, "export function hubLookOf(", "export function makeHub(");
   assert.match(looks, /instructions: HUB_MARKERS\.some/);
-  assert.doesNotMatch(looks, /no hub\.yaml, CLAUDE\.md or AGENTS\.md there/, "a folder without instructions is still refused");
-  assert.equal((looks.match(/ok: false/g) || []).length, 2, "only a bad path or a missing folder may refuse the workspace");
-  const guess = cut(server, "function guessHub()", "const HUB_MARKERS");
+  assert.equal((looks.match(/ok: false/g) || []).length, 3, "only an empty field, a bad path or a missing folder may refuse the workspace");
+  assert.match(server, /function hubLooks\(path\) \{\n  return hubLookOf\(path, homedir\(\)\);/);
+  const guess = cut(server, "function guessHub()", "function hubLooks(path)");
   assert.match(guess, /HUB_MARKERS\.some/);
 });
 

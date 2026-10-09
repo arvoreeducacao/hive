@@ -10,3 +10,7 @@ export function serverGuideOf(pkg) {
 export function meetingsGuideOf(pkg) {
   return docsLinkOf(pkg, "docs/meetings.md");
 }
+
+export function hubGuideOf(pkg) {
+  return docsLinkOf(pkg, "docs/your-hub.md");
+}
