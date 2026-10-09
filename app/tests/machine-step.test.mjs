@@ -24,6 +24,7 @@ const machine = (over = {}) => ({
   cluster: { ok: true, name: "the-cluster", detail: "" },
   gh: { ok: true, detail: "someone" },
   claude: { loggedIn: true, email: "someone@example.com" },
+  providers: [{ id: "claude", name: "Claude", ready: true, who: "someone@example.com", why: "" }],
   ...over
 });
 
@@ -92,4 +93,24 @@ test("the app hands its server the github token the terminal has, the way it han
     "a token already in the app's environment has to win over the one read from the shell");
   const env = cut(main, "function serverEnv", "function onPath", "main.js");
   assert.match(env, /process\.env\.GH_TOKEN \|\| process\.env\.GITHUB_TOKEN/);
+});
+
+test("the machine step offers a sign-in for each agent it found, and one signed in is enough", () => {
+  const codex = { id: "codex", name: "Codex", ready: false, who: "", why: "" };
+  wb.s = { machine: machine({ ok: false, providers: [{ id: "claude", name: "Claude", ready: false, who: "", why: "" }, codex] }) };
+  const none = pageMachine();
+  assert.deepEqual(rowsOf(none), ["tmux", "github", "claude", "codex"]);
+  assert.match(none, /data-w="agent-sign-in" data-agent="claude"/);
+  assert.match(none, /data-w="agent-sign-in" data-agent="codex"/);
+
+  wb.s = { machine: machine({ providers: [{ id: "claude", name: "Claude", ready: true, who: "someone@example.com", why: "" }, codex] }) };
+  const one = pageMachine();
+  assert.doesNotMatch(one, /data-agent="claude"/, "a signed-in agent still offers a sign-in");
+  assert.match(one, /data-agent="codex"/);
+  assert.match(one, /optional/, "a second agent reads as required once one is already signed in");
+});
+
+test("with no agent installed, the machine step says how to install one", () => {
+  wb.s = { machine: machine({ ok: false, providers: [], deps: [dep("tmux"), dep("gh"), dep("claude", { ok: false, path: "", install: "npm install -g @anthropic-ai/claude-code" })] }) };
+  assert.match(pageMachine(), /data-copy="npm install -g @anthropic-ai\/claude-code"/);
 });

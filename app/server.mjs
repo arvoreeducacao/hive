@@ -13,7 +13,7 @@ import { secretsForSeats } from "./lib/secrets.mjs";
 import { PEER_MODULE_PROBE, peerToolsCommand } from "./lib/peer-tools.mjs";
 import { peerEntry } from "../server/engine/peer-module.mjs";
 import { accountsDir, readAccounts as accountsHeld, shapeAccount } from "./lib/accounts.mjs";
-import { PROVIDERS, PROVIDER_IDS, parseVersion, providerHomeOf, providerReadiness, providerSettings, readProviderAccounts, shapeProviderAccount } from "./lib/providers.mjs";
+import { PROVIDERS, PROVIDER_IDS, agentsToSignIn, parseVersion, providerHomeOf, providerReadiness, providerSettings, readProviderAccounts, shapeProviderAccount } from "./lib/providers.mjs";
 import { accountNameInCommand, isProvider, oneLoginOnly, providerEnv, providerEnvDir } from "../server/engine/providers.mjs";
 import { DEFAULT_ACCOUNT, accountDir, accountOrder, accountsRoot, noteBack, writeOrder } from "../server/engine/accounts.mjs";
 import { registerProviderRoutes } from "./routes/providers.mjs";
@@ -6363,7 +6363,7 @@ async function machineLook() {
     localClaude()
   ]);
   const lastLine = (text) => (text.split("\n").map((l) => l.trim()).filter(Boolean).pop() || "").slice(0, 160);
-  const agents = await otherAgentsOnThisMachine();
+  const [agents, providers] = await Promise.all([otherAgentsOnThisMachine(), readProviders(true).catch(() => [])]);
   const anotherAgentHere = Object.keys(agents).length > 0;
   const machine = {
     wantsServer,
@@ -6373,9 +6373,10 @@ async function machineLook() {
     aws: { ok: aws.ok, needed: wantsCluster, profile: AWS_PROFILE, detail: aws.ok ? (extractJson(aws.out)?.Arn || "").split("/").slice(-1)[0] : lastLine(aws.error) },
     cluster: { ok: cluster.ok, needed: wantsCluster, named: clusterNamed, name: CLUSTER, namespace: NS, detail: cluster.ok ? `${CLUSTER} answers` : lastLine(cluster.error) },
     gh: { ok: gh.ok, detail: gh.ok ? lastLine(gh.out) : "gh auth login" },
-    claude
+    claude,
+    providers: agentsToSignIn(providers)
   };
-  machine.ok = machine.deps.every((d) => d.ok || !d.needed) && machine.gh.ok && (machine.claude.loggedIn || anotherAgentHere)
+  machine.ok = machine.deps.every((d) => d.ok || !d.needed) && machine.gh.ok && machine.providers.some((one) => one.ready)
     && (!wantsCluster || (machine.aws.ok && machine.cluster.ok));
   machineCache = { at: Date.now(), data: machine };
   return machine;

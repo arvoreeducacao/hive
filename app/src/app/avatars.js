@@ -369,12 +369,12 @@ function pageMachine() {
     check(m.cluster.ok, "hosting", m.cluster.ok ? phrase("whoever hosts your server answers") : `${phrase("the host does not answer: {why}.", { why: esc(m.cluster.detail) })} <code>aws eks update-kubeconfig --name ${esc(m.cluster.name)} --profile ${esc(m.aws.profile)}</code>`, m.cluster.ok ? "" : `<button class="fix" data-copy="aws eks update-kubeconfig --name ${esc(m.cluster.name)} --profile ${esc(m.aws.profile)}">${phrase("copy")}</button>`)
     ]),
     merged("gh", m.gh.ok, m.gh.ok ? phrase("logged in as {who} — reviews and merges carry your name", { who: esc(m.gh.detail) }) : `${phrase("not logged in —")} <code>gh auth login</code>`, `<button class="fix" data-copy="gh auth login">${phrase("copy")}</button>`),
-    merged("claude", m.claude.loggedIn, m.claude.loggedIn ? (m.claude.email ? phrase("logged in as {who}", { who: esc(m.claude.email) }) : phrase("logged in")) : claudeSignInSay(), claudeSignInButton())
+    agentRows(m, missing)
   ].join("");
   return `<div class="w-page">
     ${icon("machine")}
     <h2>${m.ok ? phrase("This machine has everything the hive needs.") : phrase("A few things the hive needs on this machine.")}</h2>
-    <p class="lead">${m.ok ? (m.wantsCluster === false ? phrase("The tools, GitHub and Claude — all answering.") : phrase("Six tools, the cluster credential, GitHub and Claude — all answering.")) : phrase("Fix what is red in a terminal; this screen notices on its own, every few seconds. Nothing here is hive-specific — it is the same toolbelt the rest of the team runs.")}</p>
+    <p class="lead">${m.ok ? (m.wantsCluster === false ? phrase("The tools, GitHub and your agent — all answering.") : phrase("The tools, the cluster credential, GitHub and your agent — all answering.")) : phrase("Sign in to an agent right here, and fix the rest of what is red in a terminal; this screen notices on its own, every few seconds.")}</p>
     <div class="w-checks">${rows}${more}</div>
     ${m.ok ? "" : `<div class="w-actions"><button class="later" data-w="next">${phrase("continue anyway — the next steps will wait")}</button></div>`}
   </div>`;
@@ -589,49 +589,67 @@ function wPaint() {
   $("w-sandbox").hidden = !s?.sandbox;
 }
 
-function claudeSignInSay() {
-  const signing = wb.claudeSignIn;
+function agentRows(m, missing) {
+  const agents = m.providers || [];
+  if (!agents.length) {
+    const claude = m.deps.find((one) => one.name === "claude");
+    return claude ? check(false, phrase("an agent"), ...missing(claude)) : "";
+  }
+  const anyReady = agents.some((one) => one.ready);
+  return agents.map((one) => check(one.ready, esc(one.name.toLowerCase()), agentSay(one, anyReady), one.ready ? "" : agentButton(one))).join("");
+}
+
+function agentSay(one, anyReady) {
+  const signing = wb.agentSignIn?.id === one.id ? wb.agentSignIn : null;
+  if (one.ready) return one.who ? phrase("logged in as {who}", { who: esc(one.who) }) : phrase("logged in");
   if (signing?.error) return esc(signing.error);
   if (signing?.step === "opening") return phrase("opening the sign-in…");
   if (signing?.step === "browser") return phrase("finish the sign-in in the browser — it comes back here on its own, and this turns green");
-  if (signing?.step === "page") return phrase("the browser did not come back on its own — finish it in the providers settings, where the sign-in can take a code");
-  return phrase("not logged in on this machine — sign in, and the browser brings you back here");
+  if (signing?.step === "code") return phrase("type {code} on the page that opened — this turns green on its own", { code: `<code>${esc(signing.code)}</code>` });
+  if (signing?.step === "page") return phrase("this sign-in asks a few questions in its own terminal — finish it in the providers settings");
+  return anyReady ? phrase("installed, not signed in — optional, sign in if chats should run on it too") : phrase("installed, not signed in — sign in to run chats on it");
 }
 
-function claudeSignInButton() {
-  const step = wb.claudeSignIn?.step;
-  if (step === "opening") return "";
-  if (step === "browser" && wb.claudeSignIn.url) return `<button class="fix" data-w="claude-sign-in-again">${phrase("open it again")}</button>`;
-  return `<button class="fix" data-w="claude-sign-in">${phrase("sign in")}</button>`;
+function agentButton(one) {
+  const signing = wb.agentSignIn?.id === one.id ? wb.agentSignIn : null;
+  if (signing?.step === "opening") return "";
+  if (signing?.url && (signing.step === "browser" || signing.step === "code")) return `<button class="fix" data-w="agent-sign-in-again">${phrase("open it again")}</button>`;
+  return `<button class="fix" data-w="agent-sign-in" data-agent="${esc(one.id)}">${phrase("sign in")}</button>`;
 }
 
-async function claudeSignIn() {
-  wb.claudeSignIn = { step: "opening" };
+async function agentSignIn(id) {
+  if (!id) return;
+  wb.agentSignIn = { id, step: "opening" };
   wPaint();
   let d = {};
   try {
-    d = await (await fetch("/api/provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sign-in", provider: "claude", name: "default" }) })).json();
+    d = await (await fetch("/api/provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sign-in", provider: id, name: "default" }) })).json();
   } catch {
     d = { error: phrase("the sign-in did not open — try again") };
   }
-  if (d.error) wb.claudeSignIn = { error: d.error };
-  else wb.claudeSignIn = { step: d.direct ? "browser" : "page", url: d.url || "" };
-  if (d.url) window.open(d.url, "_blank", "noopener,noreferrer");
+  if (d.error) wb.agentSignIn = { id, error: d.error };
+  else if (d.direct) wb.agentSignIn = { id, step: "browser", url: d.url };
+  else if (d.code && d.url) wb.agentSignIn = { id, step: "code", url: d.url, code: d.code };
+  else wb.agentSignIn = { id, step: "page" };
+  if (wb.agentSignIn.url) window.open(wb.agentSignIn.url, "_blank", "noopener,noreferrer");
   wPaint();
 }
 
-function claudeSignInLanded() {
-  if (!wb.claudeSignIn || !wb.s?.machine?.claude?.loggedIn) return;
-  wb.claudeSignIn = null;
-  fetch("/api/provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "close", provider: "claude" }) }).catch(() => {});
+function agentSignInLanded() {
+  const signing = wb.agentSignIn;
+  if (!signing) return;
+  const one = (wb.s?.machine?.providers || []).find((agent) => agent.id === signing.id);
+  if (!one?.ready) return;
+  wb.agentSignIn = null;
+  fetch("/api/provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "close", provider: signing.id }) }).catch(() => {});
 }
 
 async function wRun(action, el) {
   if (action === "next") return wGo(wNext());
   if (action === "back") { const p = wPrev(); return p ? wGo(p) : null; }
   if (action === "recheck") { wb.busy = "recheck"; wPaint(); await wPull(true); wb.busy = ""; return wPaint(); }
-  if (action === "claude-sign-in") return claudeSignIn();
-  if (action === "claude-sign-in-again") { if (wb.claudeSignIn?.url) window.open(wb.claudeSignIn.url, "_blank", "noopener,noreferrer"); return; }
+  if (action === "agent-sign-in") return agentSignIn(el?.dataset.agent || "");
+  if (action === "agent-sign-in-again") { if (wb.agentSignIn?.url) window.open(wb.agentSignIn.url, "_blank", "noopener,noreferrer"); return; }
   if (action === "face-open") { wb.facePicker = !wb.facePicker; return paintAvatar(); }
   if (action === "face-roll") { st.myBlob = false; st.myFace = nearestFree(rollAvatar(), takenSlots()); paintAvatar(); return saveAvatar(); }
   if (action === "face-strip") return stripWear();
@@ -714,7 +732,7 @@ function openWelcome(step) {
   wForget();
   wPaint();
   wPull(true);
-  every("welcome", 4000, async () => { await wPull(!!wb.claudeSignIn?.step); claudeSignInLanded(); });
+  every("welcome", 4000, async () => { await wPull(!!wb.agentSignIn?.step); agentSignInLanded(); });
 }
 
 function markCopied(button) {

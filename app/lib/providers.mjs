@@ -165,3 +165,11 @@ export function providerReadiness({ enabled, installed, accounts, label }) {
   return { ready: true, why: "" };
 }
 
+export function agentsToSignIn(providers) {
+  return (providers || [])
+    .filter((one) => one.installed && one.enabled)
+    .map((one) => {
+      const signed = (one.accounts || []).find((account) => account.loggedIn);
+      return { id: one.id, name: one.name || one.label || one.id, ready: !!one.ready, who: signed?.email || "", why: one.why || "" };
+    });
+}
