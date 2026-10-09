@@ -4,7 +4,7 @@ description: A seat is one agent session — a tile on a wall with a real termin
 sidebar:
   order: 1
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 A **seat** is one agent session. On screen it is a tile on a wall; behind the

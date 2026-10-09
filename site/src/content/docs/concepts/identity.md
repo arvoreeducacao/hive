@@ -4,7 +4,7 @@ description: One Ed25519 key per device, a signature on every request, and no be
 sidebar:
   order: 3
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 Identity in Hive is a key pair, and nothing else. There is no account, no

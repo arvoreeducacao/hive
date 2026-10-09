@@ -4,7 +4,7 @@ description: A fleet of coding agents, a wall of seats, and one server that hold
 sidebar:
   order: 1
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 Hive runs a fleet of coding agents and lets you watch all of them at once.

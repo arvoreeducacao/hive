@@ -4,19 +4,20 @@ description: Where the builds are, and what to take for each platform.
 sidebar:
   order: 2
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
-There are no builds in
-[Releases](https://github.com/arvoreeducacao/hive/releases) yet: for now, build
-the desktop app yourself, below. Once releases exist, this is what to take:
+Take the file for your system from the
+[latest release](https://github.com/arvoreeducacao/hive/releases/latest):
 
 | Where | What to take |
 | --- | --- |
 | macOS, Apple silicon | `Hive-arm64.dmg` |
 | Linux, x86_64 | `Hive-x86_64.AppImage` or `Hive-x86_64.rpm` |
-| iPhone | built here and handed out to registered devices — not a public download |
-| Android | `Hive.apk` — signed with the key the build template ships, so your phone will ask you to allow it |
+| Windows, x64 | `Hive-x64.exe` |
+
+The builds are not signed yet. On macOS, allow the app once in **System
+Settings → Privacy & Security**. On Windows, SmartScreen warns once.
 
 ## Building the desktop app yourself
 
@@ -36,12 +37,9 @@ for anything but development.
 
 ## The phone
 
-The iPhone app never goes through the App Store or TestFlight, and Apple has to
-know a phone before the app will install on it. [Connect your
-phone](/guides/phone/) covers registering a device, getting the build, and
-pairing.
-
-Android takes the `.apk` from the release directly.
+There is nothing to install on the phone. The server serves the phone page at
+`/phone/`, and the phone keeps it like an app. [Connect your phone](/guides/phone/)
+covers opening it and pairing.
 
 ## Updating
 

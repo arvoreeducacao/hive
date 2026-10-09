@@ -4,7 +4,7 @@ description: Nothing to install — open the page your server serves and type an
 sidebar:
   order: 2
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 The phone is not a companion app. It is a client that reads the same chats the

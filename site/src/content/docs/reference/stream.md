@@ -4,7 +4,7 @@ description: WS /stream — everything the server has to say, without anyone ask
 sidebar:
   order: 2
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 `WS /stream` is the way back. It is signed in the query string, with the same

@@ -4,7 +4,7 @@ description: Three agent CLIs, and why Hive never writes down a list of models.
 sidebar:
   order: 5
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 A seat runs an agent CLI. Three are supported:

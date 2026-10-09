@@ -4,7 +4,7 @@ description: What each folder is, and which one is not part of Hive.
 sidebar:
   order: 4
 banner:
-  content: Hive is alpha software. Things change and break between commits, and there are no releases yet.
+  content: Hive is alpha software. Things change and break between releases.
 ---
 
 | Folder | What |
