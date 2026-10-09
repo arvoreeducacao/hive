@@ -103,6 +103,7 @@ import { measureShots, shotsDaysOf, sweepShots } from "./lib/shots-sweep.mjs";
 import { withinRoots } from "./lib/bounds.mjs";
 import { SLACK_LINK, threadKey, threadCache, storeSessionThreads, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut, facesOnSlack, nameFromEmail } from "./lib/slack.mjs";
 import { storeSessionPrs } from "./lib/prs.mjs";
+import { directSignInUrl, signInBrowserEnv, signInUrlFile } from "./lib/sign-in-browser.mjs";
 import { codexLimitsPerAccount, createPlanMemory, dryAccounts, kimiFileStore, kimiLimitsPerAccount, kiroLimitsPerAccount, limitsPerAccount, tightestAccount } from "./lib/limits.mjs";
 import { createServers } from "./lib/servers.mjs";
 import { createBrokerClient } from "../server/client.mjs";
@@ -2819,7 +2820,9 @@ async function providerScreen(id) {
     shr(TMUX, ["capture-pane", "-t", session, "-p", "-J", "-a"], { timeout: 6000 }),
   ]);
   if (!main.ok && !alt.ok) return { open: false, text: "", url: "" };
-  return { open: true, ...readSignInScreen(`${main.out}\n${alt.out}`) };
+  const seen = readSignInScreen(`${main.out}\n${alt.out}`);
+  const direct = directSignInUrl(HIVE_HOME, id);
+  return { open: true, ...seen, url: direct || seen.url, direct: !!direct };
 }
 
 const TMUX_KEYS = new Set(["Enter", "Escape", "Up", "Down", "Left", "Right", "Tab", "Space", "BSpace", "C-c"]);
@@ -2870,8 +2873,9 @@ async function runProvider(action, data) {
         return { error: String(no.message || no).slice(0, 160) };
       }
     }
-    const env = providerEnv(id, dir);
     const session = AUTH_SESSION(id);
+    rmSync(signInUrlFile(HIVE_HOME, id), { force: true });
+    const env = NATIVE ? providerEnv(id, dir) : { ...providerEnv(id, dir), ...signInBrowserEnv(HIVE_HOME, id) };
     if (NATIVE) {
       nativeRoom().kill(session);
       const opened = await nativeRoom().open({ name: session, program: spec.login[0], args: spec.login.slice(1), env, cwd: HOME, fallback: HOME });
@@ -2883,7 +2887,9 @@ async function runProvider(action, data) {
       const made = await shr(TMUX, ["new-session", "-d", "-s", session, "-x", "120", "-y", "36", "-c", HOME, command], { timeout: 10000 });
       if (!made.ok) return { error: made.error.split("\n").filter(Boolean).pop() || "tmux would not open the sign-in" };
     }
-    await new Promise((done) => setTimeout(done, 2500));
+    const patience = NATIVE ? 0 : 10000;
+    for (let waited = 0; waited < patience && !directSignInUrl(HIVE_HOME, id); waited += 250) await new Promise((done) => setTimeout(done, 250));
+    if (!directSignInUrl(HIVE_HOME, id)) await new Promise((done) => setTimeout(done, 2500));
     return { ok: true, name, dir, ...(await providerScreen(id)) };
   }
 

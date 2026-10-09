@@ -353,7 +353,7 @@ function paintLoginBox(one) {
       <button class="nbtn" id="pv-login-close">${phrase("cancel")}</button>
     </div>
     <div class="pv-term" id="pv-term"></div>
-    <p class="hint" id="pv-login-hint">${phrase("when the sign-in lands, the login below turns green on its own")}</p>
+    <p class="hint" id="pv-login-hint">${login.direct ? phrase("finish the sign-in in the browser — it comes back here on its own, and the login below turns green") : phrase("when the sign-in lands, the login below turns green on its own")}</p>
   </div>`;
   attachLoginTerminal(one.id);
 }
@@ -535,7 +535,7 @@ async function signIn(name) {
   const d = await tellProvider("sign-in", { provider: one.id, name });
   if (button) { button.disabled = false; button.textContent = phrase("sign in to {name} with another login", { name: one.name }); }
   if (d.error) return sayNickname(d.error);
-  st.providerLogin = { provider: one.id, name, text: d.text || "", url: d.url || "", code: d.code || "", done: false, since: Date.now() };
+  st.providerLogin = { provider: one.id, name, text: d.text || "", url: d.url || "", code: d.code || "", direct: !!d.direct, done: false, since: Date.now() };
   paintProviders();
   every("pv-login", PV_LOGIN_BEAT, watchLogin);
   if (d.url) openOutside(d.url);

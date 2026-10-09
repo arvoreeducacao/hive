@@ -2968,6 +2968,7 @@ export const PT_BR = {
   "What {name} can run here, as it answered the hive.": "O que o {name} consegue rodar aqui, como respondeu ao hive.",
   "when the binaries, versions and logins were last read": "quando binários, versões e logins foram lidos pela última vez",
   "when the sign-in lands, the login below turns green on its own": "quando o login entrar, a linha abaixo fica verde sozinha",
+  "finish the sign-in in the browser — it comes back here on its own, and the login below turns green": "termine o login no navegador — ele volta pra cá sozinho, e a linha abaixo fica verde",
   "where the CLI keeps itself for the login you already use": "onde a CLI se guarda para o login que você já usa",
   "providers and accounts": "provedores e contas",
   "the {agent} login this chat runs on": "o login do {agent} em que este chat roda",
