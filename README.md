@@ -192,6 +192,10 @@ that has an address.
 The phone, a server in the cloud and inviting other people all need a server you
 host yourself. On the app alone, everything runs on your machine.
 
+A team that hosts one server per person keeps how it does that (its domain, its
+servers, its internal services) in a folder of its own, outside the hive:
+[docs/hosting-for-a-team.md](docs/hosting-for-a-team.md).
+
 ---
 
 ## Three little stories

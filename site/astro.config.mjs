@@ -51,6 +51,7 @@ export default defineConfig({
             { label: 'Connect your phone', slug: 'guides/phone' },
             { label: 'Invite someone', slug: 'guides/invite' },
             { label: 'Meetings and Aveia', slug: 'guides/meetings' },
+            { label: 'Hosting for a team', slug: 'guides/hosting-for-a-team' },
           ],
         },
         {
