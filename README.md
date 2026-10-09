@@ -318,6 +318,32 @@ leave the wall without the work stopping.
 
 ---
 
+## Built by
+
+Hive grew inside a private repository for months before it was opened, and the
+history of this one starts at the day it was copied out. These are the people
+who built it:
+
+<table>
+  <tr>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/Joao208"><img src="https://github.com/Joao208.png?size=120" width="64" height="64" alt="Joao208"><br><sub><b>João Augusto</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/ricardoraposo"><img src="https://github.com/ricardoraposo.png?size=120" width="64" height="64" alt="ricardoraposo"><br><sub><b>Ricardo Raposo</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/umaArtemis"><img src="https://github.com/umaArtemis.png?size=120" width="64" height="64" alt="umaArtemis"><br><sub><b>Artemis</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/Jott4"><img src="https://github.com/Jott4.png?size=120" width="64" height="64" alt="Jott4"><br><sub><b>João Victor Cunha</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/rafaelandrade"><img src="https://github.com/rafaelandrade.png?size=120" width="64" height="64" alt="rafaelandrade"><br><sub><b>rafaelandrade</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/VitorPiovezan"><img src="https://github.com/VitorPiovezan.png?size=120" width="64" height="64" alt="VitorPiovezan"><br><sub><b>Vitor Piovezan</b></sub></a></td>
+  </tr>
+  <tr>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/coutinhomm"><img src="https://github.com/coutinhomm.png?size=120" width="64" height="64" alt="coutinhomm"><br><sub><b>Mateus</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/pedro-adas"><img src="https://github.com/pedro-adas.png?size=120" width="64" height="64" alt="pedro-adas"><br><sub><b>Pedro Adas</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/guilhermebsantiago"><img src="https://github.com/guilhermebsantiago.png?size=120" width="64" height="64" alt="guilhermebsantiago"><br><sub><b>Guilherme Santiago</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/leoippolito"><img src="https://github.com/leoippolito.png?size=120" width="64" height="64" alt="leoippolito"><br><sub><b>leoippolito</b></sub></a></td>
+    <td align="center" valign="top" width="16%"><a href="https://github.com/crlsmees"><img src="https://github.com/crlsmees.png?size=120" width="64" height="64" alt="crlsmees"><br><sub><b>Carlos Mees</b></sub></a></td>
+  </tr>
+</table>
+
+---
+
 ## Contributing
 
 [CONTRIBUTING.md](CONTRIBUTING.md). Found something that looks like a hole?
