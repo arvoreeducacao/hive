@@ -73,6 +73,12 @@ the work stopping.
 
 <table>
   <tr>
+    <td colspan="2" valign="top">
+      <img src="docs/assets/screenshots/row.png" alt="Four Hive chats side by side in one row, each working on a different question" width="100%"><br>
+      <sub><strong>Side by side.</strong> Set <em>How the seats sit</em> to <em>side by side, in one row</em> and a wide screen holds the whole block in columns.</sub>
+    </td>
+  </tr>
+  <tr>
     <td width="50%" valign="top">
       <img src="docs/assets/screenshots/chat.png" alt="A Hive chat with tool cards and the agent's answer" width="100%"><br>
       <sub><strong>A seat is a real session.</strong> Streamed text, tool cards, interrupt and resume.</sub>

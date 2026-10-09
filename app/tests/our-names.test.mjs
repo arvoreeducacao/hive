@@ -124,6 +124,7 @@ const REVIEWED_PIXELS = {
   "app/assets/meet-captions/extension/icons/icon-48.png": "4da51d18af3a0872b265929c03eacc6993f43db8547cafa2190da6e5159a31cb",
   "docs/assets/screenshots/asks.png": "90ba7c06ac54db25738ad7a09aa61b06f22033640312fc54ba16fe420854aa68",
   "docs/assets/screenshots/chat.png": "a382b5b9cf67ef6235cd3ace489625701aafdd4a0c1fcb60d6d6b3ee414ff9d1",
+  "docs/assets/screenshots/row.png": "16d7d52f11518b7f67220a5db19c73116b6264a997f5ad8a7edb7876a79ee6e6",
   "docs/assets/screenshots/composer.png": "c46e0717aae4e628de470b822de375569381c7aeeca17ddb6ccab97ead4179bf",
   "docs/assets/screenshots/wall.png": "39faf17396e15c97d864259859278571d1fc320ad27bb0e17447ce79a689f62b",
   "docs/composer-picker/fechado.png": "13484bf7e490497bac789e631f7e0274c3cf40535271f393517ae9f89881a364",
