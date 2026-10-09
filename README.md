@@ -171,6 +171,12 @@ outside.
 laptop becomes a client, and so does your phone, and so do the people you
 invite. Close the laptop and the work carries on.
 
+**What a seat actually is, before you start one.** A seat runs a coding agent
+with a shell and no approval prompts, by design. It edits, installs, commits and
+runs whatever it decides to, on everything you mount. The container holds it in,
+but it is not a sandbox: [SECURITY.md](SECURITY.md) says exactly what it does and
+does not hold back.
+
 ```
 cd infra/docker
 docker compose up
@@ -182,12 +188,6 @@ only, so the box is reachable from your machine and nowhere else until you say
 otherwise. [docs/run-your-own.md](docs/run-your-own.md) is the guide: where state
 lives, how the server learns to trust your key, and how to put it on a machine
 that has an address.
-
-**What a seat actually is, before you start one.** A seat runs a coding agent
-with a shell and no approval prompts, by design. It edits, installs, commits and
-runs whatever it decides to, on everything you mount. The container holds it in,
-but it is not a sandbox: [SECURITY.md](SECURITY.md) says exactly what it does and
-does not hold back.
 
 The phone, a server in the cloud and inviting other people all need a server you
 host yourself. On the app alone, everything runs on your machine.
