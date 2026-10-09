@@ -369,7 +369,7 @@ function pageMachine() {
     check(m.cluster.ok, "hosting", m.cluster.ok ? phrase("whoever hosts your server answers") : `${phrase("the host does not answer: {why}.", { why: esc(m.cluster.detail) })} <code>aws eks update-kubeconfig --name ${esc(m.cluster.name)} --profile ${esc(m.aws.profile)}</code>`, m.cluster.ok ? "" : `<button class="fix" data-copy="aws eks update-kubeconfig --name ${esc(m.cluster.name)} --profile ${esc(m.aws.profile)}">${phrase("copy")}</button>`)
     ]),
     merged("gh", m.gh.ok, m.gh.ok ? phrase("logged in as {who} — reviews and merges carry your name", { who: esc(m.gh.detail) }) : `${phrase("not logged in —")} <code>gh auth login</code>`, `<button class="fix" data-copy="gh auth login">${phrase("copy")}</button>`),
-    merged("claude", m.claude.loggedIn, m.claude.loggedIn ? (m.claude.email ? phrase("logged in as {who}", { who: esc(m.claude.email) }) : phrase("logged in")) : `${phrase("not logged in on this machine — run")} <code>claude</code> ${phrase("once in a terminal and sign in")}`, `<button class="fix" data-copy="claude">${phrase("copy")}</button>`)
+    merged("claude", m.claude.loggedIn, m.claude.loggedIn ? (m.claude.email ? phrase("logged in as {who}", { who: esc(m.claude.email) }) : phrase("logged in")) : claudeSignInSay(), claudeSignInButton())
   ].join("");
   return `<div class="w-page">
     ${icon("machine")}
@@ -589,10 +589,49 @@ function wPaint() {
   $("w-sandbox").hidden = !s?.sandbox;
 }
 
+function claudeSignInSay() {
+  const signing = wb.claudeSignIn;
+  if (signing?.error) return esc(signing.error);
+  if (signing?.step === "opening") return phrase("opening the sign-in…");
+  if (signing?.step === "browser") return phrase("finish the sign-in in the browser — it comes back here on its own, and this turns green");
+  if (signing?.step === "page") return phrase("the browser did not come back on its own — finish it in the providers settings, where the sign-in can take a code");
+  return phrase("not logged in on this machine — sign in, and the browser brings you back here");
+}
+
+function claudeSignInButton() {
+  const step = wb.claudeSignIn?.step;
+  if (step === "opening") return "";
+  if (step === "browser" && wb.claudeSignIn.url) return `<button class="fix" data-w="claude-sign-in-again">${phrase("open it again")}</button>`;
+  return `<button class="fix" data-w="claude-sign-in">${phrase("sign in")}</button>`;
+}
+
+async function claudeSignIn() {
+  wb.claudeSignIn = { step: "opening" };
+  wPaint();
+  let d = {};
+  try {
+    d = await (await fetch("/api/provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "sign-in", provider: "claude", name: "default" }) })).json();
+  } catch {
+    d = { error: phrase("the sign-in did not open — try again") };
+  }
+  if (d.error) wb.claudeSignIn = { error: d.error };
+  else wb.claudeSignIn = { step: d.direct ? "browser" : "page", url: d.url || "" };
+  if (d.url) window.open(d.url, "_blank", "noopener,noreferrer");
+  wPaint();
+}
+
+function claudeSignInLanded() {
+  if (!wb.claudeSignIn || !wb.s?.machine?.claude?.loggedIn) return;
+  wb.claudeSignIn = null;
+  fetch("/api/provider", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "close", provider: "claude" }) }).catch(() => {});
+}
+
 async function wRun(action, el) {
   if (action === "next") return wGo(wNext());
   if (action === "back") { const p = wPrev(); return p ? wGo(p) : null; }
   if (action === "recheck") { wb.busy = "recheck"; wPaint(); await wPull(true); wb.busy = ""; return wPaint(); }
+  if (action === "claude-sign-in") return claudeSignIn();
+  if (action === "claude-sign-in-again") { if (wb.claudeSignIn?.url) window.open(wb.claudeSignIn.url, "_blank", "noopener,noreferrer"); return; }
   if (action === "face-open") { wb.facePicker = !wb.facePicker; return paintAvatar(); }
   if (action === "face-roll") { st.myBlob = false; st.myFace = nearestFree(rollAvatar(), takenSlots()); paintAvatar(); return saveAvatar(); }
   if (action === "face-strip") return stripWear();
@@ -675,7 +714,7 @@ function openWelcome(step) {
   wForget();
   wPaint();
   wPull(true);
-  every("welcome", 4000, () => wPull(false));
+  every("welcome", 4000, async () => { await wPull(!!wb.claudeSignIn?.step); claudeSignInLanded(); });
 }
 
 function markCopied(button) {
