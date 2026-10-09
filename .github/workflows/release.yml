@@ -57,14 +57,40 @@ jobs:
             npm run package-release -- -c.mac.notarize=false
             exit 0
           fi
+          keychain="$RUNNER_TEMP/hive-signing.keychain"
+          keychain_password="$(openssl rand -base64 24)"
+          security list-keychains -d user | tr -d '" ' > "$RUNNER_TEMP/keychains-before"
+          security delete-keychain "$keychain" 2>/dev/null || true
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          if [ -f "$CSC_LINK" ]; then cp "$CSC_LINK" "$RUNNER_TEMP/certificate.p12";
+          else printf '%s' "$CSC_LINK" | base64 --decode > "$RUNNER_TEMP/certificate.p12"; fi
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" \
+            -T /usr/bin/codesign -T /usr/bin/productbuild -P "${CSC_KEY_PASSWORD:-}"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(cat "$RUNNER_TEMP/keychains-before")
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security find-identity -v "$keychain"
+          unset CSC_LINK CSC_KEY_PASSWORD
+          export CSC_KEYCHAIN="$keychain"
           if [ -z "${APPLE_API_KEY_P8:-}" ]; then
             echo "signed but not notarized — no App Store Connect key in the secrets"
+            unset APPLE_API_KEY_ID APPLE_API_ISSUER
             npm run package-release -- -c.mac.notarize=false
             exit 0
           fi
           printf '%s' "$APPLE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/apple-api-key.p8"
           export APPLE_API_KEY="$RUNNER_TEMP/apple-api-key.p8"
           npm run package-release -- -c.mac.notarize=true
+      - name: put the keychain back the way it was
+        if: always()
+        run: |
+          set -uo pipefail
+          [ -f "$RUNNER_TEMP/keychains-before" ] && security list-keychains -d user -s $(cat "$RUNNER_TEMP/keychains-before")
+          security delete-keychain "$RUNNER_TEMP/hive-signing.keychain" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/keychains-before" "$RUNNER_TEMP/apple-api-key.p8"
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: mac
