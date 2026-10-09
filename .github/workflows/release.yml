@@ -1,0 +1,140 @@
+name: release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+
+permissions:
+  contents: write
+
+jobs:
+  gate:
+    name: the commit passed ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: a release only goes out of a commit whose ci run is green
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          conclusion=$(gh run list -R "$GITHUB_REPOSITORY" --workflow ci.yml --commit "$GITHUB_SHA" --limit 1 --json conclusion --jq '.[0].conclusion // ""')
+          if [ "$conclusion" != "success" ]; then
+            echo "ci for $GITHUB_SHA is '${conclusion:-not run}' — release a commit whose ci passed" >&2
+            exit 1
+          fi
+
+  mac:
+    needs: gate
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - name: build the zip and the dmg, signed only when the secrets carry a certificate
+        working-directory: app
+        env:
+          CSC_LINK: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: |
+          set -euo pipefail
+          for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER; do
+            if [ -z "${!name:-}" ]; then unset "$name"; fi
+          done
+          if [ -z "${CSC_LINK:-}" ]; then
+            echo "no certificate in the secrets — the app goes out unsigned, and macOS asks the first person who opens it"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            npm run package-release -- -c.mac.notarize=false
+            exit 0
+          fi
+          if [ -z "${APPLE_API_KEY_P8:-}" ]; then
+            echo "signed but not notarized — no App Store Connect key in the secrets"
+            npm run package-release -- -c.mac.notarize=false
+            exit 0
+          fi
+          printf '%s' "$APPLE_API_KEY_P8" | base64 --decode > "$RUNNER_TEMP/apple-api-key.p8"
+          export APPLE_API_KEY="$RUNNER_TEMP/apple-api-key.p8"
+          npm run package-release -- -c.mac.notarize=true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: |
+            app/dist/Hive-arm64.zip
+            app/dist/Hive-arm64.dmg
+          if-no-files-found: error
+
+  linux:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: rpm and fakeroot build the rpm, tmux is what the seats open in
+        run: sudo apt-get update -qq && sudo apt-get install --no-install-recommends -qq -y rpm fakeroot tmux
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - run: npm run package-release-linux
+        working-directory: app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            app/dist/Hive-x86_64.AppImage
+            app/dist/Hive-x86_64.rpm
+          if-no-files-found: error
+
+  windows:
+    needs: gate
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - run: npm run package-release-win
+        working-directory: app
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: app/dist/Hive-x64.exe
+          if-no-files-found: error
+
+  publish:
+    needs: [mac, linux, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: one release for the three platforms, marked latest so every hive offers it
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LATEST: "true"
+        run: infra/scripts/publish-release.sh dist/Hive-arm64.zip dist/Hive-arm64.dmg dist/Hive-x86_64.AppImage dist/Hive-x86_64.rpm dist/Hive-x64.exe
