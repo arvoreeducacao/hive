@@ -85,7 +85,7 @@ test("a refused queue button says why, and stays quiet when there was nothing to
 test("the queue is drawn from the driver's answer, not from what the panel guesses", () => {
   const deliver = slice(stretches, "svCmd(e, sending.length ?", "const dropFromTray", "chat-stretches.js");
   assert.match(deliver, /const wentIn = svWasDequeuedEarly\(e, r\.cid\);/);
-  assert.match(deliver, /if \(!wentIn && \(r\.queued \?\? \(e\.turnOpen && !r\.dismissed\)\)\)/);
+  assert.match(deliver, /const waits = !wentIn && \(r\.queued \?\? \(e\.turnOpen && !r\.dismissed\)\);/);
 });
 
 test("a message the driver dispatched before its own reply came back is a line in the chat, never a chip", () => {
@@ -113,12 +113,12 @@ test("what the panel remembers has a floor to stand on — old cids fall off", (
 });
 
 test("take back on a message already in the turn puts it in the chat instead of leaving the chip dead", () => {
-  const buttons = slice(stretches, "const takeBack = (item)", "const say = () =>", "chat-stretches.js");
+  const buttons = slice(stretches, "const takeBack = (item)", "const say = (cutIn = false) =>", "chat-stretches.js");
   assert.match(buttons, /if \(r\?\.gone\) svDequeue\(e, item\);/);
 });
 
 test("both queue buttons hand a refusal to the chat instead of dropping it", () => {
-  const buttons = slice(stretches, "const sendNow = (item)", "const say = () =>", "chat-stretches.js");
+  const buttons = slice(stretches, "const sendNow = (item)", "const say = (cutIn = false) =>", "chat-stretches.js");
   assert.equal((buttons.match(/svQueueRefused\(e, r\)/g) || []).length, 2, "send now and take back both answer");
   assert.equal(/if \(!r\?\.ok\) return;/.test(buttons), false, "a silent return is a button that reads as broken");
 });

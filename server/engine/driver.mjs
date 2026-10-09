@@ -16,6 +16,7 @@ import { stateDir, sideOf, hiveRoot, seatSockPath } from "./paths.mjs";
 import { builtinClaudePath, chosenClaude, unmountable } from "./claude-binary.mjs";
 import { peerEntry } from "./peer-module.mjs";
 import { importSdk } from "./sdk-module.mjs";
+import { prepareShellEnv, shellEnvFileFor } from "./shell-env.mjs";
 import { aBirthCarriesAMission, aFullPaneMustNeverWedgeTheSeat, arg, forgetWhatTheNameHeld, missionShots, tailOfFile, makeSessionStore, makeWarnOnce, makeEventsTrouble, createSeatServer, makeDirsTrail, inputDirs } from "./seat-core.mjs";
 
 aFullPaneMustNeverWedgeTheSeat();
@@ -86,6 +87,9 @@ const side = sideOf(base);
 process.env.HIVE_SEAT = name;
 process.env.HIVE_SIDE = side;
 process.env.HIVE_STATE_DIR = base;
+if (!process.env.CLAUDE_ENV_FILE) {
+  try { process.env.CLAUDE_ENV_FILE = await prepareShellEnv(shellEnvFileFor(base, name)); } catch {}
+}
 
 const bornNow = aBirthCarriesAMission({ promptFile, resumeId: arg("--resume-id") });
 const nameHadAChatBefore = bornNow && await forgetWhatTheNameHeld({ sessionFile, eventsFile, shotsDir });
@@ -858,7 +862,7 @@ function remember(op, data) {
   return data;
 }
 
-const server = createSeatServer({ sockFile, handleCommand, emit, leave, store: sessionStore, flush: () => sessionStore.flush() });
+const server = createSeatServer({ sockFile, shellEnvFile: shellEnvFileFor(base, name), handleCommand, emit, leave, store: sessionStore, flush: () => sessionStore.flush() });
 
 emit({ type: "driver", subtype: "started", name, cwd, model: chosenModel || null, account: logins.name, base, resumed: resumeId || null, pid: process.pid, asleep: bornAsleep });
 

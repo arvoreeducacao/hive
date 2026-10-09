@@ -534,7 +534,7 @@ function getStructured(s) {
   e.command = commandTray(() => { paintReady(); paintInk(); });
   /* fromDraft says the words came from this seat's textarea. the universal composer sends
      with it false, so what the person is writing down here — and what they attached — survives. */
-  const deliver = (text, sending, fromDraft) => {
+  const deliver = (text, sending, fromDraft, cutIn = false) => {
     if (e.providerTransfer && e.providerTransfer.phase !== "waiting") {
       svLine(e, "sv-meta", phrase("the provider is changing; your draft is kept here until it finishes"));
       return;
@@ -583,17 +583,25 @@ function getStructured(s) {
         e.command.clear();
         e.host.querySelector(".sv-composer").classList.remove("ready");
       }
+      const shownText = typeof r.shown === "string" ? r.shown : text;
       const wentIn = svWasDequeuedEarly(e, r.cid);
-      if (!wentIn && (r.queued ?? (e.turnOpen && !r.dismissed))) {
+      const waits = !wentIn && (r.queued ?? (e.turnOpen && !r.dismissed));
+      if (waits && cutIn) {
+        const bubble = svLine(e, "sv-user", splitPeerHandle(text).body || "(image)");
+        paintMentions(bubble);
+        if (r.cid) bubble.dataset.cid = r.cid;
+        for (const path of sending) svUserThumb(e, bubble, path);
+        interruptStructured(e);
+      } else if (waits) {
         const tray = e.host.querySelector(".sv-queue");
         const item = document.createElement("div");
         item.className = "sv-qitem";
-        item.dataset.text = text;
+        item.dataset.text = shownText;
         item.dataset.images = JSON.stringify(sending);
         item.dataset.quotes = JSON.stringify(pinned);
         item.dataset.cid = r.cid || "";
         item.innerHTML = `<span class="qbadge">${phrase("queued")}</span><span class="qmarks"></span><span class="qtxt"></span><button type="button" class="qnow" title="${phrase("push it into the turn now — no waiting ({n})", { n: IS_MAC ? "⌥⏎" : "alt+enter" })}"><svg aria-hidden="true"><use href="#i-qnow"/></svg></button><button type="button" class="qdrop" title="${phrase("take it back into the box — it will not be sent (↑ in the empty box)")}"><svg aria-hidden="true"><use href="#i-qback"/></svg></button>`;
-        const shown = withoutQuotes(pinned.map((one) => one.said), text);
+        const shown = withoutQuotes(pinned.map((one) => one.said), shownText);
         item.querySelector(".qmarks").innerHTML =
           (sending.length ? `<svg aria-hidden="true"><use href="#i-image"/></svg><b>${sending.length}</b>` : "")
           + (pinned.length ? `<svg aria-hidden="true"><use href="#i-quote"/></svg><b>${pinned.length}</b>` : "");
@@ -606,7 +614,7 @@ function getStructured(s) {
         (e.queuedEls ||= []).push(item);
         paintActivity(e);
       } else {
-        const bubble = svLine(e, "sv-user", text || "(image)");
+        const bubble = svLine(e, "sv-user", shownText || "(image)");
         for (const path of sending) svUserThumb(e, bubble, path);
       }
       if (fromDraft) { textarea.value = ""; textarea.style.height = ""; paintInk(); keepDraftNow(e.name, ""); }
@@ -661,7 +669,7 @@ function getStructured(s) {
       textarea.focus();
     });
   };
-  const say = () => {
+  const say = (cutIn = false) => {
     const out = outboundImageMarks(textarea.value.trim(), e.tray.marks);
     const woven = weaveHandles(out.text, st.data.sessions, e.name);
     /* a handle the box cannot resolve used to swallow the whole message: enter pressed, nothing
@@ -670,7 +678,7 @@ function getStructured(s) {
     /* the mark can sit anywhere in the box, but a session only reads a command in front of the
        words: what goes out is the same sentence with that one word lifted to the head. */
     const called = e.command.name();
-    deliver(withCommand(called, withQuotes(e.quotes.all(), withoutCommand(called, woven.text))), out.images, true);
+    deliver(withCommand(called, withQuotes(e.quotes.all(), withoutCommand(called, woven.text))), out.images, true, cutIn);
   };
   host.querySelector(".sv-composer").addEventListener("submit", (ev) => { ev.preventDefault(); say(); });
   host.querySelector(".sv-pill-model").addEventListener("click", () => openSeatPicker(e, "model"));
@@ -845,7 +853,7 @@ function getStructured(s) {
         return;
       }
     }
-    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); say(); }
+    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); say(!kev.altKey && (IS_MAC ? kev.metaKey : kev.ctrlKey)); }
     if (kev.key === "Escape") {
       kev.preventDefault();
       if (st.typing === e.name) releaseKeyboard();
@@ -1007,7 +1015,7 @@ function shapeComposer(host, on, halt = null) {
   foot.prepend(activity);
   if (!halt) return;
   const hold = document.createElement("div");
-  hold.innerHTML = `<span class="sv-when"></span><span class="sv-keys"><kbd class="rc-key">↵</kbd>${phrase("send")}<kbd class="rc-key">⇧↵</kbd>${phrase("line")}</span><button type="button" class="sv-halt" title="${phrase("interrupt the turn (ctrl+c)")}">${phrase("interrupt")}<kbd class="rc-key">${IS_MAC ? "⌃C" : "Ctrl+C"}</kbd></button>`;
+  hold.innerHTML = `<span class="sv-when"></span><span class="sv-keys"><kbd class="rc-key">↵</kbd>${phrase("send")}<kbd class="rc-key">⇧↵</kbd>${phrase("line")}<kbd class="rc-key">${IS_MAC ? "⌘↵" : "Ctrl+↵"}</kbd>${phrase("stop and send")}</span><button type="button" class="sv-halt" title="${phrase("interrupt the turn (ctrl+c)")}">${phrase("interrupt")}<kbd class="rc-key">${IS_MAC ? "⌃C" : "Ctrl+C"}</kbd></button>`;
   activity.after(...hold.children);
   foot.querySelector(".sv-halt").addEventListener("click", halt);
 }

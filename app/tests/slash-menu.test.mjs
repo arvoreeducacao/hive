@@ -142,7 +142,7 @@ test("the pinned name is a mirror of the text, so any edit can give the command 
 });
 
 test("what goes out carries the command in front, wherever it sat in the box", () => {
-  const say = slice(stretches, "const say = () => {", 'host.querySelector(".sv-composer").addEventListener("submit"', "chat-stretches.js");
+  const say = slice(stretches, "const say = (cutIn = false) => {", 'host.querySelector(".sv-composer").addEventListener("submit"', "chat-stretches.js");
   assert.match(say, /withCommand\(called, withQuotes\(/, "quotes go inside the argument, never ahead of the command");
   assert.match(say, /withoutCommand\(called, woven\.text\)/, "the word is lifted out of the sentence first, or the message goes out calling it twice");
 });
@@ -157,7 +157,7 @@ test("what was said keeps the mark it had in the box", () => {
 });
 
 test("a message that goes out gives its command up, like it gives images and quotes up", () => {
-  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft)", "const dropFromTray", "chat-stretches.js");
+  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, cutIn = false)", "const dropFromTray", "chat-stretches.js");
   assert.equal((deliver.match(/e\.command\.clear\(\)/g) || []).length, 4, "the mirrored seat, the shell line, the command the app answers itself and the sent message all let it go");
   const native = slice(stretches, "const native = text.match(NATIVE_COMMANDS)", "svCmd(e, sending.length", "chat-stretches.js");
   assert.match(native, /e\.command\.clear\(\); paintReady\(\); paintInk\(\)/, "a spent /model or /agents leaves no mark painted over an empty box");

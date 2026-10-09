@@ -79,7 +79,7 @@ test("the reconnect loop never dials a mirrored seat", () => {
 });
 
 test("the composer of a mirrored seat travels as a file, never as a driver command", () => {
-  const deliver = cut(stretches, "  const deliver = (text, sending, fromDraft) =>", "  const dropFromTray =", "chat-stretches.js");
+  const deliver = cut(stretches, "  const deliver = (text, sending, fromDraft, cutIn = false) =>", "  const dropFromTray =", "chat-stretches.js");
   assert.match(deliver, /if \(e\.mirror\)/);
   assert.match(deliver, /sayToTeamSeat\(e\.mirror\.dev, e\.mirror\.seat/);
   assert.ok(deliver.indexOf("if (e.mirror)") < deliver.indexOf("svCmd("), "svCmd is reached before the mirror is ruled out");

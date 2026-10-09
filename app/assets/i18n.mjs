@@ -1328,6 +1328,7 @@ export const PT_BR = {
   "send (enter)": "enviar (enter)",
   "send": "enviar",
   "line": "linha",
+  "stop and send": "parar e enviar",
   "interrupt": "interromper",
   "back to the end of the chat — new messages pin again": "voltar para o fim do chat — mensagens novas fixam de novo",
   "↓ latest": "↓ mais recente",

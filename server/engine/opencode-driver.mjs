@@ -10,6 +10,7 @@ import { stateDir, sideOf, seatSockPath } from "./paths.mjs";
 import { accountFailover } from "./failover.mjs";
 import { accountDirFromEnv, providerEnv, providerEnvName, providerRanDry } from "./providers.mjs";
 import { aBirthCarriesAMission, aFullPaneMustNeverWedgeTheSeat, arg, forgetWhatTheNameHeld, missionShots, tailOfFile, makeSessionStore, makeWarnOnce, makeEventsTrouble, createSeatServer, makeDirsTrail, toolDirs } from "./seat-core.mjs";
+import { shellEnvFileFor } from "./shell-env.mjs";
 import { DEFAULT_PORT, ensureGateway, gatewayPaths, hubFor } from "../gateway/mcp-gateway.mjs";
 import { remoteMcpServers } from "./codex-app-server.mjs";
 import {
@@ -708,7 +709,7 @@ function handleCommand(cmd, reply) {
   return reply({ ok: false, error: `unknown command ${cmd.type}` });
 }
 
-const server = createSeatServer({ sockFile, handleCommand, emit, leave, store: sessionStore, flush: () => sessionStore.flush() });
+const server = createSeatServer({ sockFile, shellEnvFile: shellEnvFileFor(base, name), handleCommand, emit, leave, store: sessionStore, flush: () => sessionStore.flush() });
 
 emit({ type: "driver", subtype: "started", name, agent: AGENT, cwd, model: model || null, account: logins.name, base, side, resumed: sessionId || null, pid: process.pid });
 emit(initEvent({ replayed: true }));

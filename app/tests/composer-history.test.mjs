@@ -51,7 +51,7 @@ test("what another chat wrote here never enters the box's memory", () => {
 });
 
 test("native commands and mirror sends, which never echo, are remembered on the spot", () => {
-  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft) => {", "const dropFromTray =", "chat-stretches.js");
+  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, cutIn = false) => {", "const dropFromTray =", "chat-stretches.js");
   assert.match(deliver, /if \(e\.mirror\) \{[^`]*?rememberSent\(e, text\)/s);
   assert.match(deliver, /rememberSent\(e, text\);\n\s*runNativeCommand/);
   const serverPath = deliver.slice(deliver.indexOf("svCmd(e,"));
@@ -99,7 +99,7 @@ test("typing again lets the cycling go", () => {
 });
 
 test("everything the box sends is remembered once, consecutive repeats included only once", () => {
-  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft) => {", "const dropFromTray =", "chat-stretches.js");
+  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, cutIn = false) => {", "const dropFromTray =", "chat-stretches.js");
   assert.match(deliver, /e\.histIdx = null;/);
   const e = seatWith();
   rememberSent(e, "again");

@@ -4,6 +4,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
 import { missionImagesFile, parseCommand } from "./protocol.mjs";
+import { makeSecretKeeper } from "./shell-env.mjs";
 
 export function aFullPaneMustNeverWedgeTheSeat() {
   for (const stream of [process.stdout, process.stderr]) {
@@ -74,7 +75,7 @@ export function makeSessionStore(sessionFile, initial = {}, tell = () => {}, wri
   };
 }
 
-export function createSeatServer({ sockFile, handleCommand, emit, leave, store, flush = async () => {} }) {
+export function createSeatServer({ sockFile, handleCommand, emit, leave, store, flush = async () => {}, shellEnvFile, keeper = shellEnvFile ? makeSecretKeeper(shellEnvFile) : null }) {
   let transferring = !!store?.meta.provider_switching;
   const receive = (cmd, reply) => {
     if (cmd.type === "control" && cmd.op === "releaseTransfer") {
@@ -108,6 +109,16 @@ export function createSeatServer({ sockFile, handleCommand, emit, leave, store, 
     if (cmd.type === "say") {
       try { loadTransferContext(store); }
       catch { return reply({ ok: false, error: "the transferred context cannot be read; restore it before continuing this chat" }); }
+    }
+    if (keeper && (cmd.type === "say" || cmd.type === "answer")) {
+      keeper.command(cmd).then(
+        (kept) => {
+          const replyShowing = kept.shown === undefined ? reply : (answer) => reply(answer?.ok ? { ...answer, shown: kept.shown } : answer);
+          try { handleCommand(kept.cmd, replyShowing); } catch (e) { reply({ ok: false, error: String(e?.message || e) }); }
+        },
+        (e) => reply({ ok: false, error: `a secret in this message could not be kept out of the conversation, so it was not sent: ${String(e?.message || e)}` }),
+      );
+      return;
     }
     return handleCommand(cmd, reply);
   };
