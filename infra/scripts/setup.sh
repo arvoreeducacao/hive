@@ -131,7 +131,7 @@ if [ -n "$WINDOWS" ] && command -v cygpath >/dev/null 2>&1; then
   HUB="$(cygpath -m "$HUB" 2>/dev/null || echo "$HUB")"
 fi
 DEPLOYMENT=""
-for candidate in "$DIR"/*/hive.defaults; do
+for candidate in "$DIR"/*/hive.defaults "$HUB"/*/hive.defaults; do
   [ -f "$candidate" ] && DEPLOYMENT="$candidate" && break
 done
 

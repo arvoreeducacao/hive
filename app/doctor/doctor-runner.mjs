@@ -13,7 +13,7 @@ import { avdHomeOf, avdNamesIn, sdkRootOf, toolsOf } from "../lib/device.mjs";
 import { gitBashOf } from "./fix-shell.mjs";
 import { readTable, strays } from "../../server/engine/leftovers.mjs";
 import { seatWindowSession } from "../../server/sessions.mjs";
-import { AWS_PROFILE, DEPLOYMENT_DIR, HUB_FOLDER, NS as CONFIGURED_NAMESPACE, POD_HUB, REPOS_OWNER, clusterIsWanted } from "../lib/env.mjs";
+import { AWS_PROFILE, DEPLOYMENT_DIR, HUB_FOLDER, NS as CONFIGURED_NAMESPACE, POD_HUB, REPOS_OWNER, clusterIsWanted, deploymentScriptIn } from "../lib/env.mjs";
 
 export const NS = CONFIGURED_NAMESPACE;
 export const DEPS = process.platform === "win32" ? ["gh"] : ["tmux", "gh"];
@@ -30,8 +30,8 @@ export const REPO_MARK = "infra/scripts/setup.sh";
    that was installed rather than cloned still has a setup to run */
 export const bundledSetupIn = (here) => join(here, "..", "..", "setup", "setup.sh");
 
-export const powerSwitchIn = (repo, deploymentDir) =>
-  (repo && deploymentDir ? join(repo, deploymentDir, "scripts", "pod-power.sh") : "");
+export const powerSwitchIn = (repo, deploymentDir, hub = "") =>
+  deploymentScriptIn({ repo, hub, dir: deploymentDir, name: "pod-power.sh" });
 
 export const doorCanRun = (ctx) => !!(ctx?.serverUrl && ctx?.serverKey);
 
@@ -214,7 +214,7 @@ export async function buildContext(options = {}) {
     serverUrl: env.HIVE_SERVER_URL || config.HIVE_SERVER_URL || "",
     serverKey: env.HIVE_SERVER_KEY || config.HIVE_SERVER_KEY || "",
     onACluster: clusterIsWanted(env, config),
-    powerSwitch: powerSwitchIn(repo, DEPLOYMENT_DIR),
+    powerSwitch: powerSwitchIn(repo, DEPLOYMENT_DIR, hub),
     deploymentDir: DEPLOYMENT_DIR,
     podHub: POD_HUB,
     hubFolder: HUB_FOLDER,

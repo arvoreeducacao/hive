@@ -98,7 +98,7 @@ import { registerMemoryRoutes } from "./routes/memories.mjs";
 import { createMemorySource, MEMORY_TOKEN_KEY } from "./lib/memories.mjs";
 import { createDemoLogin, createMemoryLogin, fileClientStore, memoryOrigin } from "./lib/memory-login.mjs";
 import { vaultAccount, vaultFollowing } from "./lib/memory-vault.mjs";
-import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, LEAF_URL, LEAF_PARENT, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
+import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, LEAF_URL, LEAF_PARENT, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
 import { measureShots, shotsDaysOf, sweepShots } from "./lib/shots-sweep.mjs";
 import { withinRoots } from "./lib/bounds.mjs";
 import { SLACK_LINK, threadKey, threadCache, storeSessionThreads, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut, facesOnSlack, nameFromEmail } from "./lib/slack.mjs";
@@ -6221,7 +6221,7 @@ ${CREDENTIAL_SAVED_PROBE}`;
 
 const cloudReach = createReach({ serverFor: () => serverFor() });
 
-const deploymentScript = (name) => (DEPLOYMENT_DIR && REPO ? join(REPO, DEPLOYMENT_DIR, "scripts", name) : "");
+const deploymentScript = (name) => deploymentScriptIn({ repo: REPO, hub: HUB, dir: DEPLOYMENT_DIR, name });
 const askYourHost = (name, what) => {
   const script = deploymentScript(name);
   return script ? `run ${script}` : `ask whoever runs this server to ${what}`;

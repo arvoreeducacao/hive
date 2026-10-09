@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { REPO_MARK, powerSwitchIn } from "../doctor/doctor-runner.mjs";
+import { deploymentScriptIn } from "../lib/env.mjs";
 
 const REPO = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -27,8 +28,16 @@ test("the deployment's script is named by its whole path, so it runs from wherev
   assert.equal(powerSwitchIn("", "acme"), "", "a path was built before the repo was even found");
 
   const source = readFileSync(join(REPO, "app/server.mjs"), "utf8");
-  assert.match(source, /const deploymentScript = \(name\) => \(DEPLOYMENT_DIR && REPO \? join\(REPO,/,
+  assert.match(source, /const deploymentScript = \(name\) => deploymentScriptIn\(\{ repo: REPO, hub: HUB, dir: DEPLOYMENT_DIR, name \}\)/,
     "the app builds a deployment script path that only resolves from one working directory");
+});
+
+test("a deployment the hub carries has its scripts found there, and the checkout still wins when it has them", () => {
+  const inHub = (place) => place.startsWith("/hub/");
+  assert.equal(deploymentScriptIn({ repo: "/repo", hub: "/hub", dir: "acme", name: "pod-power.sh", exists: inHub }), "/hub/acme/scripts/pod-power.sh");
+  assert.equal(deploymentScriptIn({ repo: "/repo", hub: "/hub", dir: "acme", name: "pod-power.sh", exists: () => true }), "/repo/acme/scripts/pod-power.sh");
+  assert.equal(deploymentScriptIn({ hub: "/hub", dir: "acme", name: "pod-power.sh", exists: () => false }), "/hub/acme/scripts/pod-power.sh");
+  assert.equal(deploymentScriptIn({ repo: "/repo", hub: "/hub", dir: "", name: "pod-power.sh" }), "");
 });
 
 test("the mark the doctor looks for is one the packaged app never carries, so it finds the checkout", () => {

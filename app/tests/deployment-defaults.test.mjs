@@ -40,6 +40,15 @@ test("without a shipped copy the checkout fills the gaps", () => {
   assert.equal(filled.HIVE_LEAF_URL, "https://leaf.acme.example");
 });
 
+test("a deployment kept in the hub fills the gaps when the checkout has none", () => {
+  const { root } = scene();
+  const hub = join(root, "hub");
+  place(hub, "acme-deploy", "HIVE_LEAF_URL=https://leaf.acme.example\n");
+  const config = { HIVE_REPO: join(root, "checkout"), HIVE_HUB: hub, HIVE_DEPLOYMENT_DIR: "acme-deploy" };
+  assert.equal(deploymentDefaults(config, { shipped: join(root, "none") }).HIVE_LEAF_URL, "https://leaf.acme.example");
+  assert.deepEqual(deploymentDefaults({ ...config, HIVE_DEPLOYMENT_DIR: "../hub/acme-deploy" }, { shipped: join(root, "none") }), {});
+});
+
 test("a deployment file only fills the deployment's addresses and names, never who this machine is or where it points", () => {
   const { checkout, shipped } = scene();
   place(shipped, "acme", [

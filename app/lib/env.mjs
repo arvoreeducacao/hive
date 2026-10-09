@@ -86,8 +86,15 @@ export function deploymentDefaults(config = {}, { shipped = SHIPPED_DEPLOYMENTS 
   if (!DEPLOYMENT_FOLDER.test(folder)) return {};
   const found = readDefaults(join(shipped, folder, "hive.defaults"))
     || (config.HIVE_REPO ? readDefaults(join(config.HIVE_REPO, folder, "hive.defaults")) : null)
+    || (config.HIVE_HUB ? readDefaults(join(config.HIVE_HUB, folder, "hive.defaults")) : null)
     || {};
   return Object.fromEntries(DEPLOYMENT_KEYS.filter((key) => found[key]).map((key) => [key, found[key]]));
+}
+
+export function deploymentScriptIn({ repo = "", hub = "", dir = "", name = "", exists = existsSync } = {}) {
+  if (!dir || !name) return "";
+  const places = [repo, hub].filter(Boolean).map((root) => join(root, dir, "scripts", name));
+  return places.find((place) => exists(place)) || places[0] || "";
 }
 
 export const withDeploymentDefaults = (config = {}, options) => ({ ...deploymentDefaults(config, options), ...config });

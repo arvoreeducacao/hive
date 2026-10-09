@@ -167,6 +167,26 @@ test("the address and the pod name come from the deployment's own hook, never fr
   }
 });
 
+test("a deployment the hub carries is found when the checkout carries none", () => {
+  const home = mkdtempSync(join(tmpdir(), "hive-hub-deploy-"));
+  const repo = join(home, "repo");
+  mkdirSync(join(repo, "infra", "scripts"), { recursive: true });
+  const setup = join(repo, "infra", "scripts", "setup.sh");
+  writeFileSync(setup, readFileSync(SETUP, "utf8"));
+  const hub = join(home, "workspace");
+  mkdirSync(join(hub, "acme-deploy"), { recursive: true });
+  writeFileSync(join(hub, "acme-deploy", "hive.defaults"), "HIVE_REPOS_OWNER=acme\n");
+  const hook = join(hub, "acme-deploy", "hive-setup.sh");
+  writeFileSync(hook, "#!/usr/bin/env bash\necho \"HIVE_POD=box-$1\"\n");
+  chmodSync(hook, 0o755);
+  const r = spawnSync("bash", [setup, "ada", hub], { env: machineWithTheTools(home), encoding: "utf8" });
+  assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
+  const config = readFileSync(join(home, ".hive", "config"), "utf8").split("\n");
+  for (const line of ["HIVE_REPOS_OWNER=acme", "HIVE_DEPLOYMENT_DIR=acme-deploy", "HIVE_POD=box-ada"]) {
+    assert.ok(config.includes(line), `setup did not take the hub's deployment: ${line}`);
+  }
+});
+
 test("setup knows no address shape, no pod shape and no template of its own", () => {
   const script = readFileSync(SETUP, "utf8");
   assert.doesNotMatch(script, /ws-\$?\{?NAME/, "the pod naming habit of one deployment is back inside the script");
