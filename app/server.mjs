@@ -2717,6 +2717,7 @@ async function providerAccountsOf(id) {
 }
 
 async function readProviders(force = false) {
+  if (force) accountCache = { at: 0, list: [] };
   if (!force && providersCache.list && Date.now() - providersCache.at < PROVIDERS_FRESH) return providersCache.list;
   if (providersCache.pending) return providersCache.pending;
   providersCache.pending = (async () => {

@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { directSignInUrl, signInBrowserEnv, signInUrlFile } from "../lib/sign-in-browser.mjs";
 
 const home = () => mkdtempSync(join(tmpdir(), "hive-sign-in-"));
@@ -38,4 +39,10 @@ test("the opener is rewritten when it drifts, and each provider keeps its own ad
   assert.equal(again.BROWSER, first.BROWSER);
   assert.match(readFileSync(again.BROWSER, "utf8"), /HIVE_SIGNIN_URL_FILE/);
   assert.notEqual(again.HIVE_SIGNIN_URL_FILE, first.HIVE_SIGNIN_URL_FILE);
+});
+
+test("a forced read of the providers asks the CLI again, so a login that just landed turns green at the next look", () => {
+  const source = readFileSync(fileURLToPath(new URL("../server.mjs", import.meta.url)), "utf8");
+  assert.match(source, /async function readProviders\(force = false\) \{\n  if \(force\) accountCache = \{ at: 0, list: \[\] \};/,
+    "a forced read kept the thirty-second answer about who is signed in, so a fresh login stayed red for half a minute");
 });
