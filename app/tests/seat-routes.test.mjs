@@ -7,6 +7,7 @@ const PNG = "data:image/png;base64,YQ==";
 function seatHarness() {
   const routes = new Map();
   const calls = {
+    retitled: [],
     jobs: [],
     says: [],
     answers: [],
@@ -67,6 +68,7 @@ function seatHarness() {
     phoneBridgeFor: () => ({ buzz: async (...args) => { calls.buzzes.push(args); return state.buzz; } }),
     hiveHome: "/hive",
     readErrands: () => state.errands,
+    selfCloseDelay: 0,
     serverFor: async () => state.server,
     openShell: async (body) => {
       calls.shells.push(body);
@@ -76,6 +78,7 @@ function seatHarness() {
     spawning,
     invalidateFleetCache: () => { state.invalidations++; },
     renameSeat: (...args) => { calls.renamed.push(args); return "New title"; },
+    regenerateSeatTitle: async (...args) => { calls.retitled.push(args); return args[0] === "seat" ? { ok: true, title: "Fresh title" } : { ok: false, error: "no such chat" }; },
     cloudReach: { putFile: async (...args) => { calls.uploads.push(args); return state.upload; } },
     killSeatWindow: async (...args) => { calls.killed.push(args); return state.kill; },
     historyClosedSeat: (...args) => { calls.archiveFixed.push(args); },
@@ -111,6 +114,7 @@ test("the seat room registers every extracted route as POST in server order", ()
     ["/api/shell", "POST"],
     ["/api/spawning/forget", "POST"],
     ["/api/rename", "POST"],
+    ["/api/retitle", "POST"],
     ["/api/attach", "POST"],
     ["/api/screenshot", "POST"],
     ["/api/seat/leftovers", "POST"],
@@ -239,6 +243,11 @@ test("spawning forget, rename and attach retain cache and file contracts", async
   assert.deepEqual(hive.calls.renamed, [["seat", "cloud", "New title"]]);
   assert.equal(hive.state.invalidations, 2);
 
+  assert.deepEqual(await hive.call("/api/retitle", { name: "../x" }), [{ value: { error: "no seat to retitle" }, status: 400 }]);
+  assert.deepEqual(await hive.call("/api/retitle", { name: " seat ", where: "cloud" }), [{ value: { ok: true, title: "Fresh title" }, status: 200 }]);
+  assert.deepEqual(hive.calls.retitled, [["seat", "cloud"]]);
+  assert.equal(hive.state.invalidations, 3);
+
   hive.state.save = { files: ["/tmp/a.txt", "/tmp/b.txt"], error: "" };
   assert.deepEqual(await hive.call("/api/attach", { images: ["a", "b"] }), [{ value: { ok: true, paths: ["/tmp/a.txt", "/tmp/b.txt"], path: "/tmp/a.txt" }, status: 200 }]);
   assert.deepEqual(hive.calls.saved.at(-1), [["a", "b"], "mission"]);
@@ -308,4 +317,34 @@ test("archiving keeps the shots for the chat that may come back; forgetting the 
   assert.deepEqual(hive.calls.shotsForgotten, []);
   await hive.call("/api/seat/forget-archived", { name: "seat", where: "local" });
   assert.deepEqual(hive.calls.shotsForgotten, ["seat"]);
+});
+
+test("a chat closes a chat it opened, and the person's close needs no opener", async () => {
+  const hive = seatHarness();
+  hive.state.errands = { seat: { errand: "", by: "from" } };
+  assert.deepEqual(await hive.call("/api/kill", { name: "seat", where: "local", by: "from" }), [{ value: { ok: true }, status: 200 }]);
+  assert.deepEqual(hive.calls.killed, [["seat", "local"]]);
+  assert.deepEqual(hive.calls.forgotten, [["local", "seat"]]);
+});
+
+test("a chat cannot close a seat it did not open, and nothing is touched", async () => {
+  const hive = seatHarness();
+  hive.state.errands = { seat: { errand: "pedido", by: "someone-else" } };
+  const [refused] = await hive.call("/api/kill", { name: "seat", where: "local", by: "from" });
+  assert.equal(refused.status, 403);
+  assert.match(refused.value.error, /closes only itself and the chats it opened/);
+  hive.state.errands = {};
+  assert.equal((await hive.call("/api/kill", { name: "seat", where: "local", by: "from" }))[0].status, 403, "a seat with no record of its opener belongs to the person");
+  assert.equal((await hive.call("/api/kill", { name: "seat", where: "local", by: "Not A Seat" }))[0].status, 400);
+  assert.deepEqual(hive.calls.killed, []);
+  assert.deepEqual(hive.calls.forgotten, []);
+});
+
+test("a chat closing itself is answered before its window goes, and answered once", async () => {
+  const hive = seatHarness();
+  const answers = await hive.call("/api/kill", { name: "seat", where: "local", by: "seat" });
+  assert.deepEqual(answers, [{ value: { ok: true, leaving: true }, status: 200 }]);
+  assert.deepEqual(hive.calls.killed, [["seat", "local"]]);
+  assert.deepEqual(hive.calls.archiveFixed, [["local", "seat"]]);
+  assert.deepEqual(hive.calls.forgotten, [["local", "seat"]]);
 });

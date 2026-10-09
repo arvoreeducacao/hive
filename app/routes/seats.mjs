@@ -13,6 +13,8 @@ export function worktreesToDrop(asked) {
     .map((one) => ({ path: one.path, force: !!one.force }));
 }
 
+export const SELF_CLOSE_DELAY_MS = 1500;
+
 export function registerSeatRoutes(on, context) {
   const {
     bodyOf,
@@ -34,10 +36,13 @@ export function registerSeatRoutes(on, context) {
     spawning,
     invalidateFleetCache,
     renameSeat,
+    regenerateSeatTitle,
     cloudReach,
     killSeatWindow,
     seatLeftovers,
     removeWorktree,
+    readErrands = () => ({}),
+    selfCloseDelay = SELF_CLOSE_DELAY_MS,
     historyClosedSeat,
     forgetSeat,
     forgetShots,
@@ -161,6 +166,16 @@ export function registerSeatRoutes(on, context) {
     return json({ title });
   });
 
+  on("POST", "/api/retitle", async (req, res, url, json) => {
+    const b = await bodyOf(req);
+    const name = String(b?.name || "").trim();
+    if (!name || !isSeatName(name)) return json({ error: "no seat to retitle" }, 400);
+    const where = b?.where === "cloud" ? "cloud" : "local";
+    const said = await regenerateSeatTitle(name, where);
+    invalidateFleetCache();
+    return json(said, said.ok ? 200 : 404);
+  });
+
   on("POST", "/api/attach", async (req, res, url, json) => {
     const b = await bodyOf(req);
     if (b.oversized) return json({ error: "that is more than this app carries in one go" }, 413);
@@ -198,10 +213,21 @@ export function registerSeatRoutes(on, context) {
   });
 
   on("POST", "/api/kill", async (req, res, url, json) => {
-    const { name, where, dropWorktrees } = await bodyOf(req);
+    const { name, where, dropWorktrees, by } = await bodyOf(req);
     if (!isSeatName(name)) return json({ error: "missing name" }, 400);
+    const closer = String(by || "");
+    if (closer && !isSeatName(closer)) return json({ error: "that is not a seat name" }, 400);
+    if (closer && closer !== name && readErrands(hiveHome)?.[name]?.by !== closer) {
+      return json({ error: `${name} was not opened by ${closer} — a chat closes only itself and the chats it opened` }, 403);
+    }
+    const leaving = Boolean(closer) && closer === name;
+    if (leaving) {
+      json({ ok: true, leaving: true });
+      await new Promise((later) => setTimeout(later, selfCloseDelay));
+    }
+    const reply = leaving ? () => {} : json;
     const said = await killSeatWindow(name, where);
-    if (said?.ok === false) return json({ error: said.error || `the seat would not close` }, 502);
+    if (said?.ok === false) return reply({ error: said.error || `the seat would not close` }, 502);
     historyClosedSeat(where === "cloud" ? "cloud" : "local", name);
     forgetSeat(where === "cloud" ? "cloud" : "local", name);
     forgetSpawnJobsOf(spawning, name, where === "cloud" ? "cloud" : "local");
@@ -212,7 +238,8 @@ export function registerSeatRoutes(on, context) {
       const dropped = await removeWorktree(asked.path, asked.force);
       worktrees.push({ path: asked.path, ok: !dropped.error, error: dropped.error || "" });
     }
-    return json(worktrees.length ? { ok: true, worktrees } : { ok: true });
+    if (!worktrees.length) return reply({ ok: true });
+    return reply({ ok: true, worktrees });
   });
 
   on("POST", "/api/seat/archive", async (req, res, url, json) => {

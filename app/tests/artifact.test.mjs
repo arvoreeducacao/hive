@@ -5,7 +5,7 @@ import { app, dom, views } from "./dom.mjs";
 await views();
 
 const { artifactLink } = await app("tool-face");
-const { svConvTool, svConvToolLanded, svConvToolLink } = await app("conversation-model");
+const { svConvTool, svConvToolLanded, svConvToolLink, svConvFlushAll } = await app("conversation-model");
 const { getStructured } = await app("chat-stretches");
 
 let seq = 0;
@@ -16,7 +16,7 @@ function card(tool, said) {
   const block = svConvTool(e, { id: use, name: tool, input: {} }, false);
   const land = (text) => svConvToolLanded(e, { tool_use_id: use, is_error: false, content: text }, false);
   if (said !== undefined) land(said);
-  const el = () => e.scroll.querySelector(".sv-tool");
+  const el = () => (svConvFlushAll(), e.scroll).querySelector(".sv-tool");
   return { e, block, land, el, slot: () => el().querySelector(".tlink"), links: () => [...el().querySelectorAll(".tlink a")] };
 }
 

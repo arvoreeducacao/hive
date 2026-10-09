@@ -194,3 +194,21 @@ test("a folded chat hides the microphone like the send button and stays open whi
   assert.match(css, /body\.experience-next:not\(\.no-motion\) \.tile:not\(\.focused\):not\(\.open\) \.sv-composer:not\(\.ready\):not\(\.talking\) \.sv-btns \{ gap: 0; \}/, "the hidden buttons leave no gap, so the context gauge keeps the corner");
   assert.doesNotMatch(page, /\.sv-composer:not\(\.ready\)(?!:not\(\.talking\))/, "every folded rule lets a listening composer stay open");
 });
+
+test("a new take keeps its button lit when the last one finishes settling behind it", async () => {
+  const button = fresh();
+  wireTalkButton(button, () => null);
+  answer({ enabled: true, engine: "ready", model: { state: "ready" } });
+  await pullDictation();
+  dom.navigator.mediaDevices = { getUserMedia: async () => { throw Object.assign(new Error("no mic here"), { name: "NotFoundError" }); } };
+  button.click();
+  await new Promise((done) => setTimeout(done, 10));
+  assert.equal(button.classList.contains("hot"), false);
+
+  const stop = await listenUntilStopped(button);
+  assert.equal(button.classList.contains("hot"), true);
+  await new Promise((done) => setTimeout(done, 2100));
+  assert.equal(button.classList.contains("hot"), true, "the last take's goodbye must not put out a microphone that is still open");
+  assert.equal(st.stt.state, "hearing");
+  stop();
+});

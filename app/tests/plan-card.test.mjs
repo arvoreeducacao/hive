@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { app, views } from "./dom.mjs";
 
+const { svConvFlushAll } = await app("conversation-model");
+
 const APP = fileURLToPath(new URL("..", import.meta.url));
 const page = readFileSync(join(APP, "app.html"), "utf8");
 
@@ -29,7 +31,7 @@ const planCard = async (name, seat = {}, plan = PLAN) => {
   const sent = [];
   e.ws = { readyState: 1, send: (raw) => sent.push(JSON.parse(raw)) };
   svEvent(e, { type: "driver", subtype: "plan", id: "p1", plan });
-  return { e, sent, card: e.host.querySelector(".sv-plan") };
+  return { e, sent, card: (svConvFlushAll(), e.host).querySelector(".sv-plan") };
 };
 
 const BLANK_PLAN = `Uma frente so.

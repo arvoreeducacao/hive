@@ -37,6 +37,8 @@ export function repoAt(root) {
   return { repo: lastName(main), branch, path: root, main: root === main };
 }
 
+const TRUNK = /^(main|master)$/;
+
 export function seatTrees({ dirs = [], cwd = "" } = {}, cap = TREES_SHOWN) {
   const walkedIn = dirs.length ? dirs : (cwd ? [cwd] : []);
   const roots = new Set();
@@ -48,7 +50,7 @@ export function seatTrees({ dirs = [], cwd = "" } = {}, cap = TREES_SHOWN) {
   }
   const walked = [...roots].reverse().map(repoAt);
   const apart = walked.filter((one) => !one.main);
-  const shown = apart.length ? apart : walked.map((one) => ({ ...one, branch: "" }));
+  const shown = apart.length ? apart : walked.map((one) => ({ ...one, branch: TRUNK.test(one.branch) ? one.branch : "" }));
   return shown.slice(0, cap);
 }
 

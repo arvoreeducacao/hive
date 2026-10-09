@@ -44,7 +44,7 @@ test("the frame proxy adds the bearer on the server and never forwards the seat'
   assert.match(route, /isSeatName\(seat\)/);
   assert.match(route, /canopyCall\(`\/tabs\/\$\{encodeURIComponent\(tab\.id\)\}\/frame`\)/);
   assert.doesNotMatch(route, /token/);
-  const kill = cut(seatRoutes, 'on("POST", "/api/kill"', "return json({ ok: true });", "routes/seats.mjs");
+  const kill = cut(seatRoutes, 'on("POST", "/api/kill"', "return reply({ ok: true });", "routes/seats.mjs");
   assert.match(kill, /killSeatWindow\(name, where\)/);
   const window = cut(server, "async function killSeatWindow(", "\n}\n", "server.mjs");
   assert.match(window, /endCanopySession\(name\)/, "archiving a seat would leave its cockpit open");

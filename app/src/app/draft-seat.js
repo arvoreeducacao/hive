@@ -206,6 +206,14 @@ async function hubFiles(where, q) {
   return { files: (r?.files || []).map((row) => `${row.repo}/${row.path}`), error: r?.error || "" };
 }
 
+let draftAgain = false;
+
+/* a structure that lists chats on the side wants Enter to send the chat off on its own and hand
+   back a clean composer, the way T3 Code lets one more thread start while the last one works. */
+function keepDraftingAfterSend(on) {
+  draftAgain = !!on;
+}
+
 function newDraft() {
   const id = `d${++draftSeq}`;
   const chosen = draftChoices(keptChoices());
@@ -338,6 +346,10 @@ async function sendDraft(d, text) {
     if (st.webChat === d.key) st.webChat = born;
     if (st.blocks.some((b) => b.keys.includes(born))) st.open = born;
   }
+  if (draftAgain) {
+    openDraft();
+    return;
+  }
   focusSeat(jobKey);
   render();
 }
@@ -444,4 +456,4 @@ document.addEventListener("hive:experience", (event) => {
   for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, raycastOn());
 });
 
-export { DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };
+export { DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, attachFilesToDraft, keepDraftingAfterSend, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };

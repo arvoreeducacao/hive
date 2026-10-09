@@ -39,6 +39,19 @@ async function rename(s, written) {
   pull();
 }
 
+async function retitle(s) {
+  try {
+    const r = await fetch("/api/retitle", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: s.name, where: s.where })
+    });
+    if (!r.ok) throw new Error("retitle");
+  } catch {
+    return;
+  }
+  pull();
+}
+
 function startRename(name) {
   const el = tiles.get(name);
   const s = st.data.sessions.find((x) => x.name === name);
@@ -73,4 +86,4 @@ function startRename(name) {
   inp.select();
 }
 
-export { nameHint, paintName, rename, startRename };
+export { nameHint, paintName, rename, retitle, startRename };

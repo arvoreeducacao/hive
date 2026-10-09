@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import { PEER_TOOLS, peerCalls } from "./peer-tools.mjs";
+import { ceilingOf, peerCalls, toolsFor } from "./peer-tools.mjs";
 
 const calls = peerCalls(process.env);
 
@@ -17,7 +17,7 @@ async function handle(request) {
     };
   }
   if (method === "ping") return {};
-  if (method === "tools/list") return { tools: PEER_TOOLS };
+  if (method === "tools/list") return { tools: toolsFor(ceilingOf(process.env)) };
   if (method === "tools/call") {
     const call = calls[params?.name];
     if (!call) throw new Error(`unknown tool ${params?.name}`);

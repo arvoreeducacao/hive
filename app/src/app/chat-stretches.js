@@ -3,7 +3,7 @@ import { render } from "./arrange.js";
 import { activeItems } from "./blocks.js";
 import { whichAction } from "./brand-face.js";
 import { NATIVE_COMMANDS, openSeatPicker, paintMentions, refreshCatalog, runNativeCommand, structuredCtrlC, svEvent, svShellBlock, svUserThumb, weaveHandles } from "./chat-and-panes.js";
-import { svConvCutKey, svConvDrain, svConvMount, svConvPrepend, svConvSeed, svConvShow, svConvShowSubs, svConvShown, svConvShownAt, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
+import { svConvCutKey, svConvDrain, svConvMount, svConvPrepend, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
 import { openContextWindow } from "./context-window.js";
 import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, experienceNext, isImageName, isNativeCommand, phrase, raycastOn, st, withCommand, withoutCommand } from "./core.js";
 import { releaseKeyboard } from "./focus-navigation.js";
@@ -215,6 +215,7 @@ function svEarlierBar(e, ev) {
 }
 
 function svCutTop(e, key) {
+  svConvFlush(e);
   const at = svConvShown(e.conv).findIndex((one) => one.key === key);
   const el = at < 0 ? null : e.scroll.children?.[at];
   if (!el?.getBoundingClientRect) return null;
@@ -239,6 +240,7 @@ function svUnfoldTurns(e) {
   const at = svConvShownAt(e.conv);
   const starts = svConvTurnStarts(blocks).filter((start) => start < at);
   const back = starts.length > SV_TURNS ? blocks[starts[starts.length - SV_TURNS]].key : null;
+  svConvFlush(e);
   const y = e.scroll.scrollTop;
   const tall = e.scroll.scrollHeight;
   e.atBottom = false;
@@ -249,7 +251,7 @@ function svUnfoldTurns(e) {
   } else {
     e.earlier.say.textContent = svEarlierSay(e);
   }
-  svConvShow(e);
+  svConvShowNow(e);
   e.settling = true;
   e.scroll.scrollTop = y + (e.scroll.scrollHeight - tall);
 }
@@ -284,6 +286,7 @@ async function svLoadEarlier(e) {
     return;
   }
   const older = svEarlierBlocks(e, got.events, ++held.pages);
+  svConvFlush(e);
   const y = e.scroll.scrollTop;
   const tall = e.scroll.scrollHeight;
   e.atBottom = false;
@@ -298,7 +301,7 @@ async function svLoadEarlier(e) {
     e.conv.blocks.shift();
     e.earlier = null;
   }
-  svConvShow(e);
+  svConvShowNow(e);
   e.settling = true;
   e.scroll.scrollTop = y + (e.scroll.scrollHeight - tall);
 }
@@ -960,12 +963,20 @@ function svReserve(e) {
   if (e.atBottom) e.scroll.scrollTop = e.scroll.scrollHeight;
 }
 
+let healFrame = 0;
+
 function healStructuredScroll() {
-  for (const e of structPool.values()) {
-    if (!e.host.isConnected || e.scroll.scrollTop) continue;
-    const y = e.atBottom ? e.scroll.scrollHeight : Math.min(e.lastScrollY || 0, e.scroll.scrollHeight);
-    if (y) e.scroll.scrollTop = y;
-  }
+  if (healFrame) return;
+  healFrame = requestAnimationFrame(() => {
+    healFrame = 0;
+    const due = [];
+    for (const e of structPool.values()) {
+      if (!e.host.isConnected || e.scroll.scrollTop) continue;
+      const y = e.atBottom ? e.scroll.scrollHeight : Math.min(e.lastScrollY || 0, e.scroll.scrollHeight);
+      if (y) due.push([e, y]);
+    }
+    for (const [e, y] of due) e.scroll.scrollTop = y;
+  });
 }
 
 const SV_LINE = 20;

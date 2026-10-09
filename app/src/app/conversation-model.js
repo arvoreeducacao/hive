@@ -74,10 +74,33 @@ function svConvSaySub(one) {
   return { ...one, dataset: { ...one.dataset }, steps: one.steps.map((step) => ({ ...step })) };
 }
 
-function svConvShow(e) {
+const svConvDue = new Set();
+
+function svConvPaint(e) {
+  e.convFrame = 0;
+  svConvDue.delete(e);
   if (!e.convView) return;
   e.convView.show({ key: e.name, blocks: svConvShown(e.conv).map(svConvSay) });
   if (e.atBottom) e.scroll.scrollTop = e.scroll.scrollHeight;
+}
+
+function svConvShow(e) {
+  if (!e.convView || e.convFrame) return;
+  svConvDue.add(e);
+  e.convFrame = requestAnimationFrame(() => svConvPaint(e));
+}
+
+function svConvShowNow(e) {
+  if (e.convFrame) cancelAnimationFrame(e.convFrame);
+  svConvPaint(e);
+}
+
+function svConvFlush(e) {
+  if (e.convFrame) svConvShowNow(e);
+}
+
+function svConvFlushAll() {
+  for (const e of [...svConvDue]) svConvFlush(e);
 }
 
 function svConvShowSubs(e) {
@@ -282,7 +305,7 @@ function svConvDraftPaint(e) {
   draft.held = liveStep(draft.held, draft.pending);
   draft.pending = "";
   draft.block.parts = draft.held.blocks;
-  svConvShow(e);
+  svConvShowNow(e);
 }
 
 function svConvCards(e) {
@@ -549,4 +572,4 @@ function svConvMount(e) {
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnStarts, svConvTurnsBehind, svConvUnsay, svConvWrap };
+export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnStarts, svConvTurnsBehind, svConvUnsay, svConvWrap };

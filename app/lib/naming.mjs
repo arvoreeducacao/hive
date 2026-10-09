@@ -66,7 +66,7 @@ export function kimiAnswer(out) {
   return said.join("\n").split("\n").map((l) => l.trim()).filter(Boolean).pop() || "";
 }
 
-export function namerCommand({ agent, prompt, outFile, claude, engineDir = "" }) {
+export function namerCommand({ agent, prompt, outFile, claude, engineDir = "", schema = "" }) {
   if (agent === "codex") {
     return {
       exe: "codex",
@@ -83,9 +83,12 @@ export function namerCommand({ agent, prompt, outFile, claude, engineDir = "" })
   if (agent === "cursor") {
     return { exe: "cursor-agent", args: ["-p", prompt, "--output-format", "text", "--mode", "ask", "--trust"], answerIn: "" };
   }
+  const shaped = schema
+    ? ["--output-format", "json", "--json-schema", schema, "--tools", "", "--disable-slash-commands", "--settings", '{"disableAllHooks":true}', "--permission-mode", "dontAsk"]
+    : [];
   return {
     exe: claude,
-    args: ["-p", prompt, "--model", NAMER_MODELS.claude, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}'],
+    args: ["-p", prompt, "--model", NAMER_MODELS.claude, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', ...shaped],
     answerIn: ""
   };
 }

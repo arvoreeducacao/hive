@@ -15,6 +15,7 @@ export const TALK_TAP_MS = 400;
 st.stt = { enabled: false, ready: false, unsupported: null, state: "idle", said: "", seconds: 0, trouble: "", owner: null };
 
 let tap = null;
+let opening = false;
 let heard = [];
 let caught = null;
 let settling = null;
@@ -32,10 +33,13 @@ function tell(state, said = "", seconds = 0) {
   }
 }
 
+const listening = () => !!tap || opening;
+
 function settle(said) {
   clearTimeout(settling);
+  if (listening()) return;
   tell("idle", said);
-  settling = setTimeout(() => tell("idle", ""), SETTLE_MS);
+  settling = setTimeout(() => { if (!listening()) tell("idle", ""); }, SETTLE_MS);
 }
 
 function refuse(title, body) {
@@ -140,14 +144,18 @@ export async function startTalking({ into, owner = null } = {}) {
   if (st.stt.unsupported) return refuse(phrase("dictation does not run on this machine"), st.stt.unsupported);
   if (!st.stt.enabled) return refuse(phrase("dictation is off"), phrase("turn it on in preferences, under Dictation."));
   if (!st.stt.ready) return refuse(phrase("dictation is not set up on this machine yet"), phrase("preferences has the button that finishes it, under Dictation."));
+  clearTimeout(settling);
   heard = [];
   caught = into || composerInFocus();
   st.stt = { ...st.stt, owner: owner || talkButtonFor(caught) };
   tell("hearing");
+  opening = true;
   try {
     tap = await openTap();
+    opening = false;
   } catch (wrong) {
     tap = null;
+    opening = false;
     const denied = wrong?.name === "NotAllowedError" || wrong?.name === "SecurityError";
     const title = denied ? phrase("this machine did not let the hive listen") : phrase("the microphone did not open");
     const body = denied
@@ -177,7 +185,7 @@ export async function stopTalking({ cancel = false } = {}) {
   }
 
   const seconds = pcm.length / STT_SAMPLE_RATE;
-  tell("writing", "", seconds);
+  if (!listening()) tell("writing", "", seconds);
   try {
     const out = await apiBinary("/api/stt/transcribe", pcm);
     if (!out.text) { settle(phrase("could not make out any words")); return ""; }

@@ -184,9 +184,52 @@ test("with nowhere left to go the seat stays put and says so", async () => {
   assert.deepEqual(b.said, [], "nothing is said twice when there is no fresh login to say it on");
 });
 
+const EXPIRED = "Failed to authenticate: OAuth session expired and could not be refreshed";
+
+test("a login that answers expired is read again once, on the same account, before anything is written down", async () => {
+  const b = bench({ bornOn: "work", home: "work" });
+  b.remember({ text: "teste", images: [] });
+  assert.equal(await b.theTurnEnded(ranOut(EXPIRED)), true);
+  assert.equal(b.logins.name, "work", "the seat stays on its own login");
+  assert.equal(b.applied.length, 1, "the child is opened again, so it reads the login from disk");
+  assert.equal(b.applied[0].why, "relogin");
+  assert.equal(b.applied[0].dir, join(accountsRoot(b.base), "work"));
+  assert.deepEqual(b.said.map((i) => i.text), ["teste"]);
+  assert.ok(b.emitted.some((e) => e.subtype === "login_reread" && e.account === "work"));
+  assert.deepEqual(await readLedger(b.base), {}, "a login another process already refreshed is never parked");
+});
+
+test("the seat on the login everybody starts with is read again too", async () => {
+  const b = bench({ accounts: [] });
+  b.remember({ text: "teste", images: [] });
+  assert.equal(await b.theTurnEnded(ranOut(EXPIRED)), true);
+  assert.equal(b.applied[0].dir, "");
+  assert.deepEqual(await readLedger(b.base), {});
+});
+
+test("a second expired answer in a row is a login that really needs a person, and says so", async () => {
+  const b = bench({ accounts: [] });
+  b.remember({ text: "teste", images: [] });
+  await b.theTurnEnded(ranOut(EXPIRED));
+  assert.equal(await b.theTurnEnded(ranOut(EXPIRED)), false);
+  assert.equal(b.said.length, 1, "read again once, never in a loop");
+  const stuck = b.emitted.find((e) => e.subtype === "every_account_spent");
+  assert.equal(stuck.why, "login");
+});
+
+test("a turn that goes through earns the seat a fresh re-read for the next time the login lapses", async () => {
+  const b = bench({ accounts: [] });
+  b.remember({ text: "teste", images: [] });
+  await b.theTurnEnded(ranOut(EXPIRED));
+  await b.theTurnEnded({ type: "result", subtype: "success", is_error: false, terminal_reason: "completed", result: "ok" });
+  assert.equal(await b.theTurnEnded(ranOut(EXPIRED)), true);
+  assert.equal(b.applied.length, 2);
+});
+
 test("a login that needs a person back is parked with no hour, so nobody walks into it", async () => {
   const b = bench({ bornOn: "work", home: "work" });
-  await b.theTurnEnded(ranOut("Failed to authenticate: OAuth session expired and could not be refreshed"));
+  await b.theTurnEnded(ranOut(EXPIRED));
+  await b.theTurnEnded(ranOut(EXPIRED));
   const ledger = await readLedger(b.base);
   assert.equal(ledger.work.why, "login");
   assert.equal(ledger.work.until, 0);
@@ -240,4 +283,52 @@ test("another provider keeps its logins, its ledger and its order in a folder of
   assert.deepEqual(Object.keys(await readLedger(b.base, "codex")), ["work"]);
   assert.deepEqual(await readLedger(b.base, "claude"), {}, "the claude ledger never hears about a codex login");
   assert.deepEqual(b.applied.at(-1), { name: "", dir: "", why: "spent" });
+});
+
+test("with every login spent the seat waits for the earliest reset and runs the refused turn again by itself", async () => {
+  const base = machineWith(["work"]);
+  const emitted = [];
+  const said = [];
+  const timers = [];
+  let busy = false;
+  const logins = accountFailover({
+    base,
+    bornIn: join(accountsRoot(base, "claude"), "work"),
+    home: "work",
+    emit: (e) => emitted.push(e),
+    redo: () => { said.push("again"); return true; },
+    busy: () => busy,
+    later: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    forget: () => {},
+  });
+  await noteSpent(base, DEFAULT_ACCOUNT, { until: Date.now() + 2 * 3600000 });
+  assert.equal(await logins.turnEnded(accountRanDry(ranOut("You've hit your session limit · resets 11:30pm (America/Sao_Paulo)"))), false);
+  assert.ok(emitted.some((e) => e.subtype === "resume_planned"));
+  assert.equal(timers.length, 1);
+  assert.ok(timers[0].ms > 0);
+  busy = true;
+  await timers[0].fn();
+  assert.deepEqual(said, [], "a seat that is busy again is left alone");
+  busy = false;
+  await noteSpent(base, "work", { until: Date.now() - 1000 });
+  await logins.resumeAfterSpent();
+  assert.deepEqual(said, ["again"]);
+  assert.ok(emitted.some((e) => e.subtype === "resumed_after_limit"));
+});
+
+test("a new turn from the person cancels the planned resume", async () => {
+  const base = machineWith(["work"]);
+  const timers = [];
+  const forgotten = [];
+  const logins = accountFailover({
+    base, bornIn: join(accountsRoot(base, "claude"), "work"), home: "work",
+    later: (fn, ms) => { timers.push(fn); return "t1"; },
+    forget: (timer) => forgotten.push(timer),
+  });
+  await noteSpent(base, DEFAULT_ACCOUNT, { until: Date.now() + 3600000 });
+  await logins.turnEnded(accountRanDry(ranOut(SPENT)));
+  assert.equal(logins.resumeArmed, true);
+  await logins.turnEnded(null);
+  assert.equal(logins.resumeArmed, false);
+  assert.deepEqual(forgotten, ["t1"]);
 });

@@ -1,8 +1,13 @@
+import { timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { slug } from "./naming.mjs";
 
-export const TRIGGERS = ["hourly", "daily", "weekdays", "weekly", "cron"];
+export const TRIGGERS = ["hourly", "daily", "weekdays", "weekly", "cron", "webhook"];
+export const HOOK_BODY_MAX = 64 * 1024;
+export const HOOK_RATE_PER_MINUTE = 60;
+export const HOOK_DELIVERIES_KEPT = 50;
+const CREDENTIAL_KEY = /authorization|cookie|token|secret|signature|password|api[-_]?key/i;
 export const ROUTINE_NAME_MAX = 60;
 export const PROMPT_MAX = 8000;
 export const PRECHECK_MAX = 600;
@@ -73,9 +78,9 @@ export function cleanRoutine(body = {}) {
   const trigger = TRIGGERS.includes(body.trigger) ? body.trigger : "";
   if (!name) return { error: "give the routine a name — it is what the chat will be called" };
   if (!prompt) return { error: "write what the chat should do when it opens" };
-  if (!trigger) return { error: "pick when it runs: hourly, daily, weekdays, weekly or a cron line" };
-  const time = trigger === "hourly" ? "" : cleanTime(body.time || "09:00");
-  if (trigger !== "hourly" && trigger !== "cron" && !time) return { error: "the time reads HH:MM, like 09:00" };
+  if (!trigger) return { error: "pick when it runs: hourly, daily, weekdays, weekly, a cron line or a webhook" };
+  const time = trigger === "hourly" || trigger === "webhook" ? "" : cleanTime(body.time || "09:00");
+  if (trigger !== "hourly" && trigger !== "cron" && trigger !== "webhook" && !time) return { error: "the time reads HH:MM, like 09:00" };
   const cron = trigger === "cron" ? String(body.cron || "").trim() : "";
   if (trigger === "cron" && !parseCron(cron)) return { error: "a cron line is five fields: minute hour day month weekday" };
   const weekday = trigger === "weekly" ? Math.min(6, Math.max(0, Math.floor(Number(body.weekday ?? 1)) || 0)) : 0;
@@ -100,6 +105,7 @@ const atClock = (date, time) => {
 };
 
 export function nextRunAt(routine, from = Date.now()) {
+  if (routine.trigger === "webhook") return 0;
   const start = new Date(from);
   if (routine.trigger === "hourly") {
     const next = new Date(start);
@@ -143,6 +149,7 @@ export function scheduleSay(routine) {
   if (routine.trigger === "weekdays") return `weekdays at ${time}`;
   if (routine.trigger === "weekly") return `every ${WEEKDAY_NAMES[routine.weekday ?? 1]} at ${time}`;
   if (routine.trigger === "cron") return `cron ${routine.cron}`;
+  if (routine.trigger === "webhook") return "when its webhook is called";
   return "";
 }
 
@@ -188,4 +195,47 @@ export function spawnBodyOf(routine, now = Date.now()) {
     structured: routine.structured !== false,
     routine: routine.id
   };
+}
+
+function pathIn(value, path) {
+  let at = value;
+  for (const key of String(path).split(".").filter(Boolean)) {
+    if (at === null || typeof at !== "object") return undefined;
+    at = at[key];
+  }
+  return at;
+}
+
+const shown = (value) => (value === undefined || value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value));
+
+export function quietHeaders(headers = {}) {
+  return Object.fromEntries(Object.entries(headers).map(([key, value]) => [key.toLowerCase(), CREDENTIAL_KEY.test(key) ? "[redacted]" : String(value)]));
+}
+
+export function renderHookPrompt(template, { body = {}, query = {}, headers = {} } = {}) {
+  const quiet = quietHeaders(headers);
+  const quietQuery = Object.fromEntries(Object.entries(query).map(([key, value]) => [key, CREDENTIAL_KEY.test(key) ? "[redacted]" : value]));
+  return String(template || "").replace(/\{\{\s*(body|query|headers)(?:\.([\w.-]+))?\s*\}\}/g, (_, where, path) => {
+    const source = where === "body" ? body : where === "query" ? quietQuery : quiet;
+    return shown(path ? pathIn(source, where === "headers" ? path.toLowerCase() : path) : source);
+  }).slice(0, PROMPT_MAX);
+}
+
+function sameToken(given, kept) {
+  const a = Buffer.from(given);
+  const b = Buffer.from(kept);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+export function hookAllows(routine, { token, delivery = "", now = Date.now(), recent = [] }) {
+  if (routine?.trigger !== "webhook" || !routine.enabled) return { ok: false, status: 404 };
+  if (!routine.hookToken || !sameToken(String(token || ""), routine.hookToken)) return { ok: false, status: 404 };
+  if (delivery && (routine.deliveries || []).includes(delivery)) return { ok: false, status: 200, duplicate: true };
+  if (recent.filter((at) => now - at < 60000).length >= HOOK_RATE_PER_MINUTE) return { ok: false, status: 429 };
+  return { ok: true };
+}
+
+export function noteDelivery(routine, delivery) {
+  if (!delivery) return routine;
+  return { ...routine, deliveries: [delivery, ...(routine.deliveries || [])].slice(0, HOOK_DELIVERIES_KEPT) };
 }

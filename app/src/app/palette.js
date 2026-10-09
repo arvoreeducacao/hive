@@ -17,6 +17,7 @@ import { PET_OFF, PET_ON, PET_SWITCH, setLanguage, setPet } from "./preferences.
 import { CI_LABEL } from "./prs.js";
 import { paintMachines, paintPhone, paintShare, palAt, setPref } from "./pure-helpers.js";
 import { openDraft } from "./draft-seat.js";
+import { hudCopied } from "./hud.js";
 import { pullTeam } from "./team.js";
 import { toClipboard } from "./terminal-history.js";
 import { structurePaletteRows } from "./structure.js";
@@ -434,12 +435,22 @@ function palModel(q) {
   return rows;
 }
 
+async function copyExternalMcp(ceiling) {
+  let command = "";
+  try { command = (await (await fetch(`/api/mcp/external?ceiling=${ceiling}`)).json()).command || ""; } catch {}
+  let ok = false;
+  try { await navigator.clipboard.writeText(command); ok = !!command; } catch {}
+  hudCopied(command, ok);
+}
+
 function palActions() {
   return [
     { icon: "i-bolt", name: phrase("new chat"), ctx: phrase("an empty seat: pick the provider and the model, the first message opens it"), key: keyHint("new"), go: () => openDraft() },
     { icon: "i-term", name: phrase("new terminal"), ctx: phrase("a plain shell in a seat, on your machine"), key: keyHint("term"), go: () => openShell("local") },
     { icon: "i-term", name: phrase("new terminal on the server"), ctx: phrase("a plain shell in the cloud"), go: () => openShell("cloud") },
     { icon: "i-grid", name: phrase("workspace"), ctx: phrase("the repos, skills and MCPs the hive.json declares"), go: () => openWorkspace() },
+    { icon: "i-plug", name: phrase("connect an agent from outside"), ctx: phrase("copies the command that gives a Claude Code outside the hive these tools — it can read the chats"), search: "mcp external agent agente externo conectar", go: () => copyExternalMcp("read") },
+    { icon: "i-plug", name: phrase("connect an agent from outside that can talk"), ctx: phrase("the same, but it can also message and ask the chats"), search: "mcp external agent agente externo conectar operate", go: () => copyExternalMcp("operate") },
     { icon: "i-grid", name: st.dimOn ? phrase("stop dimming the other seats") : phrase("dim the other seats while you type"),
       ctx: phrase("while the keyboard is inside a seat"), key: keyHint("dim"), go: () => setPref("dim", !st.dimOn) },
     { icon: "i-term", name: st.barOn ? phrase("hide the message bar") : phrase("show the message bar"),

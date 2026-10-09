@@ -162,9 +162,9 @@ test("an image that does not reach the pod keeps its slot, so no mark points at 
 });
 
 test("a seat that already carries a title of its own is left alone by the background namer", () => {
-  const title = slice(server, "async function titleTheSeat(name, where, title) {", "function titleInTheBackground");
-  assert.match(title, /found\.title && found\.title !== name/);
-  assert.match(title, /\/\^title:\\s\*\\S\/im\.test\(had\)/);
+  const title = slice(server, "async function titleTheSeat(name, where, title, { over = false } = {}) {", "function titleInTheBackground");
+  assert.match(title, /!over && found\.title && found\.title !== name/);
+  assert.match(title, /!over && \/\^title:\\s\*\\S\/im\.test\(had\)/);
   assert.match(title, /op: "setTitle"/);
 });
 

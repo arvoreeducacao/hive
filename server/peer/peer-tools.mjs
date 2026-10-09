@@ -1,5 +1,7 @@
-import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, renameSeat, sayOnSlack } from "./peer.mjs";
+import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
 import { BIRTHS_MAX } from "../engine/protocol.mjs";
+import { allows, readCeiling } from "./ceilings.mjs";
+import { stateDir } from "../engine/paths.mjs";
 
 export const PEER_TOOLS = [
   {
@@ -251,9 +253,21 @@ export const PEER_TOOLS = [
         model: { type: "string", description: "which model it runs on — the id the person's agent knows, like opus or sonnet. Leave it out for the one that seat would pick by itself" },
         agent: { type: "string", description: "which chat program runs it — claude, codex, kimi, kiro or opencode. Leave it out to open it on the same one you are on. Only what the person has a login for opens; anything else comes back refused" },
         account: { type: "string", description: "which login of that program to use, when the person has more than one. Only for a seat on this machine: on the server the account is the server's" },
+        ceiling: { type: "string", enum: ["read", "operate", "full"], description: "how much the new chat may do through these tools: read only looks, operate also messages, browses and asks, full also opens chats and publishes. It can only be the same as yours or narrower — leave it out to give it yours" },
         count: { type: "integer", minimum: 1, maximum: 3, description: "open the SAME mission in 2 to 3 chats at once — a race: each works in its own worktree, the person compares the results and keeps one. Only when the person asked for a race, or when the task is small and the approaches genuinely differ; each extra chat costs a model. Default 1" },
       },
       required: ["mission"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "close",
+    description: "Close a chat you opened with spawn, or this chat itself, once its work is done — the same close the person does from the card. Its window shuts and whatever runs in it stops; the transcript stays in the history, so the person can bring it back with its whole context, and its worktree stays where it is. Only for chats you opened and for yourself: any other seat belongs to the person or to the chat that opened it, and the hive refuses. Never close a chat that is still in the middle of a turn without knowing why, and never close one whose result the person has not seen yet — say what it delivered first. Closing yourself ends this conversation a moment after the call returns, so make it the last thing you do, after your final words to the person.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        seat: { type: "string", description: "the seat's name, whole or an unambiguous prefix — leave it out to close this chat itself" },
+      },
       additionalProperties: false,
     },
   },
@@ -307,6 +321,20 @@ export const PEER_TOOLS = [
     },
   },
   {
+    name: "request_secret",
+    description: "Ask the person for a secret — a token, a password, an API key — without it ever passing through this conversation. A private card opens on their screen with a password field; what they type is written to a file only they and you can read on this machine, and you get the path back, never the value. Use the file without printing it: export TOKEN=$(cat <path>) inside the command that needs it. Never cat, echo or log the value, and never ask for a secret in plain chat when this exists. The file is deleted after 24 hours. Blocks until they answer, decline or the wait runs out.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        label: { type: "string", description: "what the secret is, in the person's language, short — \"token do GitHub com repo\", \"senha do banco de staging\"" },
+        why: { type: "string", description: "one line on what you will do with it, so the person can decide" },
+        wait_seconds: { type: "number", description: `how long to wait for them, default 600, max ${1800}` },
+      },
+      required: ["label"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "ask_person",
     description: "Ask someone else on the team a question, through their own chats. They see the question on their screen, approve it, and choose which of their chats answers — nothing reaches them without that. Use it when the answer lives with another person and you cannot find it yourself. The answer arrives here as a message from them.",
     inputSchema: {
@@ -320,6 +348,38 @@ export const PEER_TOOLS = [
     },
   },
 ];
+
+const READ = "read";
+const OPERATE = "operate";
+const FULL = "full";
+
+export const TOOL_ACCESS = {
+  peers: READ, peek: READ,
+  browser_screenshot: READ, browser_snapshot: READ, browser_cookies: READ, browser_console: READ, browser_network: READ,
+  device_screenshot: READ, device_tree: READ, device_logs: READ,
+  message: OPERATE, ask: OPERATE, reply_on_page: OPERATE, rename: OPERATE, task: OPERATE, buzz: OPERATE,
+  reply_on_slack: OPERATE, ask_person: OPERATE, request_secret: OPERATE,
+  browser_navigate: OPERATE, browser_profile: OPERATE, browser_resize: OPERATE, browser_eval: OPERATE, browser_click: OPERATE,
+  browser_type: OPERATE, browser_select_option: OPERATE, browser_press_key: OPERATE, browser_wait_for: OPERATE, browser_tabs: OPERATE,
+  browser_back: OPERATE, browser_forward: OPERATE, browser_reload: OPERATE, browser_upload: OPERATE,
+  device_open: OPERATE, device_tap: OPERATE, device_swipe: OPERATE, device_type: OPERATE, device_key: OPERATE, device_close: OPERATE,
+  close: OPERATE, spawn: FULL, publish: FULL, browser_set_cookie: FULL
+};
+
+/* an agent outside the hive (a terminal, another app) reaches these tools through the
+   same socket, so the socket's owner is already the person; what it gets is a ceiling,
+   read by default and never more than operate — it can look and talk, not open chats. */
+export const EXTERNAL_CEILINGS = [READ, OPERATE];
+
+export function ceilingOf(env = process.env) {
+  if (env.HIVE_SEAT) return readCeiling(stateDir(env), env.HIVE_SEAT);
+  if (env.HIVE_CLIENT) return EXTERNAL_CEILINGS.includes(env.HIVE_CLIENT_CEILING) ? env.HIVE_CLIENT_CEILING : READ;
+  return FULL;
+}
+
+const callerOf = (self, env) => self.name || (env.HIVE_CLIENT ? `${String(env.HIVE_CLIENT).slice(0, 40)} (outside the hive)` : "");
+
+export const toolsFor = (ceiling) => PEER_TOOLS.filter((tool) => allows(ceiling, TOOL_ACCESS[tool.name]));
 
 function leafLine(leaf) {
   if (!leaf) return "";
@@ -355,14 +415,29 @@ async function target(raw, self, env) {
   return { seat: found.seat };
 }
 
-function nameless(self) {
-  if (!self.name) {
+function nameless(self, env = {}) {
+  if (!self.name && !env.HIVE_CLIENT) {
     return "this seat has no name in the hive yet, so a peer would have nobody to answer. Close and reopen it, then try again.";
   }
   return "";
 }
 
 export function peerCalls(env = process.env) {
+  const calls = rawCalls(env);
+  const guarded = {};
+  for (const [name, call] of Object.entries(calls)) {
+    guarded[name] = async (args) => {
+      const need = TOOL_ACCESS[name];
+      if (!need) return failure(`${name} has no access declared, so it does not run`);
+      const ceiling = ceilingOf(env);
+      if (!allows(ceiling, need)) return failure(`this chat runs with a "${ceiling}" ceiling, and ${name} needs "${need}" — ask the person to open it from a chat that may`);
+      return call(args);
+    };
+  }
+  return guarded;
+}
+
+function rawCalls(env) {
   const calls = {
     async browser_navigate(args) {
       const done = await browserNavigate({ url: args.url, env });
@@ -551,12 +626,25 @@ export function peerCalls(env = process.env) {
       const born = await openSeat({
         mission: args.mission, name: args.name || "", title: args.title || "", errand: args.errand || "",
         where: args.where || "", repo: args.repo || "", model: args.model || "", agent: args.agent || "", account: args.account || "",
-        count: args.count || 1, pay: (self) => spendBirths(self, asked), env
+        count: args.count || 1, ceiling: args.ceiling || "", pay: (self) => spendBirths(self, asked), env
       });
       if (born.error) return failure(born.error);
       if (born.race) return text(`opening a race of ${born.race} chats on ${born.where}: ${born.names.map((one) => `"${one}"`).join(", ")}. Each got the same mission and its place in the race, and each works in a worktree of its own. When they are done, the person compares the PRs in the day view and keeps one — the rest go to the archive.`);
       const called = born.name ? `"${born.name}"` : "a name it is still picking";
       return text(`opening a seat with ${called} on ${born.where}. It boots in a few seconds — call peers to see it, then message or ask it like any other chat.\n\nIt starts with nothing but the mission you wrote. If it comes back confused, that is the mission, not the seat.`);
+    },
+
+    async close(args) {
+      const self = await me(env);
+      const blocked = nameless(self);
+      if (blocked) return failure(blocked);
+      const raw = String(args.seat || "").trim();
+      const found = raw && raw !== self.name ? await target(raw, self, env) : { seat: null };
+      if (found.error) return failure(found.error);
+      const done = await closeSeat({ seat: found.seat, env });
+      if (done.error) return failure(done.error);
+      if (done.itself) return text("closing this chat in a moment — its transcript stays in the history. Say nothing more after this.");
+      return text(`${done.name} is closed. Its transcript stays in the history and its worktree stays where it was.`);
     },
 
     async task(args) {
@@ -583,11 +671,11 @@ export function peerCalls(env = process.env) {
 
     async message(args) {
       const self = await me(env);
-      const blocked = nameless(self);
+      const blocked = nameless(self, env);
       if (blocked) return failure(blocked);
       const found = await target(args.seat, self, env);
       if (found.error) return failure(found.error);
-      const sent = await sendSay(found.seat, args.text, { from: self.name, env });
+      const sent = await sendSay(found.seat, args.text, { from: callerOf(self, env), env });
       if (!sent.ok) return failure(`could not reach ${found.seat.name}: ${sent.error}`);
       const how = sent.how === "terminal" ? " (typed into its terminal)" : sent.queued ? " (queued behind the turn it is running)" : "";
       return text(`delivered to ${found.seat.name}${how}. It answers you by name; the answer arrives here as a message from it.`);
@@ -595,12 +683,12 @@ export function peerCalls(env = process.env) {
 
     async ask(args) {
       const self = await me(env);
-      const blocked = nameless(self);
+      const blocked = nameless(self, env);
       if (blocked) return failure(blocked);
       const found = await target(args.seat, self, env);
       if (found.error) return failure(found.error);
       if (!self.structured) {
-        const sent = await sendSay(found.seat, args.question, { from: self.name, env });
+        const sent = await sendSay(found.seat, args.question, { from: callerOf(self, env), env });
         if (!sent.ok) return failure(`could not reach ${found.seat.name}: ${sent.error}`);
         return text(`asked ${found.seat.name}, but this seat cannot wait for an answer — it arrives as a message in your conversation.`);
       }
@@ -639,6 +727,15 @@ export function peerCalls(env = process.env) {
       const sent = await sayOnSlack(args.text, { env });
       if (sent.error) return failure(sent.error);
       return text("it is on the slack thread. They answer there, and what they say arrives here as a message.");
+    },
+
+    async request_secret(args) {
+      const got = await requestSecret({ label: args.label, why: args.why || "", waitSeconds: Math.min(SECRET_WAIT_MAX_SECONDS, Number(args.wait_seconds) || 0) || undefined, env });
+      if (got.error) return failure(got.error);
+      if (got.state === "saved") return text(`the person saved "${got.label}" at ${got.path} — use it without printing it, as in: export VALUE=$(cat ${got.path}). Do not cat, echo or log it. The file is deleted in 24 hours.`);
+      if (got.state === "declined") return text("the person declined to give this secret. Carry on without it, or ask them in plain words why it is needed.");
+      if (got.state === "timeout") return text("the person did not answer in time; the card was closed. Ask again only if the work cannot go on without it.");
+      return text(`the request ended as ${got.state}.`);
     },
 
     async ask_person(args) {

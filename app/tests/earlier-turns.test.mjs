@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app } from "./dom.mjs";
 
+const { svConvFlushAll } = await app("conversation-model");
+
 const HERE = fileURLToPath(new URL("..", import.meta.url));
 const modules = readdirSync(join(HERE, "src/app")).filter((f) => f.endsWith(".js")).map((f) => readFileSync(join(HERE, "src/app", f), "utf8")).join("\n");
 const server = readFileSync(join(HERE, "server.mjs"), "utf8");
@@ -92,7 +94,7 @@ const seat = (topOfCut = 0) => {
 
 const talk = (e, turns) => { for (let i = 0; i < turns; i++) { hive.svConvLine(e, "sv-user", `pergunta ${i}`); hive.svConvSaid(e, `resposta ${i}`); } };
 
-const onScreen = (e) => e.convView.painted.at(-1).blocks.map((one) => one.key);
+const onScreen = (e) => (svConvFlushAll(), e.convView).painted.at(-1).blocks.map((one) => one.key);
 
 test("a chat that keeps talking folds the turns before the last eight under the bar, and the bar counts them", () => {
   const e = seat();
@@ -197,7 +199,7 @@ test("the jump button and the scroll that reaches the bottom both fold the chat 
   assert.match(wiring, /if \(e\.settling\) e\.settling = false;\s*else if \(y < \(e\.lastScrollY \|\| 0\)\) e\.atBottom = bottom;/, "the scroll an unfold makes to hold the page still is swallowed once");
   assert.match(wiring, /if \(e\.atBottom && !wasBottom\) svTrimTurns\(e\);/, "reaching the bottom folds");
   assert.match(wiring, /jump\.addEventListener\("click", \(\) => \{\s*e\.atBottom = true;\s*scroll\.scrollTop = scroll\.scrollHeight;\s*paintJump\(\);\s*svTrimTurns\(e\);/, "the jump button folds");
-  const restores = modules.match(/svConvShow\(e\);\s*e\.settling = true;\s*e\.scroll\.scrollTop = y \+ \(e\.scroll\.scrollHeight - tall\);/g) || [];
+  const restores = modules.match(/svConvShowNow\(e\);\s*e\.settling = true;\s*e\.scroll\.scrollTop = y \+ \(e\.scroll\.scrollHeight - tall\);/g) || [];
   assert.equal(restores.length, 2, "both the unfold from memory and the page from the server settle the scroll before the listener sees it");
 });
 

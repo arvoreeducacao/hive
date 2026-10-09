@@ -36,6 +36,7 @@ function Row(props) {
         </div>
         <div class="rt-when">{props.row.schedule}<Show when={props.row.next}>{" · "}<span class="rt-next">{props.row.next}</span></Show></div>
         <Show when={props.row.precheck}><code class="rt-pre" title={props.row.precheckHint}>{props.row.precheck}</code></Show>
+        <Show when={props.row.hook}><code class="rt-pre rt-hook" title={props.row.hookHint}>{props.row.hook}</code></Show>
         <Show when={props.row.last}><Run run={props.row.last} actions={props.actions} /></Show>
       </div>
       <div class="rt-acts">
@@ -94,6 +95,7 @@ function RtDetail(props) {
         <dt>{props.labels.where}</dt><dd>{d().where || props.labels.local}</dd>
         <dt>{props.labels.agent}</dt><dd><span class="pw-mono">{d().agent}</span></dd>
         <Show when={d().precheck}><dt>{props.labels.precheck}</dt><dd><code class="pw-mono rt-pre" title={d().precheckHint}>{d().precheck}</code></dd></Show>
+        <Show when={d().hook}><dt>webhook</dt><dd><code class="pw-mono rt-pre rt-hook" title={d().hookHint}>{d().hook}</code></dd></Show>
         <dt>{props.labels.last}</dt><dd><Show when={d().last} fallback={<span class="pw-mono">{props.labels.never}</span>}><RtRun run={d().last} actions={props.actions} /></Show></dd>
       </dl>
       <div class="pw-cap">{props.labels.mission}</div>

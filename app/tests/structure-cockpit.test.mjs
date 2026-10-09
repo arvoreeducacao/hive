@@ -1,5 +1,6 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { app, state } from "./dom.mjs";
 
 const realFetch = globalThis.fetch;
@@ -247,4 +248,12 @@ test("leaving gives every tile back to the canvas and leaves the root empty", ()
   setStructure("cockpit", { quiet: true });
   assert.equal($("structure-root").querySelector(".ck-grid").classList.contains("numbers"), false, "the numbers do not survive a trip away");
   setStructure("classic", { quiet: true });
+});
+
+test("a pane the chat opens, like the browser, sits beside the chat instead of being squeezed under it", () => {
+  const css = readFileSync(new URL("../assets/structures/cockpit.css", import.meta.url), "utf8");
+  const pane = '.ck-host > .tile.open.arting';
+  assert.match(css, new RegExp(`${pane.replace(/[.>]/g, "\\$&")} \\{ flex-direction: row; \\}`));
+  assert.match(css, new RegExp(`${pane.replace(/[.>]/g, "\\$&")} > \\.well \\{ flex: 1 1 0; min-width: 0; \\}`));
+  assert.match(css, new RegExp(`${pane.replace(/[.>]/g, "\\$&")} > \\.art \\{ flex: 1\\.4 1 0;`));
 });

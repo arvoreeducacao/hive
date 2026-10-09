@@ -1,10 +1,11 @@
-import { randomUUID } from "node:crypto";
-import { cleanRoutine, dueRoutines, editRoutine, missedRoutine, newRoutine, readRoutines, recordRun, spawnBodyOf, writeRoutines } from "../lib/routines.mjs";
+import { randomBytes, randomUUID } from "node:crypto";
+import { HOOK_BODY_MAX, cleanRoutine, dueRoutines, editRoutine, hookAllows, missedRoutine, newRoutine, noteDelivery, readRoutines, recordRun, renderHookPrompt, spawnBodyOf, writeRoutines } from "../lib/routines.mjs";
 
 export const PRECHECK_TIMEOUT = 60000;
 
-export function createRoutineDomain({ home, openJob, runJob, precheckRun, invalidate = () => {}, newId = randomUUID, now = Date.now, log = () => {} }) {
+export function createRoutineDomain({ home, openJob, runJob, precheckRun, invalidate = () => {}, newId = randomUUID, newToken = () => randomBytes(24).toString("hex"), now = Date.now, log = () => {} }) {
   let running = false;
+  const hookCalls = new Map();
 
   const all = () => readRoutines(home);
 
@@ -52,7 +53,7 @@ export function createRoutineDomain({ home, openJob, runJob, precheckRun, invali
   }
 
   function register(on, bodyOf) {
-    on(null, "/api/routines", async (req, res, url, json) => json({ routines: all(), now: now() }));
+    on("GET", "/api/routines", async (req, res, url, json) => json({ routines: all(), now: now() }));
 
     on("POST", "/api/routines", async (req, res, url, json) => {
       const body = await bodyOf(req);
@@ -62,7 +63,8 @@ export function createRoutineDomain({ home, openJob, runJob, precheckRun, invali
       const id = String(body.id || "");
       const was = id ? list.find((one) => one.id === id) : null;
       if (id && !was) return json({ error: "that routine is gone" }, 404);
-      const next = was ? editRoutine(was, clean, { now: now() }) : newRoutine(clean, { id: newId(), now: now() });
+      let next = was ? editRoutine(was, clean, { now: now() }) : newRoutine(clean, { id: newId(), now: now() });
+      if (next.trigger === "webhook" && !next.hookToken) next = { ...next, hookToken: newToken() };
       save(was ? replace(list, next) : [...list, next]);
       return json({ ok: true, routine: next });
     });
@@ -99,11 +101,44 @@ export function createRoutineDomain({ home, openJob, runJob, precheckRun, invali
     });
   }
 
-  return { register, tick, fire, precheck };
+  async function hook({ id, token, delivery = "", body = {}, query = {}, headers = {} }) {
+    const list = all();
+    const was = list.find((one) => one.id === String(id || ""));
+    const at = now();
+    const recent = hookCalls.get(id) || [];
+    const gate = hookAllows(was, { token, delivery, now: at, recent });
+    if (!gate.ok) return gate.duplicate ? { status: 200, said: { ok: true, duplicate: true } } : { status: gate.status, said: { error: gate.status === 429 ? "too many calls this minute" : "no such hook" } };
+    hookCalls.set(id, [...recent.filter((one) => at - one < 60000), at]);
+    const prompt = renderHookPrompt(was.prompt, { body, query, headers });
+    const run = await fire({ ...was, prompt }, { at });
+    const next = { ...recordRun(noteDelivery(was, delivery), { ...run, byHook: true }, { now: at }), nextAt: 0 };
+    save(replace(list, next));
+    log(`routine ${was.name}: webhook → ${run.outcome}${run.seat ? ` → ${run.seat}` : ""}`);
+    return { status: run.outcome === "ran" ? 202 : 409, said: { ok: run.outcome === "ran", run } };
+  }
+
+  function registerHook(on) {
+    on("POST", "/api/hooks", async (req, res, url, json) => {
+      let raw = "";
+      for await (const piece of req) {
+        raw += piece;
+        if (raw.length > HOOK_BODY_MAX) return json({ error: "the body is too big" }, 413);
+      }
+      let body = {};
+      try { body = raw ? JSON.parse(raw) : {}; } catch { body = { text: raw }; }
+      const query = Object.fromEntries([...url.searchParams].filter(([key]) => key !== "routine" && key !== "token"));
+      const delivery = String(req.headers["x-hive-delivery"] || req.headers["x-github-delivery"] || "").slice(0, 120);
+      const said = await hook({ id: url.searchParams.get("routine"), token: url.searchParams.get("token"), delivery, body, query, headers: req.headers });
+      return json(said.said, said.status);
+    });
+  }
+
+  return { register, registerHook, tick, fire, precheck, hook };
 }
 
 export function registerRoutineRoutes(on, context) {
   const domain = createRoutineDomain(context);
   domain.register(on, context.bodyOf);
+  domain.registerHook(on);
   return domain;
 }

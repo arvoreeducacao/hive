@@ -64,12 +64,36 @@ test("every call the tools make carries the seat's environment, never the proces
   assert.match(body, /pay: \(self\) => spendBirths\(self, asked\), env/);
 });
 
-test("the stdio server and the gateway route hand out the same tool list", () => {
+test("the stdio server and the gateway route hand out the same tool list, cut to the seat's ceiling", () => {
   const stdio = readFileSync(join(HERE, "peer", "peer-mcp.mjs"), "utf8");
-  assert.match(stdio, /import \{ PEER_TOOLS, peerCalls \} from "\.\/peer-tools\.mjs"/);
+  assert.match(stdio, /import \{ ceilingOf, peerCalls, toolsFor \} from "\.\/peer-tools\.mjs"/);
   assert.match(stdio, /const calls = peerCalls\(process\.env\);/);
-  assert.match(stdio, /if \(method === "tools\/list"\) return \{ tools: PEER_TOOLS \};/);
+  assert.match(stdio, /if \(method === "tools\/list"\) return \{ tools: toolsFor\(ceilingOf\(process\.env\)\) \};/);
   const gateway = readFileSync(join(HERE, "gateway", "gateway.mjs"), "utf8");
-  assert.match(gateway, /server\.setRequestHandler\(ListToolsRequestSchema, async \(\) => \(\{ tools: PEER_TOOLS \}\)\);/);
+  assert.match(gateway, /server\.setRequestHandler\(ListToolsRequestSchema, async \(\) => \(\{ tools: toolsFor\(ceilingOf\(seatEnv\)\) \}\)\);/);
   assert.ok(PEER_TOOLS.some((tool) => tool.name === "peers") && PEER_TOOLS.some((tool) => tool.name === "publish"));
+});
+
+test("request_secret waits on the hive and hands the seat only the path", async () => {
+  const { requestSecret, hiveDoor } = await import("../peer/peer.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const base = mkdtempSync(join(tmpdir(), "peer-secret-"));
+  mkdirSync(join(base, "sessions"), { recursive: true });
+  const calls = [];
+  let polls = 0;
+  const ask = async (door, method, path, payload) => {
+    calls.push([method, path.split("?")[0], payload]);
+    if (path === "/api/secrets/ask") return { ok: true, said: { ask: { id: "s1" } } };
+    polls += 1;
+    return { ok: true, said: { ask: polls < 2 ? { state: "pending" } : { state: "saved", path: "/tmp/x/a-s1", label: "token" } } };
+  };
+  const env = { HIVE_SEAT: "a", HIVE_STATE_DIR: base };
+  writeFileSync(hiveDoor(base), "");
+  const got = await requestSecret({ label: "token", env, ask, pause: async () => {} });
+  assert.deepEqual(got, { state: "saved", path: "/tmp/x/a-s1", label: "token" });
+  assert.equal(calls[0][0], "POST");
+  assert.equal(calls[0][2].label, "token");
+  assert.equal("value" in calls[0][2], false);
 });

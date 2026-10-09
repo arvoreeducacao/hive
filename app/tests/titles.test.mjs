@@ -55,12 +55,17 @@ test("the name belongs to one seat where it runs, not to the seat name alone", (
   assert.equal(h.myTitle("ajustar-paths", "cloud"), "Paths do Slack");
 });
 
-test("no model is ever asked for a title", () => {
-  /* the chat is named once at spawn (nameSession) and only a hand renames it after.
-     the retry-until-settled titler was a third of a much bigger bill — see the
-     simplificar-contexto-chats mission before growing one back. */
-  assert.ok(!server.includes("TITLE_PROMPT"), "the server grew a title prompt again");
+test("a title is asked for at spawn, looked at once more only when the model said it was unsure, and on request", () => {
+  /* the retry-until-settled titler was a third of a much bigger bill — see the
+     simplificar-contexto-chats mission. what stays is T3 Code's bound: one ask at spawn,
+     one refinement when the first answer flagged the subject as unknown, and a hand's ask. */
   assert.ok(!server.includes("pinnedTitle"), "the server re-titles seats on its own again");
+  const refine = slice("function maybeRefineTitle(name, where, info, label, mine) {", "async function regenerateSeatTitle");
+  assert.match(refine, /refineLater\.delete\(key\);/);
+  assert.ok(refine.indexOf("refineLater.delete(key)") < refine.indexOf("retitle("), "the refinement is spent before it is asked, so it runs once");
+  assert.match(refine, /if \(mine \|\| label !== asked\.title\) return;/);
+  const background = slice("function titleInTheBackground(name, where, prompt, agent) {", "async function chatSoFar");
+  assert.match(background, /landed && guess && said\.needsRefinement/);
 });
 
 test("a name written by hand keeps the hand's words, number or no number", () => {

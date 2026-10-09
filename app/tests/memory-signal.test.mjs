@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { app, state, views } from "./dom.mjs";
 
+const { svConvFlushAll } = await app("conversation-model");
+
 await views();
 const st = await state();
 const { svEvent } = await app("chat-and-panes");
@@ -33,7 +35,7 @@ test("memory used under a message shows one chip with the counts, right under th
   await flush();
   const kinds = e.conv.blocks.map((one) => one.kind);
   assert.deepEqual(kinds.slice(-2), ["bubble", "memory"]);
-  const chip = e.host.querySelector('.sv-mem[data-memory="used"] .mchip');
+  const chip = (svConvFlushAll(), e.host).querySelector('.sv-mem[data-memory="used"] .mchip');
   assert.ok(chip, "no chip under the message");
   assert.deepEqual([...chip.querySelectorAll(".mpart")].map((one) => one.textContent), ["2 from the team", "1 excerpt"]);
   assert.equal(chip.querySelectorAll(".msep").length, 1);
@@ -45,7 +47,7 @@ test("the chip opens inline: score, title, author and date, and the conversation
   say(e, "pergunta");
   svEvent(e, { seq: ++seq, type: "memory", kind: "used", state: "on", items: ITEMS });
   await flush();
-  const box = e.host.querySelector(".sv-mem");
+  const box = (svConvFlushAll(), e.host).querySelector(".sv-mem");
   assert.equal(box.tagName, "DETAILS", "the list expands in the flow of the chat, not in a floating layer");
   assert.equal(box.open, false);
   box.open = true;
@@ -69,7 +71,7 @@ test("the footer opens the memories panel on the shared memory the chip pointed 
   await flush();
   assert.equal(e.conv.blocks.at(-1).focus, "m1");
   document.getElementById("memories").hidden = true;
-  e.host.querySelector(".sv-mem .mopen").click();
+  (svConvFlushAll(), e.host).querySelector(".sv-mem .mopen").click();
   assert.equal(document.getElementById("memories").hidden, false);
   assert.equal(st.mem.pick, "m1");
 });
@@ -86,7 +88,7 @@ test("in the new Hive each shared memory row opens that memory in the panel", as
     say(e, "pergunta");
     svEvent(e, { seq: ++seq, type: "memory", kind: "used", state: "on", items: [ITEMS[0], { ...ITEMS[0], id: "m9", title: "outra" }, ITEMS[1], ITEMS[2]] });
     await flush();
-    const rows = [...e.host.querySelectorAll(".sv-mem .mit")];
+    const rows = [...(svConvFlushAll(), e.host).querySelectorAll(".sv-mem .mit")];
     assert.deepEqual(rows.map((one) => one.dataset.opens || ""), ["yes", "yes", "", ""], "only shared memories live in the panel");
     assert.equal(rows[1].getAttribute("role"), "button");
     assert.equal(rows[1].tabIndex, 0);
@@ -109,7 +111,7 @@ test("in the current Hive the rows stay plain text", async () => {
   say(e, "pergunta");
   svEvent(e, { seq: ++seq, type: "memory", kind: "used", state: "on", items: ITEMS });
   await flush();
-  const row = e.host.querySelector(".sv-mem .mit");
+  const row = (svConvFlushAll(), e.host).querySelector(".sv-mem .mit");
   assert.equal(row.dataset.opens, undefined);
   assert.equal(row.getAttribute("role"), null);
   st.mem.pick = "";
@@ -123,7 +125,7 @@ test("nothing relevant found leaves no chip at all", async () => {
   svEvent(e, { seq: ++seq, type: "memory", kind: "used", state: "on", items: [] });
   await flush();
   assert.equal(e.conv.blocks.some((one) => one.kind === "memory"), false);
-  assert.equal(e.host.querySelector(".sv-mem"), null);
+  assert.equal((svConvFlushAll(), e.host).querySelector(".sv-mem"), null);
   assert.equal(memoryNow("mem-empty").state, "on", "it still says the memory is on");
 });
 
@@ -132,8 +134,8 @@ test("only the parts that exist are counted", async () => {
   say(e, "oi");
   svEvent(e, { seq: ++seq, type: "memory", kind: "used", state: "limited", items: [ITEMS[2], { ...ITEMS[2], id: "c2" }] });
   await flush();
-  assert.deepEqual([...e.host.querySelectorAll(".sv-mem .mpart")].map((one) => one.textContent), ["2 excerpts"]);
-  assert.equal(e.host.querySelector(".sv-mem .msep"), null);
+  assert.deepEqual([...(svConvFlushAll(), e.host).querySelectorAll(".sv-mem .mpart")].map((one) => one.textContent), ["2 excerpts"]);
+  assert.equal((svConvFlushAll(), e.host).querySelector(".sv-mem .msep"), null);
   assert.equal(relevanceSay(0.5), "0,50");
   assert.equal(relevanceSay(null), "");
 });
@@ -143,17 +145,17 @@ test("saving to the team memory is a row of its own, not the plain tool card", a
   say(e, "guarda isso");
   svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t1", name: "mcp__plugin_claude-memory_team-memory__memory_save", input: { title: "readiness do api precisa esperar o Prisma conectar", content: "..." } }] } });
   await flush();
-  const row = e.host.querySelector('.sv-memsave[data-memory="saved"]');
+  const row = (svConvFlushAll(), e.host).querySelector('.sv-memsave[data-memory="saved"]');
   assert.ok(row, "no memory row");
-  assert.equal(e.host.querySelector('.sv-tool[data-tool$="memory_save"]'), null, "the plain card drew too");
+  assert.equal((svConvFlushAll(), e.host).querySelector('.sv-tool[data-tool$="memory_save"]'), null, "the plain card drew too");
   assert.match(row.querySelector(".mk").textContent, /saving to the team memory…/);
   assert.equal(row.querySelector(".mv").textContent, "readiness do api precisa esperar o Prisma conectar");
   assert.equal(row.querySelector(".ma").textContent, "comes in through Jev at 4:30");
   assert.ok(row.classList.contains("running"));
   svEvent(e, { seq: ++seq, type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "ok", is_error: false }] } });
   await flush();
-  assert.equal(e.host.querySelector(".sv-memsave").classList.contains("running"), false);
-  assert.match(e.host.querySelector(".sv-memsave .mk").textContent, /saved to the team memory/);
+  assert.equal((svConvFlushAll(), e.host).querySelector(".sv-memsave").classList.contains("running"), false);
+  assert.match((svConvFlushAll(), e.host).querySelector(".sv-memsave .mk").textContent, /saved to the team memory/);
 });
 
 test("a save that failed says so on the same row", async () => {
@@ -161,7 +163,7 @@ test("a save that failed says so on the same row", async () => {
   svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t2", name: "mcp__plugin_claude-memory_team-memory__memory_save", input: { title: "x" } }] } });
   svEvent(e, { seq: ++seq, type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t2", content: "boom", is_error: true }] } });
   await flush();
-  const row = e.host.querySelector(".sv-memsave");
+  const row = (svConvFlushAll(), e.host).querySelector(".sv-memsave");
   assert.ok(row.classList.contains("bad"));
   assert.match(row.querySelector(".mk").textContent, /did not save to the team memory/);
   assert.equal(row.querySelector(".ma").textContent, "try again or save it by hand");
@@ -171,7 +173,7 @@ test("another tool that happens to end in memory_save keeps the plain card", asy
   const e = seat("mem-save-other");
   svEvent(e, { seq: ++seq, type: "assistant", message: { content: [{ type: "tool_use", id: "t3", name: "mcp__other__memory_save", input: { title: "x" } }] } });
   await flush();
-  assert.equal(e.host.querySelector(".sv-memsave"), null);
+  assert.equal((svConvFlushAll(), e.host).querySelector(".sv-memsave"), null);
 });
 
 const claude = (name) => ({ name, where: "local", state: "idle", when: "1m", agent: "claude" });
@@ -255,6 +257,6 @@ test("signing in puts the login command in the seat's composer", () => {
   svEvent(e, { seq: ++seq, type: "memory", kind: "state", state: "login" });
   st.blocks = st.blocks || [];
   memoryChipClick("chip-login", "login", null);
-  assert.equal(e.host.querySelector(".sv-composer textarea").value, MEMORY_LOGIN_COMMAND);
+  assert.equal((svConvFlushAll(), e.host).querySelector(".sv-composer textarea").value, MEMORY_LOGIN_COMMAND);
   assert.equal(MEMORY_LOGIN_COMMAND, "/claude-memory:memory-login");
 });

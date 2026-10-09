@@ -8,6 +8,15 @@ export const RETRY_STEP = 500;
 export const RETRY_CAP = 10000;
 export const STALL_MS = 45000;
 export const STALL_CHECK_MS = 5000;
+export const STABLE_AFTER_MS = 30000;
+
+/* equal jitter, as T3's supervisor does it: the ceiling doubles per failure up to the
+   cap and the wait lands in its upper half, so phones that lost the same server do not
+   all knock again in the same instant. */
+export function retryDelay(attempt, random = Math.random()) {
+  const ceiling = Math.min(RETRY_CAP, RETRY_STEP * 2 ** Math.max(0, attempt - 1));
+  return Math.round(ceiling / 2 + (ceiling / 2) * random);
+}
 export const TITLE_CEILING = 160;
 export const DRAFT_CEILING = 20000;
 
@@ -673,9 +682,9 @@ export class Device {
             if (this.streamByPost && (response.status === 404 || response.status === 405)) { this.streamByPost = false; fellBack = true; }
             throw new Error(answer.error || `stream answered ${response.status}`);
           }
-          attempt = 0;
+          const upAt = Date.now();
           for (const one of this.ears) one({ kind: "state", up: true });
-          await this.readFrames(response.body);
+          await this.readFrames(response.body).finally(() => { if (Date.now() - upAt >= STABLE_AFTER_MS) attempt = 0; });
         } catch (wrong) {
           this.lastStreamWhy = wrong.message;
           for (const one of this.ears) one({ kind: "warning", message: wrong.message });
@@ -685,7 +694,7 @@ export class Device {
         if (leaving) break;
         if (fellBack) { fellBack = false; continue; }
         attempt += 1;
-        await nap(Math.min(RETRY_CAP, RETRY_STEP * attempt));
+        await nap(retryDelay(attempt));
       }
     };
     this.stream = {

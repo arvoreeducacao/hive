@@ -117,3 +117,48 @@ test("run now fires at once, on demand skips the precheck with force, and keeps 
   assert.equal((await h.call("POST", "/api/routines/run", { id: "zz" })).status, 404);
   await h.done();
 });
+
+test("a webhook routine gets its own token, never runs on the clock, and opens a chat with the call quoted in the mission", async () => {
+  const h = await harness();
+  const born = await h.call("POST", "/api/routines", { name: "PR review", prompt: "revise {{body.pull_request.url}} pedido por {{headers.x-user}} ({{headers.authorization}})", trigger: "webhook" });
+  assert.equal(born.status, 200);
+  const routine = born.value.routine;
+  assert.match(routine.hookToken, /^[0-9a-f]{48}$/);
+  assert.equal(routine.nextAt, 0);
+  assert.deepEqual(await h.domain.tick(local(2026, 9, 2, 9, 0)), []);
+  const wrong = await h.domain.hook({ id: routine.id, token: "nope", body: {} });
+  assert.equal(wrong.status, 404);
+  const ran = await h.domain.hook({ id: routine.id, token: routine.hookToken, delivery: "d1", body: { pull_request: { url: "https://x/pr/1" } }, headers: { "X-User": "jonas", Authorization: "Bearer s3cret" } });
+  assert.equal(ran.status, 202);
+  const opened = h.calls.jobs.find((one) => one[0] === "open")[1];
+  assert.match(opened.prompt, /revise https:\/\/x\/pr\/1 pedido por jonas \(\[redacted\]\)/);
+  assert.doesNotMatch(opened.prompt, /s3cret/);
+  const again = await h.domain.hook({ id: routine.id, token: routine.hookToken, delivery: "d1", body: {} });
+  assert.deepEqual(again, { status: 200, said: { ok: true, duplicate: true } });
+  assert.equal(h.calls.jobs.filter((one) => one[0] === "open").length, 1, "the same delivery opens one chat");
+  assert.equal(h.saved()[0].runs[0].byHook, true);
+  await h.done();
+});
+
+test("a webhook is rate limited per routine", async () => {
+  const h = await harness();
+  const routine = (await h.call("POST", "/api/routines", { name: "hook", prompt: "x", trigger: "webhook" })).value.routine;
+  for (let i = 0; i < 60; i++) assert.equal((await h.domain.hook({ id: routine.id, token: routine.hookToken, body: {} })).status, 202);
+  assert.equal((await h.domain.hook({ id: routine.id, token: routine.hookToken, body: {} })).status, 429);
+  h.state.now += 61000;
+  assert.equal((await h.domain.hook({ id: routine.id, token: routine.hookToken, body: {} })).status, 202);
+  await h.done();
+});
+
+test("on the server's router, where the first route that matches wins, a POST creates the routine instead of listing them", async () => {
+  const home = await mkdtemp(join(tmpdir(), "hive-routine-first-"));
+  const routes = [];
+  const domain = createRoutineDomain({ home, openJob: () => ({}), runJob: () => {}, precheckRun: async () => ({ ok: true }), newId: () => "r1" });
+  domain.register((method, path, fn) => routes.push({ method, path, fn }), async (req) => req.body || {});
+  const hit = routes.find((r) => r.path === "/api/routines" && (r.method === null || r.method === "POST"));
+  let answer = null;
+  await hit.fn({ body: NIGHTLY }, {}, new URL("http://hive/api/routines"), (value, status = 200) => { answer = { value, status }; });
+  assert.equal(answer.value.ok, true);
+  assert.equal(answer.value.routine.id, "r1");
+  await rm(home, { recursive: true, force: true });
+});

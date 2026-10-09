@@ -7,7 +7,7 @@ import { continueList, listMarks, saidPieces } from "../assets/said-lists.mjs";
 await views();
 
 const { getStructured } = await app("chat-stretches");
-const { svConvActions, svConvLine, svConvSeed } = await app("conversation-model");
+const { svConvActions, svConvLine, svConvSeed, svConvFlushAll } = await app("conversation-model");
 const { structPool } = await app("structured-seats");
 const { mountConversation } = await import(new URL("../src/views.js", import.meta.url).href);
 
@@ -54,7 +54,7 @@ test("a sent message draws its lists as lists and keeps the command and the quot
   e.convView = mountConversation(e.scroll, svConvActions(e));
   svConvLine(e, "sv-user", "/compact now\n- first\n- second\n1. one");
   svConvLine(e, "sv-user", "> quoted\n\nwhat about:\n- this");
-  const [plain, quoted] = e.scroll.querySelectorAll(".sv-user");
+  const [plain, quoted] = (svConvFlushAll(), e.scroll).querySelectorAll(".sv-user");
   assert.equal(plain.querySelector(".said-cmd")?.textContent, "/compact");
   assert.deepEqual([...plain.querySelectorAll("ul.said-list > li")].map((li) => li.textContent), ["first", "second"]);
   assert.equal(plain.querySelector("ol.said-list > li")?.textContent, "one");
@@ -71,7 +71,7 @@ test("a link in a sent message can be clicked, and the punctuation after it stay
   e.convView = mountConversation(e.scroll, svConvActions(e));
   const deck = "https://docs.google.com/presentation/d/1lGCIpm9umXTiwe37gaUDkHLOvF2JLraWQfPYjIkD2p4/edit?usp=sharing";
   svConvLine(e, "sv-user", `/compact see ${deck}.\n- the PR (https://github.com/acme/hive/pull/1125)\n[Image #1] and http:// alone`);
-  const bubble = e.scroll.querySelector(".sv-user");
+  const bubble = (svConvFlushAll(), e.scroll).querySelector(".sv-user");
   const links = [...bubble.querySelectorAll("a[href]")];
   assert.deepEqual(links.map((a) => a.getAttribute("href")), [deck, "https://github.com/acme/hive/pull/1125"]);
   assert.equal(links[0].target, "_blank");

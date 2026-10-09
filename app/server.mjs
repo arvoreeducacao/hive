@@ -1,7 +1,7 @@
 import { catalogRun as runProviderCatalog, catalogRpc as rpcProviderCatalog } from "../server/provider-catalog.mjs";
 import { createServer } from "node:http";
 import { execFile, spawn } from "node:child_process";
-import { open, readFile } from "node:fs/promises";
+import { mkdtemp, open, readFile } from "node:fs/promises";
 import { chmodSync, closeSync, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { CREDENTIAL_SAVED, loginConfirmed } from "./lib/server-login.mjs";
 import { meetingsGuideOf, serverGuideOf } from "./lib/server-guide.mjs";
@@ -36,7 +36,8 @@ import { sendToLeaf } from "./lib/leaf-page.mjs";
 import { byErrand, closedErrands, errandOf, forgetOldKin, goneKin, keepErrands, markSeen, noteErrand, readErrands, readSeen, renameErrand, withErrands, zonesOf } from "./lib/errands.mjs";
 import { seatsOfStatus, takeoverMessages } from "./lib/canopy-watch.mjs";
 import { assertSpawnArgs } from "./lib/spawn-args.mjs";
-import { freeNameAmong, nameFromAnswer, nameFromMission, namerCommand, pastHandles, slug } from "./lib/naming.mjs";
+import { freeNameAmong, nameFromMission, namerCommand, pastHandles, slug } from "./lib/naming.mjs";
+import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
 import { isPlainObject, FONT_DEFAULTS, GITHUB_REPO_URL, cleanFont, cleanKeys, cleanSound, cleanSounds, cleanVolume, cleanFlag, cleanMachine, cleanLayout, cleanBlockSize, cleanLanguage, cleanTerminal, cleanSttLanguage, cleanSttModel, cleanPet, cleanBrandFace, cleanGaze, cleanExperience, cleanExperienceOff, cleanInfoWidth, cleanInfoHeight, cleanThreadWidth, cleanPaneWidth, cleanLook, cleanStructure, cleanVisual, cleanShelf, cleanThemeName, cleanThemes, cleanAvatar, cleanWear, cleanPatch, cleanAutocompact, cleanQuietDays, cleanProviders, cleanExtensions, sameGithubRepo } from "./lib/config.mjs";
 import { seatsGoneQuiet, quietReason, QUIET_SWEEP_EVERY_MS } from "./lib/quiet-seats.mjs";
@@ -72,6 +73,13 @@ import { createRegistry as createExtensionRegistry } from "./lib/extensions.mjs"
 import { createStore as createExtensionStore } from "./lib/extension-store.mjs";
 import { registerFilesRoutes } from "./routes/files.mjs";
 import { registerChangesRoutes } from "./routes/changes.mjs";
+import { registerSecretRoutes } from "./routes/secrets.mjs";
+import { registerCheckpointRoutes } from "./routes/checkpoints.mjs";
+import { createTurnCheckpoints } from "./lib/turn-checkpoints.mjs";
+import { createTraces } from "./lib/traces.mjs";
+import { registerExternalMcpRoutes } from "./routes/external-mcp.mjs";
+import { narrowest, readCeiling, writeCeiling } from "../server/peer/ceilings.mjs";
+import { createSecretAsks } from "./lib/secret-asks.mjs";
 import { registerHistoryRoutes } from "./routes/history.mjs";
 import { registerHiveRoutes } from "./routes/hive.mjs";
 import { registerDraftRoutes } from "./routes/drafts.mjs";
@@ -1238,17 +1246,21 @@ function build(name, where, lines, statusText, mission, links = [], account = ""
   const finish = structuredInfo?.finish || null;
   const own = structuredInfo?.title || "";
   const label = mine || own || status.title || "";
+  const dirs = dirsOfSeat(seat, structuredInfo, agent);
+  maybeRefineTitle(name, where, structuredInfo, label, mine);
   rememberSeatTitle(name, where, label);
   stampTitle(name, where, label || name);
   return {
     name,
     title: label || name,
     naming: !label && namingNow.has(seatKey(where, name)),
+    retitling: retitlingNow.has(seatKey(where, name)),
     mine: !!mine,
     where,
     kind: seat?.kind || "",
     agent,
-    trees: treesOfSeat(trails, seat, dirsOfSeat(seat, structuredInfo, agent)),
+    trees: treesOfSeat(trails, seat, dirs),
+    cwd: seat?.cwd || dirs[0] || "",
     account: typeof structuredInfo?.account === "string" ? structuredInfo.account : account,
     model: structuredInfo?.model || findModel(name, lines, agent),
     state,
@@ -1325,6 +1337,7 @@ function paintLines(text, language) {
 }
 
 let cache = { at: 0, data: null };
+const turnCheckpoints = createTurnCheckpoints({ log: (line) => console.log(line) });
 let podCache = { at: 0, up: false, windows: {}, fetching: null };
 
 async function fromPod() {
@@ -1447,6 +1460,7 @@ async function collect() {
   });
   const grouped = byErrand(withErrand);
   const day = dayOf(withErrand, errands);
+  turnCheckpoints.observe(withErrand).catch(() => {});
 
   const data = {
     pod: { name: myHiveName() || POD || "", up: pod.up },
@@ -2514,28 +2528,34 @@ async function canopyPoll() {
   canopyTimer = setTimeout(canopyPoll, next && busy ? CANOPY_POLL_BUSY : CANOPY_POLL_QUIET);
 }
 
-const NAMING_PROMPT = `You name a work session from the mission it is about to run.
-Answer with the name only: no quotes, no punctuation, no explanation.
-Format: 2 to 4 words, lowercase, no accents, hyphen separated, in the language of the mission.
-The name states the subject — someone glancing at it understands what this is about.
-Examples: reader-cold-start, checkout-retry-flaky, login-redirect-loop.
-Never generic: no new-task, session, investigation, analysis.
-A link in the mission is just text: name what the mission wants done with it, never try to open it.
-Mission:
-<<<
-`;
-
-async function nameSession(prompt, agent = "claude") {
-  const outFile = join(TEMP_DIR, `hive-name-${randomUUID()}.txt`);
-  const ask = namerCommand({ agent, prompt: NAMING_PROMPT + prompt.slice(0, 2000) + "\n>>>", outFile, claude: theClaude(), engineDir: ENGINE_DIR });
-  const out = await sh(...viaBash(ask.exe, ask.args), { timeout: 45000, cwd: TEMP_DIR, own: true, input: "" });
-  let answer = out;
-  if (ask.answerIn) {
-    answer = await readFile(ask.answerIn, "utf8").catch(() => "");
-    await unlink(ask.answerIn).catch(() => {});
+/* the same ask T3 Code makes: one small model, in an empty folder, with no tools, no hooks and
+   no MCP, answering a title and whether the subject is still unknown. */
+async function askTitle({ message, previousTitle, agent = "claude", links = "" }) {
+  const dir = await mkdtemp(join(tmpdir(), "hive-title-"));
+  try {
+    const outFile = join(dir, "answer.txt");
+    const prompt = buildTitlePrompt({ message, previousTitle, linkedContext: links });
+    const ask = namerCommand({ agent, prompt, outFile, claude: theClaude(), engineDir: ENGINE_DIR, schema: TITLE_SCHEMA });
+    const out = await sh(...viaBash(ask.exe, ask.args), { timeout: 180000, cwd: dir, own: true, input: "" });
+    const answer = ask.answerIn ? await readFile(ask.answerIn, "utf8").catch(() => "") : out;
+    return titleFromAnswer(ask.pick ? ask.pick(answer) : answer);
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
   }
-  const line = ask.pick ? ask.pick(answer) : answer.split("\n").map((l) => l.trim()).filter(Boolean).pop() || "";
-  return nameFromAnswer(line, prompt);
+}
+
+/* a linked PR or issue says what the chat is about better than the words around it, so its
+   title and the start of its body go along, read with gh and given up after three seconds. */
+async function linkedTitleContext(text) {
+  const said = await Promise.all(githubLinksIn(text).map(async (url) => {
+    const kind = url.includes("/pull/") ? "pr" : "issue";
+    const out = await sh("gh", [kind, "view", url, "--json", "title,body"], { timeout: 3000 }).catch(() => "");
+    let found = null;
+    try { found = JSON.parse(out); } catch {}
+    if (!found?.title) return `${url}: unavailable`;
+    return `${url}\n${JSON.stringify({ title: String(found.title).slice(0, 300), body: String(found.body || "").slice(0, 1200) })}`;
+  }));
+  return said.join("\n\n");
 }
 
 
@@ -3282,12 +3302,12 @@ async function seatOnTheBoard(name, where) {
   return null;
 }
 
-async function titleTheSeat(name, where, title) {
+async function titleTheSeat(name, where, title, { over = false } = {}) {
   const line = cleanTitle(title);
   if (!line || !isSeatName(name)) return false;
   const found = await seatOnTheBoard(name, where);
   if (!found) { console.log(`hive: seat ${name} never showed up on the board, so its title stays`); return false; }
-  if (found.title && found.title !== name) { console.log(`hive: seat ${name} already reads "${found.title}" — the background name is not used`); return false; }
+  if (!over && found.title && found.title !== name) { console.log(`hive: seat ${name} already reads "${found.title}" — the background name is not used`); return false; }
   if (found.structured) {
     const cmd = { type: "control", op: "setTitle", title: line };
     const said = where === "cloud"
@@ -3301,10 +3321,10 @@ async function titleTheSeat(name, where, title) {
   const file = join(dir, `${name}.md`);
   let had = "";
   try { had = await readFile(file, "utf8"); } catch {}
-  if (/^title:\s*\S/im.test(had)) return false;
+  if (!over && /^title:\s*\S/im.test(had)) return false;
   try {
     await mkdir(dir, { recursive: true });
-    await writeFile(file, `title: ${line}\n${had}`, "utf8");
+    await writeFile(file, `title: ${line}\n${had.replace(/^title:.*\n?/im, "")}`, "utf8");
   } catch { return false; }
   cache.at = 0;
   return true;
@@ -3318,22 +3338,82 @@ const namingNow = new Set();
 
 const NAME_TRIES = 2;
 
+/* a title the model marked as still unsure gets one more look, with the first answer in
+   hand, once that first turn is over — never again after that, and never over a hand's name. */
+const refineLater = new Map();
+const retitlingNow = new Set();
+
 async function guessedTitle(prompt, agent) {
+  const links = await linkedTitleContext(prompt);
   for (let tries = 0; tries < NAME_TRIES; tries++) {
-    const named = await nameSession(prompt, agent);
-    if (named && named !== nameFromMission(prompt)) return named.split("-").join(" ");
+    const said = await askTitle({ message: prompt, agent, links }).catch(() => null);
+    if (said?.title) return said;
   }
-  return "";
+  return { title: "", needsRefinement: false };
 }
 
 function titleInTheBackground(name, where, prompt, agent) {
-  guessedTitle(prompt, agent).then(async (guess) => {
+  guessedTitle(prompt, agent).then(async (said) => {
+    const guess = said.title;
     const title = guess || cleanTitle(firstLine(prompt));
-    if (!guess) console.log(`hive: the model gave seat ${name} no name of its own — its first line holds the seat until it names itself`);
+    if (!guess) console.log(`hive: the model gave seat ${name} no title of its own — its first line holds the seat until it names itself`);
     const landed = await titleTheSeat(name, where, title);
     if (landed) console.log(`hive: seat ${name} now reads "${title}"`);
+    if (landed && guess && said.needsRefinement) refineLater.set(seatKey(where, name), { agent, title: cleanTitle(title), prompt });
   }).catch((wrong) => console.log(`hive: naming seat ${name} in the background failed: ${String(wrong?.message || wrong)}`))
     .finally(() => { namingNow.delete(seatKey(where, name)); cache.at = 0; });
+}
+
+async function chatSoFar(name, where, prompt = "") {
+  let raw = "";
+  if (where !== "cloud") {
+    const file = join(HIVE_HOME, "events", `${name}.ndjson`);
+    const [head, tail] = await Promise.all([headOfFile(file, 65536), eventsTail(file, 262144)]);
+    raw = `${head}\n${tail}`;
+  }
+  const said = titleMessagesOf(raw);
+  if (!said.length && prompt) said.push({ role: "user", text: prompt });
+  return said;
+}
+
+async function retitle(name, where, { previousTitle, agent = "claude", prompt = "" }) {
+  const key = seatKey(where, name);
+  if (retitlingNow.has(key)) return "";
+  retitlingNow.add(key);
+  cache.at = 0;
+  try {
+    const said = await chatSoFar(name, where, prompt);
+    const message = formatTitleContext(said);
+    if (!message) return "";
+    const links = await linkedTitleContext(said.filter((one) => one.role === "user").map((one) => one.text).join("\n"));
+    const fresh = await askTitle({ message, previousTitle, agent, links });
+    if (!fresh.title || fresh.title === previousTitle) return "";
+    return (await titleTheSeat(name, where, fresh.title, { over: true })) ? fresh.title : "";
+  } finally {
+    retitlingNow.delete(key);
+    cache.at = 0;
+  }
+}
+
+function maybeRefineTitle(name, where, info, label, mine) {
+  const key = seatKey(where, name);
+  const asked = refineLater.get(key);
+  if (!asked || !info?.finish || info.working || info.pending) return;
+  refineLater.delete(key);
+  if (mine || label !== asked.title) return;
+  retitle(name, where, { previousTitle: label, agent: asked.agent, prompt: asked.prompt })
+    .then((title) => { if (title) console.log(`hive: seat ${name} was refined to "${title}"`); })
+    .catch((wrong) => console.log(`hive: refining the title of ${name} failed: ${String(wrong?.message || wrong)}`));
+}
+
+async function regenerateSeatTitle(name, where) {
+  const seat = seatRecord(where, name);
+  const { sessions } = await collect();
+  const found = sessions.find((one) => one.name === name && one.where === where);
+  if (!found) return { ok: false, error: "no such chat" };
+  const title = await retitle(name, where, { previousTitle: found.title || name, agent: seat?.agent || found.agent || "claude", prompt: found.description || "" });
+  if (title && myTitle(name, where)) renameSeat(name, where, "");
+  return { ok: true, title: title || found.title || name };
 }
 
 async function runJob(job, body) {
@@ -3370,6 +3450,7 @@ async function runJob(job, body) {
     forgetOldKin(HIVE_HOME, job.name);
     const errand = String(body.errand || "").trim() || (by ? errandOf(readErrands(HIVE_HOME), by) : "");
     if (errand || by) noteErrand(HIVE_HOME, { seat: job.name, errand, asked: String(body.prompt || ""), at: Date.now(), race: body.race?.of || 0, by });
+    if (job.where === "local" && (by || body.ceiling)) writeCeiling(HIVE_HOME, job.name, narrowest(by ? readCeiling(HIVE_HOME, by) : "full", body.ceiling));
     cache.at = 0;
     if (job.where === "cloud" && body.structured) {
       /* `reachable` asks the cluster whether the cluster is there, which is not
@@ -6421,6 +6502,7 @@ const MONACO_TYPES = { js: "text/javascript", mjs: "text/javascript", css: "text
 
 const STATIC = {
   "/assets/experience.css": ["assets/experience.css", "text/css"],
+  "/assets/secret-asks.css": ["assets/secret-asks.css", "text/css"],
   "/assets/raycast/foundation.css": ["assets/raycast/foundation.css", "text/css"],
   "/assets/raycast/top.css": ["assets/raycast/top.css", "text/css"],
   "/assets/raycast/rail.css": ["assets/raycast/rail.css", "text/css"],
@@ -6557,6 +6639,11 @@ registerDraftRoutes(on, { bodyOf: body, HIVE_HOME, isSeatName, publish: async (n
 registerMcpRoutes(on, { bodyOf: body, isSeatName, mcpLogins, onTheServer, startMcpLogin });
 registerFilesRoutes(on, { bodyOf: body, isSeatName, seatFiles, rankFiles, fileIndex, indexCache, rankIndex, searchCode, writeRepoFile, readRepoFile, languageOf, paintLines });
 registerChangesRoutes(on, { bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange });
+const secretAsks = createSecretAsks({ dir: join(HIVE_HOME, "secrets") });
+secretAsks.sweep();
+setInterval(() => secretAsks.sweep(), 60 * 60 * 1000).unref?.();
+registerSecretRoutes(on, { bodyOf: body, secrets: secretAsks });
+registerCheckpointRoutes(on, { bodyOf: body, isSeatName, checkpoints: turnCheckpoints, seatOf: (name) => (cache.data?.sessions || []).find((s) => s.name === name && s.where === "local") || null });
 registerConfigRoutes(on, { bodyOf: body, readConfig, writeConfig, shotsUsage: () => measureShots(SHOTS_DIR) });
 const sttEngine = createSttEngine({ home: HIVE_HOME, log: (line) => console.log(line) });
 const sttInstaller = createSttInstaller({ home: HIVE_HOME, engine: sttEngine, log: (line) => console.log(line) });
@@ -6648,7 +6735,7 @@ extensions = await createExtensionRegistry({
   log: console.log
 }).load();
 registerExtensionRoutes(on, { bodyOf: body, registry: extensions, readConfig, writeConfig, invalidateFleetCache: () => { cache.at = 0; }, store: createExtensionStore({ repo: EXTENSIONS_REPO, personalDir: join(HIVE_HOME, "extensions") }) });
-registerSeatRoutes(on, { bodyOf: body, phoneBridgeFor: () => phoneBridge, openJob, runJob, readErrands, isSeatName, deliverSay, wakeAndWait, fleetTick, structuredSeat, typeText, deliverAnswer, saveFiles, bridgeFor: () => bridge, hiveHome: HIVE_HOME, serverFor, openShell, spawning, invalidateFleetCache: () => { cache.at = 0; }, renameSeat, cloudReach, killSeatWindow, historyClosedSeat, forgetSeat, seatLeftovers, removeWorktree, forgetShots, archiveSeat, reviveArchivedSeat, archivedSeats, saveArchivedSeats });
+registerSeatRoutes(on, { bodyOf: body, phoneBridgeFor: () => phoneBridge, openJob, runJob, readErrands, isSeatName, deliverSay, wakeAndWait, fleetTick, structuredSeat, typeText, deliverAnswer, saveFiles, bridgeFor: () => bridge, hiveHome: HIVE_HOME, serverFor, openShell, spawning, invalidateFleetCache: () => { cache.at = 0; }, renameSeat, regenerateSeatTitle, cloudReach, killSeatWindow, historyClosedSeat, forgetSeat, seatLeftovers, removeWorktree, forgetShots, archiveSeat, reviveArchivedSeat, archivedSeats, saveArchivedSeats });
 registerSlackRoutes(on, { bodyOf: body, isSeatName, bridgeFor: () => slackBridge, linkerFor: () => slackLinker });
 registerThreadRoutes(on, { bodyOf: body, liveSessions: () => cache.data?.sessions || [], threadKey, threadCache, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut });
 registerAccountRoutes(on, { bodyOf: body, settingsEffort, agentCatalog, readAccounts, readLedger, noteBack, hiveHome: HIVE_HOME, invalidateAccountCache: () => { accountCache = { at: 0, list: [] }; invalidateProviders(); }, runAccount });
@@ -6695,7 +6782,20 @@ registerTeamRoutes(on, {
 registerPortariaRoutes(on, { bodyOf: body, portariaState, portariaDo });
 registerCanopyRoutes(on, { canopyStateOf, canopyLiveOf: () => canopyLive, isSeatName, newestCanopyTab, canopyCall });
 
-const server = createServer(answer);
+const traces = createTraces({ dir: join(HIVE_HOME, "traces"), otlp: process.env.HIVE_OTLP_ENDPOINT || "" });
+traces.watchLoop();
+if (process.env.HIVE_OTLP_ENDPOINT) setInterval(() => { traces.flush().catch(() => {}); }, 5000).unref?.();
+on("GET", "/api/traces/summary", async (req, res, url, json) => json(traces.summary()));
+registerExternalMcpRoutes(on, { home: HIVE_HOME });
+const traced = (req, res) => {
+  const path = String(req.url || "").split("?")[0];
+  if (path.startsWith("/api/")) {
+    const end = traces.span("http", { method: req.method, route: path });
+    res.on("finish", () => end({ status: res.statusCode }));
+  }
+  return answer(req, res);
+};
+const server = createServer(traced);
 const pickProtocol = (offered) => (offered.has("hive") ? "hive" : false);
 
 const wss = new WebSocketServer({ noServer: true, handleProtocols: pickProtocol });

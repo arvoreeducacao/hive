@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, views } from "./dom.mjs";
 
+const { svConvFlushAll } = await app("conversation-model");
+
 await views();
 
 const { svDequeue, svDequeuedEarly, svQueueRefused, svWasDequeuedEarly } = await app("structured-seats");
@@ -40,8 +42,8 @@ function seatWith(...chips) {
   return e;
 }
 
-const tray = (e) => e.host.querySelector(".sv-queue");
-const lines = (e) => [...e.scroll.children];
+const tray = (e) => (svConvFlushAll(), e.host).querySelector(".sv-queue");
+const lines = (e) => [...(svConvFlushAll(), e.scroll).children];
 
 test("with no chip named, the oldest one leaves — the driver dequeues in the same order", () => {
   const [first, second] = [chip("first", "c1-aa"), chip("second", "c2-aa")];

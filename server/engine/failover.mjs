@@ -7,6 +7,13 @@ import { ACCOUNT_NAME, CLAUDE, DEFAULT_ACCOUNT, GUESSED_WAIT_MS, accountDir, acc
    takes the turn over, and the seat walks home once its own login has its hour
    back. What differs per agent is only how the running child is told about the
    new login, so that comes in as a callback. */
+export const RESUME_SLACK_MS = 30000;
+
+function earliestReset(ledger, order, fallback) {
+  const resets = order.map((name) => Number(ledger?.[name]?.until) || 0).filter((at) => at > 0);
+  return resets.length ? Math.min(...resets) : fallback;
+}
+
 export function accountFailover({
   base,
   provider = CLAUDE,
@@ -18,11 +25,42 @@ export function accountFailover({
   redo = () => false,
   busy = () => false,
   guessedWait = GUESSED_WAIT_MS,
+  later = (fn, ms) => { const timer = setTimeout(fn, ms); timer.unref?.(); return timer; },
+  forget = (timer) => clearTimeout(timer),
+  now = () => Date.now(),
 }) {
   let accountName = accountUnder(base, provider, bornIn);
   let accountDirNow = accountName ? accountDir(base, provider, accountName) : bornIn ? String(bornIn) : "";
   let homeAccount = home || accountName || DEFAULT_ACCOUNT;
   let handoffs = 0;
+  let wake = null;
+  let reread = false;
+
+  /* the T3 idea of "continue where you left off": with every login spent, the seat
+     waits for the earliest reset and runs the refused turn again by itself, instead
+     of sitting there until somebody notices the limit came back. */
+  function planResume(until) {
+    if (wake) forget(wake);
+    const at = (until || now() + guessedWait) + RESUME_SLACK_MS;
+    wake = later(() => { wake = null; resumeAfterSpent(); }, Math.max(RESUME_SLACK_MS, at - now()));
+    emit({ type: "driver", subtype: "resume_planned", at: new Date(at).toISOString() });
+  }
+
+  async function resumeAfterSpent() {
+    if (accountName === null || busy()) return;
+    const mine = accountName || DEFAULT_ACCOUNT;
+    const ledger = await readLedger(base, provider).catch(() => ({}));
+    if (!hasRoom(ledger, mine)) {
+      const order = await accountOrder(base, homeAccount, provider).catch(() => []);
+      const next = pickAccount({ order, current: mine, ledger });
+      if (!next) return planResume(0);
+      try { moveTo(next === DEFAULT_ACCOUNT ? "" : next, "came-back"); } catch { return planResume(0); }
+    } else {
+      await noteBack(base, mine, provider).catch(() => {});
+    }
+    handoffs = 0;
+    if (redo()) emit({ type: "driver", subtype: "resumed_after_limit", account: accountName || DEFAULT_ACCOUNT });
+  }
 
   function moveTo(wanted, why = "asked") {
     if (wanted && !ACCOUNT_NAME.test(wanted)) throw new Error("no account goes by that name");
@@ -40,6 +78,12 @@ export function accountFailover({
   async function passTheTurnOn(spent) {
     if (accountName === null) return false;
     const mine = accountName || DEFAULT_ACCOUNT;
+    if (spent.why === "login" && !reread) {
+      reread = true;
+      apply({ name: accountName, dir: accountDirNow, why: "relogin" });
+      emit({ type: "driver", subtype: "login_reread", account: mine });
+      return redo();
+    }
     const until = spent.until || (spent.why === "login" ? 0 : Date.now() + guessedWait);
     await noteSpent(base, mine, { until, why: spent.why, says: spent.says, provider }).catch(() => {});
     const order = await accountOrder(base, homeAccount, provider).catch(() => []);
@@ -50,7 +94,8 @@ export function accountFailover({
     const ledger = await readLedger(base, provider).catch(() => ({}));
     const next = pickAccount({ order, current: mine, ledger });
     if (!next) {
-      emit({ type: "driver", subtype: "every_account_spent", account: mine, until: until || null, says: spent.says });
+      emit({ type: "driver", subtype: "every_account_spent", account: mine, until: until || null, why: spent.why, says: spent.says });
+      if (spent.why === "spent") planResume(earliestReset(ledger, order, until));
       return false;
     }
     handoffs += 1;
@@ -67,7 +112,11 @@ export function accountFailover({
 
   async function turnEnded(spent) {
     if (spent && await passTheTurnOn(spent)) return true;
-    if (!spent) handoffs = 0;
+    if (!spent) {
+      handoffs = 0;
+      reread = false;
+      if (wake) { forget(wake); wake = null; }
+    }
     return false;
   }
 
@@ -93,6 +142,8 @@ export function accountFailover({
     get dir() { return accountDirNow; },
     get home() { return homeAccount; },
     get handoffs() { return handoffs; },
+    get resumeArmed() { return !!wake; },
+    resumeAfterSpent,
     setHome(name) { if (name) homeAccount = name; },
     moveTo,
     passTheTurnOn,

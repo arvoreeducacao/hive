@@ -277,8 +277,8 @@ const MAC_KEYS = {
   openFile: { meta: true, code: "KeyP" },
   searchCode: { meta: true, shift: true, code: "KeyF" },
   compose: { alt: true, code: "KeyM" },
-  talk: { alt: true, shift: true, code: "Space" },
-  dim: { meta: true, code: "KeyD" },
+  talk: { meta: true, code: "KeyD" },
+  dim: { alt: true, code: "KeyQ" },
   bar: { meta: true, code: "KeyB" },
   plane: { alt: true, code: "KeyL" }
 };

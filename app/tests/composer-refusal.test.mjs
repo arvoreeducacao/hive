@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, views } from "./dom.mjs";
 
+const { svConvFlushAll } = await app("conversation-model");
+
 await views();
 
 const { getStructured } = await app("chat-stretches");
@@ -21,7 +23,7 @@ const seat = () => {
   return e;
 };
 
-const warnings = (e) => [...e.scroll.querySelectorAll(".sv-meta.warn")].map((el) => el.textContent);
+const warnings = (e) => [...(svConvFlushAll(), e.scroll).querySelectorAll(".sv-meta.warn")].map((el) => el.textContent);
 
 test("a message the driver never took says so, instead of leaving an untouched box", async () => {
   const e = seat();
@@ -52,9 +54,9 @@ test("a handle that fits two chats says so in the conversation, and the words st
     { name: "api-payload", where: "local", state: "idle", title: "api-payload", structured: true },
     { name: "api-webhooks", where: "local", state: "idle", title: "api-webhooks", structured: true },
   ];
-  const box = e.host.querySelector(".sv-composer textarea");
+  const box = (svConvFlushAll(), e.host).querySelector(".sv-composer textarea");
   box.value = "confere com #api antes";
-  e.host.querySelector(".sv-composer").dispatchEvent(new Event("submit"));
+  (svConvFlushAll(), e.host).querySelector(".sv-composer").dispatchEvent(new Event("submit"));
   await new Promise((go) => setTimeout(go, 0));
   st.data.sessions = held;
   assert.equal(warnings(e).length, 1);

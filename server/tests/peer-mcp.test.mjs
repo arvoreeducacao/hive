@@ -91,7 +91,7 @@ test("the peer tools introduce themselves the way an mcp server has to", async (
     assert.equal(hello.result.serverInfo.name, "hive");
     assert.ok(hello.result.capabilities.tools);
     const list = (await client.call("tools/list", {})).result.tools.map((t) => t.name);
-    assert.deepEqual(list, ["peers", "message", "ask", "peek", "publish", "reply_on_page", "browser_navigate", "browser_screenshot", "browser_profile", "browser_set_cookie", "browser_cookies", "browser_resize", "browser_eval", "browser_snapshot", "browser_click", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for", "browser_tabs", "browser_back", "browser_forward", "browser_reload", "browser_upload", "browser_network", "browser_console", "device_open", "device_screenshot", "device_tap", "device_swipe", "device_type", "device_key", "device_tree", "device_logs", "device_close", "spawn", "rename", "task", "buzz", "reply_on_slack", "ask_person"]);
+    assert.deepEqual(list, ["peers", "message", "ask", "peek", "publish", "reply_on_page", "browser_navigate", "browser_screenshot", "browser_profile", "browser_set_cookie", "browser_cookies", "browser_resize", "browser_eval", "browser_snapshot", "browser_click", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for", "browser_tabs", "browser_back", "browser_forward", "browser_reload", "browser_upload", "browser_network", "browser_console", "device_open", "device_screenshot", "device_tap", "device_swipe", "device_type", "device_key", "device_tree", "device_logs", "device_close", "spawn", "close", "rename", "task", "buzz", "reply_on_slack", "request_secret", "ask_person"]);
   } finally {
     client.stop();
     await rm(base, { recursive: true, force: true });

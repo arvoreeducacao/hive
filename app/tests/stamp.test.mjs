@@ -19,7 +19,7 @@ function slice(from, to) {
 }
 
 const { getStructured, svGutter } = await app("chat-stretches");
-const { svConvActions, svConvPush, svConvSeed } = await app("conversation-model");
+const { svConvActions, svConvPush, svConvSeed, svConvFlushAll } = await app("conversation-model");
 const { structPool, svRunTail, svRunText, svSaidNear } = await app("structured-seats");
 const { mountConversation } = await import(new URL("../src/views.js", import.meta.url).href);
 
@@ -39,7 +39,7 @@ const bubble = (e, text) => svConvPush(e, { key: `k${e.conv.blocks.length}`, kin
 const worked = (e) => svConvPush(e, { key: `k${e.conv.blocks.length}`, kind: "tool", keep: true, running: false, face: "misc", arg: "", items: [] });
 
 const stampedInModel = (e) => e.conv.blocks.filter((one) => one.stamped);
-const stampedOnScreen = (e) => [...e.scroll.querySelectorAll(".stamped")];
+const stampedOnScreen = (e) => [...(svConvFlushAll(), e.scroll).querySelectorAll(".stamped")];
 const shut = (e) => { e.convView.dispose(); structPool.delete(e.name); };
 
 test("three things said in a row carry one stamp, on the last of them", () => {
@@ -98,7 +98,7 @@ test("hovering the first block of a run finds the stamp at the end of it", () =>
   said(e, "um");
   worked(e);
   said(e, "dois");
-  const blocks = [...e.scroll.querySelectorAll(".sv-msg")];
+  const blocks = [...(svConvFlushAll(), e.scroll).querySelectorAll(".sv-msg")];
   assert.equal(svRunTail(blocks[0]), blocks[1]);
   assert.equal(svSaidNear(blocks[0], false), blocks[1], "the work between them is stepped over");
   shut(e);
@@ -108,7 +108,7 @@ test("a run still being written has no stamp to light yet", () => {
   const e = pane();
   said(e, "um");
   said(e, "", { streaming: true, parts: [] });
-  const blocks = [...e.scroll.querySelectorAll(".sv-msg")];
+  const blocks = [...(svConvFlushAll(), e.scroll).querySelectorAll(".sv-msg")];
   assert.equal(svRunTail(blocks[0]), null);
   shut(e);
 });

@@ -136,9 +136,12 @@ document.addEventListener("keyup", trackHold, true);
 
 let talkHeldSince = 0;
 
-const talkKeyLetGo = (e, bound) => e.code === bound.code
-  || (bound.ctrl && !e.ctrlKey) || (bound.shift && !e.shiftKey)
-  || (bound.alt && !e.altKey) || (bound.meta && !e.metaKey);
+const talkKeyLetGo = (e, bound) => {
+  const modifierLetGo = (bound.ctrl && !e.ctrlKey) || (bound.shift && !e.shiftKey)
+    || (bound.alt && !e.altKey) || (bound.meta && !e.metaKey);
+  const held = bound.ctrl || bound.shift || bound.alt || bound.meta;
+  return held ? modifierLetGo : e.code === bound.code;
+};
 
 document.addEventListener("keyup", (e) => {
   if (!talking()) return;
@@ -609,4 +612,4 @@ document.addEventListener("paste", async (e) => {
   return sendFiles(target, shots);
 });
 
-export { HOLD_WAIT, HOLD_WORD, MOD_KEYS, SHOT_EDGE, attachToMission, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, trackHold, tuiAttachImage, tuiTrayPaint };
+export { HOLD_WAIT, HOLD_WORD, MOD_KEYS, SHOT_EDGE, attachToMission, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayPaint };

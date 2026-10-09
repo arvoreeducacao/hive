@@ -94,6 +94,15 @@ test("a seat that never left the shared checkout says which repo, and no branch 
   await rm(dir, { recursive: true, force: true });
 });
 
+test("a seat on the shared checkout still says main, the one branch nobody leaves behind", async () => {
+  const dir = await sandbox();
+  const main = await repo(dir, "dev-workspaces");
+
+  const trees = seatTrees({ dirs: [main] });
+  assert.deepEqual(trees.map((t) => t.branch), ["main"]);
+  await rm(dir, { recursive: true, force: true });
+});
+
 test("the list is capped, so a card never grows a tail of chips", async () => {
   const dir = await sandbox();
   const made = [];

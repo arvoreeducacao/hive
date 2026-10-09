@@ -3178,10 +3178,22 @@ function svEvent(e, ev) {
         ? phrase("{gone} had no room left until {when} — {here} picked the turn up from here", { gone, here, when: artClock(ev.until) })
         : phrase("{gone} had no room left — {here} picked the turn up from here", { gone, here }));
     }
+    if (ev.subtype === "login_reread") {
+      return void svLine(e, "sv-meta", phrase("{gone} answered with an expired login — this chat reopened it and is trying once more", { gone: ev.account || "default" }));
+    }
     if (ev.subtype === "every_account_spent") {
+      if (ev.why === "login") return void svLine(e, "sv-meta warn", phrase("the login on {gone} expired — sign in again in Settings, then send the message again", { gone: ev.account || "default" }));
+      e.limitedUntil = Date.parse(ev.until || "") || Number(ev.until) || Date.now();
       return void svLine(e, "sv-meta", ev.until
         ? phrase("every login on this machine is out of room — {gone} comes back {when}", { gone: ev.account || "default", when: artClock(ev.until) })
         : phrase("every login on this machine is out of room"));
+    }
+    if (ev.subtype === "resume_planned") {
+      return void svLine(e, "sv-meta", phrase("it picks the turn up again by itself at {when}", { when: artClock(ev.at) }));
+    }
+    if (ev.subtype === "resumed_after_limit") {
+      e.limitedUntil = 0;
+      return void svLine(e, "sv-meta", phrase("{here} has room again — the refused turn runs again", { here: ev.account || "default" }));
     }
     if (ev.subtype === "account_came_home") {
       return void svLine(e, "sv-meta", phrase("{here} has room again, so this chat is back on it", { here: ev.account || "default" }));
@@ -3191,6 +3203,7 @@ function svEvent(e, ev) {
        only left on the next init, and the take back button was dead for the whole gap. */
     if (ev.subtype === "dispatched") {
       e.driverDequeues = true;
+      e.limitedUntil = 0;
       if (live) { e.turnOpen = true; svActivity(e, "working"); }
       const held = (e.queuedEls || []).find((el) => el.dataset.cid === ev.cid);
       if (held && live) svDequeue(e, held);

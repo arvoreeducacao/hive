@@ -8,7 +8,7 @@ import { app, views } from "./dom.mjs";
 await views();
 
 const { svAppend } = await app("structured-seats");
-const { svConvSaid, svConvThink, svConvTool, svConvToolLanded } = await app("conversation-model");
+const { svConvFlushAll, svConvSaid, svConvThink, svConvTool, svConvToolLanded } = await app("conversation-model");
 const { getStructured } = await app("chat-stretches");
 
 const SRC = fileURLToPath(new URL("../src", import.meta.url));
@@ -60,9 +60,9 @@ const failedCard = (e, opts) => {
 
 const prose = (e) => svConvSaid(e, "here is what came out of it");
 const summary = (el) => el.querySelector(".wname").textContent;
-const blocks = (e) => [...e.scroll.children].filter((c) => c.classList.contains("sv-work"));
-const kinds = (e) => [...e.scroll.children].map((c) => c.className.split(" ")[0]);
-const grouped = (e) => [...e.scroll.children].find((c) => c.classList.contains("sv-work"));
+const blocks = (e) => (svConvFlushAll(), [...e.scroll.children]).filter((c) => c.classList.contains("sv-work"));
+const kinds = (e) => (svConvFlushAll(), [...e.scroll.children]).map((c) => c.className.split(" ")[0]);
+const grouped = (e) => (svConvFlushAll(), [...e.scroll.children]).find((c) => c.classList.contains("sv-work"));
 const args = (el) => [...el.children].map((c) => c.querySelector(".targ").textContent);
 
 test("a run of tool calls folds into one block when the answer starts", () => {

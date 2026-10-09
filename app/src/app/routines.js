@@ -14,8 +14,13 @@ const TRIGGER_SAY = {
   daily: (r) => phrase("every day at {time}", { time: r.time }),
   weekdays: (r) => phrase("weekdays at {time}", { time: r.time }),
   weekly: (r) => phrase("every {day} at {time}", { day: weekdaySay(r.weekday ?? 1), time: r.time }),
-  cron: (r) => `cron ${r.cron}`
+  cron: (r) => `cron ${r.cron}`,
+  webhook: () => phrase("when its webhook is called")
 };
+
+const hookLine = (r) => (r.trigger === "webhook" && r.hookToken
+  ? `curl --unix-socket ~/.hive/hive.sock -X POST "http://hive/api/hooks?routine=${r.id}&token=${r.hookToken}" -d '{"text":"..."}'`
+  : "");
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
@@ -62,6 +67,7 @@ function routineRowModel(r, now) {
     schedule: (TRIGGER_SAY[r.trigger] || (() => ""))(r),
     next: r.enabled && r.nextAt ? phrase("next {when}", { when: inSay(r.nextAt - now) }) : "",
     precheck: r.precheck || "", precheckHint: phrase("runs first — a non-zero exit skips the round"),
+    hook: hookLine(r), hookHint: phrase("call this to open the chat; the mission can quote the call with {{body.field}}, {{query.field}} and {{headers.name}}"),
     last: lastRunModel(r),
     runSay: phrase("run now"), toggleSay: r.enabled ? phrase("turn off") : phrase("turn on"), editSay: phrase("edit"), removeSay: phrase("remove")
   };
@@ -161,8 +167,8 @@ function routineFormHtml(edit) {
   return `<form class="rt-editor" id="rt-editor">
     <div class="rt-grid">
       ${FIELD("rt-name", phrase("name — also the name of the chat"), `<input id="rt-name" maxlength="60" value="${esc(r.name)}" placeholder="${phrase("weekday triage")}">`)}
-      ${FIELD("rt-trigger", phrase("when"), `<select id="rt-trigger">${["hourly", "daily", "weekdays", "weekly", "cron"].map((t) => option(t, phrase(t), r.trigger === t)).join("")}</select>`)}
-      ${FIELD("rt-time", phrase("time"), `<input id="rt-time" value="${esc(r.time)}" placeholder="09:00" ${r.trigger === "hourly" || r.trigger === "cron" ? "disabled" : ""}>`)}
+      ${FIELD("rt-trigger", phrase("when"), `<select id="rt-trigger">${["hourly", "daily", "weekdays", "weekly", "cron", "webhook"].map((t) => option(t, phrase(t), r.trigger === t)).join("")}</select>`)}
+      ${FIELD("rt-time", phrase("time"), `<input id="rt-time" value="${esc(r.time)}" placeholder="09:00" ${r.trigger === "hourly" || r.trigger === "cron" || r.trigger === "webhook" ? "disabled" : ""}>`)}
       ${FIELD("rt-weekday", phrase("day of the week"), `<select id="rt-weekday" ${r.trigger === "weekly" ? "" : "disabled"}>${WEEKDAYS.map((d, i) => option(String(i), weekdaySay(i), Number(r.weekday) === i)).join("")}</select>`)}
       ${FIELD("rt-cron", phrase("cron line"), `<input id="rt-cron" value="${esc(r.cron)}" placeholder="0 18 * * 1-5" ${r.trigger === "cron" ? "" : "disabled"}>`)}
       ${FIELD("rt-where", phrase("where it runs"), `<select id="rt-where">${option("local", phrase("local · your machine"), r.where !== "cloud")}${option("cloud", phrase("cloud · server"), r.where === "cloud")}</select>`)}

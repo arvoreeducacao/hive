@@ -59,6 +59,7 @@ import "./meetings-prefs.js";
 import "./slack-prefs.js";
 import "./themes.js";
 import "./hold-numbers.js";
+import "./secret-asks.js";
 import "./drag-files.js";
 import "./welcome.js";
 import "./face-door.js";
