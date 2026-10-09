@@ -4184,8 +4184,7 @@ async function configureSessionSync({ repo }) {
   let cloud = `server asleep — the doctor will flag it, or ${askYourHost("pod-cloud-sessions.sh", "set the sync up there")}`;
   const cloudScript = deploymentScript("pod-cloud-sessions.sh");
   if (CLOUD && cloudScript && (await podUp())) {
-    const script = join(REPO, cloudScript);
-    const r = await shr(...viaBash("bash", [script, DEV, url]), { timeout: 600000, env: { HIVE_HUB: HUB } });
+    const r = await shr(...viaBash("bash", [cloudScript, DEV, url]), { timeout: 600000, env: { HIVE_HUB: HUB } });
     cloud = r.ok ? "configured" : `pod setup failed: ${(r.error || r.out).slice(-200)}`;
   }
   return { ok: true, repo: url, cloud };

@@ -32,6 +32,12 @@ test("the deployment's script is named by its whole path, so it runs from wherev
     "the app builds a deployment script path that only resolves from one working directory");
 });
 
+test("a deployment script is run by the path it was found at, never joined to the checkout a second time", () => {
+  const source = readFileSync(join(REPO, "app/server.mjs"), "utf8");
+  assert.doesNotMatch(source, /join\(REPO, (cloudScript|script)\)/,
+    "a whole path joined to the checkout again points nowhere, so the script quietly never runs");
+});
+
 test("a deployment the hub carries has its scripts found there, and the checkout still wins when it has them", () => {
   const inHub = (place) => place.startsWith("/hub/");
   assert.equal(deploymentScriptIn({ repo: "/repo", hub: "/hub", dir: "acme", name: "pod-power.sh", exists: inHub }), "/hub/acme/scripts/pod-power.sh");
