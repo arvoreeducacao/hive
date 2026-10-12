@@ -4,7 +4,7 @@ set -euo pipefail
 NAME="${1:?usage: setup.sh <your-name> [path-to-your-workspace]}"
 HUB="${2:-}"
 DIR="$(cd "$(dirname "$0")/../.." && pwd)"
-BIN="$HOME/.local/bin"
+BIN="${HIVE_BIN:-$HOME/.local/bin}"
 HIVE_HOME="${HIVE_HOME:-$HOME/.hive}"
 
 OS="$(uname -s)"
@@ -34,16 +34,18 @@ for leftover in $OLD_CLI_FILES; do
 done
 swept=""
 if [ -n "$old_cli" ]; then
+  SWEPT="$HIVE_HOME/swept/$(date -u +%Y%m%dT%H%M%SZ)"
   for leftover in hive $OLD_CLI_FILES; do
     [ -e "$BIN/$leftover" ] || continue
-    rm -f "$BIN/$leftover"
+    mkdir -p "$(dirname "$SWEPT/$leftover")"
+    mv -f "$BIN/$leftover" "$SWEPT/$leftover"
     swept=1
   done
   for folder in doctor lib bridge peer engine; do
     rmdir "$BIN/$folder" 2>/dev/null || true
   done
 fi
-[ -n "$swept" ] && echo "removed the old hive command from $BIN — nothing lives on your PATH any more, the app carries what it runs"
+[ -n "$swept" ] && echo "removed the old hive command from $BIN — nothing lives on your PATH any more, the app carries what it runs. What was there is kept in $SWEPT"
 
 REQUIRED="tmux git gh"
 [ -n "$WINDOWS" ] && REQUIRED="git gh"
