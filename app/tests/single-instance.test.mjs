@@ -65,6 +65,13 @@ test("the exit code means the same thing on both sides", () => {
   assert.equal(fromServer[1], fromApp[1]);
 });
 
+test("a second app launch leaves before it opens a window or serves the socket", () => {
+  const lock = /^if \(!app\.requestSingleInstanceLock\(\)\) (.+);$/m.exec(main);
+  assert.ok(lock, "main.js no longer asks for the single instance lock");
+  assert.equal(lock[1], "return app.exit(0)", "app.quit() only schedules the quit, so the rest of main.js still runs");
+  assert.ok(lock.index < main.indexOf("app.whenReady()"), "the lock is asked for after the app already got ready");
+});
+
 const APP_DEPS = existsSync(join(HERE, "node_modules", "jsonc-parser"));
 
 test("a hive whose predecessor was killed still opens the door",
