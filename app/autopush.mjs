@@ -4,7 +4,7 @@ import { onePass, rootsOf } from "../server/autopush.mjs";
 
 const asked = process.argv.indexOf("--hub");
 const hub = asked > 0 ? process.argv[asked + 1] || "" : process.env.HIVE_HUB || "";
-const state = join(homedir(), ".hive", "autopush-state");
+const state = join(process.env.HIVE_HOME || join(homedir(), ".hive"), "autopush-state");
 const roots = rootsOf({ hub });
 const every = Number(process.env.HIVE_AUTOPUSH_EVERY || 120) * 1000;
 const say = (line) => process.stdout.write(`${line}\n`);

@@ -31,7 +31,7 @@ const { Device } = await import(serverModule("sync/device.mjs"));
 const { fileStore } = await import(serverModule("sync/store.mjs"));
 
 function readConfigLines() {
-  const file = join(homedir(), ".hive", "config");
+  const file = join(process.env.HIVE_HOME || join(homedir(), ".hive"), "config");
   const held = {};
   if (!existsSync(file)) return held;
   for (const line of readFileSync(file, "utf8").split("\n")) {
