@@ -14,7 +14,7 @@ await views();
 const { ACTIONS } = await app("core");
 const shelf = await app("shelf");
 const { LIVE_AFTER_MS } = await import("../src/panels/shelf.jsx").catch(() => ({ LIVE_AFTER_MS: 300 }));
-const { SHELF_BANDS, SHELF_TABS, closeShelf, openShelf, openShelfPage, paintPageChrome, shelfBandOf, shelfBandShut, shelfCardChips, shelfDeepLink, shelfGithubUrl, shelfLabelState, shelfOnScreen, shelfRows, shelfStatesOf, shelfTabsOf, shelfVersionsOf } = shelf;
+const { SHELF_BANDS, SHELF_TABS, closeShelf, openShelf, openShelfPage, paintPageChrome, shelfBandOf, shelfBandShut, shelfCardChips, shelfCardModel, shelfDeepLink, shelfGithubUrl, shelfLabelState, shelfMainTab, shelfOnScreen, shelfRows, shelfStatesOf, shelfTabsOf, shelfVersionsOf } = shelf;
 await app("hold-numbers");
 await app("themes");
 
@@ -119,29 +119,92 @@ test("the state chip filters by the whole family, not by the exact label", () =>
   assert.deepEqual(shelfRows(), []);
 });
 
-test("a mission whose plan is still in review is found by both filters, not only by the newest tab", () => {
-  assert.deepEqual(shelfStatesOf(splitPage()).sort(), ["decided", "in-review"]);
+test("a page is found under the state of the page, whatever its tabs were labelled", () => {
+  assert.deepEqual(shelfStatesOf(splitPage()), ["in-review"]);
   seed({ me: "jonas", pages: [splitPage()] });
   filters("team", "in-review", "");
   assert.deepEqual(shelfRows().map((p) => p.slug), ["missao-partida"]);
   filters("team", "decided", "");
-  assert.deepEqual(shelfRows().map((p) => p.slug), ["missao-partida"]);
-  filters("team", "delivered", "");
   assert.deepEqual(shelfRows(), []);
 });
 
-test("the card says the state of the documento and names only the tab that disagrees", () => {
-  assert.deepEqual(shelfCardChips(splitPage()).map((chip) => chip.say), ["decided", "plano · in-review"]);
+test("the card says one state, the page's", () => {
+  assert.deepEqual(shelfCardChips(splitPage()).map((chip) => chip.say), ["in-review"]);
   assert.deepEqual(shelfCardChips(pageOf()).map((chip) => chip.say), ["in-review"]);
-  assert.deepEqual(shelfCardChips(pageOf({ label: "", tabs: { documento: { versions: [{ n: 1, label: "panorama" }] } } }))
+  assert.deepEqual(shelfCardChips(pageOf({ label: "panorama", tabs: { documento: { versions: [{ n: 1, label: "draft" }] } } }))
     .map((chip) => chip.say), ["panorama"]);
 });
 
-test("a page lands in the band of the soonest state any of its tabs is in", () => {
+test("a page lands in the band of its own state, not of its most delayed tab", () => {
   assert.equal(shelfBandOf(splitPage()).key, "waiting");
-  assert.equal(shelfBandOf(pageOf({ label: "decided", tabs: { documento: { versions: [{ n: 1, label: "decided" }] } } })).key, "building");
+  assert.equal(shelfBandOf(splitPage({ label: "delivered" })).key, "done");
+  assert.equal(shelfBandOf(pageOf({ label: "decided", tabs: { documento: { versions: [{ n: 1, label: "draft" }] } } })).key, "building");
   assert.equal(shelfBandOf(deliveredPage()).key, "done");
-  assert.equal(shelfBandOf(pageOf({ label: "qui-27-08-duplicatas-bot", tabs: { documento: { versions: [{ n: 1, label: "qui-27-08-duplicatas-bot" }] } } })).key, "stateless");
+  assert.equal(shelfBandOf(pageOf({ label: "qui-27-08-duplicatas-bot" })).key, "stateless");
+});
+
+const withProposals = (over = {}) => pageOf({
+  slug: "missao-com-telas", label: "decided",
+  tabs: {
+    documento: { versions: [{ n: 3, label: "decided", at: 3 }] },
+    telas: { kind: "link", proposals: [
+      { url: "https://screenbook.example.com/reader/?proposal=antes", product: "reader", id: "antes", screens: { lista: 1 }, at: 1 },
+      { url: "https://screenbook.example.com/reader/?proposal=etapas", product: "reader", id: "etapas", screens: { lista: 2, vazia: 1 }, at: 2 }
+    ] }
+  },
+  thumbs: { documento: 3, telas: "proposal" },
+  ...over
+});
+
+test("a page with screenbook proposals shows the telas tab, opens on the documento and wears the proposal as its cover", () => {
+  const page = withProposals();
+  assert.deepEqual(shelfTabsOf(page), ["documento", "telas"]);
+  assert.equal(shelfMainTab(page), "documento");
+  const card = shelfCardModel(page);
+  assert.equal(card.tab, "documento");
+  assert.equal(card.thumb.img, "/api/shelf/thumb?slug=missao-com-telas&tab=telas&v=proposal");
+  assert.equal(card.thumb.src, "", "a screenbook picture has no live page to swap in on hover");
+  assert.equal(card.thumb.say, "2 proposals · 2 tabs");
+  const plain = shelfCardModel(withProposals({ thumbs: { documento: 3 } }));
+  assert.equal(plain.thumb.img, "/api/shelf/thumb?slug=missao-com-telas&tab=documento&v=3", "without the picture the documento is the cover");
+});
+
+test("the telas tab counts proposals and lists them newest first where the versions would be", () => {
+  const host = document.createElement("div");
+  const shown = paintPageChrome(host, { page: withProposals(), tab: "telas", version: 0, onTab: () => {}, onVersion: () => {} });
+  assert.deepEqual([...host.querySelectorAll(".sh-tab i")].map((one) => one.textContent), ["v3", "2 proposals"]);
+  assert.deepEqual([...host.querySelectorAll(".sh-ver")].map((one) => [one.textContent, one.getAttribute("aria-pressed")]), [["reader/etapas", "true"], ["reader/antes", "false"]]);
+  assert.equal(shown.tab, "telas");
+  const picked = [];
+  paintPageChrome(host, { page: withProposals(), tab: "telas", version: 1, onTab: () => {}, onVersion: (n) => picked.push(n) });
+  assert.equal(host.querySelector('.sh-ver[aria-pressed="true"]').textContent, "reader/antes");
+  host.querySelector(".sh-ver").click();
+  assert.deepEqual(picked, [2]);
+  const single = withProposals();
+  single.tabs.telas.proposals = single.tabs.telas.proposals.slice(1);
+  paintPageChrome(host, { page: single, tab: "telas", version: 0, onTab: () => {}, onVersion: () => {} });
+  assert.equal(host.querySelectorAll(".sh-ver").length, 0, "one proposal needs no picker");
+});
+
+test("the telas tab opens the screenbook itself, logged in like the chat's browser, and the github button stays away", () => {
+  seed({ me: "jonas", pages: [withProposals()] });
+  filters("team", "", "");
+  openShelf();
+  openShelfPage(withProposals(), "telas");
+  const web = document.querySelector(".sh-stage webview");
+  assert.equal(web.tagName.toLowerCase(), "webview");
+  assert.equal(web.getAttribute("partition"), "persist:seat-browser");
+  assert.equal(web.dataset.here, "https://screenbook.example.com/reader/?proposal=etapas");
+  assert.equal(web.style.display, "");
+  assert.equal(document.getElementById("sh-frame").style.display, "none");
+  assert.equal(document.getElementById("sh-vf").textContent, "https://screenbook.example.com/reader/?proposal=etapas");
+  assert.equal(document.getElementById("sh-gh").style.display, "none", "the app css shows a hidden button, so it is put away by hand");
+  document.querySelector('#sh-tabs .sh-ver[aria-pressed="false"]').click();
+  assert.equal(document.querySelector(".sh-stage webview").dataset.here, "https://screenbook.example.com/reader/?proposal=antes");
+  document.querySelector("#sh-tabs .sh-tab").click();
+  assert.equal(document.querySelector(".sh-stage webview").style.display, "none");
+  assert.equal(document.getElementById("sh-frame").style.display, "");
+  closeShelf();
 });
 
 test("a band a filter asked for opens itself, so the chip never answers with a folded band", () => {
@@ -159,9 +222,9 @@ test("the bands the shelf shows are the four the team decided on, and only what 
 });
 
 test("search looks at the title, the description and the name of the folder", () => {
-  seed({ me: "jonas", pages: [pageOf(), pageOf({ slug: "crm", title: "CRM", description: "sdr-engine" })] });
+  seed({ me: "jonas", pages: [pageOf(), pageOf({ slug: "sales", title: "Sales", description: "sdr-engine" })] });
   filters("team", "", "sdr");
-  assert.deepEqual(shelfRows().map((p) => p.slug), ["crm"]);
+  assert.deepEqual(shelfRows().map((p) => p.slug), ["sales"]);
   filters("team", "", "ETAPAS");
   assert.deepEqual(shelfRows().map((p) => p.slug), ["atividade-com-etapas"]);
   filters("team", "", "nada disso");
@@ -195,7 +258,7 @@ test("every string the shelf shows has a portuguese twin", () => {
     "Nothing here with those filters.",
     "Nothing on the shelf yet — the first page you publish lands here, draft and all.",
     "draft", "in-review", "decided", "delivered", "closed",
-    "tabs", "waiting on someone", "being built", "no state", "already done"
+    "tabs", "1 proposal", "{n} proposals", "waiting on someone", "being built", "no state", "already done"
   ];
   for (const one of said) assert.ok(PT_BR[one], `no pt-BR for "${one}"`);
 });

@@ -157,10 +157,13 @@ async function statusOf(base, name) {
   catch { return readNow(""); }
 }
 
+const ANONYMOUS_SEAT = /^anon-[a-z0-9]+$/;
+
 export async function listSeats(env = process.env) {
   const base = stateDir(env);
   const side = sideOf(base);
   const seats = new Map();
+  const hidden = new Set();
 
   let files = [];
   try { files = await readdir(join(base, "sessions")); } catch {}
@@ -169,6 +172,10 @@ export async function listSeats(env = process.env) {
     const name = file.slice(0, -5);
     let meta = {};
     try { meta = JSON.parse(await readFile(join(base, "sessions", file), "utf8")); } catch {}
+    if (meta.anon || ANONYMOUS_SEAT.test(name)) {
+      hidden.add(name);
+      continue;
+    }
     seats.set(name, {
       name,
       side,
@@ -185,7 +192,7 @@ export async function listSeats(env = process.env) {
   const windows = await run("tmux", ["list-windows", "-t", tmuxSession(side), "-F", "#{window_name}"]);
   for (const raw of windows.out.split("\n")) {
     const name = raw.trim();
-    if (!name || name === "hub") continue;
+    if (!name || name === "hub" || hidden.has(name) || ANONYMOUS_SEAT.test(name)) continue;
     const known = seats.get(name);
     if (known) { known.alive = true; continue; }
     seats.set(name, { name, side, kind: "classic", cwd: "", repo: "", model: "", title: "", updated: "", alive: true });
@@ -629,7 +636,36 @@ export async function noteTask({ text, env = process.env, ask = askTheApp } = {}
   return { task: kept.said?.task || null };
 }
 
-export async function publishPage({ path, label = "", tab = "", env = process.env, ask = askTheApp } = {}) {
+export async function publishProposal({ proposal, page, label = "", reopen = false, env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this session has no seat — publish from a chat in the hive" };
+  const title = String(page || "").trim();
+  if (!title) return { error: "which page does this proposal belong to? give the page's title, the same <title> as its RFC and plan" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open to publish" };
+
+  const named = canonicalLabel(label);
+  const shelved = await ask(door, "POST", "/api/shelf/publish", { name: self.name, where: self.side, proposal: String(proposal || ""), title, label: named, tab: "telas", reopen: Boolean(reopen), at: Date.now() });
+  if (!shelved.ok) return { error: `the shelf refused the proposal: ${shelved.error || "no reason given"}` };
+  const meta = shelved.said?.meta || {};
+  const listed = meta.tabs?.telas?.proposals || [];
+  const added = shelved.said?.proposal || listed[listed.length - 1] || {};
+  return {
+    title: meta.title || title,
+    label: meta.label || "",
+    slug: meta.slug || "",
+    tab: "telas",
+    proposal: added,
+    proposals: listed.length,
+    pinned: Object.keys(added.screens || {}).length,
+    pushed: Boolean(shelved.said?.pushed),
+    url: shelfDeepLink(meta.slug, "telas", listed.length),
+    held: shelved.said?.held || "",
+    leaf: shelved.said?.leaf || null
+  };
+}
+
+export async function publishPage({ path, label = "", tab = "", reopen = false, env = process.env, ask = askTheApp } = {}) {
   const self = await me(env);
   if (!self.name) return { error: "this session has no seat — publish from a chat in the hive" };
   if (!/\.html?$/i.test(String(path || ""))) return { error: "a page is an html file" };
@@ -641,7 +677,7 @@ export async function publishPage({ path, label = "", tab = "", env = process.en
   const kept = await ask(door, "POST", "/api/artifact/keep", { name: self.name, where: self.side, path, label: named, tab, url: "", at, shelve: false });
   if (!kept.ok) return { error: kept.error || "the hive would not keep the page" };
 
-  const shelved = await ask(door, "POST", "/api/shelf/publish", { name: self.name, where: self.side, path, label: named, tab, url: "", at });
+  const shelved = await ask(door, "POST", "/api/shelf/publish", { name: self.name, where: self.side, path, label: named, tab, url: "", reopen: Boolean(reopen), at });
   if (!shelved.ok) return { error: `the page is kept on this machine, but the shelf refused it: ${shelved.error || "no reason given"}` };
   const shelf = await ask(door, "GET", "/api/shelf");
   const meta = shelved.said?.meta || {};
@@ -657,6 +693,7 @@ export async function publishPage({ path, label = "", tab = "", env = process.en
     pushed: Boolean(shelved.said?.pushed),
     url: shelfDeepLink(meta.slug, kind, head?.n || 0),
     source: shelfPageUrl(shelf.said?.repo || "", meta.slug, kind, head?.n || 0),
+    held: shelved.said?.held || "",
     leaf: shelved.said?.leaf || null
   };
 }

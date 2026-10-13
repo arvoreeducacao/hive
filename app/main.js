@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, desktopCapturer, Notification, nativeImage, dialog, powerMonitor, screen, session, shell, ipcMain, systemPreferences, webContents } = require("electron");
+const { app, BrowserWindow, Menu, desktopCapturer, Notification, nativeImage, dialog, powerMonitor, screen, session, shell, ipcMain, systemPreferences, webContents, WebContentsView } = require("electron");
 const { spawn, execFile } = require("node:child_process");
 const { readFileSync, writeFileSync, existsSync, readdirSync, accessSync, constants } = require("node:fs");
 const { join } = require("node:path");
@@ -840,7 +840,10 @@ function createWindow() {
     if (String(params.partition || "").includes("seat-browser")) webPreferences.preload = join(HERE, "main", "seat-preload.js");
   });
   window_.webContents.on("did-attach-webview", (_ev, guest) => {
-    guest.setWindowOpenHandler(({ url }) => {
+    guest.setWindowOpenHandler(({ url, disposition }) => {
+      if (guest.session === seatBrowser && /^https?:/.test(url) && disposition === "new-window") {
+        return { action: "allow", createWindow: (options) => popupOverWindow(window_, guest, options) };
+      }
       if (guest.session === seatBrowser && /^https?:/.test(url)) {
         if (!window_.isDestroyed()) window_.webContents.send("seat-browser:popup", guest.id, url);
         return { action: "deny" };
@@ -862,6 +865,36 @@ function createWindow() {
     e.preventDefault();
     window_.hide();
   });
+}
+
+const POPUP_SIZE = { width: 520, height: 680 };
+
+function popupOverWindow(host, opener, options) {
+  const view = new WebContentsView({ webContents: options.webContents, webPreferences: options.webPreferences });
+  const place = () => {
+    if (host.isDestroyed()) return;
+    const [width, height] = host.getContentSize();
+    const popupWidth = Math.min(POPUP_SIZE.width, width - 32);
+    const popupHeight = Math.min(POPUP_SIZE.height, height - 64);
+    view.setBounds({ x: Math.round((width - popupWidth) / 2), y: Math.round((height - popupHeight) / 2), width: popupWidth, height: popupHeight });
+  };
+  const close = () => { if (!view.webContents.isDestroyed()) view.webContents.close(); };
+  host.contentView.addChildView(view);
+  place();
+  host.on("resize", place);
+  opener.once("destroyed", close);
+  view.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "Escape") { event.preventDefault(); close(); }
+  });
+  view.webContents.once("destroyed", () => {
+    if (host.isDestroyed()) return;
+    host.off("resize", place);
+    if (!opener.isDestroyed()) opener.off("destroyed", close);
+    host.contentView.removeChildView(view);
+    host.webContents.focus();
+  });
+  view.webContents.focus();
+  return view.webContents;
 }
 
 function notify(session) {

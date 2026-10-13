@@ -1,7 +1,7 @@
 import { render } from "./arrange.js";
 import { codeOf, isLeader, keyLabel, saveBindings, silenced, whichChord } from "./brand-face.js";
 import { paintNotices } from "./chimes-and-notices.js";
-import { $, ACTION_GROUPS, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { $, ACTION_GROUPS, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, experienceNext, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { ago } from "./pod.js";
 import { run } from "./themes.js";
 
@@ -182,10 +182,13 @@ const keyWords = () => st.keysFilter.trim().toLowerCase().split(/\s+/).filter(Bo
 
 const rowMatches = (row, words) => words.every((w) => rowSays(row).includes(w));
 
+const BAR_ACTIONS = new Set(["compose", "bar"]);
+
 function keysGridModel() {
   const words = keyWords();
+  const shown = (action) => !(experienceNext() && BAR_ACTIONS.has(action));
   const groups = ACTION_GROUPS
-    .map(([key, title, actions]) => ({ key, title: phrase(title), rows: actions.map(keyRow).filter((row) => rowMatches(row, words)) }))
+    .map(([key, title, actions]) => ({ key, title: phrase(title), rows: actions.filter(shown).map(keyRow).filter((row) => rowMatches(row, words)) }))
     .filter((group) => group.rows.length);
   const fixed = FIXED_KEYS().map((row) => ({ ...row, fixed: true })).filter((row) => rowMatches(row, words));
   if (fixed.length) groups.push({ key: "fixed", fixed: true, title: phrase("the ones you cannot change"), rows: fixed });

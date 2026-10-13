@@ -63,7 +63,8 @@ export function seatCommand({
   addDir = "",
   shell = "bash",
   fallback = "",
-  continueLast = false
+  continueLast = false,
+  anonymous = false
 }) {
   const arrival = arrivalAt(hub, fallback);
   if (kind === "shell") return `${arrival.go}${arrival.then}${hiveShellExec(shell, stateDir)}`;
@@ -84,6 +85,7 @@ export function seatCommand({
     words.push(`${carried}${held}${mine} node ${quoteForShell(driver)}${asAgent} --name ${quoteForShell(name)} --cwd ${quoteForShell(hub)}${model_}${resumed}${session}${compact}`);
     if (["claude", "codex", "kimi"].includes(agent) && effort) words.push(` --effort ${quoteForShell(effort)}`);
     if (promptFile) words.push(` --prompt-file ${quoteForShell(promptFile)}`);
+    if (anonymous) words.push(" --anon");
   } else if (agent === "opencode") {
     const back = resumeId ? ` -s ${quoteForShell(resumeId)}` : continueLast ? " -c" : "";
     words.push(`${carried}${held}${mine} opencode --agent build${model_}${back}`);
@@ -153,6 +155,7 @@ export function seatArgv({
   addDir = "",
   fallback = "",
   continueLast = false,
+  anonymous = false,
   readPrompt = (file) => readFileSync(file, "utf8")
 }) {
   const cwd = hub || fallback;
@@ -172,6 +175,7 @@ export function seatArgv({
     if (compactAt) args.push("--autocompact", compactAt);
     if (["claude", "codex", "kimi"].includes(agent) && effort) args.push("--effort", effort);
     if (promptFile) args.push("--prompt-file", promptFile);
+    if (anonymous) args.push("--anon");
     return { program: "node", args, env, cwd, fallback };
   }
   if (agent === "opencode") {

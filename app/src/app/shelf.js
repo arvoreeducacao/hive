@@ -84,8 +84,16 @@ const shelfLabelState = (label) => {
   return found ? found[1] : "";
 };
 
+const shelfLinkTab = (page, tab) => page?.tabs?.[tab]?.kind === "link";
+
+const shelfProposalsOf = (page) => (shelfLinkTab(page, "telas") ? page.tabs.telas.proposals || [] : []);
+
+const shelfNewestProposal = (page) => shelfProposalsOf(page).at(-1) || null;
+
+const shelfPickedProposal = (page, n) => shelfProposalsOf(page)[n - 1] || shelfNewestProposal(page);
+
 const shelfTabsOf = (page) => {
-  const kept = Object.keys(page?.tabs || {}).filter((t) => (page.tabs[t]?.versions || []).length);
+  const kept = Object.keys(page?.tabs || {}).filter((t) => (page.tabs[t]?.versions || page.tabs[t]?.proposals || []).length);
   return [...SHELF_TABS.filter((t) => kept.includes(t)), ...kept.filter((t) => !SHELF_TABS.includes(t))];
 };
 
@@ -98,19 +106,15 @@ const shelfTabLabel = (page, tab) => shelfTopVersion(page, tab)?.label || "";
 const shelfTabState = (page, tab) => shelfLabelState(shelfTabLabel(page, tab));
 
 function shelfStatesOf(page) {
-  const states = new Set(shelfTabsOf(page).map((t) => shelfTabState(page, t)).filter(Boolean));
   const own = shelfLabelState(page?.label);
-  if (own) states.add(own);
-  return [...states];
+  return own ? [own] : [];
 }
 
 const shelfBandShut = (band) => !st.shelfState && st.shelfShut.has(band.key);
 
 function shelfBandOf(page) {
-  const states = shelfStatesOf(page);
-  const first = states.reduce((soonest, state) =>
-    (soonest === "" || SHELF_STATES.indexOf(state) < SHELF_STATES.indexOf(soonest) ? state : soonest), "");
-  return SHELF_BANDS.find((band) => band.states.includes(first)) || SHELF_BANDS[0];
+  const [state = ""] = shelfStatesOf(page);
+  return SHELF_BANDS.find((band) => band.states.includes(state)) || SHELF_BANDS[0];
 }
 
 function paintPageChrome(host, { page, tab, version, onTab, onVersion }) {
@@ -125,13 +129,26 @@ function paintPageChrome(host, { page, tab, version, onTab, onVersion }) {
     b.setAttribute("aria-selected", name === here ? "true" : "false");
     b.textContent = name;
     const n = document.createElement("i");
-    n.textContent = `v${shelfTopVersion(page, name)?.n || 0}`;
+    n.textContent = shelfTabSay(page, name);
     b.appendChild(n);
     b.addEventListener("click", (ev) => { ev.stopPropagation(); onTab(name); });
     host.appendChild(b);
   }
   const rail = document.createElement("div");
   rail.className = "sh-vers";
+  const proposals = shelfLinkTab(page, here) ? shelfProposalsOf(page) : [];
+  const picked = shelfPickedProposal(page, version);
+  if (proposals.length > 1) {
+    proposals.map((one, at) => ({ one, n: at + 1 })).reverse().forEach(({ one, n }) => {
+      const b = document.createElement("button");
+      b.className = "sh-ver";
+      b.setAttribute("aria-pressed", one === picked ? "true" : "false");
+      b.title = [one.url, one.at ? artClock(one.at) : ""].filter(Boolean).join(" · ");
+      b.textContent = `${one.product}/${one.id}`;
+      b.addEventListener("click", (ev) => { ev.stopPropagation(); onVersion(n); });
+      rail.appendChild(b);
+    });
+  }
   for (const v of [...versions].reverse()) {
     const b = document.createElement("button");
     b.className = "sh-ver";
@@ -229,20 +246,9 @@ function shelfRows() {
 }
 
 function shelfCardChips(page) {
-  const tabs = shelfTabsOf(page);
-  const head = tabs.includes("documento") ? "documento" : tabs[0] || "";
-  const state = shelfTabState(page, head) || shelfLabelState(page.label);
-  const label = shelfTabLabel(page, head) || page.label || "";
-  const chips = [{ state, label, say: state ? phrase(state) : (label || phrase("no label yet")) }];
-  for (const tab of tabs) {
-    if (tab === head || shelfTabState(page, tab) === state) continue;
-    const mine = shelfTabState(page, tab);
-    chips.push({
-      state: mine, tab, label: shelfTabLabel(page, tab),
-      say: `${tab} · ${mine ? phrase(mine) : shelfTabLabel(page, tab)}`
-    });
-  }
-  return chips;
+  const label = page?.label || "";
+  const state = shelfLabelState(label);
+  return [{ state, label, say: state ? phrase(state) : (label || phrase("no label yet")) }];
 }
 
 function fitShelfThumbs() {
@@ -392,18 +398,12 @@ function shelfPickFilter(key) {
 
 function shelfCardModel(page) {
   const tabs = shelfTabsOf(page);
-  const tab = tabs.includes("telas") ? "telas" : (tabs[0] || "documento");
-  const top = shelfTopVersion(page, tab);
-  const shot = page.thumbs?.[tab];
+  const tab = shelfMainTab(page);
   return {
     key: page.slug, slug: page.slug, tab,
     shut: shelfLabelState(page.label) === "closed" ? "yes" : "no",
     hint: [page.title || page.slug, page.at ? artClock(page.at) : ""].filter(Boolean).join(" · "),
-    thumb: top ? {
-      src: `/api/shelf/page?slug=${encodeURIComponent(page.slug)}&tab=${tab}&v=${top.n}`,
-      img: shot ? `/api/shelf/thumb?slug=${encodeURIComponent(page.slug)}&tab=${tab}&v=${shot}` : "",
-      say: `v${top.n}${tabs.length > 1 ? ` · ${tabs.length} ${phrase("tabs")}` : ""}`
-    } : null,
+    thumb: page.thumbs?.telas === "proposal" ? shelfThumbModel(page, "telas") : shelfThumbModel(page, tab),
     title: page.title || page.slug,
     owner: page.owner || "",
     sub: page.description || tabs.join(" · ") || page.slug,
@@ -445,17 +445,29 @@ const SHELF_TAB_ICONS = { telas: "i-grid", documento: "i-doc", plano: "i-list", 
 
 const shelfMainTab = (page) => {
   const tabs = shelfTabsOf(page);
-  return tabs.includes("telas") ? "telas" : (tabs[0] || "documento");
+  return tabs.includes("documento") ? "documento" : (tabs[0] || "documento");
+};
+
+const shelfTabSay = (page, tab) => {
+  const count = shelfProposalsOf(page).length;
+  if (shelfLinkTab(page, tab)) return count === 1 ? phrase("1 proposal") : phrase("{n} proposals", { n: count });
+  return `v${shelfTopVersion(page, tab)?.n || 0}`;
 };
 
 function shelfThumbModel(page, tab) {
   const tabs = shelfTabsOf(page);
+  const slug = encodeURIComponent(page.slug);
+  const say = `${shelfTabSay(page, tab)}${tabs.length > 1 ? ` · ${tabs.length} ${phrase("tabs")}` : ""}`;
+  if (shelfLinkTab(page, tab)) {
+    if (!shelfNewestProposal(page)) return null;
+    return { src: "", img: page.thumbs?.telas === "proposal" ? `/api/shelf/thumb?slug=${slug}&tab=telas&v=proposal` : "", say };
+  }
   const top = shelfTopVersion(page, tab);
   const shot = page.thumbs?.[tab];
   return top ? {
-    src: `/api/shelf/page?slug=${encodeURIComponent(page.slug)}&tab=${tab}&v=${top.n}`,
-    img: shot ? `/api/shelf/thumb?slug=${encodeURIComponent(page.slug)}&tab=${tab}&v=${shot}` : "",
-    say: `v${top.n}${tabs.length > 1 ? ` · ${tabs.length} ${phrase("tabs")}` : ""}`
+    src: `/api/shelf/page?slug=${slug}&tab=${tab}&v=${top.n}`,
+    img: shot ? `/api/shelf/thumb?slug=${slug}&tab=${tab}&v=${shot}` : "",
+    say
   } : null;
 }
 
@@ -507,8 +519,9 @@ function shelfPreviewModel() {
   const tabs = shelfTabsOf(page);
   const tab = tabs.includes(st.shelfTab) && st.shelfTabFor === page.slug ? st.shelfTab : shelfMainTab(page);
   const top = shelfTopVersion(page, tab);
-  const state = shelfTabState(page, tab) || shelfLabelState(page.label);
+  const state = shelfLabelState(page.label);
   const link = page.url || "";
+  const proposal = shelfLinkTab(page, tab) ? shelfNewestProposal(page) : null;
   const flow = ["draft", "in-review", "decided", "delivered"];
   return {
     empty: null,
@@ -516,12 +529,12 @@ function shelfPreviewModel() {
       key: page.slug, slug: page.slug, title: page.title || page.slug, description: page.description || "",
       shot: shelfThumbModel(page, tab),
       strip: [page.owner, page.slug, page.at ? artClock(page.at) : ""].filter(Boolean),
-      tabs: tabs.map((one) => ({ key: one, say: one, on: one === tab, ver: `v${shelfTopVersion(page, one)?.n || 0}` })),
+      tabs: tabs.map((one) => ({ key: one, say: one, on: one === tab, ver: shelfTabSay(page, one) })),
       labelSay: phrase("Label"),
       trail: flow.map((one) => ({ key: one, say: phrase(one), on: one === state })),
-      loose: state && flow.includes(state) ? "" : state ? phrase(state) : (shelfTabLabel(page, tab) || page.label || ""),
+      loose: state && flow.includes(state) ? "" : state ? phrase(state) : (page.label || ""),
       linkSay: "Leaf", link, linkShort: link.replace(/^https?:\/\//, ""), copySay: phrase("copy link"),
-      fileSay: phrase("File"), file: `a/${page.slug}/${tab}.v${top?.n || 0}.html`
+      fileSay: proposal ? "Screenbook" : phrase("File"), file: proposal ? proposal.url : `a/${page.slug}/${tab}.v${top?.n || 0}.html`
     }
   };
 }
@@ -587,7 +600,7 @@ function shelfActions() {
   const page = shelfPicked();
   if (!page) return [];
   const tab = st.shelfOpen ? st.shelfTab : shelfMainTab(page);
-  const github = !!shelfGithubUrl(page, tab, 1);
+  const github = !shelfLinkTab(page, tab) && !!shelfGithubUrl(page, tab, 1);
   return [
     st.shelfOpen
       ? { key: "seat", say: phrase("Open in a seat"), icon: "i-agent", primary: true, combo: { meta: true, code: "Enter" }, go: shelfInASeat }
@@ -662,6 +675,29 @@ function shelfGithubUrl(page, tab, n) {
   return `https://github.com/${m[1]}/${m[2]}/blob/HEAD/a/${page.slug}/${tab}.v${n}.html`;
 }
 
+let shelfProposalWeb = null;
+
+function shelfProposalFrame() {
+  if (shelfProposalWeb?.isConnected) return shelfProposalWeb;
+  shelfProposalWeb = document.createElement("webview");
+  shelfProposalWeb.className = "sh-web";
+  shelfProposalWeb.setAttribute("partition", "persist:seat-browser");
+  shelfProposalWeb.setAttribute("title", phrase("the screenbook proposal of this page"));
+  $("sh-frame").after(shelfProposalWeb);
+  return shelfProposalWeb;
+}
+
+function paintProposalStage(proposal) {
+  $("sh-frame").style.display = proposal ? "none" : "";
+  if (!proposal) {
+    if (shelfProposalWeb) shelfProposalWeb.style.display = "none";
+    return;
+  }
+  const web = shelfProposalFrame();
+  web.style.display = "";
+  if (web.dataset.here !== proposal.url) { web.dataset.here = proposal.url; web.src = proposal.url; }
+}
+
 function paintShelfView() {
   const page = (st.shelf?.pages || []).find((p) => p.slug === st.shelfOpen);
   if (!page) { st.shelfOpen = null; return paintShelf(); }
@@ -687,7 +723,12 @@ function paintShelfView() {
   });
 
   const frame = $("sh-frame");
-  const src = now
+  const linked = shelfLinkTab(page, st.shelfTab);
+  const proposal = linked ? shelfPickedProposal(page, st.shelfVersion) : null;
+  paintProposalStage(proposal);
+  const src = linked
+    ? "about:blank"
+    : now
     ? `/api/shelf/page?slug=${encodeURIComponent(page.slug)}&tab=${st.shelfTab}&v=${now.n}${shelfFrameHints(st.shelfTab)}${st.shelfAt ? `#${encodeURIComponent(st.shelfAt)}` : ""}`
     : "about:blank";
   if (frame.dataset.here !== src) { frame.dataset.here = src; frame.src = src; }
@@ -697,12 +738,14 @@ function paintShelfView() {
   $("shelf").dataset.wide = st.shelfWide ? "yes" : "no";
   $("sh-narrow").hidden = !st.shelfWide;
 
-  $("sh-vf").textContent = [
+  $("sh-vf").textContent = linked ? (proposal?.url || "") : [
     `a/${page.slug}/${st.shelfTab}.v${now?.n || 0}.html`,
     now?.label || "",
     now?.bytes ? bytes(now.bytes) : ""
   ].filter(Boolean).join("  ·  ");
-  $("sh-gh").hidden = !shelfGithubUrl(page, st.shelfTab, now?.n || 0);
+  const githubShown = !linked && !!shelfGithubUrl(page, st.shelfTab, now?.n || 0);
+  $("sh-gh").hidden = !githubShown;
+  $("sh-gh").style.display = githubShown ? "" : "none";
 }
 
 $("sh-back").addEventListener("click", shelfBack);
@@ -1032,4 +1075,4 @@ $("sh-talk").addEventListener("click", () => {
   paintShelfView();
 });
 
-export { pickShelf, shelfActions, shelfFiltersWindowModel, shelfGalleryWindowModel, shelfPreviewModel, shelfRowModel, shelfShownRows, stepShelf, commentsHere, heardFromPage, paintTalk, pinsHere, postPins, pullComments, sendComment, settleComment, talkParts, GITHUB_SHELF_URL, SHELF_BANDS, SHELF_STATES, SHELF_STATE_WAS, SHELF_TABS, SHELF_THUMB_W, closeShelf, fitShelfThumbs, openShelf, openShelfPage, setShelfWide, shelfWideOn, toggleShelfWide, paintPageChrome, paintShelf, paintShelfView, pullShelf, shelfBack, shelfBandOf, shelfBandShut, shelfCardChips, shelfCardModel, shelfDeepLink, shelfFiltersSolid, shelfFiltersViewModel, shelfFoldBand, shelfGallerySolid, shelfGalleryViewModel, shelfGithubUrl, shelfLabelState, shelfOnScreen, shelfPickFilter, shelfRows, shelfStatesOf, shelfTabLabel, shelfTabState, shelfTabsOf, shelfTopVersion, shelfVersionsOf };
+export { shelfLinkTab, shelfMainTab, shelfNewestProposal, shelfPickedProposal, shelfProposalsOf, shelfThumbModel, pickShelf, shelfActions, shelfFiltersWindowModel, shelfGalleryWindowModel, shelfPreviewModel, shelfRowModel, shelfShownRows, stepShelf, commentsHere, heardFromPage, paintTalk, pinsHere, postPins, pullComments, sendComment, settleComment, talkParts, GITHUB_SHELF_URL, SHELF_BANDS, SHELF_STATES, SHELF_STATE_WAS, SHELF_TABS, SHELF_THUMB_W, closeShelf, fitShelfThumbs, openShelf, openShelfPage, setShelfWide, shelfWideOn, toggleShelfWide, paintPageChrome, paintShelf, paintShelfView, pullShelf, shelfBack, shelfBandOf, shelfBandShut, shelfCardChips, shelfCardModel, shelfDeepLink, shelfFiltersSolid, shelfFiltersViewModel, shelfFoldBand, shelfGallerySolid, shelfGalleryViewModel, shelfGithubUrl, shelfLabelState, shelfOnScreen, shelfPickFilter, shelfRows, shelfStatesOf, shelfTabLabel, shelfTabState, shelfTabsOf, shelfTopVersion, shelfVersionsOf };

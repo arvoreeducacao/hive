@@ -107,9 +107,11 @@ test("the box paints the command itself instead of parking a chip outside it", (
   const paint = slice(stretches, "const paintInk = ()", "const syncCommand = ()", "chat-stretches.js");
   assert.match(paint, /const spot = name \? commandSpot\(said, name\) : null/, "the mark is painted over the word the person called, wherever it sits");
   assert.match(paint, /\.\.\.\(spot \? \[\{ \.\.\.spot, cls: "ink-cmd" \}\] : \[\]\)/, "a name that is no longer in the text paints nothing");
-  assert.match(paint, /said\.slice\(last, mark\.start\)/, "the words in front of the command are painted in front of it");
-  assert.match(paint, /composer\.classList\.remove\("inked"\)/, "with no command the textarea goes back to painting its own words");
-  assert.match(paint, /ink\.scrollTop = textarea\.scrollTop/, "a box that scrolled would otherwise show the mark on the wrong line");
+  assert.match(paint, /drawInk\(composer, ink, textarea, \[/, "the marks go to the one painter both boxes share");
+  const draw = slice(stretches, "function drawInk(", "function continueListOnShiftEnter(", "chat-stretches.js");
+  assert.match(draw, /said\.slice\(last, mark\.start\)/, "the words in front of the command are painted in front of it");
+  assert.match(draw, /composer\.classList\.remove\("inked"\)/, "with no command the textarea goes back to painting its own words");
+  assert.match(draw, /ink\.scrollTop = textarea\.scrollTop/, "a box that scrolled would otherwise show the mark on the wrong line");
 
   let told = 0;
   const held = commandTray(() => { told++; });

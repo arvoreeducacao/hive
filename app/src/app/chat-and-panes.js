@@ -14,7 +14,7 @@ import { dropFieldPane, paneShownFor, takeFieldPane } from "./plane.js";
 import { pullThreads } from "./prs.js";
 import { expandMentions, expandPeople, personSays, seatLabel, seatSays, splitPeerHandle } from "./pure-helpers.js";
 import { chatOfThread, closeFinish, finishOn, goToPr } from "./seat-menu.js";
-import { paintPageChrome, pullShelf, shelfOnScreen, shelfVersionsOf } from "./shelf.js";
+import { paintPageChrome, pullShelf, shelfLinkTab, shelfOnScreen, shelfPickedProposal, shelfVersionsOf } from "./shelf.js";
 import { paintActivity, refreshContext, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine } from "./structured-seats.js";
 import { ART_WEBVIEW, artClock, artifactIndexAt, shelfPageOf, svSubCall, svSubEcho, svSubLanded, svSubTask, svSubUnpin, svSubsOfAnEndedProcess, svToolCard, svToolResult, tookLabel } from "./subagents-dock.js";
 import { toClipboard } from "./terminal-history.js";
@@ -1959,7 +1959,8 @@ function paintArtifactChrome(pane, now) {
     onVersion: (n) => { mine.version = n; render(); }
   });
   mine.tab = shown.tab;
-  mine.url = shelfTabAddress(mine.slug, shown.tab, shown.now?.n || 0, mine.at);
+  const proposal = shelfLinkTab(page, shown.tab) ? shelfPickedProposal(page, mine.version) : null;
+  mine.url = proposal ? proposal.url : shelfTabAddress(mine.slug, shown.tab, shown.now?.n || 0, mine.at);
 }
 
 const PAGE_BEAT = 20000;

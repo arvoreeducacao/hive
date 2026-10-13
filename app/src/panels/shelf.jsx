@@ -42,7 +42,7 @@ function Card(props) {
           <Show when={props.card.thumb.img}>
             <img class="sh-img" src={props.card.thumb.img} alt="" aria-hidden="true" loading="lazy" decoding="async" />
           </Show>
-          <Show when={live() && props.shown}>
+          <Show when={live() && props.shown && props.card.thumb.src}>
             <iframe sandbox="allow-scripts" tabindex="-1" aria-hidden="true" src={props.card.thumb.src}
               ref={() => props.actions.fit?.()} onLoad={ready} />
           </Show>

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { takeShelfThumbs } from "../src/app/shelf-thumbs.js";
+import { coverFromTop, takeShelfThumbs } from "../src/app/shelf-thumbs.js";
 
 const here = () => true;
 
@@ -26,6 +26,25 @@ test("a page that would not load is still answered, so the queue lets go of it",
     here
   });
   assert.deepEqual(sent, [["broken", ""]]);
+});
+
+test("a proposal job is shrunk from its picture, not shot as a page", async () => {
+  const sent = [];
+  await takeShelfThumbs([{ id: "p", kind: "proposal", slug: "x", tab: "telas" }], {
+    shoot: async () => { throw new Error("a proposal is not a page to load"); },
+    picture: async (job) => `data:image/webp;base64,${job.id}`,
+    send: async (id, data) => { sent.push([id, data]); },
+    here
+  });
+  assert.deepEqual(sent, [["p", "data:image/webp;base64,p"]]);
+});
+
+test("a tall phone screen keeps its top and is not squashed into the card", () => {
+  assert.deepEqual(coverFromTop(390, 844), { x: 0, y: 0, width: 480, height: 844 * (480 / 390) });
+  assert.deepEqual(coverFromTop(1280, 800), { x: 0, y: 0, width: 480, height: 300 }, "a page capture fills the card exactly as before");
+  const wide = coverFromTop(2000, 600);
+  assert.equal(wide.height, 300);
+  assert.equal(wide.x, (480 - wide.width) / 2, "a very wide screen is centred");
 });
 
 test("outside the desktop app nothing is pictured", () => {

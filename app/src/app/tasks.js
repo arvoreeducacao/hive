@@ -475,10 +475,26 @@ function paintTasks() {
   tasksView.show(tasksModel());
 }
 
+const myOpenTasks = () => [...sectionOf("mine"), ...sectionOf("withMe")];
+
+const myOpenTaskCount = () => myOpenTasks().length;
+
+function taskBrief(task) {
+  const seat = seatOf(task);
+  return {
+    id: task.id,
+    text: String(task.text || "").split("\n")[0],
+    live: !!seat?.live,
+    passed: !mine(task),
+    say: seat?.live ? seat.label || seat.state : mine(task) ? phrase("to do") : task.owner,
+    colour: seat?.live ? seat.colour : ""
+  };
+}
+
 function paintTasksButton() {
   const btn = $("btn-tasks");
   if (!btn) return;
-  const open = sectionOf("mine").length + sectionOf("withMe").length;
+  const open = myOpenTaskCount();
   const fresh = openOnes().some((task) => talkOf(task).hot) || sectionOf("withMe").some((task) => !(st.tasksSeen?.[task.id]));
   btn.querySelector("b").textContent = String(open);
   if (raycastOn()) {
@@ -871,4 +887,4 @@ $("tasks").addEventListener("keydown", (ev) => {
 setTimeout(() => pullTasks(), 1500);
 setInterval(() => pullTasks(), TASKS_POLL);
 
-export { closeTasks, openTasks, paintTasks, pickTask, pullTasks, shownTasks, stepTask, taskActions, taskMatches, tasksModel, tasksOn, ui as tasksUi };
+export { closeTasks, myOpenTaskCount, myOpenTasks, openTasks, paintTasks, pickTask, pullTasks, shownTasks, stepTask, taskActions, taskMatches, taskBrief, tasksModel, tasksOn, ui as tasksUi };

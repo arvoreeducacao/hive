@@ -1,4 +1,4 @@
-import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
+import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
 import { BIRTHS_MAX } from "../engine/protocol.mjs";
 import { allows, readCeiling } from "./ceilings.mjs";
 import { stateDir } from "../engine/paths.mjs";
@@ -51,15 +51,17 @@ export const PEER_TOOLS = [
   },
   {
     name: "publish",
-    description: "Put an HTML page you wrote on the team's shelf — the hive's own gallery, kept in a private repo everyone here clones. This is how a page reaches the team; nothing else publishes. Every label goes up, draft included, so the whole team can read the page from v1 on and the repo keeps whatever you send it. Write the file first, then call this.",
+    description: "Put a page on the team's shelf — the hive's own gallery, kept in a private repo everyone here clones. This is how a page reaches the team; nothing else publishes. Two kinds of publication: an HTML page you wrote (path), or a Screenbook proposal for the telas tab of a page (proposal and page). Every label goes up, draft included, so the whole team can read the page from v1 on and the repo keeps whatever you send it. The page has one status: a label moves it forward, a label behind the current one is ignored unless you pass reopen, and leaving the label out keeps the status as it is.",
     inputSchema: {
       type: "object",
       properties: {
-        path: { type: "string", description: "absolute path of the .html file you wrote" },
-        label: { type: "string", description: "where the page is in its life: draft, in-review, decided, delivered, closed — a suffix is fine, as in in-review-after-the-team-read-it. The old portuguese labels still work and are rewritten to these." },
-        tab: { type: "string", description: "documento, telas, plano or lente — lente is the interactive map of a PR. Leave it out and the filename decides: canvas, telas, mockup or screens land on telas, lente lands on lente, everything else on documento" },
+        path: { type: "string", description: "absolute path of the .html file you wrote — for documento, plano or lente" },
+        proposal: { type: "string", description: "a Screenbook proposal link, https://<screenbook>/<product>/?proposal=<id> — it lands on the telas tab, pinned to the versions the proposal drew. The telas tab takes only proposals, never html" },
+        page: { type: "string", description: "with proposal: the title of the page it belongs to, the same <title> as the mission's RFC and plan" },
+        label: { type: "string", description: "where the page is in its life: draft, in-review, decided, delivered, closed — a suffix is fine, as in in-review-after-the-team-read-it. Anything else is refused. Leave it out to keep the status, as the lente of a PR does." },
+        tab: { type: "string", description: "documento, plano or lente — lente is the interactive map of a PR. Leave it out and the filename decides: lente lands on lente, everything else on documento" },
+        reopen: { type: "boolean", description: "move the page back to an earlier status on purpose, as when a discarded idea comes back" },
       },
-      required: ["path", "label"],
       additionalProperties: false,
     },
   },
@@ -602,11 +604,26 @@ function rawCalls(env) {
       return text(`${done.said?.avd} (${done.said?.serial}) is shutting down — the device pane is empty now`);
     },
     async publish(args) {
-      const done = await publishPage({ path: args.path, label: args.label, tab: args.tab || "", env });
+      if (args.proposal) {
+        const done = await publishProposal({ proposal: args.proposal, page: args.page || "", label: args.label || "", reopen: Boolean(args.reopen), env });
+        if (done.error) return failure(done.error);
+        const sent = done.pushed ? "pushed to the team's repo" : "written to your clone, but the push did not land — say so instead of announcing it";
+        const pinned = done.pinned ? `pinned to the ${done.pinned} screen${done.pinned === 1 ? "" : "s"} it drew` : "the screens it drew could not be read from the Screenbook, so the page opens the proposal as it is now";
+        const lines = [
+          `on the shelf as "${done.title}" · telas · ${done.proposal.product}/${done.proposal.id} (${done.proposals} on the page) · ${pinned} · ${done.label || "no status yet"} · ${sent}`,
+          done.held ? `the status did not move: ${done.held}` : "",
+          done.url ? `${done.url} — the page on the shelf; the proposal itself is ${done.proposal.url}` : "",
+          leafLine(done.leaf)
+        ].filter(Boolean);
+        return text(lines.join("\n"));
+      }
+      if (!args.path) return failure("give the path of the html page, or a Screenbook proposal with the page it belongs to");
+      const done = await publishPage({ path: args.path, label: args.label || "", tab: args.tab || "", reopen: Boolean(args.reopen), env });
       if (done.error) return failure(done.error);
       const sent = done.pushed ? "pushed to the team's repo" : "written to your clone, but the push did not land — say so instead of announcing it";
       const lines = [
         `on the shelf as "${done.title}" · ${done.tab} v${done.version} · ${done.label} · ${sent}`,
+        done.held ? `the status did not move: ${done.held}` : "",
         done.url ? `${done.url} — this is the link to announce: it opens the page inside the hive, for anyone on the team` : "",
         done.source ? `${done.source} — the file in the repo, source only; post it to no one` : "",
         leafLine(done.leaf)

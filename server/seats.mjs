@@ -71,8 +71,10 @@ export function readNames(text) {
   return names;
 }
 
+const TMUX_DEAD_PANE = /^Pane is dead\b/;
+
 export function whyItDied(screen) {
-  const lines = String(screen || "").split("\n").map((one) => one.replace(/\s+$/, "")).filter(Boolean);
+  const lines = String(screen || "").split("\n").map((one) => one.replace(/\s+$/, "")).filter((one) => one && !TMUX_DEAD_PANE.test(one));
   return lines.slice(-3).join(" · ").slice(0, 300);
 }
 

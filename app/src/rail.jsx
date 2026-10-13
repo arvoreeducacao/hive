@@ -4,7 +4,7 @@ import { createStore, reconcile } from "solid-js/store";
 
 function Seat(props) {
   return (
-    <div class="item" classList={{ here: props.seat.here, naming: props.seat.naming }} data-name={props.seat.name} data-state={props.seat.state} title={props.seat.hint}>
+    <div class="item" classList={{ here: props.seat.here, naming: props.seat.naming, anon: props.seat.anon }} data-name={props.seat.name} data-state={props.seat.state} title={props.seat.hint}>
       <svg style={{ color: props.seat.colour }} aria-hidden="true"><use href={`#${props.seat.glyph}`} /></svg>
       <span class="name">{props.seat.naming ? "" : props.seat.title}</span>
       <span class="rtail">

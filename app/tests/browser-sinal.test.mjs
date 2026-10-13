@@ -83,6 +83,19 @@ test("a link that asks for a new tab gets one here, instead of being swallowed",
   assert.match(preload, /onPopup: \(heard\) => ipcRenderer\.on\("seat-browser:popup"/);
 });
 
+test("a sign-in popup opens as a layer over the hive window that keeps its opener, so the login can answer back", () => {
+  const handler = cut(main, 'window_.webContents.on("did-attach-webview"', "window_.on(\"resize\"", "main.js");
+  const popupRule = handler.indexOf('disposition === "new-window"');
+  assert.ok(popupRule > -1, "window.open with features is how google, microsoft and clever open their sign-in");
+  assert.ok(popupRule < handler.indexOf('send("seat-browser:popup"'), "the popup rule runs before the one that turns everything into a tab");
+  assert.match(handler, /createWindow: \(options\) => popupOverWindow\(window_, guest, options\)/, "a native window lands in its own full-screen space and leaves a black one behind when it closes");
+  const layer = cut(main, "function popupOverWindow(", "function notify(", "main.js");
+  assert.match(layer, /new WebContentsView\(\{ webContents: options\.webContents/, "the opener only survives on the webContents electron hands over");
+  assert.match(layer, /input\.key === "Escape"/, "a login the person gives up on has a way out");
+  assert.match(layer, /opener\.once\("destroyed", close\)/);
+  assert.match(layer, /host\.contentView\.removeChildView\(view\)/);
+});
+
 test("the new tab lands on the seat the link came from, and falls out to the browser when full", () => {
   const outside = [];
   st.data = { sessions: [{ name: "asked" }], spawning: [], archived: [], pod: {} };

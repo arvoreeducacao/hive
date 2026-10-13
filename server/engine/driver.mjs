@@ -35,6 +35,7 @@ let chosenModel = model || "";
 let effortLevel = arg("--effort", "");
 const promptFile = arg("--prompt-file");
 const bornAsleep = process.argv.includes("--asleep");
+const anonymous = process.argv.includes("--anon");
 
 let query = null;
 async function loadSdk() {
@@ -374,7 +375,7 @@ let sessionId = resumeId;
 
 let mode = storedSession?.mode === "plan" ? "plan" : "normal";
 
-const gateway = await ensureGateway({ hub: hubFor(cwd) }).catch((e) => ({ ok: false, reason: String(e?.message || e) }));
+const gateway = anonymous ? { ok: false, reason: "anonymous seat" } : await ensureGateway({ hub: hubFor(cwd) }).catch((e) => ({ ok: false, reason: String(e?.message || e) }));
 emit({ type: "driver", subtype: "mcp_gateway", ok: !!gateway.ok, started: !!gateway.started, replaced: gateway.replaced || null, port: gateway.port || null, reason: gateway.reason || null });
 
 const EFFORTS_A_SESSION_CAN_BE_BORN_ON = ["low", "medium", "high", "xhigh"];
@@ -397,6 +398,7 @@ const options = {
   }] }] },
 };
 function seatMcpServers(configDir) {
+  if (anonymous) return {};
   const hive = peerServerFor({ seat: name, side, home: base, entry: peerEntry(), gateway });
   emit({ type: "driver", subtype: "mcp_peer", via: hive.type === "http" ? "gateway" : "stdio", port: gateway.port || null });
   const own = { hive };
@@ -413,6 +415,13 @@ function seatMcpServers(configDir) {
 }
 
 options.mcpServers = seatMcpServers(logins.dir || process.env.CLAUDE_CONFIG_DIR || "");
+if (anonymous) {
+  delete options.systemPrompt.append;
+  options.settingSources = [];
+  options.strictMcpConfig = true;
+  options.persistSession = false;
+  persistSession({ anon: true });
+}
 if (chosenModel) options.model = chosenModel;
 if (resumeId) options.resume = resumeId;
 if (EFFORTS_A_SESSION_CAN_BE_BORN_ON.includes(effortLevel)) options.settings = { effortLevel };
@@ -427,7 +436,7 @@ if (claude.path && claude.path !== builtinClaude) {
 }
 
 const extraArgs = {};
-if (process.env.HIVE_REMOTE_CONTROL !== "0") extraArgs["remote-control"] = name;
+if (process.env.HIVE_REMOTE_CONTROL !== "0" && !anonymous) extraArgs["remote-control"] = name;
 const autocompact = autocompactFromConfig({ autocompact: arg("--autocompact") });
 if (autocompact) extraArgs["autocompact"] = autocompact;
 const givenSessionId = arg("--session-id");
@@ -493,7 +502,7 @@ function touch() {
 function armSleep(inMs = sleepAfter()) {
   if (sleepTimer) clearTimeout(sleepTimer);
   sleepTimer = null;
-  if (!sleepAfter()) return;
+  if (anonymous || !sleepAfter()) return;
   sleepTimer = setTimeout(trySleep, Math.max(1000, inMs));
   sleepTimer.unref?.();
 }

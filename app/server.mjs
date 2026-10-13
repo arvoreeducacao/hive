@@ -28,7 +28,8 @@ import { machineName, peerOfTheBoard, teamFromBoard, liveliestOfDev, POKE_FRESH,
 import { pickRepo, runsFromBundle, builtBundle, sameCommit, notesFromSubjects, updateFromReleases, updatePicked, releasesQuery, releaseOf, notesBetween, downloadScript, verifyScript, unpackScript, unpackedBundle, rpmInstallOf } from "./main/update.js";
 import { packOf, signatureOf, verifyPack, jsRootOf, sweepJsScript, unpackPackScript, signingTeam, sdkAgreement } from "./main/ota.js";
 import { extensionOf, refuseDrop, FILE_CEILING } from "./assets/drops.mjs";
-import { addComment, askedTab, canonicalLabel, catchUp, commentCommitLine, commitLine, keepPrint, leafIdOf, oneAtATime, PRINT_KINDS, printsDir, printsPage, readComments as readShelfComments, readPage as readShelfPage, readMeta as readShelfMeta, readPrints, keepThumb, PNG_DATA_URL, readThumb, sendToShelf, settleComment, settleCommitLine, shelfIndex, shelve, slugOf, tabOf, TABS, thumbQueue } from "./lib/shelf.mjs";
+import { WEBP_DATA_URL, addComment, keepProposalThumb, labelError, proposalCommitLine, proposalOf, proposalsPage, readProposalThumb, shelveProposal, TELAS_TAKE_PROPOSALS, askedTab, canonicalLabel, catchUp, commentCommitLine, commitLine, keepPrint, leafIdOf, oneAtATime, PRINT_KINDS, printsDir, printsPage, readComments as readShelfComments, readPage as readShelfPage, readMeta as readShelfMeta, readPrints, keepThumb, readThumb, sendToShelf, settleComment, settleCommitLine, shelfIndex, shelve, slugOf, tabOf, TABS, thumbQueue } from "./lib/shelf.mjs";
+import { pictureFromStore, proposalFromStore } from "./lib/screenbook-store.mjs";
 import { withPinShim } from "./lib/shelf-pins.mjs";
 import { rebuildWhenStale } from "./lib/fresh-bundle.mjs";
 import { leafReady } from "./lib/leaf-held.mjs";
@@ -98,7 +99,7 @@ import { registerMemoryRoutes } from "./routes/memories.mjs";
 import { createMemorySource, MEMORY_TOKEN_KEY } from "./lib/memories.mjs";
 import { createDemoLogin, createMemoryLogin, fileClientStore, memoryOrigin } from "./lib/memory-login.mjs";
 import { vaultAccount, vaultFollowing } from "./lib/memory-vault.mjs";
-import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, LEAF_URL, LEAF_PARENT, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
+import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, LEAF_URL, LEAF_PARENT, SCREENBOOK_STORE, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
 import { measureShots, shotsDaysOf, sweepShots } from "./lib/shots-sweep.mjs";
 import { withinRoots } from "./lib/bounds.mjs";
 import { SLACK_LINK, threadKey, threadCache, storeSessionThreads, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut, facesOnSlack, nameFromEmail } from "./lib/slack.mjs";
@@ -1247,17 +1248,21 @@ function build(name, where, lines, statusText, mission, links = [], account = ""
   const state = structuredInfo ? structuredStateOf(structuredInfo, status) : deriveState(lines, status, thinking, running, agent);
   const finish = structuredInfo?.finish || null;
   const own = structuredInfo?.title || "";
-  const label = mine || own || status.title || "";
+  const anon = !!seat?.anon;
+  const label = anon ? "anonymous" : mine || own || status.title || "";
   const dirs = dirsOfSeat(seat, structuredInfo, agent);
-  maybeRefineTitle(name, where, structuredInfo, label, mine);
-  rememberSeatTitle(name, where, label);
-  stampTitle(name, where, label || name);
+  if (!anon) {
+    maybeRefineTitle(name, where, structuredInfo, label, mine);
+    rememberSeatTitle(name, where, label);
+    stampTitle(name, where, label || name);
+  }
   return {
     name,
     title: label || name,
     naming: !label && namingNow.has(seatKey(where, name)),
     retitling: retitlingNow.has(seatKey(where, name)),
     mine: !!mine,
+    anon,
     where,
     kind: seat?.kind || "",
     agent,
@@ -1272,7 +1277,7 @@ function build(name, where, lines, statusText, mission, links = [], account = ""
     live: structuredInfo?.live || [],
     liveSince: structuredInfo?.liveSince || "",
     when: since(status),
-    description: missionLine(mission),
+    description: anon ? "" : missionLine(mission),
     summary: status.summary || status.last?.msg || "",
     done: status.done || "",
     now: status.now || "",
@@ -1450,19 +1455,22 @@ async function collect() {
   const alive = new Set(sessions.map((s) => s.name));
   settleSpawnJobs(spawning, alive);
 
+  const anonymous = sessions.filter((one) => one.anon);
+  sessions.splice(0, sessions.length, ...sessions.filter((one) => !one.anon));
   storeSessionPrs(sessions);
   storeSessionThreads(sessions);
 
   const errands = keepErrands(HIVE_HOME, sessions, {
     prsOf: (name) => (sessions.find((s) => s.name === name)?.prs || [])
   }).errands;
-  const withErrand = extensions.title(withErrands(sessions, errands), {
+  const titled = extensions.title(withErrands(sessions, errands), {
     missionOf: (s) => missions.get(seatKey(s.where, s.name)) || "",
     statusOf: (s) => statuses.get(seatKey(s.where, s.name)) || ""
   });
-  const grouped = byErrand(withErrand);
-  const day = dayOf(withErrand, errands);
-  turnCheckpoints.observe(withErrand).catch(() => {});
+  const withErrand = [...titled, ...anonymous];
+  const grouped = byErrand(titled);
+  const day = dayOf(titled, errands);
+  turnCheckpoints.observe(titled).catch(() => {});
 
   const data = {
     pod: { name: myHiveName() || POD || "", up: pod.up },
@@ -2326,7 +2334,7 @@ async function alsoToLeaf({ slug, tab, title, html }) {
   });
 }
 
-async function mirrorOneToShelf({ session, where, path, label, url, at, tab }) {
+async function mirrorOneToShelf({ session, where, path, label, url, at, tab, reopen = false }) {
   const opened = await shelfPull();
   if (opened.error) return opened;
 
@@ -2347,6 +2355,7 @@ async function mirrorOneToShelf({ session, where, path, label, url, at, tab }) {
     owner: DEV || "",
     seat: String(session || ""),
     label: String(label || ""),
+    reopen,
     url: String(url || ""),
     at: at || Date.now(),
     leafId: leaf && !leaf.error ? leaf.id : ""
@@ -2356,7 +2365,56 @@ async function mirrorOneToShelf({ session, where, path, label, url, at, tab }) {
   const head = kept[kept.length - 1];
   const sent = await pushShelf(commitLine(shelved.meta, shelved.tab, head?.n || shelved.wrote, shelved.wrote));
   if (shelved.wrote) shelfThumbs.want(slug, shelved.tab, shelved.wrote);
-  return { meta: shelved.meta, wrote: shelved.wrote, tab: shelved.tab, ...sent, ...(leaf ? { leaf } : {}) };
+  return { meta: shelved.meta, wrote: shelved.wrote, tab: shelved.tab, ...(shelved.held ? { held: shelved.held } : {}), ...sent, ...(leaf ? { leaf } : {}) };
+}
+
+const screenbookApi = (route) => shr("gh", ["api", route], { timeout: 30000, maxBuffer: 16 << 20 });
+
+const mirrorProposal = (asked) => shelfTurn(() => mirrorOneProposal(asked).catch((err) => ({ error: String(err?.message || err).slice(0, 200) })));
+
+async function mirrorOneProposal({ session, proposal, title, label, reopen = false, at }) {
+  const named = proposalOf(proposal);
+  if (named.error) return named;
+  const page = String(title || "").trim();
+  if (!page) return { error: "which page does this proposal belong to? give the page's title" };
+
+  const opened = await shelfPull();
+  if (opened.error) return opened;
+
+  const slug = slugOf(page);
+  const drawn = await proposalFromStore({ ghApi: screenbookApi, store: SCREENBOOK_STORE, product: named.product, id: named.id });
+  if (drawn.missing) return { error: `the Screenbook has no proposal ${named.product}/${named.id}: check the product and the id in the link` };
+  const shelved = shelveProposal({
+    home: SHELF_HOME,
+    slug,
+    title: page,
+    owner: DEV || "",
+    seat: String(session || ""),
+    label: String(label || ""),
+    reopen,
+    proposal: named.url,
+    screens: drawn.error ? undefined : drawn.screens,
+    at: at || Date.now()
+  });
+  if (shelved.error) return shelved;
+
+  const listed = shelved.meta.tabs.telas.proposals;
+  const leaf = await alsoToLeaf({ slug, tab: "telas", title: page, html: proposalsPage({ title: page, proposals: listed }) }).catch((err) => ({ error: err.message }));
+  if (leaf && !leaf.error && leaf.id) shelveProposal({ home: SHELF_HOME, slug, title: page, proposal: named.url, screens: shelved.proposal.screens, at: shelved.proposal.at, leafId: leaf.id });
+
+  const picture = drawn.error ? drawn : await pictureFromStore({ ghApi: screenbookApi, store: SCREENBOOK_STORE, product: named.product, screens: shelved.proposal.screens });
+  if (!picture.error) shelfThumbs.wantPicture({ slug, product: named.product, id: named.id, picture: picture.data });
+
+  const sent = await pushShelf(proposalCommitLine(shelved.meta, shelved.proposal));
+  return {
+    meta: readShelfMeta(SHELF_HOME, slug) || shelved.meta,
+    tab: "telas",
+    proposal: shelved.proposal,
+    ...(shelved.held ? { held: shelved.held } : {}),
+    ...(drawn.error ? { unpinned: drawn.error } : {}),
+    ...sent,
+    ...(leaf ? { leaf } : {})
+  };
 }
 
 const shelfThumbs = thumbQueue();
@@ -2366,14 +2424,28 @@ const keepThumbOnShelf = (asked) => keepThumbOnShelfNow(asked).catch((err) => ({
 async function keepThumbOnShelfNow({ id, data }) {
   const job = shelfThumbs.take(String(id || ""));
   if (!job) return { error: "nobody asked for that thumbnail" };
-  if (!PNG_DATA_URL.test(String(data || ""))) return { error: "no picture came back for that page" };
-  const bytes = Buffer.from(String(data).replace(PNG_DATA_URL, ""), "base64");
+  if (job.kind === "proposal") return keepProposalThumbNow(job, data);
+  if (!WEBP_DATA_URL.test(String(data || ""))) return { error: "no picture came back for that page" };
+  const bytes = Buffer.from(String(data).replace(WEBP_DATA_URL, ""), "base64");
   return shelfTurn(async () => {
     const opened = await shelfPull();
     if (opened.error) return opened;
     const kept = keepThumb(SHELF_HOME, job.slug, job.tab, job.v, bytes);
     if (kept.error) return kept;
     const sent = await pushShelf(`estante: ${job.slug} · ${job.tab} v${job.v} · miniatura`);
+    return { ok: true, ...sent };
+  });
+}
+
+function keepProposalThumbNow(job, data) {
+  if (!WEBP_DATA_URL.test(String(data || ""))) return { error: "no webp came back for that proposal" };
+  const bytes = Buffer.from(String(data).replace(WEBP_DATA_URL, ""), "base64");
+  return shelfTurn(async () => {
+    const opened = await shelfPull();
+    if (opened.error) return opened;
+    const kept = keepProposalThumb(SHELF_HOME, job.slug, job.product, job.proposal, bytes);
+    if (kept.error) return kept;
+    const sent = await pushShelf(`estante: ${job.slug} · telas · ${job.product}/${job.proposal} · miniatura`);
     return { ok: true, ...sent };
   });
 }
@@ -3060,7 +3132,7 @@ async function seatInANativeWindow(asked) {
   }
 }
 
-async function seatInATmuxWindow({ name, model, effort, prompt, images = [], account, sessionId, resumeId, cwd = HUB, structured, agent, compactAt }) {
+async function seatInATmuxWindow({ name, model, effort, prompt, images = [], account, sessionId, resumeId, cwd = HUB, structured, agent, compactAt, anon = false }) {
   if (name === "hub") throw new Error(`"${name}" is a window this session already keeps — a seat with that name cannot be peeked, said to or killed. Pick another.`);
   if (agent !== "claude" && !NATIVE) {
     const binary = AGENT_BINARY[agent] || agent;
@@ -3095,7 +3167,8 @@ async function seatInATmuxWindow({ name, model, effort, prompt, images = [], acc
     promptFile,
     stateDir: HIVE_HOME,
     accountDir: held,
-    remoteControl: process.env.HIVE_REMOTE_CONTROL !== "0",
+    remoteControl: !anon && process.env.HIVE_REMOTE_CONTROL !== "0",
+    anonymous: anon,
     driver: structured ? (process.env.HIVE_DRIVER || join(ENGINE_DIR, driverFileFor(agent))) : ""
   };
   if (NATIVE) return seatInANativeWindow(asked);
@@ -3121,7 +3194,8 @@ async function seatInATmuxWindow({ name, model, effort, prompt, images = [], acc
   }
 }
 
-async function newChat({ name, prompt, images = [], where = "local", model = "", repo = "", branch = "", account = "", structured = false, agent = "", effort = "" }) {
+async function newChat({ name, prompt, images = [], where = "local", model = "", repo = "", branch = "", account = "", structured = false, agent = "", effort = "", anon = false }) {
+  if (anon && (where === "cloud" || !structured || (agent && agent !== "claude"))) throw new Error("an anonymous chat is a native claude chat on this machine");
   assertSpawnArgs({ name, model, repo, branch, account, agent, effort });
   const eng = OTHER_AGENTS.has(agent) ? agent : "claude";
   if (where !== "cloud") await providerReadyOrSay(eng);
@@ -3134,10 +3208,11 @@ async function newChat({ name, prompt, images = [], where = "local", model = "",
   if (where !== "cloud") {
     await hubEnvIntoTmux();
   }
-  let seatCwd = HUB;
+  let seatCwd = anon ? await mkdtemp(join(anonTempRoot(), ANON_DIR_PREFIX)) : HUB;
+  const anonWindow = anon ? { cwd: seatCwd, anon: true } : {};
   let replaced = "";
   const side = where === "cloud" ? "cloud" : "local";
-  newborn.set(seatKey(side, name), { name, where: side, kind: structured ? "structured" : "chat", agent: eng, model: model || "", account: account || "", at: Date.now() });
+  newborn.set(seatKey(side, name), { name, where: side, kind: structured ? "structured" : "chat", agent: eng, model: model || "", account: account || "", at: Date.now(), ...(anon ? { anon: true, cwd: seatCwd } : {}) });
   try {
     if (where === "cloud") {
       const opened = await onCloudSeats("POST", "", {
@@ -3158,10 +3233,11 @@ async function newChat({ name, prompt, images = [], where = "local", model = "",
       seatCwd = String(opened.body.cwd || "");
       replaced = String(opened.body.replaced || "");
     } else {
-      await seatInATmuxWindow({ name, model, effort, prompt, images, account, sessionId, structured, agent: eng, compactAt });
+      await seatInATmuxWindow({ name, model, effort, prompt, images, account, sessionId, structured, agent: eng, compactAt, ...anonWindow });
     }
   } catch (e) {
     newborn.delete(seatKey(side, name));
+    if (anon) await eraseAnonymousSeat({ name, anon: true, cwd: seatCwd });
     throw e;
   } finally {
     cache.at = 0;
@@ -3176,7 +3252,8 @@ async function newChat({ name, prompt, images = [], where = "local", model = "",
     cwd: seatCwd,
     model: model || "",
     account: account || "",
-    at: Date.now()
+    at: Date.now(),
+    ...(anon ? { anon: true } : {})
   });
   if (!structured && eng === "claude") await bindSeatSession(name, where, sessionId, replaced);
 }
@@ -3235,14 +3312,16 @@ function firstLine(text) {
 
 function openJob(body) {
   const id = `n${++jobCount}`;
+  const anon = body.anon === true && body.where !== "cloud";
   const where = body.where === "cloud" ? "cloud" : "local";
   const sleeping = where === "cloud" && CLOUD && !!podCache.at && !podCache.up;
-  const named = slug(body.name);
+  const named = anon ? `anon-${randomUUID().slice(0, 6)}` : slug(body.name);
   const job = {
     id,
+    anon,
     name: freeNameNow(named || nameFromMission(body.prompt)),
     where,
-    mission: firstLine(body.prompt),
+    mission: anon ? "" : firstLine(body.prompt),
     model: String(body.model || ""),
     repo: String(body.repo || ""),
     by: String(body.by || "").trim().toLowerCase(),
@@ -3385,6 +3464,7 @@ async function chatSoFar(name, where, prompt = "") {
 }
 
 async function retitle(name, where, { previousTitle, agent = "claude", prompt = "" }) {
+  if (anonymousSeat(where, name)) return "";
   const key = seatKey(where, name);
   if (retitlingNow.has(key)) return "";
   retitlingNow.add(key);
@@ -3424,7 +3504,23 @@ async function regenerateSeatTitle(name, where) {
   return { ok: true, title: title || found.title || name };
 }
 
+async function runAnonymousJob(job, body) {
+  try {
+    job.name = await freeName(job.name, "local", job.id);
+    job.settled = true;
+    cache.at = 0;
+    await newChat({ ...body, name: job.name, prompt: String(body.prompt || "").trim(), where: "local", anon: true });
+    job.step = "up";
+  } catch (e) {
+    job.step = "failed";
+    job.error = String(e.message || e);
+  }
+  job.at = Date.now();
+  cache.at = 0;
+}
+
 async function runJob(job, body) {
+  if (job.anon) return runAnonymousJob(job, body);
   try {
     let prompt = String(body.prompt || "").trim();
     const opened = await extensions.opening({ body, prompt });
@@ -4223,9 +4319,68 @@ async function runSessionSync() {
 const FLEET_FILE = process.env.HIVE_FLEET_FILE || join(HUB, ".hive/fleet.json");
 const fleet = new Map();
 const newborn = new Map();
+const anonSeats = new Map();
+const ANON_DIR_PREFIX = "hive-anon-";
+const ANON_NAME = /^anon-[a-z0-9]+$/;
 
 function seatRecord(where, name) {
-  return fleet.get(seatKey(where, name)) || newborn.get(seatKey(where, name));
+  return fleet.get(seatKey(where, name)) || anonSeats.get(seatKey(where, name)) || newborn.get(seatKey(where, name));
+}
+
+const anonymousSeat = (where, name) => !!seatRecord(where, name)?.anon;
+
+const anonTempRoot = () => realpathSync(tmpdir());
+
+function anonymousLeftovers(name) {
+  return [
+    join(HIVE_HOME, "events", `${name}.ndjson`),
+    join(HIVE_HOME, "sessions", `${name}.json`),
+    join(HIVE_HOME, "shell-env", `${name}.sh`),
+    join(HIVE_HOME, "shell-env", `${name}.load.sh`),
+    join(HIVE_HOME, "sock", `${name}.sock`),
+    join(HUB, ".hive/prompts", `${name}.md`),
+    missionImagesFile(join(HUB, ".hive/prompts", `${name}.md`)),
+    join(HUB, ".hive/status", `${name}.md`),
+    shotsDirOf(name)
+  ];
+}
+
+async function eraseAnonymousDir(dir) {
+  if (!dir || dirname(dir) !== anonTempRoot() || !basename(dir).startsWith(ANON_DIR_PREFIX)) return;
+  await rm(join(CLAUDE_PROJECTS, projectSlug(dir)), { recursive: true, force: true }).catch(() => {});
+  await rm(dir, { recursive: true, force: true }).catch(() => {});
+}
+
+async function eraseAnonymousSeat(seat) {
+  if (!seat?.anon || !ANON_NAME.test(String(seat.name || ""))) return;
+  chosenModels.delete(seat.name);
+  for (const path of anonymousLeftovers(seat.name)) await rm(path, { recursive: true, force: true }).catch(() => {});
+  await eraseAnonymousDir(String(seat.cwd || ""));
+}
+
+function readdirSafe(dir) {
+  try { return readdirSync(dir); } catch { return []; }
+}
+
+async function sweepAnonymousLeftovers() {
+  const windows = await shr(TMUX, ["list-windows", "-t", LOCAL_SESSION, "-F", "#W"], { timeout: 8000 });
+  const names = new Set(windows.ok ? windows.out.split("\n").map((line) => line.trim()).filter((one) => ANON_NAME.test(one)) : []);
+  for (const dir of ["events", "sessions", "sock"]) {
+    for (const file of readdirSafe(join(HIVE_HOME, dir))) {
+      const name = file.replace(/\.(ndjson|json|sock)$/, "");
+      if (ANON_NAME.test(name)) names.add(name);
+    }
+  }
+  for (const name of names) {
+    if (anonSeats.has(seatKey("local", name))) continue;
+    await shr(TMUX, ["kill-window", "-t", `${LOCAL_SESSION}:=${name}`], { timeout: 4000 });
+    for (const path of anonymousLeftovers(name)) await rm(path, { recursive: true, force: true }).catch(() => {});
+  }
+  const held = new Set([...anonSeats.values()].map((seat) => seat.cwd));
+  for (const entry of readdirSafe(anonTempRoot())) {
+    const dir = join(anonTempRoot(), entry);
+    if (!held.has(dir)) await eraseAnonymousDir(dir);
+  }
 }
 
 async function loadFleet() {
@@ -4561,7 +4716,7 @@ async function publishPanel() {
   sweepKeyboards();
   const at = Date.now();
   const held = new Map(keyboards);
-  const said = await server.client.panel(panelOf(sessions, DEV, at, held, config.avatar, config.wear, thisMachine(config), config.knocks, pagesNow(at)));
+  const said = await server.client.panel(panelOf(sessions.filter((one) => !one.anon), DEV, at, held, config.avatar, config.wear, thisMachine(config), config.knocks, pagesNow(at)));
   panelIsOnThePod = said.ok;
 }
 
@@ -4940,6 +5095,7 @@ function theRelay() {
     mine: (who) => (mine.kinds.has(who) ? deviceMayReachSeats(who) : who === serverKey()),
     openSeat: async (mission) => {
       const asked = { ...mission, structured: true };
+      delete asked.anon;
       const job = openJob(asked);
       await runJob(job, asked);
       return job.step === "failed" ? { error: job.error } : { id: job.id, name: job.name };
@@ -4951,6 +5107,7 @@ function theRelay() {
     },
     allow: (who, seat) => {
       if (who === serverKey()) return true;
+      if (anonymousSeat("local", seat)) return false;
       if (mine.kinds.has(who)) return deviceMayReachSeats(who);
       const lent = keyboards.get(seat);
       return !!lent && grantLive(lent) && lent.with === who;
@@ -5040,12 +5197,22 @@ async function tellTheAsker(dev, seat) {
 }
 
 function rememberSeat(seat) {
+  if (seat.anon) {
+    anonSeats.set(seatKey(seat.where, seat.name), { openedAt: Date.now(), ...seat });
+    newborn.delete(seatKey(seat.where, seat.name));
+    return;
+  }
   fleet.set(seatKey(seat.where, seat.name), { openedAt: Date.now(), ...seat });
   newborn.delete(seatKey(seat.where, seat.name));
   saveFleet();
 }
 
 function forgetSeat(where, name) {
+  const anon = anonSeats.get(seatKey(where, name));
+  if (anon) {
+    anonSeats.delete(seatKey(where, name));
+    eraseAnonymousSeat(anon).catch(() => {});
+  }
   if (fleet.delete(seatKey(where, name))) saveFleet();
   closingSeats.delete(seatKey(where, name));
 }
@@ -6702,7 +6869,7 @@ registerMemoryRoutes(on, {
   })
 });
 registerHistoryRoutes(on, { isSeatName, paneHistory, readImage });
-registerArtifactRoutes(on, { leafUrl: () => LEAF_URL, pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
+registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), leafUrl: () => LEAF_URL, pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
 registerErrandRoutes(on, { bodyOf: body, renameErrand, markSeen, HIVE_HOME, invalidateCollectionCache: () => { cache.at = 0; }, readErrands, liveSessions: () => cache.data?.sessions || [], archiveSeat });
 registerTaskRoutes(on, {
   bodyOf: body,
@@ -6934,7 +7101,7 @@ const phoneBridge = createPhoneBridge({
   door: async () => { const one = await serverFor(); return one ? { url: one.url, audience: one.audience } : null; },
   seats: async () => {
     const { sessions: all } = await collect();
-    return all.filter((one) => one.where === "local").map((one) => ({ name: one.name, title: one.title || one.name }));
+    return all.filter((one) => one.where === "local" && !one.anon).map((one) => ({ name: one.name, title: one.title || one.name }));
   },
   profile: () => (lastConfig ? { avatar: lastConfig.avatar || "", wear: lastConfig.wear || "", language: lastConfig.language || "" } : null),
   draftOf: (name) => draftOf(HIVE_HOME, name),
@@ -6943,6 +7110,7 @@ const phoneBridge = createPhoneBridge({
   machineName: () => (lastConfig ? thisMachine(lastConfig) : String(hostname() || "mac").replace(/\.local$/i, "")),
   spawn: async (mission) => {
     const asked = { ...mission, structured: true };
+      delete asked.anon;
     const job = openJob(asked);
     await runJob(job, asked);
     return job.step === "failed" ? { error: job.error } : { id: job.id, name: job.name, where: job.where };
@@ -7237,6 +7405,7 @@ if (!process.env.HIVE_NO_SWEEP) sweepOldShots().catch(() => {});
 await loadTitles();
 await loadFleet();
 await loadArchivedSeats();
+if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET && !NATIVE) await sweepAnonymousLeftovers().catch(() => {});
 mirrorFleetToTheBox();
 await reconcileLocalFleet().catch(() => {});
 tellSeatsNobodyLooksYet();

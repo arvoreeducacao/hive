@@ -230,7 +230,7 @@ test("a knock is the same knock while it waits, so it is only announced once", (
 });
 
 test("the rail has a foot of its own, so the list can scroll and the knocks cannot scroll away", () => {
-  assert.match(page, /<div id="rail-list" data-no-t>(?:<button[^>]*><\/button>)?<div id="rail-sessions"><\/div><div id="rail-team"><\/div><\/div><div id="knock-dock" hidden/);
+  assert.match(page, /<div id="rail-list" data-no-t>(?:<button[^>]*><\/button>)?<div id="rail-next"><\/div><div id="rail-sessions"><\/div><div id="rail-team"><\/div><div id="rail-next-foot"><\/div><\/div><div id="knock-dock" hidden/);
   assert.match(page, /#rail \{[^}]*grid-template-rows: minmax\(0, 1fr\) auto/);
   assert.match(page, /#rail-list \{[^}]*overflow-y: auto/);
 });

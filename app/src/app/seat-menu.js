@@ -45,7 +45,7 @@ function seatMenuRows(s) {
   rows.push({ label: isOpen ? phrase("back to the mosaic") : phrase("open it alone"), note: keyHint("fullscreen"), go: () => (isOpen ? closeTile() : openTile(s.name)) });
   rows.push({ label: phrase("type in this session"), note: keyHint("type"), go: () => takeKeyboard(s.name) });
   if (s.finish) rows.push({ label: phrase("what it left for you"), note: ago(s.finish.at), go: () => openFinishOf(s.name) });
-  rows.push({ label: phrase("rename…"), go: () => startRename(s.name) });
+  if (!s.anon) rows.push({ label: phrase("rename…"), go: () => startRename(s.name) });
   rows.push(isOpen
     ? { label: sideShut(s.name) ? phrase("bring the cards back") : phrase("fold the cards away"), go: () => toggleFold(s.name) }
     : { label: statusFolded(s.name) ? "unfold the status" : "fold the status away", go: () => toggleFold(s.name) });
@@ -72,7 +72,7 @@ function seatMenuRows(s) {
   rows.push({ label: phrase("reconnect"), note: keyHint("reconnect"), go: () => reconnect(s.name) });
   rows.push({ label: phrase("copy the seat name"), note: s.name, go: () => toClipboard(s.name) });
   rows.push({ label: phrase("hide until it works again"), go: () => hideUntilItWorks(s) });
-  rows.push({ label: phrase("archive"), note: keyHint("archive") || phrase("no key"), go: () => archiveSeatNow(s) });
+  if (!s.anon) rows.push({ label: phrase("archive"), note: keyHint("archive") || phrase("no key"), go: () => archiveSeatNow(s) });
   rows.push({ label: phrase("close the seat"), danger: true, go: (at) => closeSeat(s, at) });
   return rows;
 }
@@ -84,7 +84,7 @@ function seatMenuRowsRaycast(s) {
   rows.push({ icon: "i-expand", label: isOpen ? phrase("back to the mosaic") : phrase("open it alone"), keys: keyHint("fullscreen"), go: () => (isOpen ? closeTile() : openTile(s.name)) });
   rows.push({ icon: "i-term", label: phrase("type in this session"), keys: keyHint("type"), go: () => takeKeyboard(s.name) });
   if (s.finish) rows.push({ icon: "i-check", label: phrase("what it left for you"), note: ago(s.finish.at), go: () => openFinishOf(s.name) });
-  rows.push({ icon: "i-pen", label: phrase("rename…"), go: () => startRename(s.name) });
+  if (!s.anon) rows.push({ icon: "i-pen", label: phrase("rename…"), go: () => startRename(s.name) });
   rows.push(isOpen
     ? { icon: "i-minus", label: sideShut(s.name) ? phrase("bring the cards back") : phrase("fold the cards away"), go: () => toggleFold(s.name) }
     : { icon: "i-minus", label: statusFolded(s.name) ? "unfold the status" : "fold the status away", go: () => toggleFold(s.name) });
@@ -120,7 +120,7 @@ function seatMenuRowsRaycast(s) {
   rows.push({ icon: "i-reload", label: phrase("reconnect"), keys: keyHint("reconnect"), go: () => reconnect(s.name) });
   rows.push({ icon: "i-copy", label: phrase("copy the seat name"), note: s.name, go: () => toClipboard(s.name) });
   rows.push({ icon: "i-minus", label: phrase("hide until it works again"), go: () => hideUntilItWorks(s) });
-  rows.push({ icon: "i-clock", label: phrase("archive"), keys: keyHint("archive"), go: () => archiveSeatNow(s) });
+  if (!s.anon) rows.push({ icon: "i-clock", label: phrase("archive"), keys: keyHint("archive"), go: () => archiveSeatNow(s) });
   rows.push({ icon: "i-x", label: phrase("close the seat…"), keys: keyHint("kill"), danger: true, go: (at) => closeSeat(s, at) });
   return rows;
 }
@@ -757,6 +757,7 @@ function update(el, s, pos) {
   el.classList.toggle("focused", pos === st.focus);
   el.classList.toggle("open", st.open === s.name);
   el.classList.toggle("fielded", paneOnField(s.name));
+  el.classList.toggle("anon", !!s.anon);
   if (raycastOn()) side.show(tileViewModel(s, { pos }));
   else side.show(tileViewModel(s));
   fitChipsOf(el);
@@ -970,7 +971,7 @@ function tileViewModel(s, raycast = null) {
   const live = liveOf(s);
   return {
     sub: {
-      text: s.errand ? `${s.errand} · ${s.name}` : `${s.name}${s.model ? " · " + s.model : ""}`,
+      text: s.anon ? phrase("this mac · nothing kept") : s.errand ? `${s.errand} · ${s.name}` : `${s.name}${s.model ? " · " + s.model : ""}`,
       ofErrand: !!s.errand,
       hint: s.errand ? phrase("part of what you asked: {asked}", { asked: s.asked || s.errand }) : ""
     },
@@ -988,8 +989,8 @@ function tileViewModel(s, raycast = null) {
       : { key: s.where, cls: s.where, title: s.where, icon: WHERE_ICON[s.where] || "#i-cloud", text: s.where },
     chips: tileChipsModel(s),
     summary: {
-      text: s.summary || s.description || phrase("no status written yet — only the terminal speaks for it"),
-      empty: !s.summary && !s.description
+      text: s.anon ? phrase("No memories, hub rules, skills, phone or summary. Closing it erases it.") : s.summary || s.description || phrase("no status written yet — only the terminal speaks for it"),
+      empty: !s.anon && !s.summary && !s.description
     },
     threads: tileThreadsModel(s),
     prs: tilePrsModel(s),

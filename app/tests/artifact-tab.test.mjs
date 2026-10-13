@@ -170,6 +170,31 @@ test("the artifact chrome only shows on an artifact tab", () => {
   assert.equal(pane.querySelector(".web-out").textContent, "the shelf");
 });
 
+test("the telas tab in the chat's browser opens the screenbook proposal itself, and a chip picks another", () => {
+  const had = st.shelf;
+  st.shelf = { pages: [{ slug: "missao-com-telas", label: "decided", tabs: {
+    documento: { versions: [{ n: 1, label: "decided", at: 1 }] },
+    telas: { kind: "link", proposals: [
+      { url: "https://screenbook.example.com/reader/?proposal=antes", product: "reader", id: "antes", screens: {}, at: 1 },
+      { url: "https://screenbook.example.com/reader/?proposal=etapas", product: "reader", id: "etapas", screens: {}, at: 2 }
+    ] }
+  } }] };
+  const pane = document.createElement("section");
+  pane.innerHTML = '<div class="web-rail"></div><button class="web-link"></button><button class="web-ask"></button><button class="web-out"></button>';
+  const tab = { kind: "artifact", slug: "missao-com-telas", tab: "telas", version: 0 };
+  web.paintArtifactChrome(pane, tab);
+  assert.equal(tab.url, "https://screenbook.example.com/reader/?proposal=etapas");
+  assert.deepEqual([...pane.querySelectorAll(".sh-ver")].map((one) => one.textContent), ["reader/etapas", "reader/antes"]);
+  tab.version = 1;
+  web.paintArtifactChrome(pane, tab);
+  assert.equal(tab.url, "https://screenbook.example.com/reader/?proposal=antes");
+  tab.tab = "documento";
+  tab.version = 0;
+  web.paintArtifactChrome(pane, tab);
+  assert.equal(tab.url, "shelf://missao-com-telas/?tab=documento&v=1");
+  st.shelf = had;
+});
+
 test("the address handed to someone else names the page, never the version", () => {
   assert.equal(web.shelfLinkOf("a-page", "documento"), "hive://shelf/a-page?tab=documento");
   assert.equal(web.shelfLinkOf("a-page", ""), "hive://shelf/a-page");
@@ -180,7 +205,7 @@ test("the address handed to someone else names the page, never the version", () 
 
 test("what the tab shows is always a settled version, so a new one repaints it", () => {
   const fn = cut(panes, "function paintArtifactChrome(pane, now) {", "\n}\n", "chat-and-panes.js");
-  assert.match(fn, /mine\.url = shelfTabAddress\(mine\.slug, shown\.tab, shown\.now\?\.n \|\| 0, mine\.at\);/);
+  assert.match(fn, /mine\.url = proposal \? proposal\.url : shelfTabAddress\(mine\.slug, shown\.tab, shown\.now\?\.n \|\| 0, mine\.at\);/);
   const paint = cut(panes, "function paintWebOfChat(el, s) {", "\nfunction paintArtifactChrome", "chat-and-panes.js");
   assert.ok(paint.indexOf("paintArtifactChrome(pane, now)") < paint.indexOf("const stage = pane.querySelector"),
     "the chrome settles the address before the stage reads it");

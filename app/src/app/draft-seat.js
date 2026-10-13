@@ -1,7 +1,7 @@
 import { render } from "./arrange.js";
 import { activeItems, blockWithRoom, openBlock, saveBlocks } from "./blocks.js";
 import { AGENT_NAMES, artifactTabOf, draftCarriesEffort, openSeatPicker, paintPills, paintWebOfChat, refreshCatalog, seatAgent, shelfLinkOf, weaveHandles, webOfSeat } from "./chat-and-panes.js";
-import { SV_FLOOR, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
+import { SV_FLOOR, continueListOnShiftEnter, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
 import { COMPOSER_MIN, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
 import { closeTile, focusSeat, pull, releaseKeyboard } from "./focus-navigation.js";
 import { jobName, justCreated } from "./leader-key.js";
@@ -21,6 +21,10 @@ const DRAFT_KINDS = ["structured", "terminal"];
 
 const DRAFT_WHERES = ["local", "cloud"];
 
+const DRAFT_ANONYMOUS = "anonymous";
+
+const draftIsAnonymous = (d) => d.where === DRAFT_ANONYMOUS;
+
 const draftKey = (id) => `draft:${id}`;
 
 function keptChoices() {
@@ -29,7 +33,8 @@ function keptChoices() {
 
 function keepChoices(d) {
   try {
-    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ agent: d.e.agent, model: d.e.model, where: d.where, kind: d.kind }));
+    const where = draftIsAnonymous(d) ? keptChoices().where || "local" : d.where;
+    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ agent: d.e.agent, model: d.e.model, where, kind: d.kind }));
   } catch {}
 }
 
@@ -44,15 +49,17 @@ function draftChoices(kept) {
 
 function spawnPayloadOf(d, prompt, images = []) {
   const cloud = d.where === "cloud";
+  const anon = draftIsAnonymous(d);
   return {
     name: "",
     prompt,
     images,
-    where: d.where,
+    where: anon ? "local" : d.where,
+    ...(anon ? { anon: true } : {}),
     model: d.e.model || "",
     ...(draftCarriesEffort(d.e.agent, d.kind) && d.e.effort ? { effort: d.e.effort } : {}),
-    agent: d.e.agent,
-    structured: d.kind === "structured",
+    agent: anon ? "claude" : d.e.agent,
+    structured: anon || d.kind === "structured",
     account: cloud ? "" : (d.e.account || ""),
     repo: cloud ? String(d.repo || "").trim() : "",
     branch: cloud ? String(d.branch || "").trim() : ""
@@ -100,6 +107,7 @@ function draftHost(d) {
           <div class="sv-seg" data-pick="where" data-caption="${phrase("Where it runs")}" role="radiogroup" aria-label="${phrase("where the chat runs")}">
             <button type="button" data-v="local" data-short="${phrase("Local")}" role="radio">${svgIcon("i-local")}<span>${phrase("local · your machine")}</span></button>
             <button type="button" data-v="cloud" data-short="${phrase("Cloud")}" role="radio">${svgIcon("i-cloud")}<span>${phrase("cloud · server")}</span></button>
+            <button type="button" data-v="anonymous" data-short="${phrase("Anonymous")}" role="radio" class="anon" title="${phrase("a chat that leaves nothing behind")}">${svgIcon("i-anon")}<span>${phrase("anonymous")}</span></button>
           </div>
           <div class="sv-seg" data-pick="kind" data-caption="${phrase("How it opens")}" role="radiogroup" aria-label="${phrase("what kind of seat it opens")}">
             <button type="button" data-v="structured" data-short="${phrase("Chat")}" role="radio" title="${phrase("markdown, cards, instant commands, questions as buttons")}">${svgIcon("i-answered")}<span>${phrase("native chat")}</span></button>
@@ -110,6 +118,7 @@ function draftHost(d) {
           <input class="sv-repo" autocomplete="off" spellcheck="false" placeholder="${phrase("repo")}" aria-label="${phrase("repo")}" title="${phrase("the repo the cloud seat clones")}" />
           <input class="sv-branch" autocomplete="off" spellcheck="false" placeholder="${phrase("branch")}" aria-label="${phrase("branch")}" title="${phrase("the branch it starts from")}" />
         </div>
+        <p class="sv-anon-said" hidden><b>${phrase("Runs on this mac and leaves nothing behind.")}</b> ${phrase("No hub rules, skills or memories. The other chats, the phone and the summaries never see it, and closing it erases it.")}</p>
         <p class="sv-empty-said" hidden></p>
       </div>
       <div class="sv-sent" hidden></div>
@@ -118,7 +127,7 @@ function draftHost(d) {
     <form class="sv-composer">
       <div class="sv-activity"><span class="pulse"></span><span class="verb"></span><span class="clock"></span></div>
       <div class="sv-attach"></div>
-      <div class="sv-well"><textarea rows="1" spellcheck="false" placeholder="${phrase("write the first message — enter opens the chat, shift+enter breaks the line")}"></textarea></div>
+      <div class="sv-well"><div class="sv-ink" aria-hidden="true"></div><textarea rows="1" spellcheck="false" placeholder="${phrase("write the first message — enter opens the chat, shift+enter breaks the line")}"></textarea></div>
       <div class="sv-foot">
         <span class="sv-pick">
           <button type="button" class="sv-pill sv-pill-model"></button>
@@ -142,6 +151,8 @@ function draftHost(d) {
   new ResizeObserver(() => { if (textarea.value) autosize(); }).observe(host);
   const paintReady = () => host.querySelector(".sv-composer")
     .classList.toggle("ready", !!textarea.value.trim() || !!d.e.tray.count());
+  const ink = host.querySelector(".sv-ink");
+  const paintInk = () => drawInk(host.querySelector(".sv-composer"), ink, textarea, listInkMarks(textarea.value));
   d.e.tray = imageTray(host.querySelector(".sv-attach"), textarea, () => ({ where: "local", name: "" }));
   const menu = suggestMenu({
     textarea,
@@ -159,6 +170,7 @@ function draftHost(d) {
   textarea.addEventListener("keydown", (kev) => {
     kev.stopPropagation();
     if (menu.key(kev)) return;
+    if (continueListOnShiftEnter(kev, textarea)) return;
     if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value); }
     if (kev.key === "Escape") {
       kev.preventDefault();
@@ -166,15 +178,18 @@ function draftHost(d) {
       textarea.blur();
     }
   });
-  textarea.addEventListener("input", () => { autosize(); d.e.tray.sync(); menu.compute(); paintReady(); });
+  textarea.addEventListener("input", () => { autosize(); d.e.tray.sync(); menu.compute(); paintReady(); paintInk(); });
+  textarea.addEventListener("scroll", () => { ink.scrollTop = textarea.scrollTop; });
   textarea.addEventListener("blur", () => setTimeout(menu.close, 150));
   for (const seg of host.querySelectorAll(".sv-seg")) {
     seg.addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-v]");
       if (!btn) return;
       ev.stopPropagation();
+      if (btn.disabled) return;
       d[seg.dataset.pick] = btn.dataset.v;
-      d.e.where = d.where;
+      if (draftIsAnonymous(d)) d.kind = "structured";
+      d.e.where = draftIsAnonymous(d) ? "local" : d.where;
       paintDraftHost(d);
       textarea.focus();
     });
@@ -202,6 +217,7 @@ function draftCommands(d) {
 }
 
 async function hubFiles(where, q) {
+  if (where === DRAFT_ANONYMOUS) return { files: [], error: "" };
   const r = await fetch(`/api/index?where=${where}&q=${encodeURIComponent(q)}&limit=20`).then((x) => x.json()).catch(() => null);
   return { files: (r?.files || []).map((row) => `${row.repo}/${row.path}`), error: r?.error || "" };
 }
@@ -273,7 +289,10 @@ function openDraft(seed = "") {
   render();
   if (!st.accountsAsked) pullAccounts();
   const textarea = d.e.host.querySelector("textarea");
-  if (seed) textarea.value = seed;
+  if (seed) {
+    textarea.value = seed;
+    textarea.dispatchEvent(new Event("input"));
+  }
   textarea.focus();
   textarea.setSelectionRange(textarea.value.length, textarea.value.length);
   return d;
@@ -297,12 +316,13 @@ async function sendDraft(d, text) {
     textarea.dispatchEvent(new Event("input"));
     return void openSeatPicker(d.e, picker);
   }
-  const art = artifactTabOf(d.key);
+  const anon = draftIsAnonymous(d);
+  const art = anon ? null : artifactTabOf(d.key);
   const seeded = art && !String(text || "").includes(`hive://shelf/${art.slug}`)
     ? `${shelfLinkOf(art.slug, art.tab)}\n${text}`
     : text;
   const marked = outboundImageMarks(String(seeded || ""), d.e.tray?.marks || new Map());
-  const woven = weaveHandles(marked.text.trim(), st.data?.sessions || [], "", false, d.where);
+  const woven = anon ? { text: marked.text } : weaveHandles(marked.text.trim(), st.data?.sessions || [], "", false, d.where);
   if (woven.error) {
     d.error = woven.error;
     paintDraftHost(d);
@@ -394,6 +414,10 @@ function paintDraftHost(d) {
     }
   }
   host.querySelector(".sv-cloud").hidden = d.where !== "cloud";
+  host.querySelector(".sv-anon-said").hidden = !draftIsAnonymous(d);
+  host.classList.toggle("anon", draftIsAnonymous(d));
+  const tui = host.querySelector('.sv-seg[data-pick="kind"] button[data-v="terminal"]');
+  if (tui) tui.disabled = draftIsAnonymous(d);
   const said = host.querySelector(".sv-empty-said");
   said.hidden = !d.error;
   said.textContent = d.error || "";
@@ -439,7 +463,8 @@ function updateDraft(el, it, pos) {
   el.classList.toggle("open", st.open === it.key);
   el.classList.toggle("sending", !!d.sending);
   el.classList.toggle("bad", !!d.error);
-  el.querySelector(".t-name").textContent = phrase("new chat");
+  el.classList.toggle("anon", draftIsAnonymous(d));
+  el.querySelector(".t-name").textContent = draftIsAnonymous(d) ? phrase("new anonymous chat") : phrase("new chat");
   el.querySelector(".t-sub").textContent = d.sending ? phrase("opening the chat") : d.error ? phrase("did not open") : phrase("nothing sent yet");
   paintWebOfChat(el, { name: it.key });
   paintDraftHost(d);
@@ -447,7 +472,9 @@ function updateDraft(el, it, pos) {
 
 function draftItem(key) {
   const d = drafts.get(key.slice(6));
-  return d ? { id: d.id, key, kind: "draft", where: d.where, sending: d.sending, state: "idle", name: key, title: phrase("new chat") } : null;
+  if (!d) return null;
+  const anon = draftIsAnonymous(d);
+  return { id: d.id, key, kind: "draft", where: anon ? "local" : d.where, anon, sending: d.sending, state: "idle", name: key, title: anon ? phrase("new anonymous chat") : phrase("new chat") };
 }
 
 document.addEventListener("hive:experience", (event) => {
@@ -456,4 +483,4 @@ document.addEventListener("hive:experience", (event) => {
   for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, raycastOn());
 });
 
-export { DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, attachFilesToDraft, keepDraftingAfterSend, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };
+export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, attachFilesToDraft, keepDraftingAfterSend, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };

@@ -2,7 +2,7 @@ import { render } from "./arrange.js";
 import { activeItems, blockWithRoom, ofBlock, openBlock, saveBlocks } from "./blocks.js";
 import { saveConfig } from "./brand-face.js";
 import { weaveHandles } from "./chat-and-panes.js";
-import { $, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, esc, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { $, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, esc, experienceNext, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { closeTile, focusSeat, pull, releaseKeyboard } from "./focus-navigation.js";
 import { openDraft, sendDraft } from "./draft-seat.js";
 import { jobName, justCreated, pool, tiles } from "./leader-key.js";
@@ -272,7 +272,7 @@ function paintComposer() {
   const booting = !t && ["job", "draft"].includes(activeItems()[st.focus]?.kind);
   paintComposerTo();
   const empty = !$("cmp-in").value.trim();
-  if (st.barOn && !t && !booting && !st.missionMode && empty) setMission(true);
+  if (st.barOn && !experienceNext() && !t && !booting && !st.missionMode && empty) setMission(true);
   else if ((t || booting) && st.missionMode && empty && !st.missionPinned) setMission(false);
   else if (st.missionMode) $("cmp-hint").textContent = missionHint();
   paintAim();
