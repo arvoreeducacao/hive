@@ -1,8 +1,9 @@
 import { peerEntry } from "../../server/engine/peer-module.mjs";
+import { peerEntryName } from "../lib/peer-tools.mjs";
 
 export function externalMcpCommand({ entry, node = "node", stateDir = "", ceiling = "read", label = "terminal" }) {
   const env = [`-e HIVE_CLIENT=${label}`, `-e HIVE_CLIENT_CEILING=${ceiling}`, stateDir ? `-e HIVE_STATE_DIR=${stateDir}` : ""].filter(Boolean).join(" ");
-  return `claude mcp add hive ${env} -- ${node} ${entry}`;
+  return `claude mcp add ${peerEntryName(stateDir)} ${env} -- ${node} ${entry}`;
 }
 
 export function registerExternalMcpRoutes(on, { home, node = process.execPath }) {

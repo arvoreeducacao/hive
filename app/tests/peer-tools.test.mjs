@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PEER_MODULE_PROBE, peerToolsCommand } from "../lib/peer-tools.mjs";
 
 const NODE = "/Applications/My Hive.app/Contents/MacOS/node";
 const PEER = "/Applications/My Hive.app/Contents/Resources/server/peer/peer-mcp.mjs";
 
-function machine(listed = "") {
+function machine(listed = "", home = "") {
   const root = mkdtempSync(join(tmpdir(), "hive-peer-"));
   const bin = join(root, "bin");
   mkdirSync(bin);
@@ -21,17 +22,22 @@ function machine(listed = "") {
     "#!/bin/sh",
     `printf '%s\\n' "$*" >> ${JSON.stringify(calls)}`,
     'if [ "$1" = "mcp" ] && [ "$2" = "list" ]; then cat ' + JSON.stringify(state) + "; exit 0; fi",
-    'if [ "$1" = "mcp" ] && [ "$2" = "remove" ]; then : > ' + JSON.stringify(state) + "; exit 0; fi",
+    'if [ "$1" = "mcp" ] && [ "$2" = "remove" ]; then',
+    `  grep -v "^$5: " ${JSON.stringify(state)} > ${JSON.stringify(`${state}.next`)}; mv ${JSON.stringify(`${state}.next`)} ${JSON.stringify(state)}`,
+    "  exit 0",
+    "fi",
     'if [ "$1" = "mcp" ] && [ "$2" = "add" ]; then',
-    '  shift 6',
-    `  printf 'hive: %s - connected\\n' "$*" > ${JSON.stringify(state)}`,
+    '  name="$5"',
+    '  while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do shift; done',
+    "  shift",
+    `  printf '%s: %s - connected\\n' "$name" "$*" >> ${JSON.stringify(state)}`,
     "  exit 0",
     "fi",
     "exit 1"
   ].join("\n");
   writeFileSync(join(bin, "claude"), `${fake}\n`);
   chmodSync(join(bin, "claude"), 0o755);
-  const run = () => execFileSync("bash", ["-c", peerToolsCommand({ node: NODE, peer: PEER })], {
+  const run = () => execFileSync("bash", ["-c", peerToolsCommand({ node: NODE, peer: PEER, home })], {
     env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
     encoding: "utf8"
   });
@@ -58,6 +64,33 @@ test("a machine already pointed at the module is left alone", () => {
   const it = machine(`hive: ${NODE} ${PEER} - connected\n`);
   it.run();
   assert.deepEqual(it.calls(), ["mcp list"], "boot rewrites an entry that was already right");
+});
+
+test("a second hive registers under a name of its own and leaves the first one's entry alone", () => {
+  const first = "hive: /Applications/Hive.app/node /Applications/Hive.app/peer-mcp.mjs - connected\n";
+  const it = machine(first, "/Users/x/.hive-personal");
+  it.run();
+  assert.ok(it.listed().startsWith(first), `the first hive's entry was touched: ${it.listed()}`);
+  assert.ok(it.listed().includes(`hive-personal: ${NODE} ${PEER}`), `the second hive has no entry of its own: ${it.listed()}`);
+  assert.ok(it.calls().some((c) => c.startsWith("mcp add") && c.includes("-e HIVE_STATE_DIR=/Users/x/.hive-personal")),
+    "the second hive's entry would read the first hive's state");
+  assert.ok(!it.calls().includes("mcp remove --scope user hive"), "the second hive removed the first one's entry");
+  it.run();
+  assert.equal(it.calls().filter((c) => c.startsWith("mcp add")).length, 1, "every boot writes the entry again");
+});
+
+test("the hive in the default place keeps the name and the entry every machine already has", () => {
+  for (const home of ["", "/Users/x/.hive", "/workspace/hive"]) {
+    const it = machine(`hive: ${NODE} ${PEER} - connected\n`, home);
+    it.run();
+    assert.deepEqual(it.calls(), ["mcp list"], `a hive at ${home || "no folder"} rewrote an entry that was already right`);
+  }
+});
+
+test("the server registers its entry under the name of its own folder", () => {
+  const server = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "server.mjs"), "utf8");
+  assert.match(server, /peerToolsCommand\(\{ node: process\.execPath, peer: peerEntry\(\{ here: join\(SERVER_DIR, "engine"\) \}\), home: HIVE_HOME \}\)/,
+    "the local entry is written without the hive's folder, so a second hive takes the first one's name");
 });
 
 function probe({ made = [], serverDir = "" } = {}) {

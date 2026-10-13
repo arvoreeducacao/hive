@@ -3299,7 +3299,7 @@ async function ensurePeerTools(where) {
     await onTheServer(there, [], { timeout: 20000 }).catch(() => {});
     return;
   }
-  const here = peerToolsCommand({ node: process.execPath, peer: peerEntry({ here: join(SERVER_DIR, "engine") }) });
+  const here = peerToolsCommand({ node: process.execPath, peer: peerEntry({ here: join(SERVER_DIR, "engine") }), home: HIVE_HOME });
   await sh(...viaBash("bash", ["-c", here]), { timeout: 20000 }).catch(() => {});
 }
 
