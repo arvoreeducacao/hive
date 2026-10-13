@@ -26,5 +26,15 @@ test("an outside agent under read is refused a message, and one under operate is
 });
 
 test("the command to connect names the entry, the ceiling and the hive's state", () => {
-  assert.equal(externalMcpCommand({ entry: "/a/peer-mcp.mjs", node: "/n/node", stateDir: "/h", ceiling: "operate" }), "claude mcp add hive -e HIVE_CLIENT=terminal -e HIVE_CLIENT_CEILING=operate -e HIVE_STATE_DIR=/h -- /n/node /a/peer-mcp.mjs");
+  assert.equal(externalMcpCommand({ entry: "/a/peer-mcp.mjs", node: "/n/node", stateDir: "/u/.hive", ceiling: "operate" }), "claude mcp add hive -e HIVE_CLIENT=terminal -e HIVE_CLIENT_CEILING=operate -e HIVE_STATE_DIR=/u/.hive -- /n/node /a/peer-mcp.mjs");
+});
+
+test("a hive whose state lives elsewhere connects under a name of its own, so it does not replace the other hive's entry", () => {
+  const command = (stateDir) => externalMcpCommand({ entry: "/a/peer-mcp.mjs", node: "/n/node", stateDir }).split(" ")[3];
+  assert.equal(command("/u/.hive"), "hive", "the hive in the default place changed the name every machine already has");
+  assert.equal(command("/workspace/hive"), "hive", "the hive inside a box changed the name every box already has");
+  assert.equal(command(""), "hive");
+  assert.equal(command("/u/.hive-personal"), "hive-personal");
+  assert.equal(command("/srv/state"), "hive-state");
+  assert.equal(command("/u/.hive acme!"), "hive-acme-", "a folder name the command line cannot carry reached the entry name");
 });

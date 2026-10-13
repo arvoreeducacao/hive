@@ -1,10 +1,19 @@
+import { basename } from "node:path";
+
 const quoted = (word) => `'${String(word).replace(/'/g, "'\\''")}'`;
 
-export function peerToolsCommand({ node, peer }) {
-  const line = `${node} ${peer}`;
+export function peerEntryName(stateDir = "") {
+  const folder = basename(stateDir).replace(/^\./, "").replace(/[^A-Za-z0-9_-]/g, "-");
+  if (!folder || folder === "hive") return "hive";
+  return folder.startsWith("hive") ? folder : `hive-${folder}`;
+}
+
+export function peerToolsCommand({ node, peer, home = "" }) {
+  const name = peerEntryName(home);
+  const env = name === "hive" ? "" : ` -e ${quoted(`HIVE_STATE_DIR=${home}`)}`;
   return [
-    `claude mcp list 2>/dev/null | grep -qF ${quoted(line)}`,
-    `{ claude mcp remove --scope user hive >/dev/null 2>&1; claude mcp add --scope user hive -- ${quoted(node)} ${quoted(peer)}; }`
+    `claude mcp list 2>/dev/null | grep -qF ${quoted(`${name}: ${node} ${peer}`)}`,
+    `{ claude mcp remove --scope user ${name} >/dev/null 2>&1; claude mcp add --scope user ${name}${env} -- ${quoted(node)} ${quoted(peer)}; }`
   ].join(" || ");
 }
 
