@@ -137,3 +137,8 @@ deployment defaults: hive-acme/hive.defaults
 
 Run it again whenever `hive.defaults` changes. Its keys are written again from
 the file; any other line in `~/.hive/config` is kept.
+
+An older setup put a `hive` command and its helpers in `~/.local/bin`. When
+`setup.sh` finds them, it moves them to `$HIVE_HOME/swept/<time>/` and prints
+that folder, so nothing is lost. Set `HIVE_BIN` to sweep another folder
+instead, for example when a second hive on the same machine keeps its own.

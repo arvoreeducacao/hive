@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -51,7 +51,7 @@ function machineOnWindows(home) {
 function machineWithoutTmux(home) {
   const bin = join(home, "barebin");
   mkdirSync(bin, { recursive: true });
-  for (const tool of ["dirname", "uname", "rm", "rmdir"]) {
+  for (const tool of ["dirname", "uname", "rm", "rmdir", "date", "mkdir", "mv"]) {
     const path = bashTool(tool).replace(/'/g, `'\\''`);
     writeFileSync(join(bin, tool), `#!/bin/sh\nexec '${path}' "$@"\n`);
     chmodSync(join(bin, tool), 0o755);
@@ -87,6 +87,52 @@ test("setup really removes the command older runs left on the PATH, and only tha
   assert.equal(existsSync(join(bin, "my-own-script")), true, "setup threw away a file that was never ours");
   assert.equal(existsSync(join(bin, "lib")), false, "the folder we emptied was left behind");
   assert.match(said, /removed the old hive command/);
+});
+
+test("what the sweep takes off the PATH is kept under HIVE_HOME, so a second install's files can be put back", () => {
+  const { home } = machineThatRanTheOldSetup();
+  const swept = join(home, ".hive", "swept");
+  const runs = readdirSync(swept);
+  assert.equal(runs.length, 1, "the sweep did not leave exactly one dated folder");
+  for (const left of ["hive", "hive-top.py", "door.mjs", "lib/pair.mjs", "peer/peer-mcp.mjs"]) {
+    assert.equal(readFileSync(join(swept, runs[0], left), "utf8"), "from an older setup\n", `${left} was thrown away instead of kept`);
+  }
+  assert.equal(existsSync(join(swept, runs[0], "my-own-script")), false, "the sweep took a file that was never ours");
+});
+
+test("the sweep says where it kept what it moved", () => {
+  const { home, said } = machineThatRanTheOldSetup();
+  const run = readdirSync(join(home, ".hive", "swept"))[0];
+  assert.ok(said.includes(join(home, ".hive", "swept", run)), "the person is not told where to find what left the PATH");
+});
+
+test("HIVE_BIN points the sweep at another folder and leaves the default one alone", () => {
+  const home = mkdtempSync(join(tmpdir(), "hive-bin-"));
+  const standard = join(home, ".local", "bin");
+  const other = join(home, "other-bin");
+  const hub = join(home, "workspace");
+  mkdirSync(standard, { recursive: true });
+  mkdirSync(other, { recursive: true });
+  mkdirSync(hub, { recursive: true });
+  for (const bin of [standard, other]) {
+    writeFileSync(join(bin, "hive"), "from an older setup\n");
+    writeFileSync(join(bin, "door.mjs"), "from an older setup\n");
+  }
+  const r = spawnSync("bash", [SETUP, "tester", hub], { env: { ...machineWithTheTools(home), HIVE_BIN: other }, encoding: "utf8" });
+  assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
+  assert.equal(existsSync(join(other, "hive")), false, "HIVE_BIN was ignored");
+  assert.equal(existsSync(join(other, "door.mjs")), false, "HIVE_BIN was ignored");
+  assert.equal(existsSync(join(standard, "hive")), true, "the default folder was swept while HIVE_BIN named another");
+  assert.equal(existsSync(join(standard, "door.mjs")), true, "the default folder was swept while HIVE_BIN named another");
+});
+
+test("the guide that sends people to setup.sh says what the sweep does and how to point it elsewhere", () => {
+  for (const guide of ["docs/hosting-for-a-team.md", "site/src/content/docs/guides/hosting-for-a-team.md"]) {
+    const text = readFileSync(join(REPO, guide), "utf8");
+    assert.match(text, /HIVE_BIN/, `${guide} does not name the knob setup.sh reads`);
+    assert.match(text, /swept/, `${guide} does not say where the sweep keeps what it moves`);
+  }
+  assert.match(readFileSync(join(REPO, "site/src/content/docs/reference/settings.md"), "utf8"), /`HIVE_BIN`/, "the settings reference does not list HIVE_BIN");
 });
 
 test("setup installs nothing of its own, and says nothing about sweeping when there is nothing to sweep", () => {

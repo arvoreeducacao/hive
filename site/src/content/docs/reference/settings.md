@@ -47,6 +47,7 @@ sessions, no login.
 | Variable | Default | What it decides |
 | --- | --- | --- |
 | `HIVE_HOME` | `~/.hive` | where the CLI keeps config and state |
+| `HIVE_BIN` | `~/.local/bin` | the folder `infra/scripts/setup.sh` sweeps for an older hive command |
 | `HIVE_HUB` | the folder above your checkout | where your repositories are — written by `infra/scripts/setup.sh` |
 | `HIVE_DEV` | none | which server is yours — written by `infra/scripts/setup.sh` |
 | `HIVE_POD` | `ws-<HIVE_DEV>-0` | the specific server, when the name is not enough |
