@@ -1029,7 +1029,7 @@ function linkAmong(argv) {
 }
 
 if (process.env.HIVE_USER_DATA) app.setPath("userData", process.env.HIVE_USER_DATA);
-if (!app.requestSingleInstanceLock()) app.quit();
+if (!app.requestSingleInstanceLock()) return app.exit(0);
 app.on("second-instance", (_event, argv) => {
   const link = linkAmong(argv);
   if (!link || !openHiveLink(link)) show();
