@@ -40,7 +40,7 @@ function Blocks(props) {
           }
         >
           <Show when={tab.pressed !== "true"}>
-            <button data-i={tab.i} aria-pressed={tab.pressed} class={tab.calls ? "calls" : ""} title={tab.title}>
+            <button data-i={tab.i} aria-pressed={tab.pressed} class={tab.calls ? "calls" : ""} title={tab.title} style={{ "--at": tab.at }}>
               <kbd class="rc-key">{tab.hint}</kbd><Show when={tab.calls}><i class="rc-dot needs" aria-hidden="true"></i></Show><span>{tab.name}</span>
             </button>
           </Show>
@@ -81,6 +81,10 @@ export function mountStrip(host) {
   const stop = createRoot((dispose) => {
     insert(host, () => <StripNum model={model} />, label);
     insert(host, () => <StripSeats model={model} />, plane);
+    createEffect(() => {
+      if (model.at === undefined) host.style.removeProperty("--at");
+      else host.style.setProperty("--at", model.at);
+    });
     createEffect(() => {
       if (model.title) host.title = model.title;
       else host.removeAttribute("title");

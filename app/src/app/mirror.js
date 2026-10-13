@@ -779,19 +779,20 @@ let blocksSolid = null;
 
 const blockKey = (n) => (st.keys.block ? keyLabel(st.keys.block, n) : String(n));
 
-function raycastTab(b, i) {
+function raycastTab(b, i, at) {
   const items = ofBlock(b);
   const n = blockNumber(i);
   const hint = blockKey(n);
   return {
-    key: `b${i}`, i, n, hint, name: labelOf(b, items).txt || "unnamed",
+    key: `b${i}`, i, n, hint, at: 3 + at, name: labelOf(b, items).txt || "unnamed",
     calls: items.some((x) => x.state === "needs"), pressed: i === st.block ? "true" : "false",
     title: [blockTitle(b, items) || phrase("unnamed"), hint].join(" · ")
   };
 }
 
 function raycastBlocks(model) {
-  return { ...model, rc: true, tabs: st.blocks.flatMap((b, i) => (b.ws === st.space ? [raycastTab(b, i)] : [])) };
+  const mine = blocksOf(st.space);
+  return { ...model, rc: true, tabs: st.blocks.flatMap((b, i) => (b.ws === st.space ? [raycastTab(b, i, mine.indexOf(b))] : [])) };
 }
 
 function blocksViewModel() {
