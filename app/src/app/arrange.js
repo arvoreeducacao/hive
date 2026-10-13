@@ -696,7 +696,7 @@ function raycastStrip(b, list) {
   const errands = new Set(list.map((i) => i.errand).filter(Boolean)).size;
   const askedFor = errands ? ` · ${errands === 1 ? phrase("1 errand of yours") : phrase("{n} errands of yours", { n: errands })}` : "";
   return {
-    key: "strip", mirrorOf: false, rc: true,
+    key: "strip", mirrorOf: false, rc: true, at: 3 + blocksOf(st.space).indexOf(b),
     num: blockKey(blocksOf(st.space).indexOf(b) + 1),
     seats: list.length === 1 ? phrase("1 seat") : phrase("{n} seats", { n: list.length }),
     bold: "",

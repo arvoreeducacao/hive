@@ -11,7 +11,7 @@
 :where(body.experience-raycast) #rail-toggle.out svg { transform: rotate(180deg); }
 
 :where(body.experience-raycast) .right { gap: 6px; }
-:where(body.experience-raycast) #top .right { order: 4; }
+:where(body.experience-raycast) #top .right { order: 9999; }
 :where(body.experience-raycast) #top .meta { display: flex; align-items: center; margin-right: 2px; font-family: var(--mono); font-size: 12px; letter-spacing: .017em; color: var(--txt-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 :where(body.experience-raycast) #top .meta .it { all: unset; box-sizing: border-box; position: relative; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px; border-radius: var(--r1); }
 :where(body.experience-raycast) #top .meta .it[hidden] { display: none; }
@@ -35,7 +35,7 @@
 :where(body.experience-raycast) :is(#top, #foot) :is(.it, .ghost, #blocks button, #btn-update):focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 :where(body.experience-raycast) #blocks { display: contents; }
-:where(body.experience-raycast) #blocks button[data-i] { all: unset; order: 3; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; height: 28px; padding: 0 8px 0 4px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt-2); white-space: nowrap; }
+:where(body.experience-raycast) #blocks button[data-i] { all: unset; order: var(--at, 3); box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; height: 28px; padding: 0 8px 0 4px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt-2); white-space: nowrap; }
 :where(body.experience-raycast) #blocks button[data-i]:has(span:not(:empty)) { max-width: 128px; }
 :where(body.experience-raycast) #blocks button[data-i] .rc-key, :where(body.experience-raycast) #blocks button[data-i] .rc-dot { flex: none; }
 :where(body.experience-raycast) #blocks button[data-i] .rc-dot { width: 6px; height: 6px; margin-right: 1px; }
@@ -67,7 +67,7 @@ body:where(.experience-raycast).seat-dragging #blocks button[data-i]:not(.drop) 
 :where(body.experience-raycast) #blocks .ws-one.on { color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: none; }
 :where(body.experience-raycast) #blocks .ws-one.on b, :where(body.experience-raycast) #blocks.lit button[data-i] .rc-key, :where(body.experience-raycast) #blocks.lit ~ #strip .num { background: color-mix(in srgb, var(--txt) 90%, var(--bg)); color: var(--bg); }
 :where(body.experience-raycast) #blocks.lit button[data-i] span { opacity: .45; }
-:where(body.experience-raycast) #blocks .mirror-btn { all: unset; order: 3; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); }
+:where(body.experience-raycast) #blocks .mirror-btn { all: unset; order: 9998; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); }
 :where(body.experience-raycast) #blocks .mirror-btn:hover, :where(body.experience-raycast) #blocks .mirror-btn[aria-pressed="true"] { color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: none; }
 :where(body.experience-raycast) #blocks .mirror-btn em { font: normal 400 11px var(--mono); color: var(--txt-3); opacity: 1; }
 :where(body.experience-raycast) #blocks .mirror-btn .team-av.face { width: 16px; height: 16px; }
@@ -75,7 +75,7 @@ body:where(.experience-raycast).seat-dragging #blocks button[data-i]:not(.drop) 
 :where(body.experience-raycast) #stage { grid-template-rows: minmax(0, 1fr) auto auto; }
 body:where(.experience-raycast).mission-open #stage { grid-template-rows: minmax(0, 1fr); }
 body:where(.experience-raycast).no-bar #stage { grid-template-rows: minmax(0, 1fr); }
-:where(body.experience-raycast) #strip { order: 2; display: flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; height: 32px; margin: 0 2px 0 4px; padding: 0 4px 0 6px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 4%, transparent); }
+:where(body.experience-raycast) #strip { order: var(--at, 2); display: flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; height: 32px; margin: 0 2px 0 4px; padding: 0 4px 0 6px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 4%, transparent); }
 :where(body.experience-raycast) #strip:focus-within { box-shadow: inset 0 0 0 1px var(--line-3), 0 0 0 3px color-mix(in srgb, var(--txt) 4%, transparent); }
 :where(body.experience-raycast) #strip .num { flex: none; }
 :where(body.experience-raycast) #strip .num.mirror-of { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; border: 0; border-radius: var(--r1); background: var(--panel-3); font-family: var(--mono); font-size: 11px; color: var(--txt-2); white-space: nowrap; }
@@ -170,7 +170,7 @@ body:where(.experience-raycast).look-dimension #win-btns .wb { padding: 0 10px; 
 body:where(.experience-raycast).look-dimension #rail-toggle { color: var(--txt-2); border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension #rail-toggle:is(:hover, :focus-visible) { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
 
-body:where(.experience-raycast).look-dimension #blocks button[data-i] { all: unset; order: 3; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; height: 28px; padding: 0 8px 0 4px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt-2); white-space: nowrap; }
+body:where(.experience-raycast).look-dimension #blocks button[data-i] { all: unset; order: var(--at, 3); box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; height: 28px; padding: 0 8px 0 4px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt-2); white-space: nowrap; }
 body:where(.experience-raycast).look-dimension #blocks button[data-i]:has(span:not(:empty)) { max-width: 128px; }
 body:where(.experience-raycast).look-dimension #blocks button[data-i]:is(:hover, :focus-visible) { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
 body:where(.experience-raycast).look-dimension #blocks button.drop { color: var(--txt); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -198,7 +198,7 @@ body:where(.experience-raycast).look-dimension #blocks .ws-one.on b { background
 body:where(.experience-raycast).look-dimension #blocks .ws-one.drop { color: var(--txt); background: transparent; box-shadow: inset 0 0 0 1px var(--accent); transform: none; transition: none; }
 body:where(.experience-raycast).look-dimension.seat-dragging #blocks .ws-one:not(.on) { border-style: none; color: var(--txt-2); }
 body:where(.experience-raycast).look-dimension.seat-dragging #blocks .ws-one.drop { border-style: none; }
-body:where(.experience-raycast).look-dimension #blocks .mirror-btn { all: unset; order: 3; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); }
+body:where(.experience-raycast).look-dimension #blocks .mirror-btn { all: unset; order: 9998; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); }
 body:where(.experience-raycast).look-dimension #blocks .mirror-btn:hover, body:where(.experience-raycast).look-dimension #blocks .mirror-btn[aria-pressed="true"] { color: var(--txt); background: color-mix(in srgb, var(--txt) 5%, transparent); border-color: transparent; box-shadow: none; }
 
 body:where(.experience-raycast).look-dimension #strip { padding: 0 4px 0 6px; gap: 8px; }
