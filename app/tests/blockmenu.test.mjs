@@ -26,8 +26,10 @@ window.hiveLink = { open: () => ({ send() {}, close() {} }) };
 const settle = () => new Promise((done) => setImmediate(done));
 
 const was = globalThis.fetch;
+const BACKGROUND_POLLS = ["/api/tasks", "/api/secrets/pending"];
+
 globalThis.fetch = async (url, init) => {
-  if (!String(url).startsWith("/api/tasks")) posts.push({ url, body: init?.body ? JSON.parse(init.body) : null });
+  if (!BACKGROUND_POLLS.some((poll) => String(url).startsWith(poll))) posts.push({ url, body: init?.body ? JSON.parse(init.body) : null });
   if (String(url).startsWith("/api/hive")) return { ok: true, json: async () => JSON.parse(JSON.stringify(st.data)) };
   return { ok: true, json: async () => ({}) };
 };

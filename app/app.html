@@ -522,6 +522,7 @@
 
   #rail { border-right: 1px solid var(--line); display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; background: linear-gradient(180deg, rgba(255,255,255,.016), transparent 220px), var(--panel); }
   #rail-list { overflow-y: auto; padding: 34px 0 14px; }
+  #rail-next, #rail-next-foot { display: none; }
   #rail-list::-webkit-scrollbar { width: 8px; }
   #rail-list::-webkit-scrollbar-thumb { background: var(--line); }
   #knock-dock { border-top: 1px solid var(--line-2); padding: 8px; display: grid; gap: 6px; background: var(--panel-3); }
@@ -1858,6 +1859,7 @@
   .sh-ver[aria-pressed="true"] { color: var(--accent-hi); border-color: var(--accent-d); background: var(--accent-bg); }
   .sh-stage { position: relative; min-height: 0; background: var(--well); }
   .sh-stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+  .sh-stage webview { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
   .sh-ico { display: flex; align-items: center; padding: 7px 9px; }
   .sh-ico svg { display: block; width: 14px; height: 14px; }
   .sh-ico[aria-pressed="true"] { color: var(--accent-hi); border-color: var(--accent-d); background: var(--accent-bg); }
@@ -3799,6 +3801,22 @@
   .sv-seg button svg { width: 12px; height: 12px; }
   .sv-seg button:hover { color: var(--txt-2); }
   .sv-seg button.on { color: var(--txt); background: var(--line); }
+  .sv-seg button.anon.on { color: var(--violet); background: color-mix(in srgb, var(--violet) 18%, transparent); }
+  .sv-seg button:disabled { opacity: .35; cursor: default; }
+  .sv-empty:has(.sv-seg button.anon) { max-width: min(100%, 64ch); }
+  .sv-seg:has(button.anon) { flex-wrap: wrap; justify-content: center; }
+  .sv-seg:has(button.anon) button { white-space: nowrap; }
+  .sv-anon-said { margin: 0; max-width: 40ch; font-size: 11.5px; line-height: 1.5; color: var(--txt-2); }
+  .sv-anon-said b { display: block; font-size: 11.5px; color: var(--violet); }
+  .sv-anon-said[hidden] { display: none; }
+  .sv-draft.anon .hive-mark .lit { fill: var(--violet); }
+  .tile.anon { border-color: color-mix(in srgb, var(--violet) 45%, var(--line)); }
+  .tile.anon.focused, .tile.draft.anon.focused { border-color: var(--violet); }
+  .tile.draft.anon { border-color: color-mix(in srgb, var(--violet) 55%, transparent); }
+  .tile.anon .t-name { color: var(--violet); }
+  .tile.anon .sv-user { background: color-mix(in srgb, var(--violet) 14%, var(--panel-2)); border-color: color-mix(in srgb, var(--violet) 30%, transparent); }
+  #rail .item.anon .name { color: var(--violet); font-style: italic; }
+  #rail .item.anon > svg { color: var(--violet) !important; }
   .sv-seg button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
   .sv-cloud { display: flex; gap: 6px; justify-content: center; }
   .sv-cloud[hidden] { display: none; }
@@ -4570,7 +4588,7 @@
 
   body.look-dimension #day, body.look-dimension #shelf, body.look-dimension #prs, body.look-dimension #usage, body.look-dimension #providers, body.look-dimension #extensions, body.look-dimension #routines, body.look-dimension #worktrees, body.look-dimension #pod, body.look-dimension #portaria, body.look-dimension #workspace { inset: 60px 16px 16px; border-radius: var(--r-frame); border: 1px solid var(--ln-2); background: var(--panel); box-shadow: var(--nav-shadow), 0 30px 80px -40px rgba(0,0,0,.7); overflow: hidden; }
   body.look-dimension #usage, body.look-dimension #routines, body.look-dimension #worktrees, body.look-dimension #portaria, body.look-dimension #workspace { overflow-y: auto; }
-  body.look-dimension:has(#status-strip:not(:empty)) :is(#day, #shelf, #prs, #usage, #providers, #extensions, #routines, #worktrees, #pod, #portaria, #workspace) { top: 96px; }
+  body.look-dimension:not(.experience-next):has(#status-strip:not(:empty)) :is(#day, #shelf, #prs, #usage, #providers, #extensions, #routines, #worktrees, #pod, #portaria, #workspace) { top: 96px; }
   body.look-dimension .errand { border: 0; border-radius: var(--r-card); padding: 16px 18px; background: var(--frost); box-shadow: var(--hair); }
   body.look-dimension .errand.needs { background: var(--wash), var(--frost); }
   body.look-dimension .day-say { padding: 8px 8px 8px 16px; border: 1px solid var(--ln-2); border-radius: var(--r-pill); background: var(--panel); box-shadow: var(--nav-shadow); }
@@ -4704,6 +4722,7 @@ try {
 } catch {}</script>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-anon" viewBox="0 0 16 16"><path d="M2 7.2h12M3.6 7.2 5 3.4h6l1.4 3.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="5" cy="10.6" r="2" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="11" cy="10.6" r="2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M7 10.6h2" stroke="currentColor" stroke-width="1.2"/></symbol>
   <symbol id="i-local" viewBox="0 0 16 16"><rect x="2.2" y="3.4" width="11.6" height="7.6" rx="1.1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M1 13.2h14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
   <symbol id="i-screen" viewBox="0 0 16 16"><rect x="1.8" y="2.6" width="12.4" height="8.2" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.6 13.6h4.8M8 10.8v2.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
   <symbol id="i-cloud" viewBox="0 0 16 16"><path d="M4.4 12.2h6.9a2.9 2.9 0 0 0 .3-5.78 4 4 0 0 0-7.63.9A2.6 2.6 0 0 0 4.4 12.2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
@@ -4859,7 +4878,7 @@ try {
 
 <div id="shell" data-t>
   <div id="face-gate" hidden></div>
-  <nav id="rail" aria-label="Sessions"><div id="rail-list" data-no-t><button id="rail-wt" class="rail-wt" hidden></button><div id="rail-sessions"></div><div id="rail-team"></div></div><div id="knock-dock" hidden aria-label="asking for a keyboard"></div></nav>
+  <nav id="rail" aria-label="Sessions"><div id="rail-list" data-no-t><button id="rail-wt" class="rail-wt" hidden></button><div id="rail-next"></div><div id="rail-sessions"></div><div id="rail-team"></div><div id="rail-next-foot"></div></div><div id="knock-dock" hidden aria-label="asking for a keyboard"></div></nav>
   <button class="ghost" id="rail-toggle" title="collapse the sidebar" aria-label="collapse the sidebar"><svg aria-hidden="true"><use href="#i-rail"/></svg></button>
   <main id="stage">
     <div id="strip" data-t>
@@ -5382,6 +5401,7 @@ try {
   <div class="shot-tools" id="shot-tools" role="group" aria-label="image zoom"><button type="button" class="ghost" data-zoom="out" aria-label="zoom out">−</button><output id="shot-pct" aria-live="polite">100%</output><button type="button" class="ghost" data-zoom="in" aria-label="zoom in">+</button><button type="button" class="ghost" data-zoom="actual">actual size</button><button type="button" class="ghost" data-zoom="fit">fit</button></div>
 </div>
 <div id="hud" role="status" aria-live="polite" hidden></div>
+<div id="rail-hud"></div>
 
 <div class="which" id="which"><div class="which-head" id="which-head"></div><div class="which-grid" id="which-grid"></div></div>
 <section id="welcome" data-t hidden aria-label="Welcome to the hive">

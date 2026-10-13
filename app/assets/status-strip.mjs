@@ -460,6 +460,7 @@ function tell() {
   document.dispatchEvent(new CustomEvent("hive-alerts", {
     detail: {
       count: loud.length,
+      total: (report?.items || []).length,
       state: loud.length ? worstState(loud) : "ok",
       hidden,
       items: loud.map((item) => ({ ...item, headline: headlineOf(item) })),

@@ -5,7 +5,7 @@ import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { publishPage, hiveDoor } from "../peer/peer.mjs";
+import { publishPage, publishProposal, hiveDoor } from "../peer/peer.mjs";
 import { socketPathFor, canonicalLabel, shelfPageUrl, shelfDeepLink } from "../door.mjs";
 import { socketPathFor as appSocketPathFor } from "../../app/lib/doorstep.mjs";
 
@@ -27,6 +27,16 @@ async function fakeApp(base, { pushed = true, refuse = "" } = {}) {
       res.setHeader("content-type", "application/json");
       if (refuse && req.url === refuse) return res.end(JSON.stringify({ error: "no" }));
       if (req.url === "/api/artifact/keep") return res.end(JSON.stringify({ key: "k1", title: "Uma Página", versions: [{ n: 2, label: "draft" }] }));
+      if (req.url === "/api/shelf/publish" && seen.at(-1).body?.proposal) {
+        return res.end(JSON.stringify({
+          meta: { slug: "uma-pagina", title: "Uma Página", label: "decided", tabs: { telas: { kind: "link", proposals: [
+            { url: "https://screenbook.example.com/sales/?proposal=antiga", product: "sales", id: "antiga", screens: {}, at: 1 },
+            { url: "https://screenbook.example.com/reader/?proposal=etapas", product: "reader", id: "etapas", screens: { lista: 2, vazia: 1 }, at: 2 }
+          ] } } },
+          proposal: { url: "https://screenbook.example.com/reader/?proposal=etapas", product: "reader", id: "etapas", screens: { lista: 2, vazia: 1 }, at: 2 },
+          tab: "telas", pushed, held: "the page is already decided"
+        }));
+      }
       if (req.url === "/api/shelf/publish") {
         return res.end(JSON.stringify({
           meta: { slug: "uma-pagina", title: "Uma Página", label: "draft", tabs: { documento: { versions: [{ n: 3 }] } } },
@@ -144,4 +154,28 @@ test("a session with no seat cannot publish", async () => {
   const done = await publishPage({ path: join(base, "page.html"), label: "in-review", env: { HIVE_STATE_DIR: base } });
   assert.match(done.error, /seat/);
   await rm(base, { recursive: true, force: true });
+});
+
+test("a proposal goes straight to the shelf, named by the page it belongs to", async (t) => {
+  const base = await hive();
+  const app = await fakeApp(base);
+  t.after(async () => { await app.close(); await rm(base, { recursive: true, force: true }); });
+  const done = await publishProposal({ proposal: "https://screenbook.example.com/reader/?proposal=etapas", page: "Uma Página", label: "em-revisao", env: envOf(base) });
+  assert.deepEqual(app.seen.map((call) => call.path), ["/api/shelf/publish"], "nothing is kept on this machine: there is no file");
+  assert.equal(app.seen[0].body.title, "Uma Página");
+  assert.equal(app.seen[0].body.label, "in-review");
+  assert.equal(app.seen[0].body.tab, "telas");
+  assert.equal(done.proposals, 2);
+  assert.equal(done.pinned, 2);
+  assert.equal(done.held, "the page is already decided");
+  assert.equal(done.url, "hive://shelf/uma-pagina?tab=telas");
+});
+
+test("a proposal needs the page it belongs to", async (t) => {
+  const base = await hive();
+  const app = await fakeApp(base);
+  t.after(async () => { await app.close(); await rm(base, { recursive: true, force: true }); });
+  const done = await publishProposal({ proposal: "https://screenbook.example.com/reader/?proposal=etapas", env: envOf(base) });
+  assert.match(done.error, /which page/);
+  assert.deepEqual(app.seen, []);
 });

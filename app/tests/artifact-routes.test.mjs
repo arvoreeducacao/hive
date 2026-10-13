@@ -5,7 +5,7 @@ import { registerArtifactRoutes, withShelfFiles } from "../routes/artifacts.mjs"
 
 function artifactHarness() {
   const routes = new Map();
-  const calls = { kept: [], mirrored: [], files: [], shelfPages: [], pulls: 0, prints: [], shelfFiles: [], thumbs: [], thumbReads: [] };
+  const calls = { kept: [], mirrored: [], proposals: [], proposalThumbs: [], files: [], shelfPages: [], pulls: 0, prints: [], shelfFiles: [], thumbs: [], thumbReads: [] };
   let printKept = { slug: "one", print: { n: 1 }, link: "hive://shelf/one?tab=prints#p1" };
   let shelfFile = { type: "image/jpeg", data: Buffer.from("jpg") };
   const indexes = new Map();
@@ -26,6 +26,11 @@ function artifactHarness() {
     keepArtifact: async (asked) => { calls.kept.push(asked); return kept; },
     askedTab: (tab) => tab === "wrong" ? { tab: "", error: "bad tab" } : { tab: tab || "" },
     mirrorToShelf: async (asked) => { calls.mirrored.push(asked); return mirrored; },
+    mirrorProposal: async (asked) => { calls.proposals.push(asked); return { meta: { slug: "uma-pagina" }, tab: "telas", pushed: true }; },
+    labelError: (label) => (String(label || "").startsWith("pronto") ? "not a state the shelf knows" : ""),
+    TELAS_TAKE_PROPOSALS: "the telas tab keeps Screenbook proposals",
+    readProposalThumb: (slug) => { calls.proposalThumbs.push(slug); return { data: Buffer.from("proposal-webp") }; },
+    thumbSource: (id) => (id === "job-1" ? Buffer.from("full-png") : null),
     artifactIndex: (key) => indexes.get(key) || null,
     artifactKey: (name, path) => `${name}:${path}`,
     keptArtifacts: () => pages,
@@ -45,7 +50,7 @@ function artifactHarness() {
     keepPrintToShelf: async (asked) => { calls.prints.push(asked); return printKept; },
     readShelfFile: (slug, name) => { calls.shelfFiles.push([slug, name]); return shelfFile; },
     keepThumbOnShelf: async (asked) => { calls.thumbs.push(asked); return asked.data ? { ok: true } : { error: "no picture came back for that page" }; },
-    readShelfThumb: (slug, tab, v) => { calls.thumbReads.push([slug, tab, v]); return v === 3 ? { data: Buffer.from("png") } : { error: "that version has no thumbnail yet" }; },
+    readShelfThumb: (slug, tab, v) => { calls.thumbReads.push([slug, tab, v]); return v === 3 ? { data: Buffer.from("webp"), type: "image/webp" } : v === 2 ? { data: Buffer.from("png"), type: "image/png" } : { error: "that version has no thumbnail yet" }; },
     now: () => 77
   });
 
@@ -91,6 +96,7 @@ test("the artifact room registers every artifact and shelf path with the origina
     ["/api/shelf/page", null],
     ["/api/shelf/file", null],
     ["/api/shelf/thumb", null],
+    ["/api/shelf/thumb/source", null],
     ["/api/shelf/thumb/taken", "POST"],
     ["/api/shelf/keep-print", "POST"],
     ["/api/shelf/comments", null],
@@ -161,10 +167,50 @@ test("shelf publish validates before writing and reports shelf failure without l
   const published = await hive.call("/api/shelf/publish", {
     body: { name: "seat", path: "/tmp/page.html", label: "rascunho", at: 12 }
   });
-  const expected = { session: "seat", where: "local", path: "/tmp/page.html", label: "draft", url: "", at: 12 };
+  const expected = { session: "seat", where: "local", path: "/tmp/page.html", label: "draft", url: "", reopen: false, at: 12 };
   assert.deepEqual(hive.calls.kept, [{ ...expected, tab: "" }]);
   assert.deepEqual(hive.calls.mirrored, [{ ...expected, tab: "" }]);
   assert.deepEqual(published.answers, [{ value: { error: "no shelf repo yet", kept: "kept-key" }, status: 400 }]);
+});
+
+test("a proposal goes to the telas tab of its page, and html never does", async () => {
+  const hive = artifactHarness();
+  const linked = await hive.call("/api/shelf/publish", {
+    body: { name: "seat", proposal: "https://screenbook.example.com/reader/?proposal=etapas", title: "Uma página", label: "decided", reopen: true, at: 12 }
+  });
+  assert.deepEqual(hive.calls.proposals, [{ session: "seat", proposal: "https://screenbook.example.com/reader/?proposal=etapas", title: "Uma página", label: "decided", reopen: true, at: 12 }]);
+  assert.equal(linked.answers[0].status, 200);
+  assert.deepEqual(hive.calls.kept, [], "a proposal is not a file this machine keeps");
+
+  const canvas = await hive.call("/api/shelf/publish", { body: { name: "seat", path: "/tmp/canvas.html", tab: "telas", at: 12 } });
+  assert.deepEqual(canvas.answers, [{ value: { error: "the telas tab keeps Screenbook proposals" }, status: 400 }]);
+  assert.deepEqual(hive.calls.mirrored, []);
+});
+
+test("a label outside the five states is refused before anything is written", async () => {
+  const hive = artifactHarness();
+  const refused = await hive.call("/api/shelf/publish", { body: { name: "seat", path: "/tmp/page.html", label: "pronto-pra-ver", at: 12 } });
+  assert.deepEqual(refused.answers, [{ value: { error: "not a state the shelf knows" }, status: 400 }]);
+  assert.deepEqual(hive.calls.kept, []);
+  assert.deepEqual(hive.calls.mirrored, []);
+});
+
+test("the picture of the proposals is read fresh every time, never cached for a year", async () => {
+  const hive = artifactHarness();
+  const shot = await hive.call("/api/shelf/thumb", { query: "?slug=uma-pagina&tab=telas&v=proposal" });
+  assert.deepEqual(hive.calls.proposalThumbs, ["uma-pagina"]);
+  assert.equal(shot.writes[0].headers["cache-control"], "no-store");
+  assert.equal(shot.writes[0].headers["content-type"], "image/webp");
+  assert.equal(String(shot.ended[0]), "proposal-webp");
+});
+
+test("the window fetches the full picture of a proposal only by the id of a job that asked for it", async () => {
+  const hive = artifactHarness();
+  const asked = await hive.call("/api/shelf/thumb/source", { query: "?id=job-1" });
+  assert.equal(asked.writes[0].headers["content-type"], "image/png");
+  assert.equal(String(asked.ended[0]), "full-png");
+  const stranger = await hive.call("/api/shelf/thumb/source", { query: "?id=other" });
+  assert.equal(stranger.answers[0].status, 404);
 });
 
 test("the tab a page was published to is kept with it, not only sent to the shelf", async () => {
@@ -172,8 +218,8 @@ test("the tab a page was published to is kept with it, not only sent to the shel
   await hive.call("/api/shelf/publish", { body: { name: "seat", path: "/tmp/plano.html", tab: "plano", at: 12 } });
   assert.equal(hive.calls.kept.at(-1).tab, "plano");
 
-  await hive.call("/api/artifact/keep", { body: { name: "seat", path: "/tmp/telas.html", tab: "telas", at: 12 } });
-  assert.equal(hive.calls.kept.at(-1).tab, "telas", "the keep the seat writes carries it too");
+  await hive.call("/api/artifact/keep", { body: { name: "seat", path: "/tmp/documento.html", tab: "documento", at: 12 } });
+  assert.equal(hive.calls.kept.at(-1).tab, "documento", "the keep the seat writes carries it too");
 
   await hive.call("/api/shelf/publish", { body: { name: "seat", path: "/tmp/lente-do-pr.html", tab: "lente", at: 12 } });
   assert.equal(hive.calls.kept.at(-1).tab, "lente");
@@ -235,13 +281,15 @@ test("a file a page keeps is served by slug and name, and a bad name is refused"
   assert.equal(bad.answers[0].status, 400);
 });
 
-test("a card's thumbnail is served by page, tab and version, and cached for good because a version never changes", async () => {
+test("a card's thumbnail is served by page, tab and version, in the format it was kept, and cached for good because a version never changes", async () => {
   const hive = artifactHarness();
   const served = await hive.call("/api/shelf/thumb", { query: "?slug=one&tab=telas&v=3" });
   assert.deepEqual(hive.calls.thumbReads, [["one", "telas", 3]]);
-  assert.equal(served.writes[0].headers["content-type"], "image/png");
+  assert.equal(served.writes[0].headers["content-type"], "image/webp");
   assert.match(served.writes[0].headers["cache-control"], /immutable/);
-  assert.equal(String(served.ended[0]), "png");
+  assert.equal(String(served.ended[0]), "webp");
+  const older = await hive.call("/api/shelf/thumb", { query: "?slug=one&tab=telas&v=2" });
+  assert.equal(older.writes[0].headers["content-type"], "image/png");
   const missing = await hive.call("/api/shelf/thumb", { query: "?slug=one&tab=telas&v=4" });
   assert.equal(missing.answers[0].status, 404);
   const bad = await hive.call("/api/shelf/thumb", { query: "?slug=..&tab=telas&v=3" });
@@ -250,8 +298,8 @@ test("a card's thumbnail is served by page, tab and version, and cached for good
 
 test("the window hands a thumbnail back by the id it was asked for", async () => {
   const hive = artifactHarness();
-  const kept = await hive.call("/api/shelf/thumb/taken", { body: { id: "job-1", data: "data:image/png;base64,AAAA" } });
-  assert.deepEqual(hive.calls.thumbs, [{ id: "job-1", data: "data:image/png;base64,AAAA" }]);
+  const kept = await hive.call("/api/shelf/thumb/taken", { body: { id: "job-1", data: "data:image/webp;base64,AAAA" } });
+  assert.deepEqual(hive.calls.thumbs, [{ id: "job-1", data: "data:image/webp;base64,AAAA" }]);
   assert.equal(kept.answers[0].status, 200);
   const empty = await hive.call("/api/shelf/thumb/taken", { body: { id: "job-2" } });
   assert.equal(empty.answers[0].status, 400);

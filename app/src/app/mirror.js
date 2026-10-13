@@ -4,7 +4,7 @@ import { keyLabel } from "./brand-face.js";
 import { svEvent } from "./chat-and-panes.js";
 import { svReset } from "./chat-stretches.js";
 import { svConvShow } from "./conversation-model.js";
-import { $, GLYPH, LABEL, esc, every, phrase, raycastOn, saveUnfolded, solidMounts, st, stateColor, stopBeat, unfolded } from "./core.js";
+import { $, GLYPH, LABEL, esc, every, experienceNext, phrase, raycastOn, saveUnfolded, solidMounts, st, stateColor, stopBeat, unfolded } from "./core.js";
 import { closeTile, goTo, goToBlock, goToSpace, pull } from "./focus-navigation.js";
 import { drafts } from "./draft-seat.js";
 import { keyHint, liveOf, liveTitle, sawWorking } from "./leader-key.js";
@@ -295,8 +295,8 @@ function seatRailItem(s, now) {
   const said = phrase(LABEL[s.state]);
   const live = liveTitle(s);
   return {
-    key: s.name, name: s.name, where: s.where, state: s.state, title: s.title || s.name, naming: !!s.naming,
-    hint: `${s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : said}${live ? ` · ${live}` : ""}`,
+    key: s.name, name: s.name, where: s.where, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon,
+    hint: `${s.anon ? phrase("anonymous") : s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : said}${live ? ` · ${live}` : ""}`,
     said, meta: meta.said, tone: meta.tone, away
   };
 }
@@ -490,10 +490,12 @@ function draftRailItems(where) {
   if (where !== "local") return [];
   return [...drafts.values()].map((d) => {
     const bi = st.blocks.findIndex((b) => b.keys.includes(d.key));
+    const anon = d.where === "anonymous";
+    const title = anon ? phrase("new anonymous chat") : phrase("new chat");
     return {
-      key: d.key, name: d.key, state: "idle", title: phrase("new chat"),
-      hint: `${phrase("new chat")} — ${phrase("a chat with nothing in it yet")}`,
-      colour: stateColor("idle"), glyph: GLYPH.idle, here: bi === st.block,
+      key: d.key, name: d.key, state: "idle", title, anon,
+      hint: `${title} — ${phrase("a chat with nothing in it yet")}`,
+      colour: stateColor("idle"), glyph: anon ? "i-anon" : GLYPH.idle, here: bi === st.block,
       live: 0, liveTitle: "", tag: bi >= 0 ? "b" + (bi + 1) : ""
     };
   });
@@ -513,7 +515,7 @@ function byBlockThenPane(a, b) {
 function railViewModel() {
   if (raycastOn()) return raycastRailViewModel();
   const groups = [];
-  for (const g of [
+  if (!experienceNext()) for (const g of [
     { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
     { key: "local", label: phrase("local · your machine"), icon: "i-local" }
   ]) {
@@ -525,9 +527,9 @@ function railViewModel() {
         const bi = st.blocks.findIndex((b) => b.keys.includes(s.name));
         const away = detached.has(s.name);
         return {
-          key: s.name, name: s.name, state: s.state, title: s.title || s.name, naming: !!s.naming,
-          hint: `${s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : phrase(LABEL[s.state])}`,
-          colour: stateColor(s.state), glyph: GLYPH[s.state], here: bi === st.block,
+          key: s.name, name: s.name, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon,
+          hint: `${s.anon ? phrase("anonymous") : s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : phrase(LABEL[s.state])}`,
+          colour: stateColor(s.state), glyph: s.anon ? "i-anon" : GLYPH[s.state], here: bi === st.block,
           live: liveOf(s).length, liveTitle: liveTitle(s), tag: away ? "↗" : bi >= 0 ? "b" + (bi + 1) : ""
         };
       })].sort(byBlockThenPane)

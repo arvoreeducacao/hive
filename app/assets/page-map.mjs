@@ -124,12 +124,13 @@ export function readPage(within = "", ceiling = 4000) {
   const fileField = (el) => el.tagName === "INPUT" && (el.getAttribute("type") || "").toLowerCase() === "file";
 
   const hidden = (el) => {
-    if (el.getAttribute && el.getAttribute("aria-hidden") === "true") return true;
+    if (el.getAttribute && el.getAttribute("aria-hidden") === "true") return "gone";
     if (fileField(el)) return false;
-    const box = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
-    if (!box || box.width < 1 || box.height < 1) return true;
     const styled = getComputedStyle(el);
-    return styled.visibility === "hidden" || styled.display === "none" || styled.opacity === "0";
+    if (styled.display === "none" || styled.visibility === "hidden" || styled.opacity === "0") return "gone";
+    const box = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+    if (!box || box.width < 1 || box.height < 1) return "flat";
+    return false;
   };
 
   const rows = [];
@@ -145,7 +146,13 @@ export function readPage(within = "", ceiling = 4000) {
     if (node.nodeType !== 1) return;
     const el = node;
     if (SKIP[tagOf(el)]) return;
-    if (hidden(el)) return;
+    const out = hidden(el);
+    if (out === "gone") return;
+    if (out === "flat") {
+      if (el.shadowRoot) for (const kid of el.shadowRoot.childNodes) walk(kid, depth, doc, host);
+      for (const kid of el.childNodes) walk(kid, depth, doc, host);
+      return;
+    }
 
     const role = roleOf(el);
     const shown = role && !(BORING[role] && !el.getAttribute("aria-label"));

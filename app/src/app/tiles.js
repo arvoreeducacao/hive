@@ -101,13 +101,20 @@ function seatDrag(el, name) {
 async function closeSeat(s, at) {
   const pending = leftoversOf(s);
   const settle = appendLeftovers(pending);
-  const ok = await ask(
-    raycastOn() ? phrase("Close “{name}”?", { name: s.title || s.name }) : phrase("Close this seat?"),
-    `${phrase("The window closes and whatever runs in it stops.")} ` +
-    `${phrase("A chat keeps its transcript:")} ${raycastOn() ? keyCaps(keyLabel(st.keys.history)) : `<b>${keyLabel(st.keys.history)}</b>`} ${phrase("brings it back with its whole context.")}`,
-    phrase("close the seat"),
-    { who: s.title || s.name, at }
-  );
+  const ok = s.anon
+    ? await ask(
+      phrase("Close and erase this chat?"),
+      phrase("The conversation and the files it made are deleted now. No copy is kept anywhere and it can't be brought back."),
+      phrase("close and erase"),
+      { who: phrase("anonymous"), at }
+    )
+    : await ask(
+      raycastOn() ? phrase("Close “{name}”?", { name: s.title || s.name }) : phrase("Close this seat?"),
+      `${phrase("The window closes and whatever runs in it stops.")} ` +
+      `${phrase("A chat keeps its transcript:")} ${raycastOn() ? keyCaps(keyLabel(st.keys.history)) : `<b>${keyLabel(st.keys.history)}</b>`} ${phrase("brings it back with its whole context.")}`,
+      phrase("close the seat"),
+      { who: s.title || s.name, at }
+    );
   settle();
   if (!ok) return;
   const dropWorktrees = worktreesToDrop(await pending);

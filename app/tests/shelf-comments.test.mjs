@@ -11,14 +11,14 @@ import { PIN_SHIM_MARK, withPinShim } from "../lib/shelf-pins.mjs";
 function sandbox() {
   const home = mkdtempSync(join(tmpdir(), "hive-shelf-comments."));
   shelve({
-    home, slug: "catalogacao-de-livros", tab: "telas", html: "<title>Catalogação de livros</title>",
-    title: "Catalogação de livros", kind: "telas", owner: "guilherme", label: "draft", at: 1_700_000_000_000
+    home, slug: "catalogacao-de-livros", tab: "documento", html: "<title>Catalogação de livros</title>",
+    title: "Catalogação de livros", kind: "documento", owner: "guilherme", label: "draft", at: 1_700_000_000_000
   });
   return { home, gone: () => rmSync(home, { recursive: true, force: true }) };
 }
 
 const said = (home, over = {}) => addComment(home, "catalogacao-de-livros", {
-  tab: "telas", v: 1, who: "rita", text: "o botão de baixo some no celular", at: 1_700_000_001_000,
+  tab: "documento", v: 1, who: "rita", text: "o botão de baixo some no celular", at: 1_700_000_001_000,
   pin: { frame: "f-3", name: "Opção B", x: 0.42, y: 0.61 }, ...over
 });
 

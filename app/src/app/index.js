@@ -47,6 +47,8 @@ import "./archived.js";
 import "./prs.js";
 import "./thread.js";
 import "./new-chat.js";
+import "./next-rail.js";
+import "./next-rail-hud.js";
 import "./page-in-a-seat.js";
 import "./providers.js";
 import "./agent-updates.js";

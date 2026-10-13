@@ -411,6 +411,7 @@ document.addEventListener("hive-alerts", (e) => {
   const { count, state, hidden } = e.detail;
   st.alerts = {
     count, state, hidden,
+    total: e.detail.total || 0,
     items: e.detail.items || [],
     automatic: e.detail.automatic || [],
     checked: e.detail.checked || "",

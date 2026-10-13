@@ -108,7 +108,7 @@ function palLinearRows(q) {
     name: `${i.identifier} · ${i.title}`,
     ctx: [i.state, i.project, LINEAR_PRIORITY[i.priority] ? phrase(LINEAR_PRIORITY[i.priority]) : "", i.branch].filter(Boolean).join(" · "),
     tag: i.images?.length ? phrase("images") : "",
-    go: () => openMission(`${i.identifier} `)
+    go: () => (experienceNext() ? openDraft(`${i.identifier} `) : openMission(`${i.identifier} `))
   }));
   const head = st.palLinear.me ? `linear · ${phrase("assigned to {me}", { me: st.palLinear.me })}${st.palLinear.loading ? ` · ${phrase("looking…")}` : ""}` : "linear";
   if (rows.length) return [{ sec: head }, ...rows];
@@ -453,8 +453,8 @@ function palActions() {
     { icon: "i-plug", name: phrase("connect an agent from outside that can talk"), ctx: phrase("the same, but it can also message and ask the chats"), search: "mcp external agent agente externo conectar operate", go: () => copyExternalMcp("operate") },
     { icon: "i-grid", name: st.dimOn ? phrase("stop dimming the other seats") : phrase("dim the other seats while you type"),
       ctx: phrase("while the keyboard is inside a seat"), key: keyHint("dim"), go: () => setPref("dim", !st.dimOn) },
-    { icon: "i-term", name: st.barOn ? phrase("hide the message bar") : phrase("show the message bar"),
-      ctx: phrase("the bar docked at the bottom of the canvas"), key: keyHint("bar"), go: () => setPref("bar", !st.barOn) },
+    ...(experienceNext() ? [] : [{ icon: "i-term", name: st.barOn ? phrase("hide the message bar") : phrase("show the message bar"),
+      ctx: phrase("the bar docked at the bottom of the canvas"), key: keyHint("bar"), go: () => setPref("bar", !st.barOn) }]),
     {
       icon: "i-bolt",
       name: phrase("check the environment again"),

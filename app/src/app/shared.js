@@ -11,6 +11,7 @@ import { disarmLeader, paintKeys, pool } from "./leader-key.js";
 import { paintLimPop, paintLimitChip } from "./limit-chip.js";
 import { paintBlocks, paintRail, paintTeamRail } from "./mirror.js";
 import { paintRailToggle } from "./new-chat.js";
+import { paintNextRail } from "./next-rail.js";
 import { paintProviders } from "./providers.js";
 import { paintPalPreview } from "./palette.js";
 import { paintPlaneMap } from "./plane.js";
@@ -36,7 +37,7 @@ function bootSolid() {
 
 const REACTIVE_PAINTERS = () => [
   paintGate, paintKeys, paintChoices, paintThemes, paintSettingsFace, paintFaceSheet, paintTour, paintRelnotes,
-  paintRail, paintTeamRail, paintWorktreeRail, paintRailToggle, paintKnocks, paintBlocks, paintHold, paintComposerTo,
+  paintRail, paintNextRail, paintTeamRail, paintWorktreeRail, paintRailToggle, paintKnocks, paintBlocks, paintHold, paintComposerTo,
   paintPrButton, paintPrPop, paintLimitChip, paintLimPop, paintPlaneMap, paintPalPreview,
   renderMirror, paintWorktrees, paintWorkspace, paintPortaria, renderHistory, paintPrList, paintPrMid, paintProviders, paintShelf
 ];

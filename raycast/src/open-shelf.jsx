@@ -29,16 +29,18 @@ function ago(at) {
   return new Date(at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
+const isWebp = (bytes) => Buffer.isBuffer(bytes) && bytes.length > 12 && bytes.toString("latin1", 8, 12) === "WEBP";
+
 function useThumb(client, page) {
   const [path, setPath] = useState("");
   useEffect(() => {
     setPath("");
     if (!page?.thumb) return;
     const dir = join(environment.supportPath, "thumbs");
-    const file = join(dir, `${page.slug}-${page.thumb.tab}-${page.thumb.version}.png`);
     client
       .thumb(page.slug, page.thumb.tab, page.thumb.version)
       .then((bytes) => {
+        const file = join(dir, `${page.slug}-${page.thumb.tab}-${page.thumb.version}.${isWebp(bytes) ? "webp" : "png"}`);
         mkdirSync(dir, { recursive: true });
         writeFileSync(file, bytes);
         setPath(file);

@@ -334,8 +334,8 @@ test("the sheet the mug opens carries the same picker, a roll of its own and a w
 const keysPanel = slice("leader-key", "let keysGridSolid = null;");
 
 function keysWorld(over = {}) {
-  const ACTION_GROUPS = [["chats", "chats and seats", ["new"]], ["moving", "moving around", ["seat"]]];
-  const ACTION_SAID = { new: "opens a chat", seat: "goes to seat {limit}" };
+  const ACTION_GROUPS = [["chats", "chats and seats", ["new"]], ["moving", "moving around", ["seat"]], ...(over.bar ? [["screens", "screens and panels", ["compose", "bar", "palette"]]] : [])];
+  const ACTION_SAID = { new: "opens a chat", seat: "goes to seat {limit}", compose: "write in the composer", bar: "the message bar", palette: "the palette" };
   return {
     ACTION_GROUPS,
     ACTION_SAID,
@@ -352,6 +352,7 @@ function keysWorld(over = {}) {
     },
     DEFAULT_LEADER: { code: "KeyB", ctrl: true },
     IS_MAC: false,
+    experienceNext: () => over.next === true,
     silenced: (a) => a === "new" && over.silenced === true,
     digitSpan: () => 4,
     keyLabel: (b) => (b ? b.code : "—"),
@@ -733,4 +734,10 @@ test("an ask that never left says why on the keyboard bar instead of pretending 
   const row = { dev: "jonas", seats: [seat("api")] };
   const model = mirrorModel({ row, extra: { knockRefused: new Map([["jonas/api", "we are not paired with that server"]]) } });
   assert.match(model.cards[0].kb.say, /your ask did not leave: we are not paired with that server/);
+});
+
+test("the new hive leaves the message bar's keys out of the list, the current one keeps them", () => {
+  const rowsOf = (model) => model.groups.find((g) => g.key === "screens").rows.map((row) => row.action);
+  assert.deepEqual(rowsOf(run(keysWorld({ bar: true, open: true, next: true }), keysPanel, "keysGridModel")()), ["palette"]);
+  assert.deepEqual(rowsOf(run(keysWorld({ bar: true, open: true }), keysPanel, "keysGridModel")()), ["compose", "bar", "palette"]);
 });

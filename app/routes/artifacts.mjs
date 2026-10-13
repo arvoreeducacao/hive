@@ -11,6 +11,9 @@ export function registerArtifactRoutes(on, context) {
     keepArtifact,
     askedTab,
     mirrorToShelf,
+    mirrorProposal = async () => ({ error: "proposals are not wired on this hive" }),
+    labelError = () => "",
+    thumbSource = () => null,
     artifactIndex,
     artifactKey,
     keptArtifacts,
@@ -39,6 +42,8 @@ export function registerArtifactRoutes(on, context) {
     readShelfFile = () => ({ error: "files are not wired on this hive" }),
     keepThumbOnShelf = async () => ({ error: "thumbnails are not wired on this hive" }),
     readShelfThumb = () => ({ error: "thumbnails are not wired on this hive" }),
+    readProposalThumb = () => ({ error: "thumbnails are not wired on this hive" }),
+    TELAS_TAKE_PROPOSALS = "the telas tab keeps Screenbook proposals, not html",
     now = Date.now
   } = context;
 
@@ -102,16 +107,31 @@ export function registerArtifactRoutes(on, context) {
   on("POST", "/api/shelf/publish", async (req, res, url, json) => {
     const asked = await bodyOf(req);
     if (!isSeatName(asked.name)) return json({ error: "unknown session" }, 400);
+    const wrongLabel = labelError(asked.label);
+    if (wrongLabel) return json({ error: wrongLabel }, 400);
+    if (asked.proposal) {
+      const sent = await mirrorProposal({
+        session: asked.name,
+        proposal: String(asked.proposal || ""),
+        title: String(asked.title || ""),
+        label: canonicalLabel(asked.label),
+        reopen: asked.reopen === true,
+        at: Number(asked.at) || now()
+      });
+      return json(sent, sent.error ? 400 : 200);
+    }
     const published = {
       session: asked.name,
       where: asked.where === "cloud" ? "cloud" : "local",
       path: String(asked.path || ""),
       label: canonicalLabel(asked.label),
       url: String(asked.url || ""),
+      reopen: asked.reopen === true,
       at: Number(asked.at) || now()
     };
     const wanted = askedTab(asked.tab);
     if (wanted.error) return json({ error: wanted.error }, 400);
+    if (wanted.tab === "telas") return json({ error: TELAS_TAKE_PROPOSALS }, 400);
     const kept = await keepArtifact({ ...published, tab: wanted.tab });
     const sent = await mirrorToShelf({ ...published, tab: wanted.tab });
     return json({ ...sent, kept: kept.error ? "" : kept.key }, sent.error ? 400 : 200);
@@ -152,10 +172,20 @@ export function registerArtifactRoutes(on, context) {
   on(null, "/api/shelf/thumb", async (req, res, url, json) => {
     const slug = String(url.searchParams.get("slug") || "");
     if (!SHELF_SLUG.test(slug)) return json({ error: "that is not a page on the shelf" }, 400);
-    const shot = readShelfThumb(slug, String(url.searchParams.get("tab") || ""), Number(url.searchParams.get("v")) || 0);
+    const tab = String(url.searchParams.get("tab") || "");
+    const ofProposal = tab === "telas" && url.searchParams.get("v") === "proposal";
+    const shot = ofProposal ? readProposalThumb(slug) : readShelfThumb(slug, tab, Number(url.searchParams.get("v")) || 0);
     if (shot.error) return json(shot, 404);
-    res.writeHead(200, { "content-type": "image/png", "x-content-type-options": "nosniff", "cache-control": "private, max-age=31536000, immutable", "content-length": shot.data.length });
+    const cache = ofProposal ? "no-store" : "private, max-age=31536000, immutable";
+    res.writeHead(200, { "content-type": ofProposal ? "image/webp" : shot.type || "image/png", "x-content-type-options": "nosniff", "cache-control": cache, "content-length": shot.data.length });
     return res.end(shot.data);
+  });
+
+  on(null, "/api/shelf/thumb/source", async (req, res, url, json) => {
+    const picture = thumbSource(String(url.searchParams.get("id") || ""));
+    if (!picture) return json({ error: "nobody asked for that picture" }, 404);
+    res.writeHead(200, { "content-type": "image/png", "x-content-type-options": "nosniff", "cache-control": "no-store", "content-length": picture.length });
+    return res.end(picture);
   });
 
   on("POST", "/api/shelf/thumb/taken", async (req, res, url, json) => {

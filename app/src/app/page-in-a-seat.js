@@ -1,7 +1,7 @@
 import { openArtifactTab, openBrowser, openWebPage, webAddress, webOfSeat } from "./chat-and-panes.js";
 import { openDraft } from "./draft-seat.js";
 import { $, st } from "./core.js";
-import { closeShelf, pullShelf, shelfOnScreen, shelfTabsOf } from "./shelf.js";
+import { closeShelf, pullShelf, shelfLinkTab, shelfOnScreen, shelfPickedProposal, shelfTabsOf } from "./shelf.js";
 import { shelfPageOf, shelfPaneIndex } from "./subagents-dock.js";
 import { chatOfPr } from "./seat-menu.js";
 import { closePrs, prsOnScreen } from "./thread.js";
@@ -59,6 +59,8 @@ async function openPageInASeat(asked) {
   if (!page) return window.hiveOpenShelf(asked);
   const wanted = String(asked?.tab || "");
   const version = Number(asked?.version) || 0;
+  const proposal = shelfLinkTab(page, wanted) ? shelfPickedProposal(page, version) : null;
+  if (proposal) return openProposalInASeat(page, proposal, asked);
   const index = shelfPaneIndex(page, wanted, version);
   if (!index) return window.hiveOpenShelf(asked);
   const already = seatThatPublished(slug) || seatOfPage(slug) || seatYouClickedFrom(asked);
@@ -68,6 +70,13 @@ async function openPageInASeat(asked) {
   if (!landed) return window.hiveOpenShelf(asked);
   if (shelfOnScreen()) closeShelf();
   if (already && st.webChat !== name) openBrowser(name);
+}
+
+function openProposalInASeat(page, proposal, asked) {
+  const name = seatThatPublished(page.slug) || seatOfPage(page.slug) || seatYouClickedFrom(asked) || openDraft().key;
+  if (!name) return window.open(proposal.url, "_blank");
+  if (shelfOnScreen()) closeShelf();
+  openWebPage(name, proposal.url);
 }
 
 const tabOnThePr = (web, address) => (web?.tabs || []).find((t) => t.kind !== "artifact" && (t.url === address || String(t.url || "").startsWith(`${address}/`)));

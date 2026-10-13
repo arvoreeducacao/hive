@@ -5,13 +5,13 @@ import { join } from "node:path";
 export const SHELF_KEPT = 12;
 export const THUMB_WAIT_MS = 10 * 60 * 1000;
 export const THUMB_MAX_BYTES = 2 * 1024 * 1024;
-export const PNG_DATA_URL = /^data:image\/png;base64,/;
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+export const WEBP_DATA_URL = /^data:image\/webp;base64,/;
 export const PUSH_TRIES = 3;
 export const TABS = ["documento", "telas", "plano", "lente", "prints"];
 const SLUG_MAX = 60;
 const COMBINING_MARKS = /[\u0300-\u036f]/g;
-const TAB_FILENAME = [["telas", /canvas|telas|mockup|screens/], ["lente", /lente/], ["prints", /prints/]];
+const TAB_FILENAME = [["lente", /lente/], ["prints", /prints/]];
 const TAB_ALIAS = { canvas: "telas", mockup: "telas", screens: "telas" };
 
 export const SHELF_STATES = ["draft", "in-review", "decided", "delivered", "closed"];
@@ -36,6 +36,40 @@ function cutState(label) {
 }
 
 export const stateOfLabel = (label) => cutState(label).state;
+
+export function labelError(label) {
+  if (!String(label || "").trim() || stateOfLabel(label)) return "";
+  return `"${String(label).trim()}" is not a state the shelf knows: a label starts with ${SHELF_STATES.join(", ")}, and anything after a dash is yours`;
+}
+
+export function pageLabel(was, asked, { reopen = false } = {}) {
+  const named = canonicalLabel(asked);
+  if (!named) return { label: String(was || "") };
+  if (!stateOfLabel(named)) return { label: String(was || ""), held: labelError(named) };
+  const from = SHELF_STATES.indexOf(stateOfLabel(was));
+  const to = SHELF_STATES.indexOf(stateOfLabel(named));
+  if (!reopen && from >= 0 && to >= 0 && to < from) {
+    return { label: String(was), held: `the page is already ${SHELF_STATES[from]}, and ${named} would move it back, so it stays ${SHELF_STATES[from]}; publish with reopen to move it back on purpose` };
+  }
+  return { label: named };
+}
+
+export const TELAS_TAKE_PROPOSALS = "the telas tab keeps Screenbook proposals, not html: open a proposal in the Screenbook and publish its link as proposal";
+
+const PRODUCT_NAME = /^[a-z0-9][a-z0-9-]{0,59}$/;
+const PROPOSAL_ID = /^[a-z0-9][a-z0-9-]{0,99}$/;
+
+export function proposalOf(address) {
+  let parsed;
+  try { parsed = new URL(String(address || "").trim()); } catch { return { error: "a proposal is a link like https://<screenbook>/<product>/?proposal=<id>" }; }
+  if (parsed.protocol !== "https:") return { error: "a proposal link is https" };
+  const parts = parsed.pathname.split("/").filter(Boolean);
+  const id = parsed.searchParams.get("proposal") || "";
+  if (parts.length !== 1 || !PRODUCT_NAME.test(parts[0]) || !PROPOSAL_ID.test(id)) {
+    return { error: "a proposal is a link like https://<screenbook>/<product>/?proposal=<id>" };
+  }
+  return { url: `${parsed.origin}/${parts[0]}/?proposal=${id}`, product: parts[0], id };
+}
 
 export function canonicalLabel(label) {
   const { state, rest } = cutState(label);
@@ -74,7 +108,10 @@ export function tabOf(path, hint = "") {
 export const pageDir = (home, slug) => join(home, "a", slug);
 export const pageFile = (home, slug, tab, n) => join(pageDir(home, slug), `${tab}.v${n}.html`);
 export const metaFile = (home, slug) => join(pageDir(home, slug), "meta.json");
-export const thumbFile = (home, slug, tab, n) => join(pageDir(home, slug), `${tab}.v${n}.png`);
+export const thumbFile = (home, slug, tab, n) => join(pageDir(home, slug), `${tab}.v${n}.webp`);
+export const pngThumbFile = (home, slug, tab, n) => join(pageDir(home, slug), `${tab}.v${n}.png`);
+const thumbOnDisk = (home, slug, tab, n) => [thumbFile(home, slug, tab, n), pngThumbFile(home, slug, tab, n)].find((file) => existsSync(file)) || "";
+export const proposalThumbFile = (home, slug, product, id) => join(pageDir(home, slug), `telas.${product}.${id}.webp`);
 
 export function readMeta(home, slug) {
   try { return JSON.parse(readFileSync(metaFile(home, slug), "utf8")); } catch { return null; }
@@ -83,6 +120,10 @@ export function readMeta(home, slug) {
 function keptTabs(meta) {
   const tabs = {};
   for (const [name, kept] of Object.entries(meta?.tabs || {})) {
+    if (kept?.kind === "link" && Array.isArray(kept.proposals)) {
+      tabs[name] = { kind: "link", proposals: kept.proposals, ...(kept.leafId ? { leafId: String(kept.leafId) } : {}) };
+      continue;
+    }
     if (!Array.isArray(kept?.versions)) continue;
     tabs[name] = { versions: kept.versions, ...(kept.leafId ? { leafId: String(kept.leafId) } : {}) };
   }
@@ -91,7 +132,7 @@ function keptTabs(meta) {
 
 function newestVersion(tabs) {
   return Object.values(tabs)
-    .flatMap((tab) => tab.versions || [])
+    .flatMap((tab) => tab.versions || tab.proposals || [])
     .reduce((best, v) => (!best || (v.at || 0) > (best.at || 0) ? v : best), null);
 }
 
@@ -107,9 +148,10 @@ function nextVersions(kept, coming) {
 
 export const leafIdOf = (meta, tab) => String(meta?.tabs?.[tab]?.leafId || "");
 
-export function shelve({ home, slug, tab, html, title, kind, description, owner, seat, label, url, at, leafId }) {
+export function shelve({ home, slug, tab, html, title, kind, description, owner, seat, label, reopen = false, url, at, leafId }) {
   if (!home) return { error: "the shelf has no repo on this machine yet" };
   if (!slug) return { error: "a page needs a slug" };
+  if (tab === "telas") return { error: TELAS_TAKE_PROPOSALS };
   if (typeof html !== "string" || !html.trim()) return { error: "there is nothing to shelve" };
 
   const was = readMeta(home, slug) || {};
@@ -127,9 +169,11 @@ export function shelve({ home, slug, tab, html, title, kind, description, owner,
   for (const gone of dropped) {
     try { rmSync(pageFile(home, slug, tab, gone.n)); } catch {}
     try { rmSync(thumbFile(home, slug, tab, gone.n)); } catch {}
+    try { rmSync(pngThumbFile(home, slug, tab, gone.n)); } catch {}
   }
 
   const head = newestVersion(tabs);
+  const status = pageLabel(was.label, label, { reopen });
   const meta = {
     slug,
     title: String(title || was.title || slug),
@@ -137,13 +181,80 @@ export function shelve({ home, slug, tab, html, title, kind, description, owner,
     description: String(description ?? was.description ?? ""),
     owner: String(owner || was.owner || ""),
     seat: String(seat || was.seat || ""),
-    label: head?.label || canonicalLabel(label) || String(was.label || ""),
+    label: status.label,
     url: String(url || was.url || ""),
     at: head?.at || stamp,
     tabs
   };
   writeFileSync(metaFile(home, slug), `${JSON.stringify(meta, null, 2)}\n`);
-  return { meta, wrote, tab, dropped: dropped.map((v) => v.n) };
+  return { meta, wrote, tab, dropped: dropped.map((v) => v.n), ...(status.held ? { held: status.held } : {}) };
+}
+
+export function shelveProposal({ home, slug, title, kind, owner, seat, label, reopen = false, proposal, screens, at, leafId }) {
+  if (!home) return { error: "the shelf has no repo on this machine yet" };
+  if (!slug) return { error: "a page needs a slug" };
+  const named = proposalOf(proposal);
+  if (named.error) return named;
+
+  const was = readMeta(home, slug) || {};
+  const tabs = keptTabs(was);
+  const listed = tabs.telas?.kind === "link" ? tabs.telas.proposals : [];
+  const before = listed.find((one) => one.product === named.product && one.id === named.id);
+  const entry = { url: named.url, product: named.product, id: named.id, screens: { ...(screens || before?.screens || {}) }, at: at || 0 };
+  const proposals = listed.filter((one) => one.product !== entry.product || one.id !== entry.id).concat([entry]);
+  const keptLeaf = leafId || tabs.telas?.leafId || "";
+  tabs.telas = { kind: "link", proposals, ...(keptLeaf ? { leafId: String(keptLeaf) } : {}) };
+
+  mkdirSync(pageDir(home, slug), { recursive: true });
+  const head = newestVersion(tabs);
+  const status = pageLabel(was.label, label, { reopen });
+  const meta = {
+    slug,
+    title: String(title || was.title || slug),
+    kind: String(was.kind || kind || "documento"),
+    description: String(was.description ?? ""),
+    owner: String(owner || was.owner || ""),
+    seat: String(seat || was.seat || ""),
+    label: status.label,
+    url: String(was.url || ""),
+    at: head?.at || entry.at,
+    tabs
+  };
+  writeFileSync(metaFile(home, slug), `${JSON.stringify(meta, null, 2)}\n`);
+  return { meta, tab: "telas", proposal: entry, ...(status.held ? { held: status.held } : {}) };
+}
+
+const escapeHtml = (text) => String(text || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+export function proposalsPage({ title, proposals = [] }) {
+  const rows = [...proposals].reverse().map((one) => {
+    const screens = Object.keys(one.screens || {}).length;
+    const said = screens ? `${screens} tela${screens === 1 ? "" : "s"}` : "telas da proposta";
+    return `<li><a href="${escapeHtml(one.url)}" target="_blank" rel="noopener">${escapeHtml(`${one.product} / ${one.id}`)}</a>: ${said}</li>`;
+  }).join("");
+  return `<!doctype html><meta charset="utf-8"><title>${escapeHtml(title)}</title><h1>${escapeHtml(title)}: telas</h1><p>As telas desta missão moram no Screenbook. A mais recente vem primeiro.</p><ul>${rows}</ul>`;
+}
+
+export const proposalCommitLine = (meta, proposal) =>
+  `estante: ${meta.slug} · telas · ${proposal.product}/${proposal.id}${meta.label ? ` · ${meta.label}` : ""}`;
+
+export function keepProposalThumb(home, slug, product, id, bytes) {
+  const meta = readMeta(home, slug);
+  const listed = meta?.tabs?.telas?.kind === "link" ? meta.tabs.telas.proposals : [];
+  if (!listed.some((one) => one.product === product && one.id === id)) return { error: "that proposal is not on this page" };
+  if (!isWebp(bytes)) return { error: "a proposal thumbnail is a webp" };
+  if (bytes.length > THUMB_MAX_BYTES) return { error: "that thumbnail is too big" };
+  const file = proposalThumbFile(home, slug, product, id);
+  writeFileSync(file, bytes);
+  return { file };
+}
+
+export function readProposalThumb(home, slug) {
+  const meta = readMeta(home, slug);
+  const listed = meta?.tabs?.telas?.kind === "link" ? meta.tabs.telas.proposals : [];
+  const newest = listed[listed.length - 1];
+  if (!newest) return { error: "this page has no proposal yet" };
+  try { return { data: readFileSync(proposalThumbFile(home, slug, newest.product, newest.id)) }; } catch { return { error: "that proposal has no thumbnail yet" }; }
 }
 
 export function shelfIndex(home) {
@@ -164,11 +275,18 @@ export function shelfIndex(home) {
 export function thumbsOf(home, meta) {
   const thumbs = {};
   for (const [tab, kept] of Object.entries(meta?.tabs || {})) {
-    const shot = [...(kept?.versions || [])].reverse().find((v) => existsSync(thumbFile(home, meta.slug, tab, v.n)));
+    if (kept?.kind === "link") {
+      const newest = (kept.proposals || []).at(-1);
+      if (newest && existsSync(proposalThumbFile(home, meta.slug, newest.product, newest.id))) thumbs[tab] = "proposal";
+      continue;
+    }
+    const shot = [...(kept?.versions || [])].reverse().find((v) => thumbOnDisk(home, meta.slug, tab, v.n));
     if (shot) thumbs[tab] = shot.n;
   }
   return thumbs;
 }
+
+const isWebp = (bytes) => Buffer.isBuffer(bytes) && bytes.length > 12 && bytes.toString("latin1", 0, 4) === "RIFF" && bytes.toString("latin1", 8, 12) === "WEBP";
 
 const isPng = (bytes) => Buffer.isBuffer(bytes) && bytes.length > PNG_SIGNATURE.length && bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE);
 
@@ -180,7 +298,7 @@ function versionOf(home, slug, tab, n) {
 
 export function keepThumb(home, slug, tab, n, bytes) {
   if (!versionOf(home, slug, tab, n)) return { error: "that version is not on the shelf" };
-  if (!isPng(bytes)) return { error: "a thumbnail is a png" };
+  if (!isWebp(bytes)) return { error: "a thumbnail is a webp" };
   if (bytes.length > THUMB_MAX_BYTES) return { error: "that thumbnail is too big" };
   const file = thumbFile(home, slug, tab, Number(n));
   writeFileSync(file, bytes);
@@ -189,7 +307,9 @@ export function keepThumb(home, slug, tab, n, bytes) {
 
 export function readThumb(home, slug, tab, n) {
   if (!versionOf(home, slug, tab, n)) return { error: "that version is not on the shelf" };
-  try { return { data: readFileSync(thumbFile(home, slug, tab, Number(n))) }; } catch { return { error: "that version has no thumbnail yet" }; }
+  const file = thumbOnDisk(home, slug, tab, Number(n));
+  if (!file) return { error: "that version has no thumbnail yet" };
+  return { data: readFileSync(file), type: file.endsWith(".webp") ? "image/webp" : "image/png" };
 }
 
 export function thumbQueue({ now = Date.now, wait = THUMB_WAIT_MS, newId = randomUUID } = {}) {
@@ -207,9 +327,23 @@ export function thumbQueue({ now = Date.now, wait = THUMB_WAIT_MS, newId = rando
       jobs.push(job);
       return job.id;
     },
+    wantPicture({ slug, product, id, picture }) {
+      if (!slug || !product || !id || !isPng(picture)) return null;
+      const known = jobs.find((job) => job.kind === "proposal" && job.slug === slug && job.product === product && job.proposal === id);
+      if (known) {
+        Object.assign(known, { picture, at: now() });
+        return known.id;
+      }
+      const job = { id: newId(), kind: "proposal", slug, tab: "telas", product, proposal: id, picture, at: now() };
+      jobs.push(job);
+      return job.id;
+    },
     next() {
       forget();
-      return jobs.slice(0, 1).map(({ id, slug, tab, v }) => ({ id, slug, tab, v }));
+      return jobs.slice(0, 1).map(({ id, kind, slug, tab, v }) => (kind === "proposal" ? { id, kind, slug, tab } : { id, slug, tab, v }));
+    },
+    picture(id) {
+      return jobs.find((job) => job.id === id && job.kind === "proposal")?.picture || null;
     },
     take(id) {
       const at = jobs.findIndex((job) => job.id === id);
@@ -228,7 +362,13 @@ export function pickVersion(meta, tab, wanted) {
 export function readPage(home, slug, tab, wanted) {
   const meta = readMeta(home, slug);
   if (!meta) return { error: "no page with that name on the shelf" };
+  const linked = meta.tabs?.[tab];
+  if (linked?.kind === "link") {
+    const proposals = linked.proposals || [];
+    return { html: proposalsPage({ title: meta.title || slug, proposals }), meta, tab, version: { n: proposals.length } };
+  }
   const pick = pickVersion(meta, tab, wanted);
+  if (!pick && meta.tabs?.telas?.kind === "link") return readPage(home, slug, "telas", 0);
   if (!pick) return { error: "nothing kept for that page" };
   const file = pageFile(home, slug, pick.tab, pick.version.n);
   if (!existsSync(file)) return { error: "that version only exists in the git history now" };

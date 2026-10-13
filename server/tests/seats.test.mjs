@@ -18,6 +18,8 @@ test("a seat that died says what it printed on the way out, not just that it is 
   assert.equal(whyItDied("bash: claude: command not found\n\n"), "bash: claude: command not found");
   assert.equal(whyItDied("one\ntwo\nthree\nfour   \n"), "two · three · four");
   assert.equal(whyItDied(""), "");
+  assert.equal(whyItDied("sh: 1: claude: not found\n\nPane is dead (status 127, Fri Oct  9 22:22:23 2026)\n"), "sh: 1: claude: not found");
+  assert.equal(whyItDied("Pane is dead (status 127, Fri Oct  9 22:22:23 2026)\n"), "", "tmux's own line says nothing about why, so the server goes and looks for the agent itself");
 });
 
 test("what a window runs tells a shell from a chat, and only what was already structured stays structured", () => {
@@ -246,7 +248,7 @@ test("an agent that is not on the box closes its window, and the seat says so in
   const opened = await nowhere.open({ name: "ghost", cwd: hub });
   assert.match(opened.error, /closed the window as soon as it opened/);
   assert.match(opened.error, /claude/i, "the window's dying words were thrown away, and a blind failure is what sent someone hunting");
-  assert.match(opened.error, /not found|No such file/i, "the reason the shell gave never reached the person asking for the seat");
+  assert.match(opened.error, /not found|No such file|not on this server's path/i, "the reason never reached the person asking for the seat");
   assert.ok(!(await seats.list()).seats.some((one) => one.name === "ghost"), "the dead window was left standing in the fleet");
 });
 

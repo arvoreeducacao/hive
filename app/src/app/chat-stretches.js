@@ -493,28 +493,7 @@ function getStructured(s) {
     composer.dataset.shellMode = shellMode === "quiet" ? phrase("!! for shell mode · not kept in the chat") : shellMode ? phrase("! for shell mode") : "";
     const name = e.command?.name() || "";
     const spot = name ? commandSpot(said, name) : null;
-    const marks = [...(shellMode ? [{ start: 0, end: shellMode === "quiet" ? 2 : 1, cls: "ink-shell" }] : []), ...(spot ? [{ ...spot, cls: "ink-cmd" }] : []), ...listMarks(said).map((mark) => ({ ...mark, cls: mark.kind === "ul" ? "ink-bullet" : "ink-num" }))]
-      .sort((a, b) => a.start - b.start)
-      .filter((mark, at, all) => !at || mark.start >= all[at - 1].end);
-    if (!marks.length) {
-      ink.textContent = "";
-      composer.classList.remove("inked");
-      return;
-    }
-    ink.textContent = "";
-    let last = 0;
-    for (const mark of marks) {
-      const token = document.createElement("span");
-      token.className = mark.cls;
-      token.textContent = said.slice(mark.start, mark.end);
-      ink.append(document.createTextNode(said.slice(last, mark.start)), token);
-      last = mark.end;
-    }
-    ink.append(document.createTextNode(said.slice(last)));
-    /* a textarea keeps room for the line after a trailing newline; a pre-wrap div does not. */
-    if (said.endsWith("\n")) ink.append(document.createTextNode("\u200b"));
-    composer.classList.add("inked");
-    ink.scrollTop = textarea.scrollTop;
+    drawInk(composer, ink, textarea, [...(shellMode ? [{ start: 0, end: shellMode === "quiet" ? 2 : 1, cls: "ink-shell" }] : []), ...(spot ? [{ ...spot, cls: "ink-cmd" }] : []), ...listInkMarks(said)]);
   };
   /* typing a command by hand pins it, and editing that word away — backspace, paste, undo — gives
      it up, without any of those paths having to know the command exists. */
@@ -841,18 +820,7 @@ function getStructured(s) {
       recall(step.text);
       return;
     }
-    if (kev.key === "Enter" && kev.shiftKey && !kev.altKey && !kev.ctrlKey && !kev.metaKey) {
-      const step = continueList(textarea.value, textarea.selectionStart ?? 0, textarea.selectionEnd ?? 0);
-      if (step) {
-        kev.preventDefault();
-        textarea.setSelectionRange(step.from, step.to);
-        if (!(step.text ? document.execCommand?.("insertText", false, step.text) : document.execCommand?.("delete"))) {
-          textarea.setRangeText(step.text, step.from, step.to, "end");
-          textarea.dispatchEvent(new Event("input", { bubbles: true }));
-        }
-        return;
-      }
-    }
+    if (continueListOnShiftEnter(kev, textarea)) return;
     if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); say(!kev.altKey && (IS_MAC ? kev.metaKey : kev.ctrlKey)); }
     if (kev.key === "Escape") {
       kev.preventDefault();
@@ -1036,4 +1004,43 @@ document.addEventListener("hive:experience", (event) => {
   }
 });
 
-export { SV_AIR, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, seatReceiving, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };
+const listInkMarks = (said) => listMarks(said).map((mark) => ({ ...mark, cls: mark.kind === "ul" ? "ink-bullet" : "ink-num" }));
+
+function drawInk(composer, ink, textarea, found) {
+  const said = textarea.value;
+  const marks = [...found]
+    .sort((a, b) => a.start - b.start)
+    .filter((mark, at, all) => !at || mark.start >= all[at - 1].end);
+  ink.textContent = "";
+  if (!marks.length) {
+    composer.classList.remove("inked");
+    return;
+  }
+  let last = 0;
+  for (const mark of marks) {
+    const token = document.createElement("span");
+    token.className = mark.cls;
+    token.textContent = said.slice(mark.start, mark.end);
+    ink.append(document.createTextNode(said.slice(last, mark.start)), token);
+    last = mark.end;
+  }
+  ink.append(document.createTextNode(said.slice(last)));
+  if (said.endsWith("\n")) ink.append(document.createTextNode("\u200b"));
+  composer.classList.add("inked");
+  ink.scrollTop = textarea.scrollTop;
+}
+
+function continueListOnShiftEnter(kev, textarea) {
+  if (kev.key !== "Enter" || !kev.shiftKey || kev.altKey || kev.ctrlKey || kev.metaKey) return false;
+  const step = continueList(textarea.value, textarea.selectionStart ?? 0, textarea.selectionEnd ?? 0);
+  if (!step) return false;
+  kev.preventDefault();
+  textarea.setSelectionRange(step.from, step.to);
+  if (!(step.text ? document.execCommand?.("insertText", false, step.text) : document.execCommand?.("delete"))) {
+    textarea.setRangeText(step.text, step.from, step.to, "end");
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  return true;
+}
+
+export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, seatReceiving, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };
