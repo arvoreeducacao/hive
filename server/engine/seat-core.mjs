@@ -1,5 +1,6 @@
 import { loadTransferContext } from "./transfer-context.mjs";
-import { writeFile, open, stat, rm } from "node:fs/promises";
+import { writeFile, open, stat, rm, rename } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:net";
 import { dirname, resolve } from "node:path";
@@ -56,7 +57,18 @@ export function makeEventsTrouble(eventsFile, speak = (line) => console.error(li
   };
 }
 
-export function makeSessionStore(sessionFile, initial = {}, tell = () => {}, write = writeFile) {
+export async function replaceFile(file, text, mode = 0o600) {
+  const step = `${file}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(step, text, { mode });
+    await rename(step, file);
+  } catch (e) {
+    await rm(step, { force: true }).catch(() => {});
+    throw Object.assign(new Error(String(e?.message || e).split(step).join(file)), { code: e?.code });
+  }
+}
+
+export function makeSessionStore(sessionFile, initial = {}, tell = () => {}, write = replaceFile) {
   let meta = initial;
   /* two writes racing on one file let the loser land last: a persist carrying
      the old model would overwrite the one that carried the new pick, and the
