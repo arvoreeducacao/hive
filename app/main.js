@@ -13,8 +13,6 @@ const passkey = require("./main/passkey.js");
 const zoom = require("./main/zoom.js");
 const { watchAway } = require("./main/away.js");
 
-/* the AppImage runtime exports ARGV0 as the AppImage's path, and mise reads it as its own name: the `mise activate`
-   in the rc of a shell we spawn then runs as a shim, finds the AppImage on PATH and launches hive again, forever */
 delete process.env.ARGV0;
 
 const HIVE_HOME = process.env.HIVE_HOME || join(homedir(), ".hive");
