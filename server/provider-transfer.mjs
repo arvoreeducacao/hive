@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile, copyFile, rename, open } from "node:fs/prom
 import { createInterface } from "node:readline";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { replaceFile } from "./engine/seat-core.mjs";
 
 const pause = (ms) => new Promise((done) => setTimeout(done, ms));
 const clip = (text, limit) => text.length <= limit ? text : `${text.slice(0, limit)}\n[excerpt; consult the saved history for details]`;
@@ -89,7 +90,7 @@ export function createProviderTransfers({ base, command, start, stop, validate =
   const phase = async (name, job, value) => { job.phase = value; await keep(name, job); };
   const metaFile = (name) => join(base, "sessions", `${name}.json`);
   const metaOf = async (name) => JSON.parse(await readFile(metaFile(name), "utf8"));
-  const saveMeta = (name, meta) => writeFile(metaFile(name), JSON.stringify(meta, null, 2), { mode: 0o600 });
+  const saveMeta = (name, meta) => replaceFile(metaFile(name), JSON.stringify(meta, null, 2));
 
   async function ready(name, agent, model) {
     const deadline = now() + readyTimeout;

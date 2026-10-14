@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -56,6 +56,31 @@ test("a session file that writes fine never warns", async () => {
     await store.persist({ session_id: "s1" });
     assert.deepEqual(said, []);
     assert.equal(JSON.parse(await readFile(join(home, "seat.json"), "utf8")).session_id, "s1");
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test("a reader never finds the session file empty or half written while it is rewritten", async () => {
+  const home = await mkdtemp(join(tmpdir(), "hive-whole-"));
+  const file = join(home, "seat.json");
+  try {
+    const store = makeSessionStore(file, { notes: "x".repeat(2_000_000) });
+    await store.persist({ session_id: "s0" });
+    let writing = true;
+    const broken = [];
+    const reader = (async () => {
+      while (writing) {
+        const text = await readFile(file, "utf8");
+        try { JSON.parse(text); } catch { broken.push(text.length); }
+      }
+    })();
+    for (let i = 1; i <= 40; i++) await store.persist({ session_id: `s${i}` });
+    writing = false;
+    await reader;
+    assert.deepEqual(broken, [], "a reader caught the file between the truncate and the write");
+    assert.equal(JSON.parse(await readFile(file, "utf8")).session_id, "s40");
+    assert.deepEqual(await readdir(home), ["seat.json"], "no scratch file is left next to the session file");
   } finally {
     await rm(home, { recursive: true, force: true });
   }
