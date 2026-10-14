@@ -144,3 +144,11 @@ test("a second hive on a taken door exits without touching the fleet",
     await rm(home, { recursive: true, force: true });
   }
 });
+
+test("the AppImage's ARGV0 never reaches a shell the app spawns", () => {
+  const forget = main.indexOf("delete process.env.ARGV0;");
+  assert.ok(forget > 0, "ARGV0 leaks into the login shells, and mise there runs the AppImage, which opens another hive");
+  for (const spawned of ["execFile(", "spawn("]) {
+    assert.ok(forget < main.indexOf(spawned), `${spawned} is reached before ARGV0 is forgotten`);
+  }
+});

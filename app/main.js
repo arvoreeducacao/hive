@@ -13,6 +13,8 @@ const passkey = require("./main/passkey.js");
 const zoom = require("./main/zoom.js");
 const { watchAway } = require("./main/away.js");
 
+delete process.env.ARGV0;
+
 const HIVE_HOME = process.env.HIVE_HOME || join(homedir(), ".hive");
 const SOCK = process.env.HIVE_SOCK || relay.socketPathFor({ home: HIVE_HOME, hub: process.env.HIVE_HUB || "" });
 const BASE = relay.HOME_PAGE;
