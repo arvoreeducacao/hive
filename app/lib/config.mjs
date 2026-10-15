@@ -143,7 +143,8 @@ export const LOOK_DEFAULT = "classic";
 export const STRUCTURE_CHOICES = ["classic", "launcher", "inbox", "atmosphere", "cockpit", "stage", "map", "ember", "island"];
 export const STRUCTURE_DEFAULT = "classic";
 export const EXPERIENCE_DEFAULT = "raycast";
-export const EXPERIENCE_CHOICES = ["current", "experimental", "raycast"];
+export const EXPERIENCE_CHOICES = ["raycast", "experimental"];
+const EXPERIENCES_RETIRED = ["current"];
 export const EXPERIENCE_BEHAVIORS = ["resizeInfo", "imageZoom", "titleClick"];
 export const INFO_WIDTH_RANGE = [240, 1200];
 export const INFO_WIDTH_DEFAULT = 380;
@@ -225,6 +226,7 @@ export function cleanBrandFace(raw, where, problems) {
 export function cleanExperience(raw, where, problems) {
   if (raw === undefined) return EXPERIENCE_DEFAULT;
   if (EXPERIENCE_CHOICES.includes(raw)) return raw;
+  if (EXPERIENCES_RETIRED.includes(raw)) return EXPERIENCE_DEFAULT;
   problems.push(`${where}: experience should be ${EXPERIENCE_CHOICES.join(", ")}`);
   return EXPERIENCE_DEFAULT;
 }
