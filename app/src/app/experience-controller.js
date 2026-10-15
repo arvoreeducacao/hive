@@ -1,29 +1,27 @@
-export const EXPERIENCES = ['current', 'experimental', 'raycast'];
+export const EXPERIENCES = ['raycast', 'experimental'];
 export const EXPERIENCE_CLASS = { experimental: 'experience-next', raycast: 'experience-raycast' };
 export const EXPERIENCE_BOOT_KEY = 'hive.experience';
 
 const EXPERIENCE_STATE = {
-  current: 'You are using the current Hive.',
-  experimental: 'New Hive is active · experimental foundation',
-  raycast: 'Hive in Raycast is active · experimental'
+  raycast: 'New Hive is off.',
+  experimental: 'New Hive is active · experimental foundation'
 };
+const BASE = 'raycast';
+const leftBehind = value => value === 'current' || value === BASE;
 
 export function createExperienceController({ document, location, history, save, say = text => text, loadIcons = async () => ({}), storage = null }) {
-  let wanted = 'current';
+  let wanted = BASE;
   let loaded = false;
   let pending = false;
   let error = '';
   let shown = document.body.classList.contains(EXPERIENCE_CLASS.raycast) ? 'raycast' : null;
   let iconsReady = Promise.resolve();
-  let recovery = new URL(location.href).searchParams.get('experience') === 'current';
+  let recovery = leftBehind(new URL(location.href).searchParams.get('experience'));
   const button = document.getElementById('experience-toggle');
   const status = document.getElementById('experience-state');
   const link = document.getElementById('experience-recovery');
-  const raycastButton = document.getElementById('raycast-toggle');
-  const raycastStatus = document.getElementById('raycast-state');
-  let errorFor = '';
   const recoveryUrl = new URL(location.href);
-  recoveryUrl.searchParams.set('experience', 'current');
+  recoveryUrl.searchParams.set('experience', BASE);
   if (link) link.href = recoveryUrl.href;
   const originalIcons = new Map();
   let iconsLoading = null;
@@ -55,15 +53,14 @@ export function createExperienceController({ document, location, history, save, 
   function recover(on) {
     recovery = on;
     const url = new URL(location.href);
-    if (on) url.searchParams.set('experience', 'current');
+    if (on) url.searchParams.set('experience', BASE);
     else url.searchParams.delete('experience');
     history.replaceState(history.state, '', url.href);
   }
   function remember() {
     if (!storage) return;
     try {
-      if (wanted === 'raycast') storage.setItem(EXPERIENCE_BOOT_KEY, wanted);
-      else storage.removeItem(EXPERIENCE_BOOT_KEY);
+      storage.setItem(EXPERIENCE_BOOT_KEY, wanted);
     } catch {}
   }
   function announce(active) {
@@ -71,45 +68,39 @@ export function createExperienceController({ document, location, history, save, 
     const first = shown === null;
     const was = shown;
     shown = active;
-    if (first && active === 'current') return;
+    if (first && active === BASE) return;
     const View = document.defaultView;
-    if (View?.CustomEvent) document.dispatchEvent(new View.CustomEvent('hive:experience', { detail: { experience: active, was: first ? 'current' : was } }));
+    if (View?.CustomEvent) document.dispatchEvent(new View.CustomEvent('hive:experience', { detail: { experience: active, was: first ? BASE : was } }));
   }
   function paint() {
-    const active = loaded && !recovery ? wanted : 'current';
+    const active = loaded && !recovery ? wanted : BASE;
     if (loaded) for (const [one, name] of Object.entries(EXPERIENCE_CLASS)) document.body.classList.toggle(name, active === one);
     else document.body.classList.remove(EXPERIENCE_CLASS.experimental);
     iconsReady = iconsFor(active === 'experimental');
     if (button) {
       button.disabled = !loaded || pending;
-      button.textContent = say(pending ? 'Saving…' : wanted === 'experimental' ? 'Return to current Hive' : 'Try new Hive');
+      button.textContent = say(pending ? 'Saving…' : wanted === 'experimental' ? 'Leave New Hive' : 'Try new Hive');
     }
-    if (raycastButton) {
-      raycastButton.disabled = !loaded || pending;
-      raycastButton.textContent = say(pending ? 'Saving…' : wanted === 'raycast' ? 'Return to current Hive' : 'Try Hive in Raycast');
-    }
-    const said = (mine, on) => (error && errorFor === mine ? error : !loaded ? 'Loading your preference…' : recovery ? 'Recovery mode: using the current Hive.' : on);
-    if (status) status.textContent = say(said('experimental', EXPERIENCE_STATE[active]));
-    if (raycastStatus) raycastStatus.textContent = say(said('raycast', active === 'raycast' ? EXPERIENCE_STATE.raycast : 'Hive in Raycast is off.'));
+    const said = on => (error ? error : !loaded ? 'Loading your preference…' : recovery ? 'Recovery mode: New Hive is off in this window.' : on);
+    if (status) status.textContent = say(said(EXPERIENCE_STATE[active]));
     if (loaded) announce(active);
   }
   function adopt(result) {
     if (pending || result?.error || !result?.config) return;
-    wanted = EXPERIENCES.includes(result.config.experience) ? result.config.experience : 'current';
+    wanted = EXPERIENCES.includes(result.config.experience) ? result.config.experience : BASE;
     loaded = true;
     remember();
     paint();
   }
-  async function choose(next, from = next === 'current' ? (wanted === 'raycast' ? 'raycast' : 'experimental') : next) {
+  async function choose(next) {
     if (!loaded || pending || !EXPERIENCES.includes(next)) return;
     if (next === wanted) {
-      if (recovery && next !== 'current') { recover(false); paint(); }
+      if (recovery && next !== BASE) { recover(false); paint(); }
       return;
     }
     error = '';
-    errorFor = from;
     pending = true;
-    if (next === 'current') recover(true);
+    if (next === BASE) recover(true);
     paint();
     try {
       const result = await save({ experience: next });
@@ -118,18 +109,16 @@ export function createExperienceController({ document, location, history, save, 
       recover(false);
       remember();
     } catch {
-      error = next === 'current'
-        ? 'Current Hive restored in this window. The preference could not be saved; recovery mode remains on. Try again.'
+      error = next === BASE
+        ? 'New Hive is off in this window. The preference could not be saved; recovery mode remains on. Try again.'
         : 'The preference could not be saved. Nothing changed. Try again.';
     } finally {
       pending = false;
       paint();
     }
   }
-  const toggle = () => choose(wanted === 'experimental' ? 'current' : 'experimental', 'experimental');
-  const toggleRaycast = () => choose(wanted === 'raycast' ? 'current' : 'raycast', 'raycast');
+  const toggle = () => choose(wanted === 'experimental' ? BASE : 'experimental');
   if (button) button.onclick = toggle;
-  if (raycastButton) raycastButton.onclick = toggleRaycast;
   paint();
-  return { adopt, toggle, toggleRaycast, choose, paint, icons: () => iconsReady, wanted: () => wanted };
+  return { adopt, toggle, choose, paint, icons: () => iconsReady, wanted: () => wanted };
 }

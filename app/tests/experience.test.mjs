@@ -42,7 +42,7 @@ test('toggle preserves draft, attachment, focus and performance classes, and sur
   assert.equal(reopened.active(), true);
   await controller.toggle();
   assert.equal(active(), false);
-  assert.deepEqual(stored, { experience: 'current' });
+  assert.deepEqual(stored, { experience: 'raycast' });
 });
 
 test('failed activation never enables the experiment; retry works', async () => {
@@ -56,12 +56,12 @@ test('failed activation never enables the experiment; retry works', async () => 
   assert.equal(active(), true);
 });
 
-test('failed return restores current immediately and retains a recovery URL across reload', async () => {
+test('a failed return leaves New Hive at once and keeps a recovery URL across reload', async () => {
   const { win, controller, active } = setup({ url: 'http://hive/?foo=bar#chat', save: async () => { throw new Error('offline'); } });
   controller.adopt({ config: { experience: 'experimental' } });
   await controller.toggle();
   assert.equal(active(), false);
-  assert.equal(new URL(win.location.href).searchParams.get('experience'), 'current');
+  assert.equal(new URL(win.location.href).searchParams.get('experience'), 'raycast');
   assert.equal(new URL(win.location.href).searchParams.get('foo'), 'bar');
   assert.equal(win.location.hash, '#chat');
   const reopened = setup({ url: win.location.href });
@@ -78,7 +78,7 @@ test('pending writes cannot be duplicated or overwritten by a stale config reloa
   controller.adopt({ config: {} });
   const pending = controller.toggle();
   await controller.toggle();
-  controller.adopt({ config: { experience: 'current' } });
+  controller.adopt({ config: { experience: 'raycast' } });
   assert.equal(calls, 1);
   assert.equal(win.document.getElementById('experience-toggle').disabled, true);
   finish(); await pending;

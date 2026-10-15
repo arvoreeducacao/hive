@@ -4710,7 +4710,7 @@
 </head>
 <body>
 <script>try {
-  if (localStorage.getItem("hive.experience") === "raycast" && new URLSearchParams(location.search).get("experience") !== "current") document.body.classList.add("experience-raycast");
+  if (localStorage.getItem("hive.experience") !== "experimental" || new URLSearchParams(location.search).has("experience")) document.body.classList.add("experience-raycast");
 } catch {}
 try {
   const worn = JSON.parse(localStorage.getItem("hive.theme.css") || "null");
@@ -5212,13 +5212,9 @@ try {
       <details class="experience-notes"><summary data-t>What changed</summary>
         <p class="hint" data-t>Experimental foundation: charcoal surfaces, orange selection, square controls and sage message bubbles. Conversations and commands stay the same. Fonts and performance settings are preserved.</p>
       </details>
-      <h3 data-t>Hive in Raycast</h3>
-      <p class="hint" data-t>An experiment: the Raycast look, with keycaps, a calm palette and structures you can switch for the whole screen. Turning it on turns New Hive off.</p>
-      <p id="raycast-state" role="status" aria-live="polite" data-no-t></p>
-      <button type="button" class="btn" id="raycast-toggle" disabled data-no-t>…</button>
       <details class="experience-notes"><summary data-t>Recovery</summary>
-        <p class="hint" data-t>If the experimental interface fails, open Hive with ?experience=current in its address, or set experience to current in your Hive configuration file. Recovery does not close your chats.</p>
-        <a id="experience-recovery" href="?experience=current" data-t>Open the current interface in recovery mode</a>
+        <p class="hint" data-t>If New Hive fails, open Hive with ?experience=raycast in its address, or remove experience from your Hive configuration file. Recovery does not close your chats.</p>
+        <a id="experience-recovery" href="?experience=raycast" data-t>Open Hive without New Hive</a>
       </details>
     </section>
     <section class="pref-pane" data-pane="dictation" hidden>
