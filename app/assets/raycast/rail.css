@@ -18,7 +18,7 @@
 :where(body.experience-raycast) .rail-wt .wt-head { letter-spacing: inherit; text-transform: none; color: inherit; }
 :where(body.experience-raycast) .rail-wt .wt-sub { color: inherit; text-overflow: clip; }
 :where(body.experience-raycast) .rail-wt .wt-head .wt-n { margin-left: 0; font: 400 10px var(--mono); font-variant-numeric: tabular-nums; color: inherit; }
-:where(body.experience-raycast) #rail-toggle { box-sizing: content-box; justify-content: normal; line-height: normal; }
+:where(body.experience-raycast) #shell > #rail-toggle { box-sizing: content-box; justify-content: normal; line-height: normal; }
 :where(body.experience-raycast) #rail .item[data-state="needs"] { background: none; }
 :where(body.experience-raycast) #rail .item[data-state="needs"]:hover { background: var(--rail-hover); }
 :where(body.experience-raycast) #rail .item.sel[data-state="needs"] { background: var(--rail-pick); }
@@ -55,10 +55,10 @@ body:where(.experience-raycast).look-dimension .rail-wt .wt-head .wt-n { color: 
 body:where(.experience-raycast).look-dimension .rail-wt .wt-sub { font-size: 11px; }
 body:where(.experience-raycast).look-dimension .rail-wt .wt-track { border-radius: 2px; background: var(--rail-well); }
 body:where(.experience-raycast).look-dimension .rail-wt .wt-track i { background: var(--txt-3); }
-body:where(.experience-raycast).look-dimension #rail-toggle { top: 10px; left: calc(var(--rail-w) - 36px); color: var(--txt-2); border-radius: var(--r2); background: none; }
-body:where(.experience-raycast).look-dimension #rail-toggle:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); color: var(--txt); }
-body:where(.experience-raycast).look-dimension #rail-toggle svg { width: 14px; height: 14px; }
-body:where(.experience-raycast).look-dimension #shell.rail-min #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
+body:where(.experience-raycast).look-dimension #shell > #rail-toggle { top: 10px; left: calc(var(--rail-w) - 36px); color: var(--txt-2); border-radius: var(--r2); background: none; }
+body:where(.experience-raycast).look-dimension #shell > #rail-toggle:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); color: var(--txt); }
+body:where(.experience-raycast).look-dimension #shell > #rail-toggle svg { width: 14px; height: 14px; }
+body:where(.experience-raycast).look-dimension #shell.rail-min > #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
 body:where(.experience-raycast).look-dimension #shell.rail-min #rail-sessions .item { margin: 2px auto 0; padding: 0; border-radius: var(--r1); }
 body:where(.experience-raycast).look-dimension #shell.rail-min #rail .item.team { margin: 0; padding: 2px 0; border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { padding: 0; }
@@ -72,7 +72,7 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
   body:where(.experience-raycast).look-dimension #rail .item.team { padding: 2px 0; }
   body:where(.experience-raycast).look-dimension .group-title { justify-content: center; padding: 0; }
   body:where(.experience-raycast).look-dimension .rail-wt { padding: 8px 0 12px; }
-  body:where(.experience-raycast).look-dimension #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
+  body:where(.experience-raycast).look-dimension #shell > #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
 }
 :where(body.experience-raycast) #shell { --rail-w: 244px; }
 @media (max-width: 1120px) { :where(body.experience-raycast) #shell { --rail-w: 216px; } }
@@ -155,11 +155,11 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) #rail-tip { position: fixed; z-index: 60; display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: var(--r2); background: var(--panel-2); box-shadow: var(--e2); font-size: 12px; font-weight: 500; color: var(--txt); white-space: nowrap; pointer-events: none; }
 :where(body.experience-raycast) #rail-tip[hidden] { display: none; }
 :where(body.experience-raycast) #rail-tip span { font: 400 11px var(--mono); color: var(--txt-3); }
-:where(body.experience-raycast) #rail-toggle { position: absolute; top: 10px; left: calc(var(--rail-w) - 36px); z-index: 40; display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r2); background: none; color: var(--txt-2); }
-:where(body.experience-raycast) #rail-toggle:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); color: var(--txt); }
-:where(body.experience-raycast) #rail-toggle svg { width: 14px; height: 14px; transition: transform 140ms var(--ease); }
+:where(body.experience-raycast) #shell > #rail-toggle { position: absolute; top: 10px; left: calc(var(--rail-w) - 36px); z-index: 40; display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r2); background: none; color: var(--txt-2); }
+:where(body.experience-raycast) #shell > #rail-toggle:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); color: var(--txt); }
+:where(body.experience-raycast) #shell > #rail-toggle svg { width: 14px; height: 14px; transition: transform 140ms var(--ease); }
 :where(body.experience-raycast) #shell.rail-min { --rail-w: 56px; }
-:where(body.experience-raycast) #shell.rail-min #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
+:where(body.experience-raycast) #shell.rail-min > #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
 :where(body.experience-raycast) #shell.rail-min #rail-list { padding: 0 0 12px; }
 :where(body.experience-raycast) #shell.rail-min .rail-head { flex-direction: column; gap: 6px; padding: 44px 0 4px; }
 :where(body.experience-raycast) #shell.rail-min .rail-head::after { content: ""; width: 24px; height: 1px; background: var(--line); }
@@ -194,7 +194,7 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) #shell.rail-min .item.team .av-alive :is(svg, .avatar > g, .av-eye, .av-look, .av-eyes) { animation-play-state: paused; }
 @media (max-width: 1100px) {
   :where(body.experience-raycast) #shell { --rail-w: 56px; }
-  :where(body.experience-raycast) #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
+  :where(body.experience-raycast) #shell > #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }
   :where(body.experience-raycast) #rail-list { padding: 0 0 12px; }
   :where(body.experience-raycast) #rail-list::-webkit-scrollbar { width: 0; }
   :where(body.experience-raycast) .rail-head { flex-direction: column; gap: 6px; padding: 44px 0 4px; }
