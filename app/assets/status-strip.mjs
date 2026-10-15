@@ -854,9 +854,9 @@ async function chat(models) {
 
 function openPanel(id) {
   hidden = false;
-  window.hiveOpenPod?.();
-  if (id) show(id);
-  else draw();
+  if (id) return show(id);
+  panelOn = true;
+  draw();
 }
 
 function show(id) {

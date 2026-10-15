@@ -834,3 +834,14 @@ body.experience-next #shell.rail-min .nr-row.lit:not(.nr-group, .nr-mate) { back
 #rail-hud .rh-go { all: unset; color: var(--txt); cursor: pointer; }
 #rail-hud .rh-go:is(:hover, :focus-visible) { text-decoration: underline; text-underline-offset: 3px; }
 body.experience-next #status-strip { height: 0 !important; padding: 0 !important; border: 0 !important; overflow: hidden; visibility: hidden; }
+body.experience-next :is(.nr-dots i, #rail-hud .rh-bar i, #rail-hud .rh-say)[data-state="needs"] { --state-hue: var(--accent); }
+body.experience-next :is(.nr-dots i, #rail-hud .rh-bar i, #rail-hud .rh-say)[data-state="answered"] { --state-hue: var(--accent-hi); }
+body.experience-next :is(.nr-dots i, #rail-hud .rh-bar i, #rail-hud .rh-say)[data-state="working"] { --state-hue: var(--blue); }
+body.experience-next :is(.nr-dots i, #rail-hud .rh-bar i, #rail-hud .rh-say)[data-state="done"] { --state-hue: var(--green); }
+body.experience-next :is(.nr-dots i, #rail-hud .rh-bar i, #rail-hud .rh-say)[data-state="ready"] { --state-hue: var(--txt-2); }
+body.experience-next :is(.nr-dots i, #rail-hud .rh-bar i, #rail-hud .rh-say):is([data-state="idle"], [data-state="stalled"]) { --state-hue: var(--line-2); }
+body.experience-next .nr-dots i[data-state] { background: var(--state-hue, var(--line-2)); }
+body.experience-next #rail-hud .rh-bar i[data-state] { background: var(--state-hue, var(--txt)); }
+body.experience-next #rail-hud .rh-bar i:is([data-state="idle"], [data-state="stalled"]) { right: 65%; }
+body.experience-next:not(.no-motion) #rail-hud .rh-bar i[data-state="working"] { animation: pulse 1.1s var(--ease) infinite; }
+body.experience-next #rail-hud .rh-say[data-state] { color: var(--state-hue, var(--txt-3)); }

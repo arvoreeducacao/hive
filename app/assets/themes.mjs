@@ -163,3 +163,5 @@ export const BUILTIN_THEMES = [
       brightBlack: "#6E6A86", brightRed: "#EB6F92", brightGreen: "#9CCFD8", brightYellow: "#F6C177",
       brightBlue: "#31748F", brightMagenta: "#C4A7E7", brightCyan: "#EBBCBA", brightWhite: "#E0DEF4" } } }
 ];
+
+export const HIVE_CLASSIC_THEME = { name: "Hive Classic", def: BUILTIN_THEMES[0].def };

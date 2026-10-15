@@ -28,7 +28,7 @@ function NextRailTop(props) {
           >
             <span class="nr-cell"><span class="nr-num">{group.n}</span></span>
             <span class="nr-lb">{group.label}</span>
-            <span class="nr-dots" aria-hidden="true"><For each={group.dots}>{(dot) => <i style={{ background: dot.colour || undefined }} />}</For></span>
+            <span class="nr-dots" aria-hidden="true"><For each={group.dots}>{(dot) => <i data-state={dot.state || undefined} />}</For></span>
           </button>
         )}</For>
       </Show>
@@ -100,7 +100,7 @@ function NextRailHud(props) {
           <div class="rh-rows">
             <For each={props.model.rows}>{(row) => (
               <div class="rh-row" classList={{ needs: row.needs }}>
-                <span class="rh-k">{row.k}</span><span class="rh-lb">{row.label}</span><span class="rh-bar"><i style={{ background: row.colour || undefined }} /></span>
+                <span class="rh-k">{row.k}</span><span class="rh-lb">{row.label}</span><span class="rh-bar"><i data-state={row.state || undefined} /></span>
               </div>
             )}</For>
           </div>
@@ -112,7 +112,7 @@ function NextRailHud(props) {
           <div class="rh-rows">
             <For each={props.model.tasks}>{(task) => (
               <button type="button" class="rh-task" data-task={task.key} onClick={() => props.actions.task(task.key)}>
-                <span class="rh-k">{task.k}</span><span class="rh-lb">{task.label}</span><span class="rh-say" style={{ color: task.colour || undefined }}>{task.say}</span>
+                <span class="rh-k">{task.k}</span><span class="rh-lb">{task.label}</span><span class="rh-say" data-state={task.state || undefined}>{task.say}</span>
               </button>
             )}</For>
           </div>

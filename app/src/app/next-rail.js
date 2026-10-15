@@ -1,5 +1,5 @@
 import { blockNumber, labelOf, ofBlock } from "./blocks.js";
-import { $, experienceNext, phrase, solidMounts, st, stateColor } from "./core.js";
+import { $, experienceNext, phrase, solidMounts, st } from "./core.js";
 import { goToBlock } from "./focus-navigation.js";
 import { myOpenTaskCount } from "./tasks.js";
 import { avatar, goToTeam } from "./team.js";
@@ -22,7 +22,7 @@ function groupRow(b, i) {
     here: i === st.block,
     needs,
     hint: needs ? phrase("{name} — someone here needs you", { name: label }) : label,
-    dots: items.map((it, at) => ({ key: `${it.key || it.name || at}`, colour: it.kind === "session" ? stateColor(it.state) : "" }))
+    dots: items.map((it, at) => ({ key: `${it.key || it.name || at}`, state: it.kind === "session" ? it.state || "" : "" }))
   };
 }
 

@@ -83,6 +83,18 @@ test("a theme you wear keeps its colours under the flag, and its accent becomes 
   applyTheme();
 });
 
+test("Hive Classic wears the Hive colours over the Raycast sheet", () => {
+  st.themeName = "Hive Classic";
+  wear(true);
+  applyTheme();
+  assert.equal(root().getPropertyValue("--accent").toUpperCase(), "#CD694A");
+  assert.equal(root().getPropertyValue("--signal").toUpperCase(), "#CD694A");
+  assert.equal(TERM_LOOK.theme.background, THEME.background);
+  wear(false);
+  st.themeName = "Hive";
+  applyTheme();
+});
+
 test("the foundation sheet carries the Raycast palette, the signal and the shared pieces", () => {
   for (const [key, cssVar] of Object.entries(THEME_UI_VARS)) {
     assert.match(sheet, new RegExp(`${cssVar}: ${RAYCAST_THEME.def.ui[key]};`, "i"), `${cssVar} matches RAYCAST_THEME`);

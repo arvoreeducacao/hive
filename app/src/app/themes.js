@@ -4,7 +4,7 @@ import { activeItems, itemOf } from "./blocks.js";
 import { keyLabel, saveConfig } from "./brand-face.js";
 import { startRename } from "./chat-name.js";
 import { DEFAULT_SOUNDS, ensureAudio, openNewestSeatNotice, paintNotices, playSound, setAnswered, setSound, setVolume } from "./chimes-and-notices.js";
-import { $, BUILTIN_THEMES, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, experienceNext, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
+import { $, BUILTIN_THEMES, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, experienceNext, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { closeTasks, openTasks, tasksOn } from "./tasks.js";
 import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
@@ -96,7 +96,7 @@ function backToThemeBrowse() {
 function paintThemes() {
   $("thm-cfg").textContent = st.configPath;
   if (raycastOn()) {
-    if ($("thm-count")) $("thm-count").textContent = String(BUILTIN_THEMES.length + Object.keys(st.customThemes).filter((name) => !builtinTheme(name)).length);
+    if ($("thm-count")) $("thm-count").textContent = String(raycastBuiltins().length + Object.keys(st.customThemes).filter((name) => !builtinTheme(name)).length);
     themesSolid.show(themesWindowModel());
     themePreviewSolid?.show(themePreviewModel());
     paintHelpFoot();
@@ -126,6 +126,8 @@ const pickedTheme = () => (themeDef(st.themePick) && (builtinTheme(st.themePick)
 
 const wearsRaycast = (name) => name === HIVE_THEME.name;
 
+const raycastBuiltins = () => [HIVE_THEME, HIVE_CLASSIC_THEME, ...BUILTIN_THEMES.slice(1)];
+
 function themeRowModel(name, def, custom, worn) {
   const full = fullThemeDef(wearsRaycast(name) ? RAYCAST_THEME.def : def);
   return {
@@ -140,7 +142,7 @@ function themesWindowModel() {
   const worn = wornThemeName();
   return {
     raycast: true,
-    rows: BUILTIN_THEMES.map((t) => themeRowModel(t.name, t.def, false, worn)),
+    rows: raycastBuiltins().map((t) => themeRowModel(t.name, t.def, false, worn)),
     mine: Object.entries(st.customThemes).filter(([name]) => !builtinTheme(name)).map(([name, def]) => themeRowModel(name, def, true, worn)),
     mineSay: phrase("yours"), newSay: phrase("new theme from this one"), newKeys: capsOf(NEW_THEME_KEY)
   };
@@ -173,7 +175,7 @@ function pickTheme(name) {
 }
 
 function stepTheme(step) {
-  const names = [...BUILTIN_THEMES.map((t) => t.name), ...Object.keys(st.customThemes).filter((name) => !builtinTheme(name))];
+  const names = [...raycastBuiltins().map((t) => t.name), ...Object.keys(st.customThemes).filter((name) => !builtinTheme(name))];
   const at = names.indexOf(pickedTheme());
   pickTheme(names[(at + step + names.length) % names.length]);
 }

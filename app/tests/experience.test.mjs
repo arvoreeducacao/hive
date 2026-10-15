@@ -12,10 +12,10 @@ function setup({ url = 'http://hive/', save = async patch => ({ config: patch })
   return { win, controller, active };
 }
 
-test('missing/unknown experience stays current and invalid patches are rejected', () => {
+test('missing/unknown experience falls back to Hive in Raycast and invalid patches are rejected', () => {
   const errors = [];
-  assert.equal(cleanExperience(undefined, 'file', errors), 'current');
-  assert.equal(cleanExperience('future', 'file', errors), 'current');
+  assert.equal(cleanExperience(undefined, 'file', errors), 'raycast');
+  assert.equal(cleanExperience('future', 'file', errors), 'raycast');
   assert.equal(errors.length, 1);
   assert.equal(cleanPatch({ experience: false }).problems.length, 1);
   assert.deepEqual(cleanPatch({ experience: 'experimental' }), { clean: { experience: 'experimental' }, problems: [] });

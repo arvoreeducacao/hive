@@ -487,7 +487,7 @@ function taskBrief(task) {
     live: !!seat?.live,
     passed: !mine(task),
     say: seat?.live ? seat.label || seat.state : mine(task) ? phrase("to do") : task.owner,
-    colour: seat?.live ? seat.colour : ""
+    state: seat?.live ? (st.data.sessions || []).find((one) => one.name === task.seat)?.state || "" : ""
   };
 }
 

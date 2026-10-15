@@ -289,6 +289,9 @@ test("settings open as the compact window with the flag on, the themes inside Ap
     assert.equal(model.raycast, true);
     assert.equal(model.rows[0].say, "Raycast", "the bare theme is the Raycast look inside the flag");
     assert.equal(model.rows[0].fresh, true);
+    assert.equal(model.rows[1].say, "Hive Classic", "the Hive colours stay one row below the Raycast look");
+    assert.equal(model.rows[1].accent, "#CD694A");
+    assert.equal(model.rows[1].fresh, false);
     themesApi.closeHelp();
   });
   assert.equal(box.classList.contains("pw"), false);
