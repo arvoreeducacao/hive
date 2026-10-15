@@ -56,6 +56,12 @@ test("the alerts button reaches a panel that can answer", () => {
   assert.match(strip, /window\.hiveDoctorOpen = /, "the button calls something nothing defines");
 });
 
+test("opening the panel with no check named still opens it, so the rail card and the diagnosis link land somewhere", () => {
+  const open = strip.slice(strip.indexOf("function openPanel"), strip.indexOf("function show("));
+  assert.match(open, /if \(id\) return show\(id\);\s*panelOn = true;\s*draw\(\);/, "without an id only the status strip redrew, and the new hive hides the strip");
+  assert.doesNotMatch(open, /hiveOpenPod/, "nothing defines hiveOpenPod any more");
+});
+
 test("a panel that opens can also close, from its own header", () => {
   assert.match(
     strip,

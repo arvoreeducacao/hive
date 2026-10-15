@@ -28,7 +28,7 @@ test("a group is the block: its number, the first chat +N, one dot per chat in i
   assert.equal(row.label, "Ajuste no login +1");
   assert.equal(row.here, true);
   assert.equal(row.needs, false);
-  assert.deepEqual(row.dots.map((dot) => dot.colour), ["c-working", "c-idle"]);
+  assert.deepEqual(row.dots.map((dot) => dot.state), ["working", "idle"]);
 });
 
 test("a group where a chat needs you is marked, so the number fills orange without any count badge", () => {

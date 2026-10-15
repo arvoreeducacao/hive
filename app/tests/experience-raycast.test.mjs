@@ -21,13 +21,13 @@ function setup({ url = 'http://hive/', save = async patch => ({ config: patch })
   return { win, controller, classes, text, events };
 }
 
-test('raycast is a third choice of the experience preference, and current stays the default', () => {
+test('raycast is a third choice of the experience preference, and it is the default for everyone', () => {
   const problems = [];
   assert.deepEqual(EXPERIENCE_CHOICES, ['current', 'experimental', 'raycast']);
-  assert.equal(EXPERIENCE_DEFAULT, 'current');
+  assert.equal(EXPERIENCE_DEFAULT, 'raycast');
   assert.equal(cleanExperience('raycast', 'file', problems), 'raycast');
-  assert.equal(cleanExperience(undefined, 'file', problems), 'current');
-  assert.equal(cleanExperience('Raycast', 'file', problems), 'current');
+  assert.equal(cleanExperience(undefined, 'file', problems), 'raycast');
+  assert.equal(cleanExperience('Raycast', 'file', problems), 'raycast');
   assert.equal(problems.length, 1);
   assert.deepEqual(cleanPatch({ experience: 'raycast' }), { clean: { experience: 'raycast' }, problems: [] });
 });

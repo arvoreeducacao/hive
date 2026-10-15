@@ -28,7 +28,7 @@ test("a group's box lists every chat with its state colour, and goes orange only
   assert.equal(box.tone, "acc");
   assert.equal(box.title, "Ajuste no login +1");
   assert.equal(box.meta, "group 02 · block2 · 2 chats");
-  assert.deepEqual(box.rows.map((row) => [row.k, row.label, row.colour, row.needs]), [["01", "Ajuste no login", "c-needs", true], ["02", "Testes do scanner", "c-idle", false]]);
+  assert.deepEqual(box.rows.map((row) => [row.k, row.label, row.state, row.needs]), [["01", "Ajuste no login", "needs", true], ["02", "Testes do scanner", "idle", false]]);
   assert.equal(world({ st: { blocks: [{ items: [seat("Dump", "done")] }] }, groupRow: () => ({ n: 1, label: "Dump", needs: false }) }).hudContent("group:0").tone, "");
 });
 
@@ -46,7 +46,7 @@ test("the health box draws one segment per check, the failing ones last, and say
   assert.equal(ok.said, "");
 });
 
-const task = (id, live = false, passed = false) => ({ id, text: `task ${id}`, live, passed, say: live ? "working" : "to do", colour: live ? "c-working" : "" });
+const task = (id, live = false, passed = false) => ({ id, text: `task ${id}`, live, passed, say: live ? "working" : "to do", state: live ? "working" : "" });
 
 test("the tasks box lists the first five, the ones with a live chat first, and counts what was left out", () => {
   const tasks = [task("a"), task("b", false, true), task("c", true), task("d"), task("e"), task("f", true, true), task("g")];
@@ -55,7 +55,7 @@ test("the tasks box lists the first five, the ones with a live chat first, and c
   assert.equal(box.meta, "7 open · 2 with you · tasks");
   assert.deepEqual(box.tasks.map((one) => one.key), ["c", "f", "a", "b", "d"]);
   assert.deepEqual(box.tasks.map((one) => one.k), ["01", "02", "03", "04", "05"]);
-  assert.equal(box.tasks[0].colour, "c-working");
+  assert.equal(box.tasks[0].state, "working");
   assert.deepEqual(box.foot, { left: "+2 tasks", right: "see all", act: "tasks" });
 });
 
@@ -98,6 +98,18 @@ test("hovering dims the rest of the hive and keeps the lit item, only in the new
 test("the box stays open while the mouse travels to it and closes half a second after it leaves", () => {
   assert.match(source, /const HUD_LINGER = 500;/);
   assert.match(source, /\$\("rail-list"\)\.addEventListener\("pointerleave", lingerHud\);/);
+  assert.match(source, /if \(!el\) return lit && lingerHud\(\);/, "crossing the rail's own margin on the way to the box closed it on the spot");
   assert.match(source, /if \(ev\.target\.closest\?\.\("\.rh-box"\)\) holdHud\(\);/);
   assert.match(read("assets/experience.css"), /#rail-hud \.rh-box \{ pointer-events: auto; \}/);
+});
+
+test("each state paints in the new hive's own palette, the same hues the tiles use, so working, done and idle stop looking alike", () => {
+  const css = read("assets/experience.css");
+  const hue = (state) => css.match(new RegExp(`\\[data-state="${state}"\\] \\{ --state-hue: ([^;]+); \\}`))?.[1];
+  assert.equal(hue("needs"), "var(--accent)");
+  assert.equal(hue("working"), "var(--blue)");
+  assert.equal(hue("done"), "var(--green)");
+  assert.match(css, /body\.experience-next \.tile\[data-state="working"\] \{ --pill-hue: var\(--blue\); \}/, "the tiles changed their palette and the rail did not follow");
+  assert.match(css, /#rail-hud \.rh-bar i:is\(\[data-state="idle"\], \[data-state="stalled"\]\) \{ right: 65%; \}/, "a sleeping chat draws a short bar");
+  assert.doesNotMatch(read("src/next-rail.jsx"), /style=\{\{ (background|color): /, "an inline colour from the old palette wins over the theme");
 });

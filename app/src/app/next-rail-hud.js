@@ -1,6 +1,6 @@
 import { ofBlock } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
-import { $, experienceNext, phrase, solidMounts, st, stateColor } from "./core.js";
+import { $, experienceNext, phrase, solidMounts, st } from "./core.js";
 import { groupRow, healthRow, teamRows, worktreeRow } from "./next-rail.js";
 import { myOpenTasks, openTasks, pickTask, taskBrief } from "./tasks.js";
 
@@ -32,7 +32,7 @@ function groupHud(i) {
     tone: row.needs ? "acc" : "",
     title: row.label,
     meta: [phrase("group {n}", { n: pad(row.n) }), keyLabel(st.keys.block, String(row.n)), seats.length === 1 ? phrase("1 chat") : phrase("{n} chats", { n: seats.length })].join(" · "),
-    rows: seats.map((s, at) => ({ key: s.key || String(at), k: pad(at + 1), label: s.title || s.name || "", colour: stateColor(s.state) || "", needs: s.state === "needs" }))
+    rows: seats.map((s, at) => ({ key: s.key || String(at), k: pad(at + 1), label: s.title || s.name || "", state: s.state || "", needs: s.state === "needs" }))
   };
 }
 
@@ -60,7 +60,7 @@ function tasksHud() {
     big: true,
     title: phrase("Tasks"),
     meta: [all.length ? phrase("{n} open", { n: all.length }) : phrase("nothing open"), passed ? phrase("{n} with you", { n: passed }) : "", keyLabel(st.keys.tasks)].filter(Boolean).join(" · "),
-    tasks: all.slice(0, HUD_TASKS_SHOWN).map((one, at) => ({ key: one.id, k: pad(at + 1), label: one.text, say: one.say, colour: one.colour })),
+    tasks: all.slice(0, HUD_TASKS_SHOWN).map((one, at) => ({ key: one.id, k: pad(at + 1), label: one.text, say: one.say, state: one.state })),
     foot: { left: rest > 0 ? phrase("+{n} tasks", { n: rest }) : "", right: phrase("see all"), act: "tasks" }
   };
 }
@@ -138,7 +138,7 @@ function showHud(el) {
 function onRailOver(ev) {
   if (!experienceNext()) return;
   const el = ev.target.closest?.("[data-hud]");
-  if (!el) return hideHud();
+  if (!el) return lit && lingerHud();
   if (el === lit) holdHud();
   else showHud(el);
 }
