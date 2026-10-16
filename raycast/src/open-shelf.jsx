@@ -73,7 +73,6 @@ function PageDetail({ client, page, selected }) {
             {page.tabs.map((tab) => <List.Item.Detail.Metadata.TagList.Item key={tab} text={(KIND[tab] || { label: tab }).label} />)}
           </List.Item.Detail.Metadata.TagList>
           <List.Item.Detail.Metadata.Label title="Versions" text={String(page.versions)} />
-          {page.leaf ? <List.Item.Detail.Metadata.Link title="Leaf" target={page.leaf} text="Open in the Leaf" /> : null}
           <List.Item.Detail.Metadata.Label title="Opens as" text={kind.label} icon={kind.icon} />
         </List.Item.Detail.Metadata>
       }
@@ -142,8 +141,6 @@ export default function OpenShelf() {
                         await closeMainWindow({ clearRootSearch: true });
                       }}
                     />
-                    {page.leaf ? <Action.OpenInBrowser title="Open in Leaf" url={page.leaf} shortcut={{ modifiers: ["cmd"], key: "o" }} /> : null}
-                    {page.leaf ? <Action.CopyToClipboard title="Copy Leaf Link" content={page.leaf} shortcut={{ modifiers: ["cmd", "shift"], key: "c" }} /> : null}
                     <Action.CopyToClipboard title="Copy Hive Link" content={shelfLink(page.slug, page.kind)} shortcut={{ modifiers: ["cmd", "shift"], key: "h" }} />
                   </ActionPanel>
                 }

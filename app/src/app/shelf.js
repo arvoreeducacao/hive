@@ -533,7 +533,7 @@ function shelfPreviewModel() {
       labelSay: phrase("Label"),
       trail: flow.map((one) => ({ key: one, say: phrase(one), on: one === state })),
       loose: state && flow.includes(state) ? "" : state ? phrase(state) : (page.label || ""),
-      linkSay: "Leaf", link, linkShort: link.replace(/^https?:\/\//, ""), copySay: phrase("copy link"),
+      linkSay: "Link", link, linkShort: link.replace(/^https?:\/\//, ""), copySay: phrase("copy link"),
       fileSay: proposal ? "Screenbook" : phrase("File"), file: proposal ? proposal.url : `a/${page.slug}/${tab}.v${top?.n || 0}.html`
     }
   };

@@ -121,11 +121,11 @@ function keptTabs(meta) {
   const tabs = {};
   for (const [name, kept] of Object.entries(meta?.tabs || {})) {
     if (kept?.kind === "link" && Array.isArray(kept.proposals)) {
-      tabs[name] = { kind: "link", proposals: kept.proposals, ...(kept.leafId ? { leafId: String(kept.leafId) } : {}) };
+      tabs[name] = { kind: "link", proposals: kept.proposals };
       continue;
     }
     if (!Array.isArray(kept?.versions)) continue;
-    tabs[name] = { versions: kept.versions, ...(kept.leafId ? { leafId: String(kept.leafId) } : {}) };
+    tabs[name] = { versions: kept.versions };
   }
   return tabs;
 }
@@ -146,9 +146,7 @@ function nextVersions(kept, coming) {
   return { versions: kept.concat([{ ...coming, n }]).slice(-SHELF_KEPT), wrote: n };
 }
 
-export const leafIdOf = (meta, tab) => String(meta?.tabs?.[tab]?.leafId || "");
-
-export function shelve({ home, slug, tab, html, title, kind, description, owner, seat, label, reopen = false, url, at, leafId }) {
+export function shelve({ home, slug, tab, html, title, kind, description, owner, seat, label, reopen = false, url, at }) {
   if (!home) return { error: "the shelf has no repo on this machine yet" };
   if (!slug) return { error: "a page needs a slug" };
   if (tab === "telas") return { error: TELAS_TAKE_PROPOSALS };
@@ -161,7 +159,7 @@ export function shelve({ home, slug, tab, html, title, kind, description, owner,
   const { versions, wrote } = nextVersions(tabs[tab]?.versions || [], {
     hash, label: canonicalLabel(label), at: stamp, bytes: Buffer.byteLength(html)
   });
-  tabs[tab] = { versions, ...(leafId || tabs[tab]?.leafId ? { leafId: String(leafId || tabs[tab].leafId) } : {}) };
+  tabs[tab] = { versions };
 
   mkdirSync(pageDir(home, slug), { recursive: true });
   if (wrote) writeFileSync(pageFile(home, slug, tab, wrote), html);
@@ -190,7 +188,7 @@ export function shelve({ home, slug, tab, html, title, kind, description, owner,
   return { meta, wrote, tab, dropped: dropped.map((v) => v.n), ...(status.held ? { held: status.held } : {}) };
 }
 
-export function shelveProposal({ home, slug, title, kind, owner, seat, label, reopen = false, proposal, screens, at, leafId }) {
+export function shelveProposal({ home, slug, title, kind, owner, seat, label, reopen = false, proposal, screens, at }) {
   if (!home) return { error: "the shelf has no repo on this machine yet" };
   if (!slug) return { error: "a page needs a slug" };
   const named = proposalOf(proposal);
@@ -202,8 +200,7 @@ export function shelveProposal({ home, slug, title, kind, owner, seat, label, re
   const before = listed.find((one) => one.product === named.product && one.id === named.id);
   const entry = { url: named.url, product: named.product, id: named.id, screens: { ...(screens || before?.screens || {}) }, at: at || 0 };
   const proposals = listed.filter((one) => one.product !== entry.product || one.id !== entry.id).concat([entry]);
-  const keptLeaf = leafId || tabs.telas?.leafId || "";
-  tabs.telas = { kind: "link", proposals, ...(keptLeaf ? { leafId: String(keptLeaf) } : {}) };
+  tabs.telas = { kind: "link", proposals };
 
   mkdirSync(pageDir(home, slug), { recursive: true });
   const head = newestVersion(tabs);

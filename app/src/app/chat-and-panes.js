@@ -1032,12 +1032,34 @@ function markDriving(name, busy) {
 }
 
 let personsFocus = null;
+let lastFocus = null;
 
 document.addEventListener("focusin", (ev) => {
+  lastFocus = ev.target;
   if (!ev.target.closest?.("#webyard")) personsFocus = ev.target;
 }, true);
 
-const pageMayHoldFocus = (name) => webYards.get(name)?.classList.contains("onstage") && !(webDriving.get(name)?.busy > 0);
+const SEAT_HAND_OPS = new Set(["click", "type", "key", "step", "choose", "upload"]);
+const SEAT_HAND_LINGER = 800;
+const seatHands = new Map();
+const handJobs = new Set();
+
+function markSeatHands(name, busy) {
+  const said = seatHands.get(name) || { busy: 0, until: 0 };
+  said.busy = Math.max(0, said.busy + busy);
+  if (busy < 0) said.until = Date.now() + SEAT_HAND_LINGER;
+  seatHands.set(name, said);
+}
+
+const seatHandsOnThePage = (name) => {
+  const said = seatHands.get(name);
+  return !!said && (said.busy > 0 || Date.now() < said.until);
+};
+
+const pageMayHoldFocus = (name) => webYards.get(name)?.classList.contains("onstage") && !seatHandsOnThePage(name);
+
+const pageThePersonWasIn = (frame) =>
+  lastFocus !== frame && lastFocus?.isConnected && lastFocus.matches?.("#webyard .yard.onstage webview:not(.off):not(.behind)") ? lastFocus : null;
 
 const webTouch = new Map();
 
@@ -1129,8 +1151,9 @@ function bornWebFrame(yard, name, t) {
     if (ev.channel === "hive-quote") sendPageQuote(name, ev.args[0]);
   });
   frame.addEventListener("focus", () => {
-    if (pageMayHoldFocus(name)) return;
-    if (personsFocus?.isConnected) personsFocus.focus({ preventScroll: true });
+    if (pageMayHoldFocus(name) && frameIsUpFront(name, frame)) return;
+    const back = pageThePersonWasIn(frame) || personsFocus;
+    if (back?.isConnected) back.focus({ preventScroll: true });
   });
   frame.addEventListener("dom-ready", () => {
     try { frame.send("hive-quote-label", phrase("quote")); } catch {}
@@ -1259,6 +1282,10 @@ function driveBrowsers() {
       if (browserShot.has(job.id)) continue;
       browserShot.add(job.id);
       markDriving(s.name, 1);
+      if (SEAT_HAND_OPS.has(job.op)) {
+        handJobs.add(job.id);
+        markSeatHands(s.name, 1);
+      }
       if (job.op === "shoot") runBrowserShot(s.name, job.id);
       else if (job.op === "eval") runBrowserEval(s.name, job.id, job.code);
       else if (job.op === "console") runBrowserConsole(s.name, job.id);
@@ -1291,6 +1318,7 @@ function noPageOf(name) {
 
 const browserAnswer = (id, name) => (payload) => {
   if (name) markDriving(name, -1);
+  if (name && handJobs.delete(id)) markSeatHands(name, -1);
   return fetch("/api/browser/result", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id, ...payload }) }).catch(() => {});
 };
 

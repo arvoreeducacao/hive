@@ -73,9 +73,17 @@ test("the seat's keys never go through the devtools keyboard, which lands them i
 
 test("a seat's click gives the focus back to what the person was typing in", () => {
   const born = cut(panes, "function bornWebFrame(yard, name, t) {", "\n}\n", "chat-and-panes.js");
-  assert.match(born, /frame\.addEventListener\("focus", \(\) => \{\n\s+if \(pageMayHoldFocus\(name\)\) return;\n\s+if \(personsFocus\?\.isConnected\) personsFocus\.focus\(\{ preventScroll: true \}\);/);
+  assert.match(born, /frame\.addEventListener\("focus", \(\) => \{\n\s+if \(pageMayHoldFocus\(name\) && frameIsUpFront\(name, frame\)\) return;\n\s+const back = pageThePersonWasIn\(frame\) \|\| personsFocus;\n\s+if \(back\?\.isConnected\) back\.focus\(\{ preventScroll: true \}\);/);
   assert.match(panes, /if \(!ev\.target\.closest\?\.\("#webyard"\)\) personsFocus = ev\.target;/, "the page's own focus is never what the person was on");
-  assert.match(panes, /const pageMayHoldFocus = \(name\) => webYards\.get\(name\)\?\.classList\.contains\("onstage"\) && !\(webDriving\.get\(name\)\?\.busy > 0\);/, "only a page the person can see, and is not being driven, keeps the focus");
+  assert.match(panes, /const pageMayHoldFocus = \(name\) => webYards\.get\(name\)\?\.classList\.contains\("onstage"\) && !seatHandsOnThePage\(name\);/, "only a page the person can see, and the seat is not clicking or typing on, keeps the focus");
+});
+
+test("a seat looking at the page never pulls the person out of the field they are typing in", () => {
+  assert.match(panes, /const SEAT_HAND_OPS = new Set\(\["click", "type", "key", "step", "choose", "upload"\]\);/, "a shot, an eval or a navigation is not the seat's hands on the page");
+  const drive = cut(panes, "function driveBrowsers() {", "\n}\n", "chat-and-panes.js");
+  assert.match(drive, /if \(SEAT_HAND_OPS\.has\(job\.op\)\) \{\n\s+handJobs\.add\(job\.id\);\n\s+markSeatHands\(s\.name, 1\);/);
+  assert.match(panes, /if \(name && handJobs\.delete\(id\)\) markSeatHands\(name, -1\);/);
+  assert.match(panes, /const pageThePersonWasIn = \(frame\) =>\n\s+lastFocus !== frame && lastFocus\?\.isConnected && lastFocus\.matches\?\.\("#webyard \.yard\.onstage webview:not\(\.off\):not\(\.behind\)"\) \? lastFocus : null;/, "focus stolen from a page the person was in goes back to that page, not to the chat");
 });
 
 test("typing replaces what the field had, and only presses Enter when asked", () => {

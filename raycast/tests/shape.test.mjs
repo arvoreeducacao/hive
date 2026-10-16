@@ -29,24 +29,18 @@ test("an empty hive has no sections at all", () => {
   assert.deepEqual(groupChats(null), []);
 });
 
-test("shelf pages come newest first, with their state and the leaf link when there is one", () => {
+test("shelf pages come newest first, with their state", () => {
   const rows = shelfRows({
-    leaf: "https://leaf.example.org/",
     pages: [
-      { slug: "old", title: "Old", kind: "documento", label: "in-review-after-team", at: 1, tabs: { documento: { leafId: "abc" } } },
+      { slug: "old", title: "Old", kind: "documento", label: "in-review-after-team", at: 1, tabs: { documento: {} } },
       { slug: "new", title: "New", kind: "lente", label: "delivered", at: 2, tabs: { lente: {} } },
       { title: "no slug" }
     ]
   });
-  assert.deepEqual(rows.map((one) => [one.slug, one.state, one.leaf]), [
-    ["new", "delivered", ""],
-    ["old", "in-review", "https://leaf.example.org/doc/abc"]
+  assert.deepEqual(rows.map((one) => [one.slug, one.state]), [
+    ["new", "delivered"],
+    ["old", "in-review"]
   ]);
-});
-
-test("a hive with no leaf set gives no leaf link, even for a page that was mirrored", () => {
-  const rows = shelfRows({ pages: [{ slug: "old", title: "Old", at: 1, tabs: { documento: { leafId: "abc" } } }] });
-  assert.equal(rows[0].leaf, "");
 });
 
 test("labels read as their state, suffix or not", () => {

@@ -46,7 +46,6 @@ function artifactHarness() {
     shelfPull: async () => { calls.pulls += 1; return pull; },
     shelfIndex: () => ({ pages: shelfPages }),
     getDev: () => dev,
-    leafUrl: () => "https://leaf.example.org",
     keepPrintToShelf: async (asked) => { calls.prints.push(asked); return printKept; },
     readShelfFile: (slug, name) => { calls.shelfFiles.push([slug, name]); return shelfFile; },
     keepThumbOnShelf: async (asked) => { calls.thumbs.push(asked); return asked.data ? { ok: true } : { error: "no picture came back for that page" }; },
@@ -257,7 +256,6 @@ test("shelf page and index keep tab fallback, pull failure and owner behavior", 
   assert.deepEqual(indexed.answers, [{ value: {
     repo: "https://github.com/acme/artifacts",
     me: "ada",
-    leaf: "https://leaf.example.org",
     pages: [{ slug: "kept" }]
   }, status: 200 }]);
 });

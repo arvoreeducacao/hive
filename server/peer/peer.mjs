@@ -660,8 +660,7 @@ export async function publishProposal({ proposal, page, label = "", reopen = fal
     pinned: Object.keys(added.screens || {}).length,
     pushed: Boolean(shelved.said?.pushed),
     url: shelfDeepLink(meta.slug, "telas", listed.length),
-    held: shelved.said?.held || "",
-    leaf: shelved.said?.leaf || null
+    held: shelved.said?.held || ""
   };
 }
 
@@ -693,8 +692,7 @@ export async function publishPage({ path, label = "", tab = "", reopen = false, 
     pushed: Boolean(shelved.said?.pushed),
     url: shelfDeepLink(meta.slug, kind, head?.n || 0),
     source: shelfPageUrl(shelf.said?.repo || "", meta.slug, kind, head?.n || 0),
-    held: shelved.said?.held || "",
-    leaf: shelved.said?.leaf || null
+    held: shelved.said?.held || ""
   };
 }
 
