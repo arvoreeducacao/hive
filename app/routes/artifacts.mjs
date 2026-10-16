@@ -29,7 +29,6 @@ export function registerArtifactRoutes(on, context) {
     shelfPull,
     shelfIndex,
     getDev,
-    leafUrl = () => "",
     pullPage = async () => null,
     readShelfComments = () => ({ comments: [] }),
     commentOnShelf = async () => ({ error: "comments are not wired on this hive" }),
@@ -273,6 +272,6 @@ export function registerArtifactRoutes(on, context) {
       const pulled = await shelfPull();
       if (pulled.error) return json({ repo, pages: shelfIndex(SHELF_HOME).pages, error: pulled.error });
     }
-    return json({ repo, me: getDev() || "", leaf: leafUrl(), ...shelfIndex(SHELF_HOME) });
+    return json({ repo, me: getDev() || "", ...shelfIndex(SHELF_HOME) });
   });
 }

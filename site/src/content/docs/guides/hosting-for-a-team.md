@@ -66,7 +66,6 @@ over this file.
 | `HIVE_EXTENSIONS_REPO` | the repository of the extension catalog |
 | `HIVE_POKERS` | the people who may poke a teammate's chat, comma separated |
 | `HIVE_MEMORY_URL`, `HIVE_MEMORY_PLUGIN` | a shared memory server, and the agent plugin that reads it |
-| `HIVE_LEAF_URL`, `HIVE_LEAF_PARENT` | a wiki the shelf mirrors its pages to, and the page they go under |
 | `HIVE_AVEIA_URL` | an Aveia for meeting captions ([meetings.md](/guides/meetings/)) |
 | `HIVE_INTERNAL_DOMAINS` | your domains, so a secret that names them is caught before it leaves a chat |
 | `HIVE_APP_PACKAGES` | short names for your Android apps, as `name=package` pairs |

@@ -28,12 +28,10 @@ import { machineName, peerOfTheBoard, teamFromBoard, liveliestOfDev, POKE_FRESH,
 import { pickRepo, runsFromBundle, builtBundle, sameCommit, notesFromSubjects, updateFromReleases, updatePicked, releasesQuery, releaseOf, notesBetween, downloadScript, verifyScript, unpackScript, unpackedBundle, rpmInstallOf } from "./main/update.js";
 import { packOf, signatureOf, verifyPack, jsRootOf, sweepJsScript, unpackPackScript, signingTeam, sdkAgreement } from "./main/ota.js";
 import { extensionOf, refuseDrop, FILE_CEILING } from "./assets/drops.mjs";
-import { WEBP_DATA_URL, addComment, keepProposalThumb, labelError, proposalCommitLine, proposalOf, proposalsPage, readProposalThumb, shelveProposal, TELAS_TAKE_PROPOSALS, askedTab, canonicalLabel, catchUp, commentCommitLine, commitLine, keepPrint, leafIdOf, oneAtATime, PRINT_KINDS, printsDir, printsPage, readComments as readShelfComments, readPage as readShelfPage, readMeta as readShelfMeta, readPrints, keepThumb, readThumb, sendToShelf, settleComment, settleCommitLine, shelfIndex, shelve, slugOf, tabOf, TABS, thumbQueue } from "./lib/shelf.mjs";
+import { WEBP_DATA_URL, addComment, keepProposalThumb, labelError, proposalCommitLine, proposalOf, readProposalThumb, shelveProposal, TELAS_TAKE_PROPOSALS, askedTab, canonicalLabel, catchUp, commentCommitLine, commitLine, keepPrint, oneAtATime, PRINT_KINDS, printsPage, readComments as readShelfComments, readPage as readShelfPage, readMeta as readShelfMeta, readPrints, keepThumb, readThumb, sendToShelf, settleComment, settleCommitLine, shelfIndex, shelve, slugOf, tabOf, TABS, thumbQueue } from "./lib/shelf.mjs";
 import { pictureFromStore, proposalFromStore } from "./lib/screenbook-store.mjs";
 import { withPinShim } from "./lib/shelf-pins.mjs";
 import { rebuildWhenStale } from "./lib/fresh-bundle.mjs";
-import { leafReady } from "./lib/leaf-held.mjs";
-import { sendToLeaf } from "./lib/leaf-page.mjs";
 import { byErrand, closedErrands, errandOf, forgetOldKin, goneKin, keepErrands, markSeen, noteErrand, readErrands, readSeen, renameErrand, withErrands, zonesOf } from "./lib/errands.mjs";
 import { seatsOfStatus, takeoverMessages } from "./lib/canopy-watch.mjs";
 import { assertSpawnArgs } from "./lib/spawn-args.mjs";
@@ -99,7 +97,7 @@ import { registerMemoryRoutes } from "./routes/memories.mjs";
 import { createMemorySource, MEMORY_TOKEN_KEY } from "./lib/memories.mjs";
 import { createDemoLogin, createMemoryLogin, fileClientStore, memoryOrigin } from "./lib/memory-login.mjs";
 import { vaultAccount, vaultFollowing } from "./lib/memory-vault.mjs";
-import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, LEAF_URL, LEAF_PARENT, SCREENBOOK_STORE, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
+import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, SCREENBOOK_STORE, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
 import { measureShots, shotsDaysOf, sweepShots } from "./lib/shots-sweep.mjs";
 import { withinRoots } from "./lib/bounds.mjs";
 import { SLACK_LINK, threadKey, threadCache, storeSessionThreads, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut, facesOnSlack, nameFromEmail } from "./lib/slack.mjs";
@@ -2313,27 +2311,6 @@ async function tellSeatAboutComment(slug, comment, asked) {
   await deliverSay(seat, comment.who || "someone", `asked on "${meta?.title || slug}" (${where}${spot}): ${comment.text} · ${link} · ${back}`);
 }
 
-const leafEnv = () => ({ ...process.env, HIVE_LEAF_URL: LEAF_URL });
-
-async function alsoToLeaf({ slug, tab, title, html }) {
-  if (!LEAF_URL || !LEAF_PARENT) return null;
-  const ready = await leafReady({ env: leafEnv(), write: true });
-  if (ready.error) return { error: ready.error };
-  const opened = await ready.session.open();
-  if (opened.error) return opened;
-  const offered = await ready.session.tools();
-  if (offered.error) return offered;
-  return sendToLeaf({
-    session: ready.session,
-    tools: offered.tools,
-    inputs: offered.inputs,
-    title,
-    html,
-    parentId: LEAF_PARENT,
-    docId: leafIdOf(readShelfMeta(SHELF_HOME, slug), tab)
-  });
-}
-
 async function mirrorOneToShelf({ session, where, path, label, url, at, tab, reopen = false }) {
   const opened = await shelfPull();
   if (opened.error) return opened;
@@ -2344,7 +2321,6 @@ async function mirrorOneToShelf({ session, where, path, label, url, at, tab, reo
   const title = titleOfPage(page.html) || String(path).split("/").pop();
   const which = tabOf(path, tab);
   const slug = slugOf(title, path);
-  const leaf = await alsoToLeaf({ slug, tab: which, title, html: page.html }).catch((err) => ({ error: err.message }));
   const shelved = shelve({
     home: SHELF_HOME,
     slug,
@@ -2357,15 +2333,14 @@ async function mirrorOneToShelf({ session, where, path, label, url, at, tab, reo
     label: String(label || ""),
     reopen,
     url: String(url || ""),
-    at: at || Date.now(),
-    leafId: leaf && !leaf.error ? leaf.id : ""
+    at: at || Date.now()
   });
   if (shelved.error) return shelved;
   const kept = shelved.meta.tabs?.[shelved.tab]?.versions || [];
   const head = kept[kept.length - 1];
   const sent = await pushShelf(commitLine(shelved.meta, shelved.tab, head?.n || shelved.wrote, shelved.wrote));
   if (shelved.wrote) shelfThumbs.want(slug, shelved.tab, shelved.wrote);
-  return { meta: shelved.meta, wrote: shelved.wrote, tab: shelved.tab, ...(shelved.held ? { held: shelved.held } : {}), ...sent, ...(leaf ? { leaf } : {}) };
+  return { meta: shelved.meta, wrote: shelved.wrote, tab: shelved.tab, ...(shelved.held ? { held: shelved.held } : {}), ...sent };
 }
 
 const screenbookApi = (route) => shr("gh", ["api", route], { timeout: 30000, maxBuffer: 16 << 20 });
@@ -2398,10 +2373,6 @@ async function mirrorOneProposal({ session, proposal, title, label, reopen = fal
   });
   if (shelved.error) return shelved;
 
-  const listed = shelved.meta.tabs.telas.proposals;
-  const leaf = await alsoToLeaf({ slug, tab: "telas", title: page, html: proposalsPage({ title: page, proposals: listed }) }).catch((err) => ({ error: err.message }));
-  if (leaf && !leaf.error && leaf.id) shelveProposal({ home: SHELF_HOME, slug, title: page, proposal: named.url, screens: shelved.proposal.screens, at: shelved.proposal.at, leafId: leaf.id });
-
   const picture = drawn.error ? drawn : await pictureFromStore({ ghApi: screenbookApi, store: SCREENBOOK_STORE, product: named.product, screens: shelved.proposal.screens });
   if (!picture.error) shelfThumbs.wantPicture({ slug, product: named.product, id: named.id, picture: picture.data });
 
@@ -2412,8 +2383,7 @@ async function mirrorOneProposal({ session, proposal, title, label, reopen = fal
     proposal: shelved.proposal,
     ...(shelved.held ? { held: shelved.held } : {}),
     ...(drawn.error ? { unpinned: drawn.error } : {}),
-    ...sent,
-    ...(leaf ? { leaf } : {})
+    ...sent
   };
 }
 
@@ -2472,16 +2442,6 @@ async function keepPrintOnShelf({ session, slug, caption, data, from, after, at 
   if (kept.error) return kept;
 
   const html = printsPage({ title: meta.title, slug: meta.slug, prints: kept.prints });
-  const embedded = printsPage({
-    title: meta.title,
-    slug: meta.slug,
-    prints: kept.prints,
-    src: (print) => {
-      const ext = print.file.split(".").pop();
-      try { return `data:${PRINT_KINDS[ext] || "image/jpeg"};base64,${readFileSync(join(printsDir(SHELF_HOME, meta.slug), print.file)).toString("base64")}`; } catch { return `prints/${print.file}`; }
-    }
-  });
-  const leaf = await alsoToLeaf({ slug: meta.slug, tab: "prints", title: meta.title, html: embedded }).catch((err) => ({ error: err.message }));
   const shelved = shelve({
     home: SHELF_HOME,
     slug: meta.slug,
@@ -2492,14 +2452,13 @@ async function keepPrintOnShelf({ session, slug, caption, data, from, after, at 
     owner: DEV || "",
     seat: String(session || ""),
     label: "delivered",
-    at: at || Date.now(),
-    leafId: leaf && !leaf.error ? leaf.id : ""
+    at: at || Date.now()
   });
   if (shelved.error) return shelved;
   const versions = shelved.meta.tabs?.prints?.versions || [];
   const head = versions[versions.length - 1];
   const sent = await pushShelf(`estante: ${meta.slug} · prints #${kept.print.n} · ${kept.print.caption.slice(0, 80)}`);
-  return { slug: meta.slug, print: kept.print, count: kept.prints.length, link: `hive://shelf/${meta.slug}?tab=prints#p${kept.print.n}`, v: head?.n || shelved.wrote, ...sent, ...(leaf ? { leaf } : {}) };
+  return { slug: meta.slug, print: kept.print, count: kept.prints.length, link: `hive://shelf/${meta.slug}?tab=prints#p${kept.print.n}`, v: head?.n || shelved.wrote, ...sent };
 }
 
 const keepPrintToShelf = (asked) => shelfTurn(() => keepPrintOnShelf(asked).catch((err) => ({ error: String(err?.message || err).slice(0, 200) })));
@@ -6869,7 +6828,7 @@ registerMemoryRoutes(on, {
   })
 });
 registerHistoryRoutes(on, { isSeatName, paneHistory, readImage });
-registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), leafUrl: () => LEAF_URL, pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
+registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
 registerErrandRoutes(on, { bodyOf: body, renameErrand, markSeen, HIVE_HOME, invalidateCollectionCache: () => { cache.at = 0; }, readErrands, liveSessions: () => cache.data?.sessions || [], archiveSeat });
 registerTaskRoutes(on, {
   bodyOf: body,

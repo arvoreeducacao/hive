@@ -383,15 +383,6 @@ const callerOf = (self, env) => self.name || (env.HIVE_CLIENT ? `${String(env.HI
 
 export const toolsFor = (ceiling) => PEER_TOOLS.filter((tool) => allows(ceiling, TOOL_ACCESS[tool.name]));
 
-function leafLine(leaf) {
-  if (!leaf) return "";
-  if (leaf.error) return `the leaf did not take this page: ${leaf.error}`;
-  const missing = leaf.missing || [];
-  const said = `${leaf.url} — the same page in the leaf, where anyone invited can read and edit it`;
-  if (!missing.length) return said;
-  return `${said}\n${missing.length} of ${leaf.kept} drawings did not make it: ${missing.map((one) => one.why).join(" · ")}`;
-}
-
 function text(body) {
   return { content: [{ type: "text", text: String(body) }] };
 }
@@ -612,8 +603,7 @@ function rawCalls(env) {
         const lines = [
           `on the shelf as "${done.title}" · telas · ${done.proposal.product}/${done.proposal.id} (${done.proposals} on the page) · ${pinned} · ${done.label || "no status yet"} · ${sent}`,
           done.held ? `the status did not move: ${done.held}` : "",
-          done.url ? `${done.url} — the page on the shelf; the proposal itself is ${done.proposal.url}` : "",
-          leafLine(done.leaf)
+          done.url ? `${done.url} — the page on the shelf; the proposal itself is ${done.proposal.url}` : ""
         ].filter(Boolean);
         return text(lines.join("\n"));
       }
@@ -625,8 +615,7 @@ function rawCalls(env) {
         `on the shelf as "${done.title}" · ${done.tab} v${done.version} · ${done.label} · ${sent}`,
         done.held ? `the status did not move: ${done.held}` : "",
         done.url ? `${done.url} — this is the link to announce: it opens the page inside the hive, for anyone on the team` : "",
-        done.source ? `${done.source} — the file in the repo, source only; post it to no one` : "",
-        leafLine(done.leaf)
+        done.source ? `${done.source} — the file in the repo, source only; post it to no one` : ""
       ].filter(Boolean);
       return text(lines.join("\n"));
     },

@@ -124,12 +124,10 @@ export function spawnBody({ prompt, agent, model, effort, account }) {
 
 export function shelfRows(shelf) {
   const pages = Array.isArray(shelf?.pages) ? shelf.pages : [];
-  const leaf = String(shelf?.leaf || "").replace(/\/+$/, "");
   return pages
     .filter((page) => page.slug)
     .map((page) => {
       const tabs = Object.keys(page.tabs || {});
-      const leafTab = leaf ? tabs.find((tab) => page.tabs[tab]?.leafId) : "";
       return {
         slug: page.slug,
         title: String(page.title || "").trim() || page.slug,
@@ -139,8 +137,7 @@ export function shelfRows(shelf) {
         state: labelState(page.label),
         at: Number(page.at) || 0,
         versions: tabs.reduce((sum, tab) => sum + (page.tabs[tab]?.versions?.length || 0), 0),
-        thumb: thumbOf(page),
-        leaf: leafTab ? `${leaf}/doc/${encodeURIComponent(page.tabs[leafTab].leafId)}` : ""
+        thumb: thumbOf(page)
       };
     })
     .sort((a, b) => b.at - a.at);
