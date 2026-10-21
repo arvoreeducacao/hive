@@ -3490,7 +3490,9 @@ export const PT_BR = {
   "Ask for changes, send follow-ups, or attach images": "Peça mudanças, mande follow-ups ou anexe imagens",
   "1 changed file": "1 arquivo mudado",
   "{n} changed files": "{n} arquivos mudados",
-  "Open diff": "Abrir diff"
+  "Open diff": "Abrir diff",
+  "Show full message": "Mostrar a mensagem inteira",
+  "Show less": "Mostrar menos"
 };
 
 export const SAID = { "pt-BR": PT_BR };

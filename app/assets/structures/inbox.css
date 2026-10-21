@@ -334,6 +334,8 @@ body.experience-raycast[data-structure="inbox"] .tx-host .sv-stamp .st-copy { wi
 body.experience-raycast[data-structure="inbox"] .tx-host .sv-stamp .st-copy:hover { background: var(--tx-hover); color: var(--tx-fg); }
 body.experience-raycast[data-structure="inbox"] .tx-host .sv-stamp .st-copy svg { width: 14px; height: 14px; }
 body.experience-raycast[data-structure="inbox"] .tx-host .sv-user .sv-stamp { right: 4px; bottom: -28px; height: 24px; }
+body.experience-raycast[data-structure="inbox"] .tx-host .sv-user .sv-said-more { margin-top: 8px; font: 500 12px/16px var(--tx-font); color: var(--tx-muted-fg); }
+body.experience-raycast[data-structure="inbox"] .tx-host .sv-user .sv-said-more:hover { color: var(--tx-fg); background: var(--tx-hover); }
 @media (max-width: 1080px) {
   body.experience-raycast[data-structure="inbox"] .tx-details { display: none; }
 }

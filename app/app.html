@@ -1213,6 +1213,9 @@
   .sv-user .sv-said-quote .qi { color: var(--txt-3); margin-top: 2px; flex: none; }
   .sv-user .sv-said-quote .qi svg { width: 11px; height: 11px; display: block; }
   .sv-user .sv-said-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+  .sv-user .sv-said-clip:not(.open) { max-height: 11rem; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent); }
+  .sv-user .sv-said-more { display: block; margin: 6px 0 0 -4px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: var(--txt-3); font: inherit; font-size: 12px; line-height: 16px; white-space: nowrap; cursor: pointer; }
+  .sv-user .sv-said-more:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 8%, transparent); }
   .sv-user .said-list { margin: 2px 0; padding-left: 1.4em; white-space: normal; }
   .sv-user .said-list > li { white-space: pre-wrap; padding-left: 2px; }
   .sv-think { font-size: 12.5px; color: var(--txt-3); padding: 1px 2px; }
