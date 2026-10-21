@@ -1,4 +1,4 @@
-import { For, Match, Show, Switch, createEffect } from "solid-js";
+import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
 import { nextHive, raycast } from "./raycast.js";
 import { mountView } from "./view.jsx";
 
@@ -94,6 +94,7 @@ function Said(props) {
 }
 
 function Bubble(props) {
+  const [open, setOpen] = createSignal(false);
   return (
     <div
       ref={(node) => keepsTheStamp(node, props.block)}
@@ -114,7 +115,16 @@ function Bubble(props) {
           )}</For>
         </span>
       </Show>
-      <Show keyed when={props.block.body}>{(html) => <Raw html={html} wire={props.actions.wire} />}</Show>
+      <Show keyed when={props.block.body}>{(html) => (
+        <Show when={props.block.clip} fallback={<Raw html={html} wire={props.actions.wire} />}>
+          <div class="sv-said-clip" classList={{ open: open() }}><Raw html={html} wire={props.actions.wire} /></div>
+        </Show>
+      )}</Show>
+      <Show when={props.block.clip}>{(clip) => (
+        <button type="button" class="sv-said-more" aria-expanded={open() ? "true" : "false"} on:click={() => setOpen(!open())}>
+          {open() ? clip().less : clip().more}
+        </button>
+      )}</Show>
     </div>
   );
 }

@@ -214,6 +214,16 @@ function svConvStamp(e, block) {
   if (goes) prev.stamped = false;
 }
 
+const SV_SAID_CLIP_LINES = 8;
+const SV_SAID_CLIP_CHARS = 600;
+
+const svSaidClips = (text) => {
+  const said = String(text || "");
+  return said.trim().length > 0 && (said.length > SV_SAID_CLIP_CHARS || said.split("\n").length > SV_SAID_CLIP_LINES);
+};
+
+const svSaidClip = (text) => svSaidClips(text) ? { more: phrase("Show full message"), less: phrase("Show less") } : null;
+
 function svConvLine(e, cls, text) {
   if (!/(^|\s)sv-user(\s|$)/.test(cls)) return svConvPush(e, { key: svConvKey(e), kind: "meta", cls, text });
   const hold = document.createElement("div");
@@ -229,7 +239,7 @@ function svConvLine(e, cls, text) {
       hold.appendChild(body);
     }
   }
-  return svConvPush(e, { key: svConvKey(e), kind: "bubble", body: hold.innerHTML, thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "" });
+  return svConvPush(e, { key: svConvKey(e), kind: "bubble", body: hold.innerHTML, clip: svSaidClip(text), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "" });
 }
 
 function svConvMentions(block) {
@@ -572,4 +582,4 @@ function svConvMount(e) {
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnStarts, svConvTurnsBehind, svConvUnsay, svConvWrap };
+export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnStarts, svConvTurnsBehind, svConvUnsay, svConvWrap, svSaidClips };
