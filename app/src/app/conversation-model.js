@@ -180,6 +180,52 @@ function svConvFold(e) {
   e.conv.run = null;
 }
 
+const SV_TURN_HIDES = ["said", "think", "tool", "work", "memory", "memsave"];
+
+function svTurnTook(ms) {
+  if (ms < 1000) return `${Math.max(1, Math.round(ms))}ms`;
+  if (ms < 10000) {
+    const tenths = Math.round(ms / 100) / 10;
+    return tenths >= 10 ? "10s" : `${tenths.toFixed(1)}s`;
+  }
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  const total = Math.round(ms / 1000);
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return [hours && `${hours}h`, minutes && `${minutes}m`, seconds && `${seconds}s`].filter(Boolean).join(" ");
+}
+
+function svConvTurnDone(e, ev) {
+  if (!e.conv || ev.is_error || (ev.subtype && ev.subtype !== "success")) return null;
+  svConvFold(e);
+  const blocks = e.conv.blocks;
+  let start = blocks.length - 1;
+  while (start >= 0 && blocks[start].kind !== "bubble") start--;
+  if (start < 0) return null;
+  const turn = blocks.slice(start + 1);
+  if (turn.some((one) => one.kind === "turn")) return null;
+  let answer = turn.length - 1;
+  while (answer >= 0 && turn[answer].kind !== "said") answer--;
+  const hides = turn.slice(0, Math.max(answer, 0)).filter((one) => SV_TURN_HIDES.includes(one.kind));
+  if (!hides.some((one) => one.kind !== "said")) return null;
+  const ms = Number(ev.duration_ms) || Math.max(0, Date.parse(ev.ts || "") - Number(blocks[start].at || 0)) || 0;
+  const fold = { key: svConvKey(e), kind: "turn", open: false, hides: hides.map((one) => one.key), label: ms ? phrase("Worked for {time}", { time: svTurnTook(ms) }) : phrase("Worked") };
+  for (const one of hides) one.folded = true;
+  blocks.splice(start + 1, 0, fold);
+  svConvShow(e);
+  return fold;
+}
+
+function svConvTurnToggle(e, key) {
+  const fold = e.conv?.blocks.find((one) => one.kind === "turn" && one.key === key);
+  if (!fold) return;
+  fold.open = !fold.open;
+  const hides = new Set(fold.hides);
+  for (const one of e.conv.blocks) if (hides.has(one.key)) one.folded = !fold.open;
+  svConvShow(e);
+}
+
 const svConvAsCard = (one) => ({ dataset: { kind: one.face }, querySelector: () => ({ textContent: one.arg }) });
 
 function svConvTally(run) {
@@ -569,7 +615,8 @@ function svConvActions(e) {
     },
     art: (row) => openArtifact(e, row),
     memory: (id) => openMemoryAt(id),
-    seat: (name) => { if (focusSeat(name)) render(); }
+    seat: (name) => { if (focusSeat(name)) render(); },
+    turn: (key) => svConvTurnToggle(e, key)
   };
 }
 
@@ -582,4 +629,4 @@ function svConvMount(e) {
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnStarts, svConvTurnsBehind, svConvUnsay, svConvWrap, svSaidClips };
+export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnDone, svConvTurnStarts, svConvTurnToggle, svConvTurnsBehind, svConvUnsay, svConvWrap, svSaidClips, svTurnTook };
