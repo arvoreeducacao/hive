@@ -1452,6 +1452,7 @@ export const PT_BR = {
   "{n} checks · all green": "{n} checks · tudo verde",
   "reviewed": "revisado",
   "{when} ago": "faz {when}",
+  "yesterday at {time}": "ontem às {time}",
   "conflict with the base": "conflito com a base",
   "waiting on you": "esperando você",
   "running along": "seguindo o curso",

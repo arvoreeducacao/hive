@@ -7,6 +7,7 @@ import { splitPeerHandle } from "./pure-helpers.js";
 import { paintSubs } from "./subagents-dock.js";
 import { blockText, toClipboard } from "./terminal-history.js";
 import { forgetMemory } from "./memory-signal.js";
+import { spokenNow } from "/assets/i18n.mjs";
 
 const structPool = new Map();
 
@@ -196,17 +197,39 @@ function svRunText(block) {
   return said.join("\n\n");
 }
 
+const stampLocale = () => (spokenNow() === "en" ? undefined : spokenNow());
+
+const dayStart = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+
+function stampClock(at, now = Date.now()) {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return "";
+  const time = new Intl.DateTimeFormat(stampLocale(), { hour: "numeric", minute: "2-digit" }).format(date);
+  const today = new Date(now);
+  const days = Math.round((dayStart(today) - dayStart(date)) / 86400000);
+  if (days <= 0) return time;
+  if (days === 1) return phrase("yesterday at {time}", { time });
+  const year = date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" };
+  return `${new Intl.DateTimeFormat(stampLocale(), { month: "numeric", day: "numeric", ...year }).format(date)} ${time}`;
+}
+
+const stampDate = (at) => new Intl.DateTimeFormat(stampLocale(), { dateStyle: "full", timeStyle: "short" }).format(new Date(at));
+
 function paintStamp(block) {
   let stamp = block.querySelector(":scope > .sv-stamp");
   if (!stamp) stamp = growStamp(block);
   const at = Number(block.dataset.said || block.dataset.at || 0);
-  if (at) stamp.querySelector(".st-when").textContent = phrase("{when} ago", { when: ago(new Date(at).toISOString()) });
+  if (!at) return;
+  const when = stamp.querySelector(".st-when");
+  when.querySelector(".st-ago").textContent = phrase("{when} ago", { when: ago(new Date(at).toISOString()) });
+  when.querySelector(".st-clock").textContent = stampClock(at);
+  when.title = stampDate(at);
 }
 
 function growStamp(block) {
   const stamp = document.createElement("div");
   stamp.className = "sv-stamp";
-  stamp.innerHTML = `<span class="st-when"></span><button type="button" class="st-copy" title="${phrase("copy this block")}"><svg class="mark" aria-hidden="true"><use href="#i-copy"/></svg><svg class="tick" aria-hidden="true"><use href="#i-check"/></svg></button>`;
+  stamp.innerHTML = `<span class="st-when"><span class="st-ago"></span><span class="st-clock"></span></span><button type="button" class="st-copy" title="${phrase("copy this block")}"><svg class="mark" aria-hidden="true"><use href="#i-copy"/></svg><svg class="tick" aria-hidden="true"><use href="#i-check"/></svg></button>`;
   stamp.querySelector(".st-copy").addEventListener("click", async (ev) => {
     ev.stopPropagation();
     const button = ev.currentTarget;
@@ -300,4 +323,4 @@ function svLine(e, cls, text) {
   return svConvLine(e, cls, text);
 }
 
-export { MENU_MARK, SAY_QUIET, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, WORK_KINDS, growStamp, paintActivity, paintSaidCommand, paintSaidImageMarks, paintStamp, refreshContext, refreshDriverState, sayKind, slashFamily, splitLeadingQuotes, forgetStruct, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine, svQueueRefused, svQuoteCard, svRunTail, svRunText, svSaidNear, svWasDequeuedEarly, workSummary, workVerb };
+export { MENU_MARK, SAY_QUIET, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, WORK_KINDS, growStamp, paintActivity, paintSaidCommand, paintSaidImageMarks, stampClock, stampDate, paintStamp, refreshContext, refreshDriverState, sayKind, slashFamily, splitLeadingQuotes, forgetStruct, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine, svQueueRefused, svQuoteCard, svRunTail, svRunText, svSaidNear, svWasDequeuedEarly, workSummary, workVerb };
