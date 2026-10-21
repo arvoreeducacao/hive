@@ -342,3 +342,11 @@ body.experience-raycast[data-structure="inbox"] .tx-host .sv-user .sv-stamp { ri
   body.experience-raycast[data-structure="inbox"] .tx-side { display: none; }
   body.experience-raycast[data-structure="inbox"] #structure-root.tx-mac .tx-head { padding-left: 92px; }
 }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard { position: fixed; z-index: 60; box-sizing: border-box; width: max-content; min-width: 200px; max-width: 320px; padding: 10px 12px; border: 1px solid var(--tx-border); border-radius: 12px; background: var(--tx-pop); box-shadow: 0 16px 40px rgb(0 0 0 / .4), 0 2px 6px rgb(0 0 0 / .2); pointer-events: none; font: 400 12px/16px var(--tx-font); color: var(--tx-muted-fg); }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-title { margin-bottom: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; color: var(--tx-fg); }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-lines, body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-prs { display: grid; gap: 6px; padding-left: 2px; }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-line > svg { flex: none; width: 12px; height: 12px; color: var(--tx-muted-fg); }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-line > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: color-mix(in srgb, var(--tx-fg) 75%, transparent); }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-last { display: -webkit-box; margin-top: 8px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--tx-border) 60%, transparent); overflow: hidden; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+body.experience-raycast[data-structure="inbox"] .tx-hovercard .tx-hc-prs { margin-top: 8px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--tx-border) 60%, transparent); }

@@ -137,7 +137,7 @@ test("entering wears the T3 sidebar: one card per chat, newest first, with proje
   assert.equal(ask.querySelector(".tx-title").textContent, "sessao crm expirada");
   assert.match(ask.querySelector(".tx-br").textContent, /jonas\/sessao-expirada/);
   assert.match(ask.querySelector(".tx-st").textContent, /Approval/);
-  assert.match(ask.title, /Já posso abrir PR do item 1/);
+  assert.equal(ask.hasAttribute("title"), false, "the last words live in the hover card, not in a native tooltip on top of it");
   assert.match(rowEl("busy").querySelector(".tx-st").textContent, /Working\d+s/);
   assert.ok(rowEl("busy").querySelector(".tx-dur[data-t0]"));
   assert.match(rowEl("back").querySelector(".tx-st").textContent, /Finished/);

@@ -11,6 +11,7 @@ import { openUsage } from "../app/usage.js";
 import { changes, openDiff, pullChanges } from "../app/seat-changes.js";
 import { secretAskOf } from "../app/secret-asks.js";
 import { paintStamp } from "../app/structured-seats.js";
+import { prettyModelId } from "../app/chat-and-panes.js";
 import { openSeatMenu } from "../app/seat-menu.js";
 import { goToTeam } from "../app/team.js";
 
@@ -26,6 +27,7 @@ const JUMP_HINT_DELAY = 200;
 const HOUR = 3600000;
 const DIFF_FRESH = 60000;
 const TURNS_FRESH = 15000;
+const CARD_DELAY = 500;
 
 const LUCIDE = {
   pen: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>',
@@ -240,7 +242,7 @@ function prsOf(name, prs) {
 const mine = {
   marks: {}, details: true, shelves: { snoozed: false, settled: false, team: false, archived: false },
   query: "", teamPick: "", shown: [], reading: null, next: null, nodes: null,
-  painted: new Map(), lastSel: "", menu: null, ticker: 0, jump: false, renaming: "",
+  painted: new Map(), lastSel: "", menu: null, ticker: 0, jump: false, renaming: "", card: null, cardKey: "", cardWant: "", cardTimer: 0,
   turns: new Map(), patch: null, scope: "", collapsed: false, injected: [], tone: "", toneOf: ""
 };
 
@@ -282,9 +284,11 @@ function favHtml(row, ctx, cls = "") {
   return `<span class="tx-fav tx-fav-icon${cls}">${icon(row.where === "cloud" ? "cloud" : "laptop")}</span>`;
 }
 
+const agentOf = (row) => ["codex", "kimi", "kiro", "cursor", "opencode"].includes(row.agent) ? row.agent : "claude";
+
 function providerHtml(row, ctx) {
   if (row.kind === "terminal") return `<span class="tx-prov-i">${icon("terminal")}</span>`;
-  const agent = ["codex", "kimi", "kiro", "cursor", "opencode"].includes(row.agent) ? row.agent : "claude";
+  const agent = agentOf(row);
   const account = row.account || "";
   const letters = (account === "default" ? agent : account).slice(0, 2).toUpperCase();
   const badge = account ? `<span class="tx-acct" style="--fav-h:${hueOf(account)}">${ctx.esc(letters)}</span>` : "";
@@ -504,11 +508,65 @@ function rowHtml(row, v, ctx, slot) {
     ? `${row.path ? `<span class="tx-wt" title="${esc(phrase("Worktree"))}">${icon("worktree")}</span>` : ""}<span class="tx-br">${esc(row.branch)}</span>`
     : `<span class="tx-br"></span>`;
   const jump = slot ? `<span class="tx-jumphint">${IS_MAC ? "⌘" : "Ctrl+"}${slot}</span>` : "";
-  return `<li class="tx-li"><div class="${cls.join(" ")}" role="button" tabindex="0" data-key="${esc(row.key)}" title="${esc(row.last || row.title)}">
+  return `<li class="tx-li"><div class="${cls.join(" ")}" role="button" tabindex="0" data-key="${esc(row.key)}">
     <div class="tx-l1">${draft}${favHtml(row, ctx)}<span class="tx-proj">${esc(project)}</span>${pin}<span class="tx-slot">${statusHtml(row, ctx)}<span class="tx-racts">${rowActionsHtml(row, ctx)}</span></span></div>
     <div class="tx-l2"><span class="tx-title ${titleTone(row, selected)}">${esc(row.title)}</span></div>
     <div class="tx-l3">${branch}${prs}${diff}<span class="tx-prov">${row.where === "cloud" ? `<span class="tx-prov-i">${icon("cloud")}</span>` : ""}${providerHtml(row, ctx)}</span></div>
     ${jump}</div></li>`;
+}
+
+function cardLineHtml(glyph, text, ctx) {
+  return `<div class="tx-hc-line">${glyph}<span>${ctx.esc(text)}</span></div>`;
+}
+
+function hoverCardHtml(row, ctx) {
+  const { esc, phrase } = ctx;
+  const cloud = row.where === "cloud";
+  const model = row.model ? prettyModelId(row.model).name : "";
+  const lines = [
+    row.repo ? cardLineHtml(icon("folder"), row.repo, ctx) : "",
+    cardLineHtml(icon(cloud ? "cloud" : "local"), cloud ? phrase("cloud") : phrase("this machine"), ctx),
+    row.branch ? cardLineHtml(icon(row.path ? "worktree" : "branch"), row.branch, ctx) : "",
+    model ? cardLineHtml(ctx.svgIcon(`i-${agentOf(row)}`), model, ctx) : ""
+  ].join("");
+  const last = row.last ? `<div class="tx-hc-last">${esc(row.last)}</div>` : "";
+  const prs = (row.prs || []).map((p) => cardLineHtml(icon("pr"), `#${p.tag.split("#").pop()}${p.title ? ` ${p.title}` : ""}`, ctx)).join("");
+  return `<div class="tx-hc-title">${esc(row.title)}</div><div class="tx-hc-lines">${lines}</div>${last}${prs ? `<div class="tx-hc-prs">${prs}</div>` : ""}`;
+}
+
+function showCard(ctx, key) {
+  const row = mine.shown.find((one) => one.key === key);
+  const el = [...ctx.root.querySelectorAll(".tx-row[data-key]")].find((one) => one.dataset.key === key);
+  if (!row || !el || row.draft) return hideCard();
+  const card = (mine.card ||= document.createElement("div"));
+  card.className = "tx-hovercard";
+  card.setAttribute("role", "tooltip");
+  card.innerHTML = hoverCardHtml(row, ctx);
+  ctx.root.appendChild(card);
+  const box = el.getBoundingClientRect();
+  const lowest = window.innerHeight - card.offsetHeight - 8;
+  card.style.left = `${Math.round(box.right + 4)}px`;
+  card.style.top = `${Math.round(Math.max(8, Math.min(box.top, lowest)))}px`;
+  mine.cardKey = key;
+}
+
+function hideCard() {
+  clearTimeout(mine.cardTimer);
+  mine.cardTimer = 0;
+  mine.cardKey = "";
+  mine.cardWant = "";
+  mine.card?.remove();
+}
+
+function hovered(event, ctx) {
+  const hit = event.target.closest?.(".tx-row[data-key]");
+  const key = hit && ctx.root.contains(hit) ? hit.dataset.key : "";
+  if (key === mine.cardWant) return;
+  mine.cardWant = key;
+  clearTimeout(mine.cardTimer);
+  if (!key) return hideCard();
+  if (mine.cardKey) return showCard(ctx, key);
+  mine.cardTimer = setTimeout(() => showCard(ctx, key), CARD_DELAY);
 }
 
 function compactRowHtml({ key, attrs = "", fav, title, slot, acts = "", selected = false }) {
@@ -1132,7 +1190,10 @@ const inbox = {
     mine.lastSel = "";
     mine.painted = new Map();
     build(ctx);
-    ctx.listen(ctx.root, "click", (event) => clicked(event, ctx));
+    ctx.listen(ctx.root, "click", (event) => { hideCard(); clicked(event, ctx); });
+    ctx.listen(ctx.root, "pointerover", (event) => hovered(event, ctx));
+    ctx.listen(ctx.root, "pointerleave", hideCard);
+    ctx.listen(ctx.root, "wheel", hideCard, { passive: true });
     ctx.listen(ctx.root, "contextmenu", (event) => contextMenu(event, ctx));
     ctx.listen(ctx.root, "pointerdown", dragSidebar);
     ctx.listen(ctx.root, "dblclick", (event) => {
@@ -1158,6 +1219,7 @@ const inbox = {
     clearInterval(mine.ticker);
     holdJump(false);
     closeMenu();
+    hideCard();
     unInject();
     ctx.root.classList.remove("tx-mac");
     delete ctx.root.dataset.tone;
