@@ -1268,6 +1268,8 @@ export const PT_BR = {
   "server {name} up": "servidor {name} de pé",
   "nothing in": "nada em",
   "the work": "o trabalho",
+  "Worked for {time}": "Trabalhou por {time}",
+  "Worked": "Trabalhou",
   "read {n} file": "leu {n} arquivo",
   "read {n} files": "leu {n} arquivos",
   "changed {n} file": "mudou {n} arquivo",

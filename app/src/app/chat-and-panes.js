@@ -3,7 +3,7 @@ import { render } from "./arrange.js";
 import { markCopied } from "./avatars.js";
 import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svTrimTurns, svTypePath } from "./chat-stretches.js";
 import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
-import { svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRunOff, svConvSaid, svConvShow, svConvStream, svConvThink, svConvThumb, svConvUnsay } from "./conversation-model.js";
+import { svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRunOff, svConvSaid, svConvShow, svConvStream, svConvThink, svConvThumb, svConvTurnDone, svConvUnsay } from "./conversation-model.js";
 import { $, apiGet, chooseOption, esc, experienceNext, raycastOn, forgetUpload, liveMarkdown, lookFor, markUpload, NATIVE_COMMAND_NAMES, phrase, reachRef, readPage, renderMarkdown, sayPage, st, svgIcon } from "./core.js";
 import { drafts } from "./draft-seat.js";
 import { closeTile, focusSeat, openTile, pull, releaseKeyboard } from "./focus-navigation.js";
@@ -3123,6 +3123,7 @@ function svEvent(e, ev) {
       for (const [id, item] of [...(e.subs || [])]) if (!item.dataset.bg) svSubUnpin(e, id);
       refreshContext(e);
     }
+    svConvTurnDone(e, ev);
     return;
   }
   if (ev.type === "driver") {

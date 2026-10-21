@@ -29,7 +29,7 @@ function Said(props) {
     <div
       ref={(node) => keepsTheStamp(node, props.block)}
       class="sv-msg md"
-      classList={{ streaming: !!props.block.streaming, stamped: !!props.block.stamped }}
+      classList={{ streaming: !!props.block.streaming, stamped: !!props.block.stamped, "sv-folded": !!props.block.folded }}
       data-at={props.block.at || undefined}
       data-said={props.block.said || undefined}
     >
@@ -135,7 +135,7 @@ function Meta(props) {
 
 function Think(props) {
   return (
-    <details class="sv-think" classList={{ timed: !!props.block.dur }}>
+    <details class="sv-think" classList={{ timed: !!props.block.dur, "sv-folded": !!props.block.folded }}>
       <Show when={props.block.label !== undefined} fallback={
         <summary><span class="tw c">{props.block.thinking}</span><span class="tw n">{props.block.thought}</span><span class="tdur">{props.block.dur}</span></summary>
       }>
@@ -150,7 +150,7 @@ function Tool(props) {
   return (
     <details
       class="sv-tool"
-      classList={{ running: !!props.block.running, "sv-keep": !!props.block.keep }}
+      classList={{ running: !!props.block.running, "sv-keep": !!props.block.keep, "sv-folded": !!props.block.folded }}
       data-kind={props.block.face}
       data-tool={props.block.tool}
       data-t0={props.block.t0 || undefined}
@@ -216,7 +216,7 @@ const memoryRowOpens = (one) => (nextHive() ? one.opens : "");
 
 function MemoryUsed(props) {
   return (
-    <details class="sv-mem" data-memory="used" data-state={props.block.state}>
+    <details class="sv-mem" classList={{ "sv-folded": !!props.block.folded }} data-memory="used" data-state={props.block.state}>
       <summary class="mchip">
         <span class="mglyph" aria-hidden="true">🧠</span>
         <For each={props.block.parts}>{(part, at) => (
@@ -257,7 +257,7 @@ function MemoryUsed(props) {
 
 function MemorySave(props) {
   return (
-    <div class="sv-memsave" classList={{ running: !!props.block.running, bad: props.block.stat === "bad" }} data-memory="saved">
+    <div class="sv-memsave" classList={{ running: !!props.block.running, bad: props.block.stat === "bad", "sv-folded": !!props.block.folded }} data-memory="saved">
       <span class="mk"><span class="mglyph" aria-hidden="true">🧠</span> {props.block.said}</span>
       <span class="mv">{props.block.title}</span>
       <span class="ma">{props.block.failed || props.block.when}</span>
@@ -265,9 +265,20 @@ function MemorySave(props) {
   );
 }
 
+function TurnFold(props) {
+  return (
+    <div class="sv-turn" classList={{ open: !!props.block.open }}>
+      <button type="button" class="sv-turn-btn" aria-expanded={props.block.open ? "true" : "false"} on:click={() => props.actions.turn(props.block.key)}>
+        <span class="sv-turn-label">{props.block.label}</span>
+        <Icon class="sv-turn-chev" glyph="i-chev" />
+      </button>
+    </div>
+  );
+}
+
 function Work(props) {
   return (
-    <details class="sv-work" classList={{ bad: !!props.block.bad }}>
+    <details class="sv-work" classList={{ bad: !!props.block.bad, "sv-folded": !!props.block.folded }}>
       <summary><Show when={raycast()}><Icon class="wchev" glyph="i-chev" /></Show><span class="wname">{props.block.name}</span><span class="wbad">{props.block.badly}</span><span class="wms">{props.block.ms}</span></summary>
       <div class="wbody"><For each={props.block.items}>{(one) => <Block block={one} actions={props.actions} />}</For></div>
     </details>
@@ -286,6 +297,7 @@ function Block(props) {
       <Match when={props.block.kind === "memory"}><MemoryUsed block={props.block} actions={props.actions} /></Match>
       <Match when={props.block.kind === "memsave"}><MemorySave block={props.block} /></Match>
       <Match when={props.block.kind === "work"}><Work block={props.block} actions={props.actions} /></Match>
+      <Match when={props.block.kind === "turn"}><TurnFold block={props.block} actions={props.actions} /></Match>
       <Match when={props.block.kind === "node"}>{props.block.el}</Match>
     </Switch>
   );
