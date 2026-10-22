@@ -1,5 +1,6 @@
 import { blocksOf, labelOf, ofBlock } from "../app/blocks.js";
 import { keyLabel, whichChord } from "../app/brand-face.js";
+import { catalogRow } from "../app/chat-and-panes.js";
 import { FOCUS_MOVES, st } from "../app/core.js";
 import { goToBlockAt, gridRows } from "../app/focus-navigation.js";
 import { disarmLeader, keyCaps } from "../app/leader-key.js";
@@ -110,6 +111,8 @@ function contextOf(live) {
   return Number.isFinite(p) ? Math.round(Math.min(100, Math.max(0, p))) : null;
 }
 
+const effortOf = (live) => (live ? live.effort || catalogRow(live)?.defaultEffort || "" : "");
+
 function barModel(ctx, seat, now) {
   const live = structPool.get(seat.key);
   const need = seat.state === "needs";
@@ -127,7 +130,7 @@ function barModel(ctx, seat, now) {
   const pct = contextOf(live);
   if (pct !== null) segs.push({ ctx: pct });
   if (need) segs.push({ text: ctx.phrase("{key} answers", { key: ctx.keyHint("calls") }) });
-  return { tone: need ? "need" : seat.state, segs, model: seat.model || "" };
+  return { tone: need ? "need" : seat.state, segs, model: seat.model || "", effort: effortOf(live) };
 }
 
 function panesOf(ctx) {
@@ -219,7 +222,7 @@ function segHtml(ctx, seg) {
 }
 
 function barHtml(ctx, bar) {
-  return `${bar.segs.map((seg) => segHtml(ctx, seg)).join("")}<span class="ck-sg ck-r">${ctx.esc(bar.model)}</span>`;
+  return `${bar.segs.map((seg) => segHtml(ctx, seg)).join("")}<span class="ck-sg ck-r">${ctx.esc([bar.model, bar.effort].filter(Boolean).join(" · "))}</span>`;
 }
 
 function headHtml(ctx, pane) {

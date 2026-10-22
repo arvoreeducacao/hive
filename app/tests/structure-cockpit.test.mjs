@@ -128,6 +128,19 @@ test("the context window and the running tool come from the live seat", () => {
   setStructure("classic", { quiet: true });
 });
 
+test("the thinking level sits beside the model, and falls back to the model's own default", () => {
+  wear([["a", "b"]]);
+  structPool.set("a", { host: document.createElement("div"), effort: "xhigh" });
+  structPool.set("b", { host: document.createElement("div"), effort: "", model: "opus", catalog: [{ value: "opus", efforts: [{ value: "high" }], defaultEffort: "high" }] });
+  render();
+  const [a, b] = panes().map((p) => p.querySelector(".ck-r").textContent);
+  structPool.delete("a");
+  structPool.delete("b");
+  assert.equal(a, "Opus 5.5 · xhigh");
+  assert.equal(b, "Opus 5.5 · high");
+  setStructure("classic", { quiet: true });
+});
+
 test("a seat that needs you turns its whole bar coral and takes a block of the status line", () => {
   wear([["a", "b", "c"], ["g"]], { c: { state: "needs" } });
   const need = panes().find((p) => p.dataset.key === "c");
