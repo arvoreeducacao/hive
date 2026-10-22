@@ -653,7 +653,7 @@ $("f-quiet-days").addEventListener("change", (e) => setQuietDays(e.target.value)
 
 $("f-diary-days").addEventListener("change", (e) => setDiaryDays(e.target.value));
 
-for (const id of ["f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap"]) {
+for (const id of ["f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap", "f-ck-even", "f-ck-strong", "f-ck-pixel"]) {
   $(id).addEventListener("change", () => {
     if (!st.fontDefaults) return;
     const font = fontFromPanel();
