@@ -6738,9 +6738,7 @@ const STATIC = {
   "/assets/fonts/ibmplexsans-normal-latin.woff2": ["assets/fonts/ibmplexsans-normal-latin.woff2", "font/woff2"],
   "/assets/fonts/ibmplexsans-normal-latin-ext.woff2": ["assets/fonts/ibmplexsans-normal-latin-ext.woff2", "font/woff2"],
   "/assets/fonts/ibmplexsans-italic-latin.woff2": ["assets/fonts/ibmplexsans-italic-latin.woff2", "font/woff2"],
-  "/assets/fonts/ibmplexsans-italic-latin-ext.woff2": ["assets/fonts/ibmplexsans-italic-latin-ext.woff2", "font/woff2"],
-  "/assets/fonts/departuremono-regular.woff2": ["assets/fonts/departuremono-regular.woff2", "font/woff2"],
-  "/assets/fonts/cozettevector.woff2": ["assets/fonts/cozettevector.woff2", "font/woff2"]
+  "/assets/fonts/ibmplexsans-italic-latin-ext.woff2": ["assets/fonts/ibmplexsans-italic-latin-ext.woff2", "font/woff2"]
 };
 
 /* ── the machine that owns the fleet, served from its own pod ──────────────────────────────

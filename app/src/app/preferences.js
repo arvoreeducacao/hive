@@ -84,12 +84,6 @@ const LOOK_NAMES = { classic: "classic, as it was", dimension: "dimension, the n
 
 const VISUAL_NAMES = { lean: "lean: nothing moves, no blur", full: "full: motion and blur, costs memory and battery" };
 
-const COCKPIT_EVEN_NAMES = { off: "as the chat", on: "even: no extra space between letters, a line height of its own" };
-
-const COCKPIT_STRONG_NAMES = { off: "as the theme", on: "stronger: the main colour and a slightly thicker stroke" };
-
-const COCKPIT_PIXEL_NAMES = { off: "none", departure: "Departure Mono · 11px", cozette: "Cozette · 13px" };
-
 const WINDOW_BUTTON_SIZE = 12;
 
 const WINDOW_BUTTON_INSET = 12;
@@ -250,11 +244,6 @@ function paintChoices() {
   $("f-layout").value = said.layoutWorn;
   const size = $("f-size");
   if (size && size !== document.activeElement) size.value = said.size;
-  choiceSolids.ckEven.show({ options: said.ckEven });
-  choiceSolids.ckStrong.show({ options: said.ckStrong });
-  choiceSolids.ckPixel.show({ options: said.ckPixel });
-  paintFonts();
-  $("f-cockpit-text").hidden = !raycastOn();
   paintStructureChoices();
 }
 
@@ -278,9 +267,6 @@ function choicesViewModel() {
     gazeWorn: st.gazeMode,
     gazeOff: st.petChoice === PET_OFF,
     layoutWorn: st.seatLayout,
-    ckEven: named(COCKPIT_EVEN_NAMES),
-    ckStrong: named(COCKPIT_STRONG_NAMES),
-    ckPixel: named(COCKPIT_PIXEL_NAMES),
     size: st.LIMIT
   };
 }
@@ -290,7 +276,7 @@ solidMounts.push((hive) => {
   document.fonts?.ready?.then(placeWindowButtons);
   const bar = $("top");
   if (IS_MAC && bar) new ResizeObserver(placeWindowButtons).observe(bar);
-  const hosts = { look: $("f-look"), visual: $("f-visual"), lang: $("f-lang"), pet: $("f-pet"), brand: $("f-brand"), gaze: $("f-gaze"), layout: $("f-layout"), ckEven: $("f-ck-even"), ckStrong: $("f-ck-strong"), ckPixel: $("f-ck-pixel") };
+  const hosts = { look: $("f-look"), visual: $("f-visual"), lang: $("f-lang"), pet: $("f-pet"), brand: $("f-brand"), gaze: $("f-gaze"), layout: $("f-layout") };
   if (Object.values(hosts).some((one) => !one)) return;
   choiceSolids = Object.fromEntries(Object.entries(hosts).map(([which, host]) => [which, hive.mountOptions(host)]));
   paintChoices();

@@ -15,7 +15,7 @@ body.experience-raycast[data-structure="cockpit"] #canvas { display: none; }
 body.experience-raycast[data-structure="cockpit"] #shell { grid-template-columns: minmax(0, 1fr); }
 body.experience-raycast[data-structure="cockpit"] #stage { grid-template-rows: minmax(0, 1fr) auto auto; }
 
-body.experience-raycast[data-structure="cockpit"] #structure-root.ck { --ck-font: var(--mono); --ck-size: 12px; --ck-small: 11px; --ck-track: .01em; --ck-line: calc(var(--ck-size) * var(--chat-line, 1.55)); --ck-ink: var(--txt-2); --ck-stroke: 0; --ck-code-line: 1.5; display: grid; grid-template-rows: minmax(0, 1fr) 24px; min-height: 0; overflow: hidden; background: var(--bg); font-family: var(--ck-font); font-size: var(--ck-size); line-height: 18px; letter-spacing: var(--ck-track); color: var(--ck-ink); -webkit-text-stroke-width: var(--ck-stroke); }
+body.experience-raycast[data-structure="cockpit"] #structure-root.ck { display: grid; grid-template-rows: minmax(0, 1fr) 24px; min-height: 0; overflow: hidden; background: var(--bg); font-family: var(--mono); font-size: 12px; line-height: 18px; letter-spacing: .01em; color: var(--txt-2); }
 body.experience-raycast[data-structure="cockpit"] .ck svg { width: 12px; height: 12px; flex: none; }
 
 body.experience-raycast[data-structure="cockpit"] .ck-grid { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 1px; min-height: 0; background: var(--ck-hair); }
@@ -27,15 +27,15 @@ body.experience-raycast[data-structure="cockpit"] .ck-pane { position: relative;
 body.experience-raycast[data-structure="cockpit"] .ck-pane.on::after { content: ""; position: absolute; inset: 0; box-shadow: inset 0 0 0 1px var(--ck-mist); pointer-events: none; z-index: 4; }
 
 body.experience-raycast[data-structure="cockpit"] .ck-ph { display: flex; align-items: center; gap: 8px; flex: none; height: 32px; padding: 0 12px; white-space: nowrap; cursor: default; user-select: none; }
-body.experience-raycast[data-structure="cockpit"] .ck-pn { font-size: var(--ck-small); color: var(--txt-3); }
+body.experience-raycast[data-structure="cockpit"] .ck-pn { font-size: 11px; color: var(--txt-3); }
 body.experience-raycast[data-structure="cockpit"] .ck-pane.on .ck-pn { color: var(--ck-mist); }
 body.experience-raycast[data-structure="cockpit"] .ck-pt { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-family: var(--sans); font-size: 15px; font-weight: 500; letter-spacing: .004em; color: var(--txt-2); }
 body.experience-raycast[data-structure="cockpit"] .ck-pane.on .ck-pt { font-weight: 600; color: var(--txt); }
 body.experience-raycast[data-structure="cockpit"] .ck-rule { flex: 1; min-width: 16px; height: 1px; background: var(--ck-rule); }
-body.experience-raycast[data-structure="cockpit"] .ck-pm { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--ck-small); color: var(--txt-3); }
+body.experience-raycast[data-structure="cockpit"] .ck-pm { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; color: var(--txt-3); }
 
 body.experience-raycast[data-structure="cockpit"] .ck-host { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
-body.experience-raycast[data-structure="cockpit"] .ck-host > .tile { flex: 1; display: flex; flex-direction: column; width: auto; height: auto; min-height: 0; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--bg); box-shadow: none; outline: 0; transform: none; animation: none; font-family: var(--ck-font); font-size: var(--ck-size); }
+body.experience-raycast[data-structure="cockpit"] .ck-host > .tile { flex: 1; display: flex; flex-direction: column; width: auto; height: auto; min-height: 0; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--bg); box-shadow: none; outline: 0; transform: none; animation: none; font-family: var(--mono); font-size: 12px; }
 body.experience-raycast[data-structure="cockpit"] .ck-host > .tile::before,
 body.experience-raycast[data-structure="cockpit"] .ck-host > .tile::after { display: none; }
 body.experience-raycast[data-structure="cockpit"] .ck-host > .tile > .side,
@@ -56,17 +56,17 @@ body.experience-raycast[data-structure="cockpit"] .ck-host .well:not(.structured
 body.experience-raycast[data-structure="cockpit"] .ck-host .well > .badge,
 body.experience-raycast[data-structure="cockpit"] .ck-host .well > .well-keys { display: none; }
 
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv { font-family: var(--ck-font); font-size: var(--ck-size); line-height: var(--ck-line); letter-spacing: var(--ck-track); background: transparent; }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv { font-family: var(--mono); font-size: 12px; line-height: var(--chat-line, 1.55); letter-spacing: .01em; background: transparent; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-scroll { padding: 0 12px 4px; -webkit-mask-image: none; mask-image: none; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv::after { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 16px; z-index: 2; background: linear-gradient(to bottom, var(--bg), transparent); pointer-events: none; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-msg,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-msg p,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-msg li,
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-user { font-family: var(--ck-font); font-size: var(--ck-size); line-height: var(--ck-line); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-user { font-family: var(--mono); font-size: 12px; line-height: var(--chat-line, 1.55); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-work summary,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-tool summary,
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-think summary { font-family: var(--ck-font); font-size: var(--ck-size); line-height: 18px; }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg { max-width: none; margin: 0 0 6px; padding: 0; color: var(--ck-ink); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv .sv-think summary { font-family: var(--mono); font-size: 12px; line-height: 18px; }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg { max-width: none; margin: 0 0 6px; padding: 0; color: var(--txt-2); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg p { margin: 0 0 6px; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg b,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg strong { font-weight: 500; color: var(--txt); }
@@ -75,10 +75,9 @@ body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg ul { margin: 
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg h1,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg h2,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg h3,
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg h4 { margin: 6px 0; font: 500 var(--ck-size)/var(--ck-line) var(--ck-font); color: var(--txt); }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg code { padding: 0 3px; border-radius: 0; background: color-mix(in srgb, var(--txt) 7%, transparent); font-family: var(--ck-font); font-size: var(--ck-size); color: var(--txt); }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg .md-code { font-family: var(--ck-font); font-size: var(--ck-size); line-height: var(--ck-code-line); }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-user { position: relative; align-self: stretch; max-width: none; font-size: var(--ck-size); line-height: var(--ck-line); margin: 4px -12px 8px; padding: 3px 12px 3px calc(12px + 2ch); border: 0; border-radius: 0; background: color-mix(in srgb, var(--txt) 4.5%, transparent); box-shadow: none; color: var(--txt); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg h4 { margin: 6px 0; font: 500 12px/var(--chat-line, 1.55) var(--mono); color: var(--txt); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg code { padding: 0 3px; border-radius: 0; background: color-mix(in srgb, var(--txt) 7%, transparent); font-size: 12px; color: var(--txt); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-user { position: relative; align-self: stretch; max-width: none; font-size: 12px; line-height: var(--chat-line, 1.55); margin: 4px -12px 8px; padding: 3px 12px 3px calc(12px + 2ch); border: 0; border-radius: 0; background: color-mix(in srgb, var(--txt) 4.5%, transparent); box-shadow: none; color: var(--txt); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-user::before { content: "›"; position: absolute; left: 12px; color: var(--txt-3); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-user.stamped { margin-bottom: 22px; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-msg.stamped { padding-bottom: 18px; }
@@ -98,13 +97,13 @@ body.experience-raycast[data-structure="cockpit"] .ck-host .sv-tool.running > su
 
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-composer { margin: 0; padding: 0; border-top: 1px solid var(--ck-rule); background: var(--bg); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box { display: flex; align-items: flex-start; gap: 1ch; min-height: 26px; margin: 0; padding: 4px 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box::before { content: "›"; flex: none; font: 400 var(--ck-size)/var(--ck-line) var(--ck-font); color: var(--txt-3); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box::before { content: "›"; flex: none; font: 400 12px/var(--chat-line, 1.55) var(--mono); color: var(--txt-3); }
 body.experience-raycast[data-structure="cockpit"] .ck-pane.on .ck-host .sv-box::before { color: var(--ck-mist); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box textarea,
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box .sv-ink,
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box .sv-well { font: 400 var(--ck-size)/var(--ck-line) var(--ck-font); letter-spacing: var(--ck-track); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box .sv-well { font: 400 12px/var(--chat-line, 1.55) var(--mono); letter-spacing: .01em; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-box .sv-line { flex: 1; min-width: 0; }
-body.experience-raycast[data-structure="cockpit"] .ck-host .tile .sv-composer .sv-well textarea { min-height: var(--ck-line); font: 400 var(--ck-size)/var(--ck-line) var(--ck-font); letter-spacing: var(--ck-track); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .tile .sv-composer .sv-well textarea { min-height: calc(12px * var(--chat-line, 1.55)); font: 400 12px/var(--chat-line, 1.55) var(--mono); letter-spacing: .01em; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-foot { display: none; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-btns { align-self: flex-start; gap: 0; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-btns > :not(.sv-talk),
@@ -129,9 +128,9 @@ body.experience-raycast[data-structure="cockpit"] .ck-host .sv-composer.shell.qu
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-composer.shell .sv-box::before,
 body.experience-raycast[data-structure="cockpit"] .ck-pane.on .ck-host .sv-composer.shell .sv-box::before { color: var(--accent); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-composer.shell .sv-box textarea { caret-color: var(--accent); }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-composer.shell::after { position: static; display: block; padding: 3px 12px 4px 26px; border: 0; border-radius: 0; background: transparent; font: 400 var(--ck-small)/16px var(--ck-font); letter-spacing: var(--ck-track); text-transform: none; color: var(--accent); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-composer.shell::after { position: static; display: block; padding: 3px 12px 4px 26px; border: 0; border-radius: 0; background: transparent; font: 400 11px/16px var(--mono); letter-spacing: .01em; text-transform: none; color: var(--accent); }
 
-body.experience-raycast[data-structure="cockpit"] .ck-sl { display: flex; align-items: stretch; flex: none; height: 20px; overflow: hidden; font-size: var(--ck-small); line-height: 20px; white-space: nowrap; background: var(--ck-band); color: var(--txt-2); }
+body.experience-raycast[data-structure="cockpit"] .ck-sl { display: flex; align-items: stretch; flex: none; height: 20px; overflow: hidden; font-size: 11px; line-height: 20px; white-space: nowrap; background: var(--ck-band); color: var(--txt-2); }
 body.experience-raycast[data-structure="cockpit"] .ck-sg { display: flex; align-items: center; gap: 6px; padding: 0 8px; border-right: 1px solid var(--ck-sep); }
 body.experience-raycast[data-structure="cockpit"] .ck-sg:first-child { padding-left: 12px; color: var(--txt); }
 body.experience-raycast[data-structure="cockpit"] .ck-sg.ck-r { margin-left: auto; padding-right: 12px; border-right: 0; border-left: 1px solid var(--ck-sep); color: var(--txt-3); }
@@ -164,7 +163,7 @@ body.experience-raycast[data-structure="cockpit"] .ck-big .ck-keys { display: fl
 
 body.experience-raycast[data-structure="cockpit"] .ck-which { position: absolute; left: 0; right: 0; bottom: 24px; z-index: 6; padding: 10px 12px 12px; border-top: 1px solid var(--ck-hair); background: var(--panel); visibility: hidden; opacity: 0; pointer-events: none; }
 body.experience-raycast[data-structure="cockpit"]:has(#mode.leader) .ck-which { visibility: visible; opacity: 1; transition: opacity 120ms 350ms, visibility 0s 350ms; }
-body.experience-raycast[data-structure="cockpit"] .ck-wh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: var(--ck-small); color: var(--txt-3); }
+body.experience-raycast[data-structure="cockpit"] .ck-wh { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 11px; color: var(--txt-3); }
 body.experience-raycast[data-structure="cockpit"] .ck-gr { flex: 1; height: 1px; background: var(--ck-rule); }
 body.experience-raycast[data-structure="cockpit"] .ck-wg { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px 16px; }
 body.experience-raycast[data-structure="cockpit"] .ck-wi { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--txt-2); }
@@ -201,17 +200,17 @@ body.experience-raycast[data-structure="cockpit"] .ck-clock { background: var(--
 
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-empty { gap: 8px; width: 100%; max-width: 60ch; padding: 16px 12px; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-empty .hive-mark { width: 28px; height: 28px; }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-empty b { font: 500 var(--ck-size)/18px var(--ck-font); color: var(--txt); }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-empty p { font: 400 var(--ck-small)/16px var(--ck-font); color: var(--txt-3); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-empty b { font: 500 12px/18px var(--mono); color: var(--txt); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-empty p { font: 400 11px/16px var(--mono); color: var(--txt-3); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-choices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; width: 100%; margin-top: 6px; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; padding: 0; border: 1px solid var(--ck-rule); border-radius: 0; background: var(--ck-rule); }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg button { justify-content: center; min-width: 0; height: 24px; padding: 0 8px; border-radius: 0; background: var(--bg); font: 400 var(--ck-small)/16px var(--ck-font); white-space: nowrap; color: var(--txt-3); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg button { justify-content: center; min-width: 0; height: 24px; padding: 0 8px; border-radius: 0; background: var(--bg); font: 400 11px/16px var(--mono); white-space: nowrap; color: var(--txt-3); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg button svg { flex: none; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg button:hover { color: var(--txt-2); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-seg button.on { color: var(--txt); background: color-mix(in srgb, var(--txt) 8%, var(--bg)); }
 body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-cloud { width: 100%; }
-body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-cloud input { flex: 1; min-width: 0; border-color: var(--ck-rule); border-radius: 0; background: var(--bg); font-size: var(--ck-small); }
+body.experience-raycast[data-structure="cockpit"] .ck-host .sv-draft .sv-cloud input { flex: 1; min-width: 0; border-color: var(--ck-rule); border-radius: 0; background: var(--bg); font-size: 11px; }
 
 @media (max-width: 900px) {
   body.experience-raycast[data-structure="cockpit"] .ck-wg { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -229,8 +228,3 @@ body.experience-raycast[data-structure="cockpit"] .ck-mp { display: flex; align-
 body.experience-raycast[data-structure="cockpit"] .ck-mq { flex: none; color: var(--txt); font-weight: 500; }
 body.experience-raycast[data-structure="cockpit"] .ck-mp input { all: unset; flex: 1; min-width: 0; font: inherit; color: var(--txt); caret-color: var(--ck-coral); }
 body.experience-raycast[data-structure="cockpit"] .ck-mn { flex: none; color: var(--txt-3); }
-
-body.experience-raycast.ck-even[data-structure="cockpit"] #structure-root.ck { --ck-track: 0; --ck-line: round(calc(var(--ck-size) * 1.5), 1px); }
-body.experience-raycast.ck-strong[data-structure="cockpit"] #structure-root.ck { --ck-ink: var(--txt); --ck-stroke: .2px; }
-body.experience-raycast[data-ck-pixel="departure"][data-structure="cockpit"] #structure-root.ck { --ck-font: "Departure Mono", var(--mono); --ck-size: 11px; --ck-small: 11px; --ck-track: 0; --ck-line: 17px; --ck-code-line: 17px; --ck-stroke: 0; }
-body.experience-raycast[data-ck-pixel="cozette"][data-structure="cockpit"] #structure-root.ck { --ck-font: "Cozette Vector", var(--mono); --ck-size: 13px; --ck-small: 13px; --ck-track: 0; --ck-line: 20px; --ck-code-line: 20px; --ck-stroke: 0; }

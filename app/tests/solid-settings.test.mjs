@@ -171,8 +171,6 @@ test("every dropdown in the settings offers what the app knows and marks what is
     LAYOUT_NAMES: { grid: "in a grid", row: "side by side, in one row" },
     LOOK_NAMES: { classic: "classic, as it was", dimension: "dimension, the new one" }, LOOK_DEFAULT: "classic",
     VISUAL_NAMES: { lean: "lean: nothing moves, no blur", full: "full: motion and blur, costs memory and battery" }, visualWorn: () => "full",
-    COCKPIT_EVEN_NAMES: { off: "as the chat", on: "even" }, COCKPIT_STRONG_NAMES: { off: "as the theme", on: "stronger" },
-    COCKPIT_PIXEL_NAMES: { off: "none", departure: "Departure Mono · 11px", cozette: "Cozette · 13px" },
     PET_ON: "blob", PET_OFF: "off", brandFace: "auto",
     st: { language: "pt-BR", petChoice: "blob", gazeMode: "screen", seatLayout: "row", LIMIT: 4 }
   }, choices, "choicesViewModel")();
@@ -183,8 +181,6 @@ test("every dropdown in the settings offers what the app knows and marks what is
   assert.deepEqual(model.visual.map((one) => one.value), ["lean", "full"]);
   assert.equal(model.visualWorn, "full");
   assert.equal(model.gazeOff, false);
-  assert.deepEqual(model.ckEven.map((one) => one.value), ["off", "on"]);
-  assert.deepEqual(model.ckPixel.map((one) => one.value), ["off", "departure", "cozette"]);
   assert.equal(model.size, 4);
 });
 
@@ -192,7 +188,6 @@ test("the eyes cannot be aimed when there is nobody to aim them", () => {
   const model = run({
     LANGUAGES: [], PET_NAMES: {}, BRAND_NAMES: {}, GAZE_NAMES: {}, LAYOUTS: [], LAYOUT_NAMES: {},
     LOOK_NAMES: {}, LOOK_DEFAULT: "classic", VISUAL_NAMES: {}, visualWorn: () => "lean",
-    COCKPIT_EVEN_NAMES: {}, COCKPIT_STRONG_NAMES: {}, COCKPIT_PIXEL_NAMES: {},
     PET_ON: "blob", PET_OFF: "off", brandFace: "auto",
     st: { language: "en", petChoice: "off", gazeMode: "screen", seatLayout: "grid", LIMIT: 4 }
   }, choices, "choicesViewModel")();
