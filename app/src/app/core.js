@@ -602,9 +602,6 @@ function paintFonts() {
   fill("f-term", st.fontPrefs.terminalSize);
   fill("f-chat-line", st.fontPrefs.chatLineHeight);
   fill("f-chat-gap", st.fontPrefs.chatSpacing);
-  fill("f-ck-even", st.fontPrefs.cockpitEven ? "on" : "off");
-  fill("f-ck-strong", st.fontPrefs.cockpitStrong ? "on" : "off");
-  fill("f-ck-pixel", st.fontPrefs.cockpitPixel || "off");
   $("cfg-path").textContent = st.configPath;
   const ignored = $("cfg-ignored");
   ignored.textContent = st.configIgnored ? phrase("{n} — the default is in use until that line is fixed", { n: st.configIgnored }) : "";
@@ -621,10 +618,7 @@ function fontFromPanel() {
     mono: $("f-mono").value.trim() || st.fontDefaults.mono,
     terminalSize: size >= low && size <= high ? Math.round(size) : st.fontDefaults.terminalSize,
     chatLineHeight: line >= 1 && line <= 2.5 ? line : st.fontDefaults.chatLineHeight,
-    chatSpacing: gap >= 0 && gap <= 40 ? Math.round(gap) : st.fontDefaults.chatSpacing,
-    cockpitEven: $("f-ck-even").value === "on",
-    cockpitStrong: $("f-ck-strong").value === "on",
-    cockpitPixel: $("f-ck-pixel").value || "off"
+    chatSpacing: gap >= 0 && gap <= 40 ? Math.round(gap) : st.fontDefaults.chatSpacing
   };
 }
 

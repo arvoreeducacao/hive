@@ -250,10 +250,6 @@ function applyFonts(font) {
   document.documentElement.style.setProperty("--mono", mono);
   document.documentElement.style.setProperty("--chat-line", String(font.chatLineHeight));
   document.documentElement.style.setProperty("--chat-gap", `${font.chatSpacing}px`);
-  document.body.classList.toggle("ck-even", !!font.cockpitEven);
-  document.body.classList.toggle("ck-strong", !!font.cockpitStrong);
-  if (font.cockpitPixel && font.cockpitPixel !== "off") document.body.dataset.ckPixel = font.cockpitPixel;
-  else delete document.body.dataset.ckPixel;
   TERM_LOOK.fontFamily = mono;
   TERM_LOOK.fontSize = font.terminalSize;
   for (const e of pool.values()) {
