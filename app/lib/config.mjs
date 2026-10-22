@@ -12,8 +12,12 @@ export const FONT_DEFAULTS = {
   mono: 'ui-monospace, SFMono-Regular, Menlo, monospace',
   terminalSize: 12,
   chatLineHeight: 1.55,
-  chatSpacing: 10
+  chatSpacing: 10,
+  cockpitEven: false,
+  cockpitStrong: false,
+  cockpitPixel: "off"
 };
+export const COCKPIT_PIXEL_CHOICES = ["off", "departure", "cozette"];
 const TERMINAL_SIZE_RANGE = [8, 32];
 export const CHAT_LINE_HEIGHT_RANGE = [1, 2.5];
 export const CHAT_SPACING_RANGE = [0, 40];
@@ -54,6 +58,16 @@ export function cleanFont(raw, where, problems) {
     const [low, high] = CHAT_SPACING_RANGE;
     if (typeof raw.chatSpacing === "number" && raw.chatSpacing >= low && raw.chatSpacing <= high) font.chatSpacing = Math.round(raw.chatSpacing);
     else problems.push(`${where}: font.chatSpacing should be a number between ${low} and ${high}`);
+  }
+  for (const flag of ["cockpitEven", "cockpitStrong"]) {
+    const value = raw[flag];
+    if (value === undefined) continue;
+    if (typeof value === "boolean") font[flag] = value;
+    else problems.push(`${where}: font.${flag} should be true or false`);
+  }
+  if (raw.cockpitPixel !== undefined) {
+    if (typeof raw.cockpitPixel === "string" && COCKPIT_PIXEL_CHOICES.includes(raw.cockpitPixel.trim())) font.cockpitPixel = raw.cockpitPixel.trim();
+    else problems.push(`${where}: font.cockpitPixel should be ${COCKPIT_PIXEL_CHOICES.join(", ")}`);
   }
   return font;
 }
@@ -492,7 +506,7 @@ export function cleanPatch(patch) {
   if (!isPlainObject(patch)) return { clean, problems: ["the patch should be an object"] };
   if (patch.font !== undefined) {
     const font = cleanFont(patch.font, "patch", problems);
-    clean.font = { sans: font.sans, mono: font.mono, terminalSize: font.terminalSize, chatLineHeight: font.chatLineHeight, chatSpacing: font.chatSpacing };
+    clean.font = { sans: font.sans, mono: font.mono, terminalSize: font.terminalSize, chatLineHeight: font.chatLineHeight, chatSpacing: font.chatSpacing, cockpitEven: font.cockpitEven, cockpitStrong: font.cockpitStrong, cockpitPixel: font.cockpitPixel };
   }
   if (patch.sound !== undefined) clean.sound = cleanSound(patch.sound, "patch", problems);
   if (patch.answered !== undefined) clean.answered = cleanFlag(patch.answered, "answered", "patch", problems, false);
