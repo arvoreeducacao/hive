@@ -145,8 +145,11 @@ test("under lean the cursor is not polled either, and the poll comes back the mo
 test("the main process stops polling for a window nobody can see", () => {
   assert.match(main, /if \(!win\.isVisible\(\) \|\| win\.isMinimized\(\)\) return;/);
   assert.match(main, /const at = screen\.getCursorScreenPoint\(\);/);
-  assert.match(main, /win\.webContents\.send\("hive:gaze-at", \{ x: at\.x - box\.x, y: at\.y - box\.y \}\);/,
+  assert.match(main, /const point = \{ x: at\.x - box\.x, y: at\.y - box\.y \};/,
     "the point arrives relative to the content, so the page reads it as a client point");
+  assert.match(main, /if \(key === said\) return;\s*said = key;\s*win\.webContents\.send\("hive:gaze-at", point\);/,
+    "a cursor that did not move sends nothing");
+  assert.match(main, /const GAZE_MS = 1000 \/ 24;/, "and it asks no more often than the face is drawn");
   assert.match(main, /win\.once\("closed", \(\) => stopCursor\(win\)\);/, "a closed window takes its timer with it");
   assert.match(preload, /watch: \(on\) => ipcRenderer\.send\("hive:gaze", !!on\)/);
 });

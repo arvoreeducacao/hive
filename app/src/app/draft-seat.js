@@ -2,7 +2,7 @@ import { render } from "./arrange.js";
 import { activeItems, blockWithRoom, openBlock, saveBlocks } from "./blocks.js";
 import { AGENT_NAMES, artifactTabOf, draftCarriesEffort, openSeatPicker, paintPills, paintWebOfChat, refreshCatalog, seatAgent, shelfLinkOf, weaveHandles, webOfSeat } from "./chat-and-panes.js";
 import { SV_FLOOR, continueListOnShiftEnter, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
-import { COMPOSER_MIN, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
+import { COMPOSER_MIN, IS_MAC, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
 import { closeTile, focusSeat, pull, releaseKeyboard } from "./focus-navigation.js";
 import { jobName, justCreated } from "./leader-key.js";
 import { providerReady, pullAccounts, readyAgents } from "./providers.js";
@@ -171,7 +171,7 @@ function draftHost(d) {
     kev.stopPropagation();
     if (menu.key(kev)) return;
     if (continueListOnShiftEnter(kev, textarea)) return;
-    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value); }
+    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value, !kev.altKey && (IS_MAC ? kev.metaKey : kev.ctrlKey)); }
     if (kev.key === "Escape") {
       kev.preventDefault();
       if (!textarea.value.trim()) return void discardDraft(d);
@@ -222,12 +222,12 @@ async function hubFiles(where, q) {
   return { files: (r?.files || []).map((row) => `${row.repo}/${row.path}`), error: r?.error || "" };
 }
 
-let draftAgain = false;
+let behindAllowed = false;
 
-/* a structure that lists chats on the side wants Enter to send the chat off on its own and hand
-   back a clean composer, the way T3 Code lets one more thread start while the last one works. */
-function keepDraftingAfterSend(on) {
-  draftAgain = !!on;
+/* a structure that lists chats on the side lets mod+enter send the chat off on its own and hand
+   back a clean composer, the way T3 Code starts a thread in the background. plain enter opens it. */
+function allowSendingBehind(on) {
+  behindAllowed = !!on;
 }
 
 function newDraft() {
@@ -308,7 +308,7 @@ function discardDraft(d) {
   render();
 }
 
-async function sendDraft(d, text) {
+async function sendDraft(d, text, behind = false) {
   const picker = pickerCommandOf(text);
   if (picker) {
     const textarea = d.e.host.querySelector("textarea");
@@ -366,7 +366,7 @@ async function sendDraft(d, text) {
     if (st.webChat === d.key) st.webChat = born;
     if (st.blocks.some((b) => b.keys.includes(born))) st.open = born;
   }
-  if (draftAgain) {
+  if (behind && behindAllowed) {
     openDraft();
     return;
   }
@@ -483,4 +483,4 @@ document.addEventListener("hive:experience", (event) => {
   for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, raycastOn());
 });
 
-export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, attachFilesToDraft, keepDraftingAfterSend, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };
+export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, allowSendingBehind, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };

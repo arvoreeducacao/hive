@@ -9,7 +9,7 @@ export const BASE = {
   orange: "#ff812e",
   amber: "#e0af68",
   green: "#9fcf9a",
-  turquoise: "#4fbbbc",
+  turquoise: "#4e9ebc",
   blue: "#7dcfff",
   purple: "#a08fd0",
   pink: "#e58bb0"
@@ -343,7 +343,7 @@ export function lookDeltas(spec, dYaw, dPitch) {
   return [d, { ...d }];
 }
 
-const SACCADES = [
+export const SACCADES = [
   { at: 0, yaw: 0, pitch: 0 },
   { at: 17, yaw: 7.5, pitch: -2.5 },
   { at: 38, yaw: 2, pitch: 4 },
@@ -352,20 +352,6 @@ const SACCADES = [
   { at: 88, yaw: 5, pitch: 2 },
   { at: 100, yaw: 0, pitch: 0 }
 ];
-
-function lookKeyframes(spec, id) {
-  const frames = [];
-  for (let s = 0; s < SACCADES.length; s++) {
-    const step = SACCADES[s];
-    const d = lookDeltas(spec, step.yaw, step.pitch)[0];
-    if (s > 0) {
-      const prev = lookDeltas(spec, SACCADES[s - 1].yaw, SACCADES[s - 1].pitch)[0];
-      frames.push(`${Math.max(0, step.at - 3)}% { transform: translate(${prev.dx}px, ${prev.dy}px); }`);
-    }
-    frames.push(`${step.at}% { transform: translate(${d.dx}px, ${d.dy}px); }`);
-  }
-  return `@keyframes ${id}-look0 { ${frames.join(" ")} }@keyframes ${id}-look1 { ${frames.join(" ")} }`;
-}
 
 export function screenSvg(spec, id, look, { eyes = null, eyeAlpha = 1, tint = 0, blush = 0, red = 0, glow = 0.5, live = false } = {}) {
   const body = bodyOf(spec.shape);
@@ -376,7 +362,7 @@ export function screenSvg(spec, id, look, { eyes = null, eyeAlpha = 1, tint = 0,
   const eyeFill = red > 0.5 ? ALARM : tone.eye;
   const shapes = eyes || eyeShapes(look, parseWear(spec.wear).glasses);
   const wrap = (e, i, inner) => (live
-    ? `<g class="av-seat" data-eye="${i}" transform="translate(0 ${n2(cy)})" style="--av-look:${id}-look${i}"><g class="av-look">${inner}</g></g>`
+    ? `<g class="av-seat" data-eye="${i}" transform="translate(0 ${n2(cy)})"><g class="av-look">${inner}</g></g>`
     : `<g transform="translate(0 ${n2(cy)})">${inner}</g>`);
   const moved = (e, inner) => (e.transform ? `<g transform="${e.transform}">${inner}</g>` : inner);
   const drawn = shapes.map((e, i) => wrap(e, i, moved(e, eyeEl(e, eyeFill, live && e.kind === "rect" ? 'class="av-eye"' : "")))).join("");
@@ -385,7 +371,7 @@ export function screenSvg(spec, id, look, { eyes = null, eyeAlpha = 1, tint = 0,
   const shift = shapes[0] && shapes[0].shift ? shapes[0].shift : { dx: 0, dy: 0 };
   const bridge = glasses && GLASSES_LOOKS.includes(look) && shapes.length === 2
     ? (live
-      ? `<g class="av-seat" data-eye="0" transform="translate(0 ${n2(cy)})" style="--av-look:${id}-look0"><g class="av-look">${strokeEl(bridgeOf(shapes), eyeFill, 6)}</g></g>`
+      ? `<g class="av-seat" data-eye="0" transform="translate(0 ${n2(cy)})"><g class="av-look">${strokeEl(bridgeOf(shapes), eyeFill, 6)}</g></g>`
       : `<g transform="translate(${n2(shift.dx)} ${n2(cy + shift.dy)})">${strokeEl(bridgeOf(shapes), eyeFill, 6)}</g>`)
     : "";
   const alpha = eyeAlpha < 0.995 ? ` opacity="${n2(eyeAlpha)}"` : "";
@@ -701,6 +687,5 @@ export function avatarSvg(spec, opts = {}) {
   const span = BOX * 2;
   const beat = idleRhythm(safe);
   const clock = ` style="--av-breath:${beat.breath}s;--av-sway:${beat.sway}s;--av-blink:${beat.every}s;--av-blink-at:${beat.at}s;--av-glance:${beat.glance}s;--av-glance-at:${beat.glanceAt}s"`;
-  const motion = `<style>${lookKeyframes(safe, id)}</style>`;
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-BOX} ${-BOX} ${span} ${span}"${size} ${role} class="${opts.class || "avatar"}"${clock}>${label}${motion}<g>${bodySvg(dressed, id, { live: true })}</g></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-BOX} ${-BOX} ${span} ${span}"${size} ${role} class="${opts.class || "avatar"}"${clock}>${label}<g>${bodySvg(dressed, id, { live: true })}</g></svg>`;
 }

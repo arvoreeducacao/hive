@@ -7,6 +7,7 @@ const { $ } = await app("core");
 const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { tiles } = await app("leader-key");
+const { forgetSeat } = await app("blocks");
 
 const answered = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
 const realFetch = globalThis.fetch;
@@ -50,6 +51,7 @@ function measuredIn(names, leaving) {
   const seen = [];
   const real = el.getBoundingClientRect;
   el.getBoundingClientRect = function (...args) { seen.push(canvas.className); return real.apply(this, args); };
+  forgetSeat(leaving);
   st.data.sessions = names.filter((one) => one !== leaving).map(seat);
   render();
   el.getBoundingClientRect = real;

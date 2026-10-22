@@ -27,6 +27,13 @@ const onRail = () => railViewModel().groups.flatMap((g) => g.items.map((it) => i
 
 const onGrid = () => st.blocks.flatMap((b) => b.keys);
 
+const afterTheGrace = (step) => {
+  const realNow = Date.now;
+  const later = realNow() + 61000;
+  Date.now = () => later;
+  try { step(); } finally { Date.now = realNow; }
+};
+
 test("a hidden idle chat leaves the grid and the rail, and comes back the moment it works again", () => {
   hidden.clear();
   lay(["a", "b"]);
@@ -67,6 +74,7 @@ test("a hidden chat that closes is forgotten", () => {
   hideSeat("b");
   live({ a: "idle" });
   tidy();
+  afterTheGrace(tidy);
   assert.equal(hidden.size, 0);
 });
 

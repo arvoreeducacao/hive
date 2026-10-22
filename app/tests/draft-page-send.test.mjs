@@ -10,7 +10,7 @@ const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { webOfSeat } = await app("chat-and-panes");
 const { openPageInASeat } = await app("page-in-a-seat");
-const { drafts, sendDraft } = await app("draft-seat");
+const { allowSendingBehind, drafts, sendDraft } = await app("draft-seat");
 
 const SHELF = {
   repo: "https://github.com/acme/artifacts",
@@ -94,4 +94,19 @@ test("a link the person already pasted is not pasted twice", async () => {
   const d = await pageDraft();
   await sendDraft(d, "me explica hive://shelf/guarda-roupa-do-avatar-do-hive?tab=documento");
   assert.equal(spawned.prompt, "me explica hive://shelf/guarda-roupa-do-avatar-do-hive?tab=documento");
+});
+
+test("in the inbox, enter opens the new chat and mod+enter leaves it behind a clean draft", async () => {
+  allowSendingBehind(true);
+  try {
+    hive();
+    await sendDraft(await pageDraft(), "me explica esse rfc");
+    assert.equal(st.open, "job:n1", "plain enter left the person on the empty draft instead of the chat");
+    hive();
+    await sendDraft(await pageDraft(), "me explica esse rfc", true);
+    assert.notEqual(st.open, "job:n1", "mod+enter took the person into the chat it should have left behind");
+    assert.equal(drafts.size, 1, "mod+enter should hand back a clean draft");
+  } finally {
+    allowSendingBehind(false);
+  }
 });

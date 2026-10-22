@@ -6,9 +6,9 @@ import { app, state, dom, views } from "./dom.mjs";
 const st = await state();
 await views();
 const { applyBindings } = await app("shared");
-const { isLeader, silenced, whichAction, whichChord } = await app("brand-face");
+const { chordStep, isLeader, keyLabel, silenced, whichAction, whichChord } = await app("brand-face");
 const { $, ACTION_GROUPS, ACTIONS, DEFAULT_KEYS, formatKey, overrides } = await app("core");
-const { captureKey, keyHint, literalOf } = await app("leader-key");
+const { armLeader, captureKey, disarmLeader, keyHint, literalOf, resolveLeader, showWhich } = await app("leader-key");
 await app("themes");
 
 const apply = (file) => applyBindings(file);
@@ -310,4 +310,71 @@ test("each level prints its own ceiling: the block holds four seats, the ruler h
 test("a level of the digit family only takes a digit, the same way the seat always did", () => {
   assert.deepEqual(apply({ block: "alt+k" }), ["block: alt+k is the 1…9 family, so it takes digit"]);
   assert.equal(whichAction(ev("Digit2", { alt: true })).action, "block");
+});
+
+const press = (code, mods = {}) => ({ ...ev(code, mods), preventDefault() {}, stopPropagation() {} });
+
+test("out of the box no chord is a sequence, so no key opens a layer", () => {
+  apply({ leader: "on" });
+  assert.equal(Object.values(st.chords).filter((b) => b?.then).length, 0);
+  assert.equal(chordStep(ev("KeyS")).action, "threads");
+});
+
+test("a chord written as a sequence opens a layer, and the default on its first key steps aside", () => {
+  assert.deepEqual(apply({ leader: "on", "leader.new": "s n", "leader.kill": "s k" }), []);
+  assert.equal(whichChord(ev("KeyS")), null);
+  const step = chordStep(ev("KeyS"));
+  assert.deepEqual(step.layer.open.map(([a]) => a).sort(), ["kill", "new"]);
+  assert.deepEqual(chordStep(ev("KeyN"), step.layer), { action: "new" });
+  assert.deepEqual(chordStep(ev("KeyK"), step.layer), { action: "kill" });
+  assert.equal(chordStep(ev("KeyY"), step.layer), null);
+  assert.equal(st.chords.threads, null);
+  assert.equal(keyHint("new"), "Ctrl+N");
+  assert.equal(keyLabel(st.chords.new), "S N");
+});
+
+test("a sequence goes back out of the file the way it came in", () => {
+  apply({ leader: "on", "leader.new": "s n", "leader.threads": "s s" });
+  assert.deepEqual(overrides(), { leader: "on", "leader.new": "s n", "leader.threads": "s s" });
+});
+
+test("the digit family can end a layer, and the digit reaches the action", () => {
+  assert.deepEqual(apply({ leader: "on", "leader.seat": "w digit", "leader.sendBlock": "w alt+digit" }), []);
+  const step = chordStep(ev("KeyW"));
+  assert.deepEqual(chordStep(ev("Digit3"), step.layer), { action: "seat", digit: 3 });
+  assert.deepEqual(chordStep(ev("Digit2", { alt: true }), step.layer), { action: "sendBlock", digit: 2 });
+  assert.deepEqual(apply({ leader: "on", "leader.seat": "w s" }), ["leader.seat: w s is the 1…9 family, so it takes digit"]);
+});
+
+test("two layers you wrote that collide are called out, never settled for you", () => {
+  assert.deepEqual(apply({ leader: "on", "leader.prs": "z", "leader.new": "z n" }), ["ctrl+b z n on new: prs already has ctrl+b z"]);
+  assert.equal(whichChord(ev("KeyZ")).action, "prs");
+  assert.equal(st.chords.new, null);
+});
+
+test("after the leader the band walks the layer, and esc gives up at any depth", () => {
+  apply({ leader: "on", "leader.new": "s n", "leader.kill": "s k" });
+  armLeader();
+  resolveLeader(press("KeyS"));
+  assert.equal(st.pending, true);
+  assert.equal(st.layer.depth, 1);
+  assert.match($("mode-txt").textContent, /Ctrl\+B S/);
+  showWhich();
+  assert.match($("which-head").textContent, /Ctrl\+B S/);
+  const rows = [...$("which-grid").children].map((one) => one.textContent);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.some((one) => /^N/.test(one)) && rows.some((one) => /^K/.test(one)));
+  resolveLeader(press("Escape"));
+  assert.equal(st.pending, false);
+  assert.equal(st.layer, null);
+});
+
+test("at the top the band shows a layer as one row with what waits under it", () => {
+  apply({ leader: "on", "leader.new": "s n", "leader.kill": "s k" });
+  armLeader();
+  showWhich();
+  const rows = [...$("which-grid").children].map((one) => one.textContent);
+  assert.equal(rows.filter((one) => /^S\+/.test(one)).length, 1);
+  assert.ok(rows.some((one) => /^S\+ new chat · kill the focused chat$/.test(one)));
+  disarmLeader();
 });

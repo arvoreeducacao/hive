@@ -40,6 +40,7 @@ test("the pane opening or closing does not wake the seat, and the state says who
   const driver = readFileSync(new URL("../engine/driver.mjs", import.meta.url), "utf8");
   assert.match(driver, /asleep: sleeping, watched, tasks: backgroundTasks\.size/);
   assert.match(driver, /const sleepAfter = \(\) => sleepAfterMs\(process\.env, \{ watched \}\)/);
-  assert.match(driver, /tasks: backgroundTasks\.size,\s*\}\);/);
-  assert.match(driver, /noteTasks\(message\);\s*emit\(message\);/);
+  assert.match(driver, /tasks: backgroundTasks\.size \};/);
+  assert.match(driver, /sleepVerdict\(\{ \.\.\.seatOccupation\(\), now: Date\.now\(\), lastActivity, afterMs: sleepAfter\(\) \}\)/);
+  assert.match(driver, /noteTasks\(message\);\s*emit\(idleCompactTurn \? idleTagged\(message\) : message\);/);
 });

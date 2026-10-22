@@ -71,6 +71,18 @@ test("the open code is on screen with its countdown, and vanishes when there is 
   assert.equal(screen(full()).querySelector(".pt-code"), null);
 });
 
+test("a service is connected by a code of its own, says it only opens chats, and can be taken out", () => {
+  const service = { fingerprint: "SHA256:service", name: "ticket bot", kind: "service", pairedAt: NOW - 3600000, lastSeen: NOW, revoked: false };
+  const devices = screen(full({ devices: [service], pairing: { code: "PT7KQ2MJ", expiresAt: NOW + 1700000, kind: "service" } })) && zoneOf(0);
+  assert.ok(devices.querySelector('h3 [data-pt="pair-service"]'), "there is no way to connect a service");
+  assert.match(devices.querySelector(".pt-code small").textContent, /give the service https:\/\/pod-jonas\.hive\.hive\.example\/sync and this code/);
+  const row = devices.querySelector(".pt-row");
+  assert.match(row.querySelector("small").textContent, /a service · only opens new chats/);
+  assert.equal(row.querySelector(".pt-pill").textContent, "service");
+  assert.ok(row.querySelector('[data-pt="revoke"]'), "a service cannot be taken out from the screen");
+  assert.match(server, /op === "pair-service"/);
+});
+
 test("no device at all shows the empty state, not a lonely heading", () => {
   const devices = screen(full({ devices: [] })) && zoneOf(0);
   assert.match(devices.querySelector(".pt-empty").textContent, /no device of yours is here/);

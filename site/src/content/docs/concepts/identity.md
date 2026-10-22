@@ -75,6 +75,22 @@ signature scheme as everything else.
 routes that answer without a signature — the other being `GET /health`. Neither
 returns anything about anybody.
 
+## A service opens chats, and nothing else
+
+Something that is not a person can be let in too: a bot that triages requests
+and wants a chat opened on the machine of whoever picked one up. It pairs like a
+phone, with a code — but a code opened as **connect a service**, and it comes in
+as `kind: "service"`.
+
+A service may read who it is (`GET /me`), see the machines that can open a chat
+for its person (`GET /seats`, with no seats in it), and ask for a chat
+(`/births`). Everything else answers 403: it reads no chat, types into none,
+listens to no stream and invites nobody.
+
+What it asks for waits on the server for a day, where a phone's ask goes stale
+in minutes: the machine may be closed, and the chat should still open when it
+comes back. Revoking it is the same one entry removed from one list.
+
 ## Where your key lives
 
 Your key sits in your Hive state directory, alongside the rest of what the

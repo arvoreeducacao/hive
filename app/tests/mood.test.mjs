@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MOODS, MOOD_BREATH, moodOf, fleetMood, playOfMood } from "../assets/mood.mjs";
+import { AMPLITUDE } from "../assets/avatar/idle-clock.mjs";
 
 const HERE = fileURLToPath(new URL("..", import.meta.url));
 const server = readFileSync(join(HERE, "server.mjs"), "utf8");
@@ -113,27 +114,13 @@ test("the strip and the update flash on the edge, and never at launch", () => {
 });
 
 test("the mug's ambient is sized for a mug, not inherited from the big face", () => {
-  /* 2.8% of a 104px face is a chest rising. 2.8% of the 20px mug is 0.35 of one pixel, which is
-     why it has looked frozen: the amplitude was picked on the big face and inherited by the small
-     one. this asserts the movement in pixels, because percentages are what hid the bug. */
-  const at = (name) => {
-    const m = page.match(new RegExp(`@keyframes ${name}[\\s\\S]*?50% \\{ transform: scale\\(([\\d.]+), ([\\d.]+)\\)`));
-    assert.ok(m, `${name} is missing`);
-    return Number(m[2]);
-  };
   const size = Number(page.match(/\.brand \.mug \{ width: (\d+)px/)?.[1]);
   assert.ok(size, "could not read the mug's size out of the css");
-  const travel = size * (at("av-breath-mug") - 1) * 0.62;
+  const travel = size * AMPLITUDE.mug.breath[1] * 0.62;
   assert.ok(travel > 1, `the mug still only moves ${travel.toFixed(2)}px, which nobody can see`);
   assert.ok(travel < size / 8, `${travel.toFixed(2)}px on a ${size}px face is a bounce, not a breath`);
-  assert.match(page, /\.brand \.mug\.av-alive svg \{ animation-name: av-breath-mug; \}/);
-  assert.match(page, /\.brand \.mug\.av-alive \.avatar > g \{ animation-name: av-sway-mug; \}/);
-  /* there is more than one reduced-motion block in the page; the one that matters is the block
-     that turns the avatar off, so find it by what it contains rather than by being first. */
-  const from = page.indexOf(".av-alive svg, .av-alive .avatar > g");
-  assert.ok(from > 0, "the avatar's reduced-motion block moved");
-  const reduced = page.slice(from, page.indexOf("}", page.indexOf(".av-follow .av-look { transition: none; }", from)));
-  assert.match(reduced, /\.brand \.mug\.av-alive svg, \.brand \.mug\.av-alive \.avatar > g \{ animation: none; \}/,
+  assert.ok(AMPLITUDE.mug.sway > AMPLITUDE.face.sway, "the small face sways wider than the big one");
+  assert.match(page, /@media \(prefers-reduced-motion: reduce\) \{\s*\.av-alive \{ --av-still: 1; \}/,
     "the louder ambient must still switch off for whoever asked for less motion");
 });
 

@@ -1,4 +1,5 @@
 export const QUIET_DAYS_OFF = 0;
+export const QUIET_DAYS_DEFAULT = 2;
 export const QUIET_DAYS_RANGE = [1, 90];
 export const QUIET_SWEEP_EVERY_MS = 60 * 60 * 1000;
 
@@ -6,11 +7,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BUSY_STATES = new Set(["working", "needs"]);
 
 export function cleanQuietDays(raw, where, problems) {
-  if (raw === undefined || raw === null || raw === "" || raw === QUIET_DAYS_OFF || raw === false) return QUIET_DAYS_OFF;
+  if (raw === undefined || raw === null || raw === "") return QUIET_DAYS_DEFAULT;
+  if (raw === QUIET_DAYS_OFF || raw === false) return QUIET_DAYS_OFF;
   const [low, high] = QUIET_DAYS_RANGE;
   if (typeof raw === "number" && Number.isInteger(raw) && raw >= low && raw <= high) return raw;
   problems.push(`${where}: closeQuietAfterDays should be 0 to never close, or a whole number of days from ${low} to ${high}`);
-  return QUIET_DAYS_OFF;
+  return QUIET_DAYS_DEFAULT;
 }
 
 function seatIsBusy(session) {

@@ -38,6 +38,7 @@ function Portaria(props) {
   return (
     <Show when={props.model.zones}>
       <div class="pt-zone"><h3>{props.model.devicesSay} <em>{props.model.devicesCount}</em><span class="grow"></span>
+        <button class="btn" data-pt="pair-service">{props.model.pairServiceSay}</button>
         <button class="btn go" data-pt="pair">{props.model.pairSay}</button></h3>
         <Show when={props.model.code}>
           <div class="pt-code">

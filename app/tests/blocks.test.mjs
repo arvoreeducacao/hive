@@ -4,7 +4,7 @@ import { app, state, views } from "./dom.mjs";
 
 const st = await state();
 await views();
-const { moveSeatToBlock, moveToNewBlock, tidy } = await app("blocks");
+const { forgetSeat, hidden, moveSeatToBlock, moveToNewBlock, tidy } = await app("blocks");
 
 st.LIMIT = 4;
 
@@ -25,6 +25,15 @@ const beforeTheFleetLands = () => {
 };
 
 const goTo = (i) => { st.block = i; };
+
+const realNow = Date.now;
+
+const tidyAfterTheGrace = () => {
+  tidy();
+  const later = realNow() + 61000;
+  Date.now = () => later;
+  try { tidy(); } finally { Date.now = realNow; }
+};
 
 const keysOf = () => st.blocks.map((b) => [...b.keys]);
 
@@ -48,14 +57,14 @@ test("a block that fits whole into the one before it joins it, and the emptied o
 test("a block that does not fit whole gives up nobody — a slice is never taken", () => {
   lay([{ keys: ["a", "b", "c", "d"] }, { keys: ["e", "f"] }]);
   live(["a", "b", "d", "e", "f"]);
-  tidy();
+  tidyAfterTheGrace();
   assert.deepEqual(keysOf(), [["a", "b", "d"], ["e", "f"]]);
 });
 
 test("two blocks left half empty join, in the order they were in", () => {
   lay([{ keys: ["a", "b", "c", "d"] }, { keys: ["e", "f"] }]);
   live(["a", "b", "e", "f"]);
-  tidy();
+  tidyAfterTheGrace();
   assert.deepEqual(keysOf(), [["a", "b", "e", "f"]]);
 });
 
@@ -190,4 +199,56 @@ test("a job still in flight, with no seat yet, keeps its card", () => {
   st.data.spawning = [{ id: "n3", name: "", where: "local", step: "naming", mission: "x" }];
   tidy();
   assert.deepEqual(keysOf(), [["a", "job:n3"]]);
+});
+
+test("a chat missing from one answer of the server keeps its place, and is back where it was when the server lists it again", () => {
+  lay([{ keys: ["a", "b", "c", "d"] }, { keys: ["e", "f"] }]);
+  live(["a", "b", "c", "d", "e", "f"]);
+  tidy();
+  live(["e", "f"]);
+  tidy();
+  assert.deepEqual(keysOf(), [["a", "b", "c", "d"], ["e", "f"]], "a pod or tmux hiccup threw the missing chats out of their blocks");
+  live(["f", "e", "d", "c", "b", "a"]);
+  tidy();
+  assert.deepEqual(keysOf(), [["a", "b", "c", "d"], ["e", "f"]]);
+});
+
+test("an empty answer right after a restart moves nobody", () => {
+  lay([{ keys: ["a", "b", "c"] }, { keys: ["d", "e"] }]);
+  live([]);
+  tidy();
+  live(["a", "b", "c", "d", "e"]);
+  tidy();
+  assert.deepEqual(keysOf(), [["a", "b", "c"], ["d", "e"]]);
+});
+
+test("a chat gone for longer than a minute leaves its place", () => {
+  lay([{ keys: ["a", "b", "c", "d"] }, { keys: ["e", "f"] }]);
+  live(["a", "b", "d", "e", "f"]);
+  tidyAfterTheGrace();
+  assert.deepEqual(keysOf(), [["a", "b", "d"], ["e", "f"]]);
+});
+
+test("a chat the person closes leaves its place at once, without waiting the minute", () => {
+  lay([{ keys: ["a", "b", "c"] }]);
+  live(["a", "b", "c"]);
+  tidy();
+  forgetSeat("b");
+  live(["a", "c"]);
+  tidy();
+  assert.deepEqual(keysOf(), [["a", "c"]]);
+});
+
+test("a hidden chat missing for a moment stays hidden", () => {
+  lay([{ keys: ["a"] }]);
+  live(["a", "b"]);
+  hidden.set("b", { armed: true });
+  tidy();
+  live(["a"]);
+  tidy();
+  live(["a", "b"]);
+  tidy();
+  assert.ok(hidden.has("b"), "a hidden chat came back into the grid after a hiccup");
+  assert.deepEqual(keysOf(), [["a"]]);
+  hidden.delete("b");
 });

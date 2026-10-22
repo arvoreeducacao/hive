@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cleanQuietDays, seatsGoneQuiet, quietReason, QUIET_DAYS_OFF } from "../lib/quiet-seats.mjs";
+import { cleanQuietDays, seatsGoneQuiet, quietReason, QUIET_DAYS_OFF, QUIET_DAYS_DEFAULT } from "../lib/quiet-seats.mjs";
 import { cleanPatch } from "../lib/config.mjs";
 import { archiveEntry, seatFromArchive } from "../lib/fleet.mjs";
 import { app, state, views } from "./dom.mjs";
@@ -32,11 +32,12 @@ const quietFor = (lastActive, { sessions = [], days = 7, held } = {}) => seatsGo
   held
 }).map((one) => one.name);
 
-test("an empty or zero setting means chats are never closed", () => {
+test("an unset setting closes chats after 2 days, and only an explicit zero keeps them open", () => {
   const problems = [];
-  assert.equal(cleanQuietDays(undefined, "file", problems), QUIET_DAYS_OFF);
+  assert.equal(QUIET_DAYS_DEFAULT, 2);
+  assert.equal(cleanQuietDays(undefined, "file", problems), QUIET_DAYS_DEFAULT);
+  assert.equal(cleanQuietDays("", "file", problems), QUIET_DAYS_DEFAULT);
   assert.equal(cleanQuietDays(0, "file", problems), QUIET_DAYS_OFF);
-  assert.equal(cleanQuietDays("", "file", problems), QUIET_DAYS_OFF);
   assert.deepEqual(problems, []);
 });
 
@@ -44,9 +45,9 @@ test("a whole number of days from 1 to 90 is kept and anything else is refused o
   const problems = [];
   assert.equal(cleanQuietDays(7, "file", problems), 7);
   assert.equal(cleanQuietDays(90, "file", problems), 90);
-  assert.equal(cleanQuietDays(91, "file", problems), QUIET_DAYS_OFF);
-  assert.equal(cleanQuietDays(2.5, "file", problems), QUIET_DAYS_OFF);
-  assert.equal(cleanQuietDays("7", "file", problems), QUIET_DAYS_OFF);
+  assert.equal(cleanQuietDays(91, "file", problems), QUIET_DAYS_DEFAULT);
+  assert.equal(cleanQuietDays(2.5, "file", problems), QUIET_DAYS_DEFAULT);
+  assert.equal(cleanQuietDays("7", "file", problems), QUIET_DAYS_DEFAULT);
   assert.equal(problems.length, 3);
 });
 
@@ -93,7 +94,7 @@ test("cloud chats are never closed from this machine", () => {
   assert.deepEqual(closed, []);
 });
 
-test("the archive says why the chat was closed", () => {
+test("the log says why the chat was closed", () => {
   assert.equal(quietReason(1), "closed after a day without activity");
   assert.equal(quietReason(7), "closed after 7 days without activity");
 });
@@ -104,26 +105,28 @@ test("a chat brought back from the archive counts its quiet time from the moment
   assert.equal(seatFromArchive(parked).openedAt, undefined);
 });
 
-test("the conversation settings have a field for the days, and empty reads as never", () => {
+test("the conversation settings have a field for the days, and zero shows as zero", () => {
   const field = $("f-quiet-days");
   assert.ok(field, "there is no field for the days");
-  assert.equal(field.getAttribute("placeholder"), "never");
+  assert.equal(field.getAttribute("placeholder"), "2");
   adoptQuietDays({ config: { closeQuietAfterDays: 0 } });
-  assert.equal(field.value, "");
+  assert.equal(field.value, "0");
+  adoptQuietDays({ config: {} });
+  assert.equal(field.value, "2");
   adoptQuietDays({ config: { closeQuietAfterDays: 10 } });
   assert.equal(field.value, "10");
 });
 
-test("what the person types is saved as days, and anything out of range turns the closing off", async () => {
+test("what the person types is saved as days, only zero turns the closing off, and anything else falls back to 2", async () => {
   assert.equal(quietDays(" 5 "), 5);
   assert.equal(quietDays("0"), 0);
-  assert.equal(quietDays("120"), 0);
-  assert.equal(quietDays("abc"), 0);
+  assert.equal(quietDays("120"), 2);
+  assert.equal(quietDays("abc"), 2);
   sent.length = 0;
   setQuietDays("12");
   setQuietDays("");
   await new Promise((done) => setTimeout(done, 0));
-  assert.deepEqual(sent.map((one) => one.body), [{ config: { closeQuietAfterDays: 12 } }, { config: { closeQuietAfterDays: 0 } }]);
+  assert.deepEqual(sent.map((one) => one.body), [{ config: { closeQuietAfterDays: 12 } }, { config: { closeQuietAfterDays: 2 } }]);
 });
 
 test("changing the field saves it", async () => {

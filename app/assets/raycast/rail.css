@@ -191,7 +191,7 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) #shell.rail-min .rail-wt { justify-items: center; gap: 4px; margin: 0; padding: 8px 0 12px; border-top: 0; }
 :where(body.experience-raycast) #shell.rail-min .rail-wt :is(.wt-name, .wt-keys, .wt-track, .wt-sub) { display: none; }
 :where(body.experience-raycast) #shell.rail-min .rail-wt .wt-n { display: block; }
-:where(body.experience-raycast) #shell.rail-min .item.team .av-alive :is(svg, .avatar > g, .av-eye, .av-look, .av-eyes) { animation-play-state: paused; }
+:where(body.experience-raycast) #shell.rail-min .item.team .av-alive { --av-still: 1; }
 @media (max-width: 1100px) {
   :where(body.experience-raycast) #shell { --rail-w: 56px; }
   :where(body.experience-raycast) #shell > #rail-toggle { top: 8px; left: 10px; width: 36px; height: 32px; }

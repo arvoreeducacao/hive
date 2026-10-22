@@ -54,7 +54,7 @@ test("a first message that is only /model, /effort or /account opens that picker
 });
 
 test("sending the draft asks for the picker before anything spawns", () => {
-  const send = slice(draftSeat, "async function sendDraft(d, text) {", "const r = await fetch(\"/api/spawn\"");
+  const send = slice(draftSeat, "async function sendDraft(d, text, behind = false) {", "const r = await fetch(\"/api/spawn\"");
   assert.ok(send.indexOf("pickerCommandOf(text)") < send.indexOf("d.sending = true"), "the picker command is caught before the draft starts sending");
   assert.match(send, /openSeatPicker\(d\.e, picker\)/);
 });
@@ -103,7 +103,7 @@ test("a draft key resolves through the block like a job does, and vanishes with 
 });
 
 test("tidy keeps a draft key only while the draft exists", () => {
-  const kept = slice(blocks, `} else if (c.startsWith("draft:")) {`, `} else if (!alive.has(c)`);
+  const kept = slice(blocks, `} else if (c.startsWith("draft:")) {`, `} else if ((!alive.has(c)`);
   assert.match(kept, /drafts\.has\(c\.slice\(6\)\)/);
 });
 

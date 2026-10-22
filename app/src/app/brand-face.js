@@ -1,7 +1,7 @@
 import { render } from "./arrange.js";
 import { saveAvatar } from "./avatars.js";
 import { adoptNotices, setAnswered, setKnocks, setSound } from "./chimes-and-notices.js";
-import { $, BLOB_FACE, CODE_NAME, IS_MAC, WEAR, nearestFree, overrides, paintFonts, parseWear, phrase, solidMounts, st } from "./core.js";
+import { $, BLOB_FACE, CODE_NAME, chordKeys, IS_MAC, WEAR, nearestFree, overrides, paintFonts, parseWear, phrase, solidMounts, st } from "./core.js";
 import { literalOf, paintKeys } from "./leader-key.js";
 import { paintRail } from "./mirror.js";
 import { adoptExperience } from "./experience.js";
@@ -190,7 +190,8 @@ function keyLabel(b, digit, many) {
   else if (b.code.startsWith("Key")) key = b.code.slice(3);
   else if (/^Digit\d$/.test(b.code)) key = b.code.slice(5);
   else key = CODE_NAME[b.code] || b.code;
-  return IS_MAC ? mods.join("") + key : [...mods, key].join("+");
+  const one = IS_MAC ? mods.join("") + key : [...mods, key].join("+");
+  return b.then?.length ? [one, ...b.then.map((x) => keyLabel(x, digit, many))].join(" ") : one;
 }
 
 const modsMatch = (b, e) => e.altKey === !!b.alt && e.ctrlKey === !!b.ctrl && e.shiftKey === !!b.shift && e.metaKey === !!b.meta;
@@ -208,16 +209,39 @@ const shiftPicksCase = (b) => /^Key[A-Z]$/.test(b.code || "");
 const chordMods = (b, e) => e.altKey === !!b.alt && e.ctrlKey === !!b.ctrl && e.metaKey === !!b.meta
   && (shiftPicksCase(b) ? e.shiftKey === !!b.shift : (!b.shift || e.shiftKey));
 
+function keyHit(b, e) {
+  if (b.code !== "Digit") return codeOf(e) === b.code && chordMods(b, e) ? { digit: undefined } : null;
+  const m = codeOf(e).match(/^Digit([1-9])$/);
+  return m && chordMods(b, e) ? { digit: Number(m[1]) } : null;
+}
+
+/* one key further down the chords: an action when a chord ends here, or the layer of the
+   chords that still go on. layer carries how deep it is and which chords are still open. */
+function chordStep(e, layer) {
+  const depth = layer?.depth || 0;
+  const open = layer?.open || Object.entries(st.chords).filter(([, b]) => b);
+  const hits = open.flatMap(([action, b]) => {
+    const key = chordKeys(b)[depth];
+    const hit = key && keyHit(key, e);
+    return hit ? [{ action, b, key, digit: hit.digit ?? layer?.digit }] : [];
+  }).sort((x, y) => !!y.key.shift - !!x.key.shift);
+  const top = hits[0];
+  if (!top) return null;
+  if (chordKeys(top.b).length === depth + 1) return top.digit ? { action: top.action, digit: top.digit } : { action: top.action };
+  const same = hits.filter((h) => !!h.key.shift === !!top.key.shift && chordKeys(h.b).length > depth + 1);
+  return {
+    layer: {
+      depth: depth + 1,
+      open: same.map((h) => [h.action, h.b]),
+      digit: top.digit,
+      path: [...(layer?.path || []), keyLabel(top.key, top.digit)]
+    }
+  };
+}
+
 function whichChord(e) {
-  const shiftedFirst = Object.entries(st.chords).sort(([, x], [, y]) => !!y?.shift - !!x?.shift);
-  for (const [a, b] of shiftedFirst) {
-    if (!b) continue;
-    if (b.code === "Digit") {
-      const m = codeOf(e).match(/^Digit([1-9])$/);
-      if (m && chordMods(b, e)) return { action: a, digit: Number(m[1]) };
-    } else if (codeOf(e) === b.code && chordMods(b, e)) return { action: a };
-  }
-  return null;
+  const hit = chordStep(e);
+  return hit?.action ? hit : null;
 }
 
 function whichAction(e) {
@@ -231,4 +255,4 @@ function whichAction(e) {
   return null;
 }
 
-export { chordMods, codeOf, faceIsSettled, gateClicks, gateSolid, gateViewModel, hasMod, isLeader, keyLabel, modsMatch, offerFace, onGateClick, paintGate, pickFace, pickWear, reloadConfig, saveBindings, saveConfig, shiftPicksCase, silenced, stripWear, whichAction, whichChord };
+export { chordMods, chordStep, codeOf, faceIsSettled, gateClicks, gateSolid, gateViewModel, hasMod, isLeader, keyLabel, modsMatch, offerFace, onGateClick, paintGate, pickFace, pickWear, reloadConfig, saveBindings, saveConfig, shiftPicksCase, silenced, stripWear, whichAction, whichChord };

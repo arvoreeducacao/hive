@@ -10,6 +10,7 @@ export const FIRST_EVENTS = 400;
 export const TEXT_CEILING = 6000;
 export const SHOT_CEILING = 4 * 1024 * 1024;
 export const INTENT_FRESH_MS = 10 * 60 * 1000;
+export const SERVICE_BIRTH_FRESH_MS = 24 * 60 * 60 * 1000;
 export const MISSION_CEILING = 20000;
 export const SHOT_TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif" };
 export const NOTE_SUBTYPES = new Set(["todo", "interrupted", "exit", "error", "warning", "started", "slept", "woke", "model_changed", "effort_changed", "account_changed", "windowed", "rewound"]);
@@ -336,9 +337,10 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
     const birth = { id: note.id, from: note.from };
     const answer = (said) => device.answerBirth(birth, said).catch((wrong) => log(`sync: could not answer the ask for a new chat: ${wrong.message}`));
     if (!spawn) return answer({ error: "this device does not open chats" });
-    if (Number(note.at) && now() - Number(note.at) > INTENT_FRESH_MS) return answer({ error: "that ask waited too long; ask again" });
+    const freshFor = note.fromKind === "service" ? SERVICE_BIRTH_FRESH_MS : INTENT_FRESH_MS;
+    if (Number(note.at) && now() - Number(note.at) > freshFor) return answer({ error: "that ask waited too long; ask again" });
     const asked = note.mission || {};
-    const mission = { prompt: cut(asked.prompt, MISSION_CEILING), where: asked.where === "cloud" ? "cloud" : "local", name: cut(asked.name, 80), model: cut(asked.model, 120), account: cut(asked.account, 80), repo: cut(asked.repo, 160), branch: cut(asked.branch, 120), agent: cut(asked.agent, 24) };
+    const mission = { prompt: cut(asked.prompt, MISSION_CEILING), where: asked.where === "cloud" ? "cloud" : "local", name: cut(asked.name, 80), model: cut(asked.model, 120), account: cut(asked.account, 80), repo: cut(asked.repo, 160), branch: cut(asked.branch, 120), agent: cut(asked.agent, 24), title: cut(asked.title, 60), errand: cut(asked.errand, 60) };
     if (!mission.prompt.trim() && !mission.name.trim()) return answer({ error: "write what the chat should do" });
     let made;
     try { made = await spawn(mission); } catch (wrong) { made = { error: String(wrong?.message || wrong) }; }

@@ -67,6 +67,13 @@ function hive({ said = [], known = [] } = {}) {
 
 const settle = () => new Promise((then) => setImmediate(then));
 
+const afterTheGrace = (step) => {
+  const realNow = Date.now;
+  const later = realNow() + 61000;
+  Date.now = () => later;
+  try { step(); } finally { Date.now = realNow; }
+};
+
 test("a seat showing a published page comes back as the browser it lives in", async () => {
   hive();
   openTile("ana");
@@ -188,6 +195,7 @@ test("a seat the hive lost takes its note with it", () => {
   assert.equal(paneOfSeat.get("ana").kind, "browser");
   st.data = { ...st.data, sessions: [seat("bia")] };
   render();
+  afterTheGrace(render);
   assert.equal(paneOfSeat.has("ana"), false);
   assert.match(slice(arrange, "for (const [key, el] of tiles) {", "\n  if (!shown.length)", "arrange.js"), /paneOfSeat\.delete\(key\)/);
 });

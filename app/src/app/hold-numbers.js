@@ -160,6 +160,7 @@ window.addEventListener("blur", dropHold);
 document.addEventListener("visibilitychange", () => { if (document.hidden) dropHold(); });
 
 document.addEventListener("keydown", (e) => {
+  st.keyHeld = !!e.repeat;
   trackHold(e);
   if (st.capturing) return captureKey(e);
   if (welcomeOn()) return welcomeKeys(e);

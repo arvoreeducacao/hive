@@ -397,20 +397,22 @@ function setAutocompact(raw) {
 }
 
 const QUIET_DAYS_RANGE = [1, 90];
+const QUIET_DAYS_DEFAULT = 2;
 
 function quietDays(said) {
-  const shape = /^\s*([1-9]\d*)\s*$/.exec(String(said ?? ""));
-  if (!shape) return 0;
+  const shape = /^\s*(\d+)\s*$/.exec(String(said ?? ""));
+  if (!shape) return QUIET_DAYS_DEFAULT;
   const days = Number(shape[1]);
+  if (days === 0) return 0;
   const [low, high] = QUIET_DAYS_RANGE;
-  return days >= low && days <= high ? days : 0;
+  return days >= low && days <= high ? days : QUIET_DAYS_DEFAULT;
 }
 
 function adoptQuietDays(r) {
   const field = $("f-quiet-days");
   if (!field || field === document.activeElement) return;
   const days = quietDays(r.config?.closeQuietAfterDays);
-  field.value = days ? String(days) : "";
+  field.value = String(days);
 }
 
 function setQuietDays(raw) {
@@ -439,4 +441,4 @@ function setDiaryDays(raw) {
   saveConfig({ pruneDiariesAfterDays: diaryDays(raw) }).then((r) => adoptDiaryDays(r)).catch(() => {});
 }
 
-export { QUIET_DAYS_RANGE, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, BAR_KEY, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };
+export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, BAR_KEY, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };

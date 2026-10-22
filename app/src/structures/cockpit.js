@@ -396,7 +396,7 @@ const cockpit = {
     if (dom.grid) paintCockpit(ctx);
   },
   keydown(event, ctx) {
-    if (st.pending) return leaderKey(event, ctx);
+    if (st.pending && !st.layer) return leaderKey(event, ctx);
     if (numbersOn) return numbersKey(event, ctx);
     return false;
   },

@@ -407,6 +407,7 @@ export function compactLine(event) {
     if (event.subtype === "question_answered") return `answered ${event.id}`;
     if (event.subtype === "question_dismissed") return `dropped ${event.id} — said in the chat instead`;
     if (event.subtype === "interrupted") return `interrupted in ${event.ms}ms`;
+    if (event.subtype === "compact_asked" && event.idle) return `compacting while idle, before the cache expires (${Math.round((event.tokens || 0) / 1000)}k)`;
     if (event.subtype === "compact_asked") return event.queued ? "compact asked — queued behind the turn" : "compact asked";
     return `driver ${event.subtype}`;
   }

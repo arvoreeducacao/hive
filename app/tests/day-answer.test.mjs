@@ -285,3 +285,19 @@ test("an init the driver re-emits after a turn ended (a reconnect, a reopen) doe
   assert.equal(idle.working, false);
   assert.equal(idle.model, "gpt-5.6-luna");
 });
+
+test("a compaction run while the seat sat idle is not what the seat left for the person", () => {
+  const info = parseStructuredTail(log(
+    { seq: 1, type: "system", subtype: "init", model: "claude-opus-5-5" },
+    { seq: 2, type: "user", message: { role: "user", content: "oi" } },
+    { seq: 3, type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "pronto, o PR tá aberto" }] } },
+    { seq: 4, type: "result", subtype: "success", is_error: false, result: "pronto, o PR tá aberto", ts: "2026-10-21T18:00:00.000Z" },
+    { seq: 5, type: "driver", subtype: "compact_asked", idle: true, tokens: 300000 },
+    { seq: 6, type: "system", subtype: "compact_boundary", compact_metadata: { trigger: "idle", pre_tokens: 300000, post_tokens: 20000 } },
+    { seq: 7, type: "user", message: { role: "user", content: "This session is being continued from a previous conversation…" } },
+    { seq: 8, type: "result", subtype: "success", is_error: false, num_turns: 0, result: "", idle_compact: true },
+  ));
+  assert.equal(info.working, false);
+  assert.equal(info.finish.seq, 4);
+  assert.equal(info.finish.text, "pronto, o PR tá aberto");
+});

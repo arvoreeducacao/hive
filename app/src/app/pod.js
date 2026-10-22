@@ -552,7 +552,7 @@ st.portariaLink = "";
 
 const portariaOnScreen = () => !$("portaria").hidden;
 
-const KIND_GLYPH = { phone: "i-screen", mac: "i-local", pod: "i-cloud", peer: "i-user" };
+const KIND_GLYPH = { phone: "i-screen", mac: "i-local", pod: "i-cloud", peer: "i-user", service: "i-plug" };
 
 function ptAgo(at) {
   if (!at) return phrase("never");
@@ -590,6 +590,7 @@ function ptDeviceLine(one) {
     return phrase("another machine of yours · {when}", { when: ptAgo(one.lastSeen) });
   }
   if (one.kind === "pod") return phrase("in the cloud · {when}", { when: ptAgo(one.lastSeen) });
+  if (one.kind === "service") return phrase("a service · only opens new chats · paired {when}", { when: ptAgo(one.pairedAt) });
   return phrase("paired {when}", { when: ptAgo(one.pairedAt) });
 }
 
@@ -605,6 +606,7 @@ let portariaSolid = null;
 function ptPillModel(one) {
   if (one.kind === "phone") return one.online ? { cls: "pt-pill ok", say: phrase("reading") } : { cls: "pt-pill wait", say: phrase("paired") };
   if (one.kind === "pod") return { cls: "pt-pill cloud", say: phrase("cloud") };
+  if (one.kind === "service") return { cls: "pt-pill ok", say: phrase("service") };
   return { cls: "pt-pill ok", say: phrase("inside") };
 }
 
@@ -630,17 +632,19 @@ function portariaViewModel() {
       door
     ].filter(Boolean).join(" · "),
     zones: true, error: "",
-    devicesSay: phrase("devices"), devicesCount: devices.length, pairSay: phrase("pair a device"),
+    devicesSay: phrase("devices"), devicesCount: devices.length, pairSay: phrase("pair a device"), pairServiceSay: phrase("connect a service"),
     code: st.portaria.pairing ? {
       num: st.portaria.pairing.code,
-      say: phrase("open {url} on the phone and type it · {left} left · works once · five wrong tries close it", { url: phoneSaid.host ? phoneSaid.host.replace(/\/sync$/, "/phone/") : "the hive address, /phone/", left: ptLeft(st.portaria.pairing.expiresAt) }),
+      say: st.portaria.pairing.kind === "service"
+        ? phrase("give the service {url} and this code · {left} left · works once · it can only open new chats", { url: phoneSaid.host || "the hive address, /sync", left: ptLeft(st.portaria.pairing.expiresAt) })
+        : phrase("open {url} on the phone and type it · {left} left · works once · five wrong tries close it", { url: phoneSaid.host ? phoneSaid.host.replace(/\/sync$/, "/phone/") : "the hive address, /phone/", left: ptLeft(st.portaria.pairing.expiresAt) }),
       close: phrase("close")
     } : null,
     devices: devices.map((one) => ({
       key: one.fingerprint, icon: KIND_GLYPH[one.kind] || "i-user", title: one.name, said: ptDeviceLine(one),
       pill: ptPillModel(one),
-      ghost: one.kind === "phone" ? "" : phrase("always"),
-      acts: one.kind === "phone" ? ptDeviceActModels(one) : []
+      ghost: one.kind === "phone" || one.kind === "service" ? "" : phrase("always"),
+      acts: one.kind === "phone" || one.kind === "service" ? ptDeviceActModels(one) : []
     })),
     devicesEmpty: { head: phrase("no device of yours is here"), say: phrase("a phone comes in with an eight-letter code") },
     behind: phoneSaid.error ? phrase("the phones could not be listed: {why}", { why: phoneSaid.error }) : phoneSaid.why || "",

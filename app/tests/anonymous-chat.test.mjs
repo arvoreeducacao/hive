@@ -58,7 +58,7 @@ test("an anonymous draft is never what the next new chat opens on", () => {
 });
 
 test("an anonymous draft does not seed a shelf page, reach other chats by @, or search the hub", () => {
-  const send = slice(draftSeat, "async function sendDraft(d, text) {", "const r = await fetch(\"/api/spawn\"");
+  const send = slice(draftSeat, "async function sendDraft(d, text, behind = false) {", "const r = await fetch(\"/api/spawn\"");
   assert.match(send, /const art = anon \? null : artifactTabOf\(d\.key\)/);
   assert.match(send, /anon \? \{ text: marked\.text \} : weaveHandles\(/);
   assert.match(slice(draftSeat, "async function hubFiles(where, q) {", "\n}\n"), /if \(where === DRAFT_ANONYMOUS\) return \{ files: \[\], error: "" \};/);
