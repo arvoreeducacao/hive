@@ -1204,7 +1204,7 @@ function parseStructuredTail(tail) {
       sawLive = true;
       continue;
     }
-    if (e.type === "result") { lastResult = e.seq; finish = finishOf(e); continue; }
+    if (e.type === "result") { lastResult = e.seq; if (!e.idle_compact) finish = finishOf(e); continue; }
     if (e.type === "assistant" || e.type === "user" || e.type === "stream_event") lastActivity = e.seq;
     if (e.type === "system" && e.subtype === "init") { model = e.model || model; sessionId = e.session_id || sessionId; if (!lastResult) lastActivity = e.seq; }
   }
@@ -2344,6 +2344,7 @@ async function mirrorOneToShelf({ session, where, path, label, url, at, tab, reo
 }
 
 const screenbookApi = (route) => shr("gh", ["api", route], { timeout: 30000, maxBuffer: 16 << 20 });
+const screenbookToken = async () => { const asked = await shr("gh", ["auth", "token"], { timeout: 15000 }); return asked.ok ? asked.out.trim() : ""; };
 
 const mirrorProposal = (asked) => shelfTurn(() => mirrorOneProposal(asked).catch((err) => ({ error: String(err?.message || err).slice(0, 200) })));
 
@@ -2357,7 +2358,7 @@ async function mirrorOneProposal({ session, proposal, title, label, reopen = fal
   if (opened.error) return opened;
 
   const slug = slugOf(page);
-  const drawn = await proposalFromStore({ ghApi: screenbookApi, store: SCREENBOOK_STORE, product: named.product, id: named.id });
+  const drawn = await proposalFromStore({ ghApi: screenbookApi, ghToken: screenbookToken, store: SCREENBOOK_STORE, product: named.product, id: named.id });
   if (drawn.missing) return { error: `the Screenbook has no proposal ${named.product}/${named.id}: check the product and the id in the link` };
   const shelved = shelveProposal({
     home: SHELF_HOME,
@@ -2373,7 +2374,7 @@ async function mirrorOneProposal({ session, proposal, title, label, reopen = fal
   });
   if (shelved.error) return shelved;
 
-  const picture = drawn.error ? drawn : await pictureFromStore({ ghApi: screenbookApi, store: SCREENBOOK_STORE, product: named.product, screens: shelved.proposal.screens });
+  const picture = drawn.error ? drawn : await pictureFromStore({ ghApi: screenbookApi, ghToken: screenbookToken, store: SCREENBOOK_STORE, product: named.product, screens: shelved.proposal.screens });
   if (!picture.error) shelfThumbs.wantPicture({ slug, product: named.product, id: named.id, picture: picture.data });
 
   const sent = await pushShelf(proposalCommitLine(shelved.meta, shelved.proposal));
@@ -5233,8 +5234,14 @@ async function closeQuietSeats() {
   });
   for (const seat of quiet) {
     try {
-      await archiveSeat(seat.name, "local", quietReason(days));
-      console.log(`fleet: local seat ${seat.name} went to the archive — ${quietReason(days)}`);
+      const said = await killSeatWindow(seat.name, "local");
+      if (said?.ok === false) throw new Error(said.error || "the seat would not close");
+      historyClosedSeat("local", seat.name);
+      forgetSeat("local", seat.name);
+      forgetSpawnJobsOf(spawning, seat.name, "local");
+      await forgetShots(seat.name);
+      cache.at = 0;
+      console.log(`fleet: local seat ${seat.name} ${quietReason(days)}`);
     } catch (wrong) {
       console.log(`fleet: could not close the quiet seat ${seat.name} — ${wrong.message || wrong}`);
     }
@@ -6105,6 +6112,7 @@ async function insideTheServer() {
 }
 
 let openPairing = null;
+const SERVICE_CODE_TTL_MS = 30 * 60 * 1000;
 
 async function portariaDoor() {
   const server = await serverFor();
@@ -6127,7 +6135,7 @@ async function portariaState() {
   const here = servers.identity.fingerprint;
   const rows = live.filter((d) => d.kind !== "peer").map((one) => ({ ...one, here: one.fingerprint === here, fromFile: !one.pairedAt && !one.lastSeen }));
   for (const one of phones.devices || []) {
-    rows.push({ fingerprint: one.fingerprint, name: one.name, kind: "phone", pairedAt: one.pairedAt, lastSeen: one.lastSeen, online: !!one.online, revoked: false, here: false, fromFile: false });
+    rows.push({ fingerprint: one.fingerprint, name: one.name, kind: one.kind, pairedAt: one.pairedAt, lastSeen: one.lastSeen, online: !!one.online, revoked: false, here: false, fromFile: false });
   }
 
   const known = peers.body?.peers || [];
@@ -6155,10 +6163,11 @@ async function portariaDo(op, data) {
   const { server } = await portariaDoor();
   if (!server) return { error: "no server answered — neither the one that stays online nor the one on this machine" };
 
-  if (op === "pair") {
-    const said = await phoneBridge.openCode();
+  if (op === "pair" || op === "pair-service") {
+    const kind = op === "pair-service" ? "service" : "phone";
+    const said = await phoneBridge.openCode(kind === "service" ? { kind, ttlMs: SERVICE_CODE_TTL_MS } : {});
     if (said.error) return { error: said.error };
-    openPairing = { code: said.code, expiresAt: Number(said.expiresAt) || 0 };
+    openPairing = { code: said.code, expiresAt: Number(said.expiresAt) || 0, kind };
     writeConfig({ phone: true }).catch(() => {});
     phoneBridge.tick().catch(() => {});
     return openPairing;
@@ -6680,6 +6689,8 @@ const STATIC = {
   "/assets/page-map.mjs": ["assets/page-map.mjs", "text/javascript"],
   "/assets/avatar/avatar.mjs": ["assets/avatar/avatar.mjs", "text/javascript"],
   "/assets/avatar/avatar-play.mjs": ["assets/avatar/avatar-play.mjs", "text/javascript"],
+  "/assets/avatar/idle-clock.mjs": ["assets/avatar/idle-clock.mjs", "text/javascript"],
+  "/assets/frame-rate.mjs": ["assets/frame-rate.mjs", "text/javascript"],
   "/assets/pets/tamagotchi.mjs": ["assets/pets/tamagotchi.mjs", "text/javascript"],
   "/assets/pets/rally.mjs": ["assets/pets/rally.mjs", "text/javascript"],
   "/assets/pets/max-form.mjs": ["assets/pets/max-form.mjs", "text/javascript"],

@@ -12,6 +12,7 @@ import { ensureGateway, hubFor } from "../gateway/mcp-gateway.mjs";
 import { claudeConfigPath, readClaudeConfig, hubServers, peerServerFor, routedThroughGateway } from "./mcp-routing.mjs";
 import { readsOnly, wakesTheSeat, answerWhileAsleep } from "./seat-memory.mjs";
 import { sleepVerdict, sleepAfterMs, rebornArgs, canBeReborn, childrenGone, REBIRTH_CHILD_GRACE_MS } from "../sleep.mjs";
+import { idleCompactSettings, idleCompactVerdict, noteForIdleCompact, idleTagged } from "../idle-compact.mjs";
 import { stateDir, sideOf, hiveRoot, seatSockPath } from "./paths.mjs";
 import { builtinClaudePath, chosenClaude, unmountable } from "./claude-binary.mjs";
 import { peerEntry } from "./peer-module.mjs";
@@ -204,7 +205,11 @@ let sleptAt = 0;
 let lastActivity = Date.now();
 let sleepTimer = null;
 const sleepAfter = () => sleepAfterMs(process.env, { watched });
-
+const idleCompacting = idleCompactSettings();
+let idleMark = storedSession.idle_compact || {};
+let idleCompactTimer = null;
+let idleCompactTurn = false;
+let asleepBeforeIdleCompact = false;
 
 const IMAGE_MEDIA = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" };
 
@@ -507,25 +512,68 @@ function armSleep(inMs = sleepAfter()) {
   sleepTimer.unref?.();
 }
 
+function seatOccupation() {
+  return { sleeping, leaving, sessionId, busy: gate.busy, queued: gate.queued, questions: pendingQuestions.size, tasks: backgroundTasks.size };
+}
+
 function trySleep() {
   sleepTimer = null;
-  const verdict = sleepVerdict({
-    now: Date.now(),
-    lastActivity,
-    afterMs: sleepAfter(),
-    sleeping,
-    leaving,
-    sessionId,
-    busy: gate.busy,
-    queued: gate.queued,
-    questions: pendingQuestions.size,
-    tasks: backgroundTasks.size,
-  });
+  const verdict = sleepVerdict({ ...seatOccupation(), now: Date.now(), lastActivity, afterMs: sleepAfter() });
   if (!verdict.sleep) {
     if (verdict.retry) armSleep(verdict.inMs ?? 60000);
     return;
   }
   retire("idle", verdict.idle);
+}
+
+function armIdleCompact(inMs = 0) {
+  if (idleCompactTimer) clearTimeout(idleCompactTimer);
+  idleCompactTimer = null;
+  if (anonymous || !idleCompacting.on) return;
+  idleCompactTimer = setTimeout(tryIdleCompact, Math.max(1000, inMs));
+  idleCompactTimer.unref?.();
+}
+
+function tryIdleCompact() {
+  idleCompactTimer = null;
+  const verdict = idleCompactVerdict({ ...seatOccupation(), now: Date.now(), settings: idleCompacting, mark: idleMark });
+  if (!verdict.fire) {
+    if (verdict.inMs) armIdleCompact(verdict.inMs);
+    return;
+  }
+  if (sleeping && !query) {
+    loadSdk().then(tryIdleCompact, (e) => emit({ type: "driver", subtype: "warning", message: `this seat could not load the agent sdk to compact while idle: ${String(e?.message || e)}` }));
+    return;
+  }
+  const item = gate.push({ text: "/compact", images: [], cid: null });
+  if (!item) return;
+  idleMark = { ...idleMark, tried_for: idleMark.turn_at };
+  persistSession({ idle_compact: idleMark });
+  idleCompactTurn = true;
+  asleepBeforeIdleCompact = sleeping;
+  emit({ type: "driver", subtype: "compact_asked", focus: null, queued: false, idle: true, tokens: verdict.tokens });
+  dispatchSay(item);
+}
+
+/* a seat woken only to compact goes back to sleep as soon as it is done,
+   unless the person said something in the meantime. */
+function idleCompactSettled() {
+  idleCompactTurn = false;
+  if (!asleepBeforeIdleCompact) return;
+  asleepBeforeIdleCompact = false;
+  setTimeout(() => {
+    const verdict = sleepVerdict({ ...seatOccupation(), now: Date.now(), lastActivity: 0, afterMs: sleepAfter() });
+    if (verdict.sleep) retire("compacted while idle");
+  }, 1000).unref?.();
+}
+
+function noteIdleCompact(message) {
+  const was = idleMark;
+  idleMark = noteForIdleCompact(idleMark, message, { idle: idleCompactTurn });
+  if (message.type === "result" || message.subtype === "compact_boundary") persistSession({ idle_compact: idleMark });
+  if (message.type !== "result") return;
+  if (idleCompactTurn) idleCompactSettled();
+  else if (idleMark.turn_at !== was.turn_at) armIdleCompact();
 }
 
 function retire(why, idleMs = Date.now() - lastActivity) {
@@ -932,7 +980,8 @@ async function runConsume(mine = generation) {
           .catch(() => {});
       }
       noteTasks(message);
-      emit(message);
+      emit(idleCompactTurn ? idleTagged(message) : message);
+      noteIdleCompact(message);
       if (message.type === "result") readers.context().then((data) => remember("context", data)).catch(() => {});
       if (message.type === "result" && await theTurnEnded(message)) return;
     }
@@ -971,5 +1020,6 @@ goingHome.unref?.();
 if (bornAsleep) persistSession({ asleep: true });
 else if (storedSession.asleep) persistSession({ asleep: false });
 if (!bornAsleep) touch();
+armIdleCompact();
 forgetOldShots(freshEventsFile ? 0 : SHOTS_KEPT);
 if (!bornAsleep) await runConsume();

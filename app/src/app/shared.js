@@ -3,7 +3,7 @@ import { paintStrip, render } from "./arrange.js";
 import { activeItems } from "./blocks.js";
 import { offerFace, paintGate, saveConfig } from "./brand-face.js";
 import { setSound } from "./chimes-and-notices.js";
-import { BLOB_FACE, createEffect, createRoot, experienceNext, raycastOn, RAYCAST_FONT, RAYCAST_TERMINAL, DEFAULT_KEYS, DEFAULT_LEADER, defaultChords, DIGIT_ACTIONS, DIRECT_MODES, formatKey, fullThemeDef, HIVE_THEME, isOff, MOVE_MODES, on, paintFold, parseAvatar, parseKey, parseWear, phrase, renderKey, RETIRED_ACTIONS, saveSidesShut, saveUnfolded, sidesShut, solidMounts, st, steady, SV_ASK, SV_ASK_SLIM, THEME, themeCssVars, themeDef, unfolded, untrack, withTail, wornThemeName } from "./core.js";
+import { BLOB_FACE, chordKeys, parseChord, createEffect, createRoot, experienceNext, raycastOn, RAYCAST_FONT, RAYCAST_TERMINAL, DEFAULT_KEYS, DEFAULT_LEADER, defaultChords, DIGIT_ACTIONS, DIRECT_MODES, formatKey, fullThemeDef, HIVE_THEME, isOff, MOVE_MODES, on, paintFold, parseAvatar, parseKey, parseWear, phrase, renderKey, RETIRED_ACTIONS, saveSidesShut, saveUnfolded, sidesShut, solidMounts, st, steady, SV_ASK, SV_ASK_SLIM, THEME, themeCssVars, themeDef, unfolded, untrack, withTail, wornThemeName } from "./core.js";
 import { paintFaceSheet } from "./face-door.js";
 import { renderHistory } from "./history.js";
 import { paintHold } from "./hold-numbers.js";
@@ -130,6 +130,7 @@ function applyBindings(raw) {
   const nextChords = defaultChords();
   const bad = [];
   const explicit = new Set();
+  const explicitChords = new Set();
   let move = "navigate";
   let lead = null;
   let direct = "keep";
@@ -158,10 +159,11 @@ function applyBindings(raw) {
       const a = action.slice(7);
       if (!(a in DEFAULT_KEYS)) { bad.push(action); continue; }
       if (isOff(text)) { nextChords[a] = null; continue; }
-      const parsed = parseKey(text);
+      const parsed = parseChord(text);
       if (!parsed) { bad.push(`${action}: ${text}`); continue; }
-      if (DIGIT_ACTIONS.includes(a) && parsed.code !== "Digit") { bad.push(phrase("{action}: {text} is the 1…9 family, so it takes digit", { action: action, text: text })); continue; }
+      if (DIGIT_ACTIONS.includes(a) && chordKeys(parsed).at(-1).code !== "Digit") { bad.push(phrase("{action}: {text} is the 1…9 family, so it takes digit", { action: action, text: text })); continue; }
       nextChords[a] = parsed;
+      explicitChords.add(a);
       continue;
     }
     if (!(action in DEFAULT_KEYS)) { bad.push(action); continue; }
@@ -190,8 +192,26 @@ function applyBindings(raw) {
     else if (owner) bad.push(phrase("{label} on {action}: {owner} already has it", { label: label, action: action, owner: owner }));
     else taken.set(label, action);
   }
+  /* a sequence you wrote ("s n") turns its first keys into a layer, so a default chord on
+     one of those keys steps aside, the way a default direct shortcut does. two chords you
+     wrote yourself are never settled for you. */
+  const layerBad = [];
+  for (const [action, b] of Object.entries(nextChords)) {
+    const keys = chordKeys(b);
+    for (let n = 1; n < keys.length && nextChords[action]; n += 1) {
+      const prefix = keys.slice(0, n).map(formatKey).join(" ");
+      const holder = Object.keys(nextChords).find((a) => a !== action && formatKey(nextChords[a]) === prefix);
+      if (!holder) continue;
+      if (explicitChords.has(action) && !explicitChords.has(holder)) nextChords[holder] = null;
+      else {
+        layerBad.push([action, formatKey(b), holder, prefix]);
+        nextChords[action] = null;
+      }
+    }
+  }
   if (lead) {
     const label = formatKey(lead);
+    for (const [action, chord, holder, prefix] of layerBad) bad.push(`${label} ${chord} on ${action}: ${holder} already has ${label} ${prefix}`);
     const owner = taken.get(label);
     if (owner) bad.push(phrase("{label} on {owner}: the leader already has it", { label: label, owner: owner }));
     const chordTaken = new Map();

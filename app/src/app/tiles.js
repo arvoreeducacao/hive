@@ -1,5 +1,5 @@
 import { render } from "./arrange.js";
-import { activeItems, detachSeat, giveSeatBack, saveBlocks, soloSeat } from "./blocks.js";
+import { activeItems, detachSeat, forgetSeat, giveSeatBack, saveBlocks, soloSeat } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { $, esc, experienceNext, phrase, raycastOn, saveSidesShut, saveUnfolded, sidesShut, st, unfolded } from "./core.js";
 import { hiveMark, openDraft } from "./draft-seat.js";
@@ -137,6 +137,7 @@ async function closeSeat(s, at) {
     pull();
     return;
   }
+  forgetSeat(s.name);
   const stayed = worktreesThatStayed(said);
   if (stayed) ask(phrase("The seat closed, but a worktree stayed"), stayed, phrase("understood"), { who: s.title || s.name, at });
   if (st.open === s.name) closeTile();

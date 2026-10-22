@@ -1,6 +1,6 @@
 import { arrangeOn, openArrange, paintArrange, render } from "./arrange.js";
 import { lentFace } from "./avatars.js";
-import { blockNumber, blocksOf, canGiveBack, giveSeatBack, hideSeat, itemOf, labelOf, moveSeatToBlock, moveToNewBlock, ofBlock, openSpace, seatsOf, shutSpace, soloSeat, spaceName, spaceOf } from "./blocks.js";
+import { blockNumber, blocksOf, canGiveBack, forgetSeat, giveSeatBack, hideSeat, itemOf, labelOf, moveSeatToBlock, moveToNewBlock, ofBlock, openSpace, seatsOf, shutSpace, soloSeat, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { fitChipRow } from "./chip-row.js";
 import { artifactTabOf, canopy, drivingNow, markArtRows, openBrowser, openCockpit, openKeptPage, pagesOfChat, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintFrontsOfChat, paintWebChipOfChat, paintWebOfChat, showingArtifact, startDevice, wireLinks } from "./chat-and-panes.js";
@@ -477,6 +477,7 @@ async function closeBlock(i, at) {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ name: s.name, where: s.where, ...(drops[k].length ? { dropWorktrees: drops[k] } : {}) })
   }).then((answer) => answer.json()).catch(() => null)));
+  seats.forEach((s, k) => { if (answers[k] && !answers[k].error) forgetSeat(s.name); });
   const stayed = answers.map((said) => worktreesThatStayed(said)).join("");
   if (stayed) ask(phrase("The seat closed, but a worktree stayed"), stayed, phrase("understood"), { at });
   if (seats.some((s) => s.name === st.open)) closeTile();

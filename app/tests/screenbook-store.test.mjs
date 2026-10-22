@@ -14,12 +14,77 @@ function storeWith(files) {
   return { ghApi, asked };
 }
 
-test("the store is an owner and a repo, nothing else", () => {
+test("the store is an owner and a repo, or the https address of a screenbook server", () => {
   assert.equal(screenbookStoreOf("acme/screenbooks"), "acme/screenbooks");
   assert.equal(screenbookStoreOf(" org/repo "), "org/repo");
   assert.equal(screenbookStoreOf("github:org/repo"), "");
   assert.equal(screenbookStoreOf("org/repo/folder"), "");
   assert.equal(screenbookStoreOf(""), "");
+  assert.equal(screenbookStoreOf("https://screenbook.example.org"), "https://screenbook.example.org");
+  assert.equal(screenbookStoreOf(" https://screenbook.example.com/books/ "), "https://screenbook.example.com/books");
+  assert.equal(screenbookStoreOf("http://screenbook.example.com"), "");
+  assert.equal(screenbookStoreOf("https://user:pass@screenbook.example.com"), "");
+  assert.equal(screenbookStoreOf("https://screenbook.example.com/?x=1"), "");
+});
+
+function serverWith(answers) {
+  const asked = [];
+  const fetchFn = async (url, init) => {
+    const body = JSON.parse(init.body);
+    asked.push({ url, method: init.method, authorization: init.headers.authorization, rpc: body });
+    const [status, payload] = answers[`${body.method} ${JSON.stringify(body.args)}`] || [500, { error: "boom" }];
+    return { ok: status >= 200 && status < 300, status, json: async () => payload };
+  };
+  return { fetchFn, asked };
+}
+
+const ghToken = async () => "gho_test\n";
+const SERVER = "https://screenbook.example.com";
+
+test("a proposal read from a screenbook server goes through its rpc with the github token", async () => {
+  const { fetchFn, asked } = serverWith({
+    'proposal ["etapas"]': [200, { result: { id: "etapas", status: "open", screens: { "lista-de-etapas": 3, "../fora": 1 } } }]
+  });
+  const ghApi = async () => { throw new Error("the github api is not asked when the store is a server"); };
+  const read = await proposalFromStore({ ghApi, ghToken, fetchFn, store: `${SERVER}/`, product: "reader", id: "etapas" });
+  assert.deepEqual(read, { screens: { "lista-de-etapas": 3 }, status: "open" });
+  assert.deepEqual(asked, [{ url: `${SERVER}/reader/api/rpc`, method: "POST", authorization: "Bearer gho_test", rpc: { method: "proposal", args: ["etapas"] } }]);
+});
+
+test("a proposal the server does not have is missing, any other failure is not", async () => {
+  const { fetchFn } = serverWith({
+    'proposal ["sumiu"]': [404, { error: "no proposal sumiu" }],
+    'proposal ["negado"]': [401, { error: "bad token" }]
+  });
+  const gone = await proposalFromStore({ ghToken, fetchFn, store: SERVER, product: "reader", id: "sumiu" });
+  assert.equal(gone.missing, true);
+  assert.match(gone.error, /no proposal sumiu/);
+  const denied = await proposalFromStore({ ghToken, fetchFn, store: SERVER, product: "reader", id: "negado" });
+  assert.equal(denied.missing, false);
+  assert.match(denied.error, /bad token/);
+  const offline = await proposalFromStore({ ghToken, fetchFn: async () => { throw new Error("ECONNREFUSED"); }, store: SERVER, product: "reader", id: "etapas" });
+  assert.match(offline.error, /did not answer.*ECONNREFUSED/);
+  assert.equal(offline.missing, undefined);
+});
+
+test("without a github login the server is not asked at all", async () => {
+  const { fetchFn, asked } = serverWith({});
+  const read = await proposalFromStore({ ghToken: async () => "", fetchFn, store: SERVER, product: "reader", id: "etapas" });
+  assert.match(read.error, /no github login/);
+  assert.deepEqual(asked, []);
+});
+
+test("the picture from a server is the png buffer of the first screen at its version", async () => {
+  const { fetchFn, asked } = serverWith({
+    'png ["lista-de-etapas",3]': [200, { result: { $buffer: Buffer.from("png-bytes").toString("base64") } }],
+    'png ["tela",1]': [200, { result: null }]
+  });
+  const picture = await pictureFromStore({ ghToken, fetchFn, store: SERVER, product: "reader", screens: { "lista-de-etapas": 3, "etapa-vazia": 1 } });
+  assert.equal(picture.data.toString(), "png-bytes");
+  assert.deepEqual(asked[0].rpc, { method: "png", args: ["lista-de-etapas", 3] });
+  assert.equal(asked[0].url, `${SERVER}/reader/api/rpc`);
+  const none = await pictureFromStore({ ghToken, fetchFn, store: SERVER, product: "reader", screens: { tela: 1 } });
+  assert.match(none.error, /no picture of tela v1/);
 });
 
 test("a proposal read from the store gives the version of each screen it drew", async () => {

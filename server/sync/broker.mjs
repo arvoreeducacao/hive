@@ -19,6 +19,7 @@ export const SEAT_ID = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 export const BLOB_ID = /^[a-f0-9]{16,64}$/;
 export const BIRTH_ID = /^[a-f0-9]{16,64}$/;
 export const BIRTH_TTL_MS = 30 * 60 * 1000;
+export const SERVICE_BIRTH_TTL_MS = 24 * 60 * 60 * 1000;
 export const BIRTHS_KEPT = 200;
 export const BOX_CEILING = 64 * 1024;
 export const ASK_KINDS = new Set(["shelf", "files", "people", "providers"]);
@@ -26,7 +27,13 @@ export const ASK_TTL_MS = 10 * 60 * 1000;
 export const ASKS_KEPT = 200;
 export const ANSWER_CEILING = 8 << 20;
 export const OPEN_ROUTES = new Set(["/hello", "/pair"]);
-export const KINDS = new Set(["mac", "pod", "phone"]);
+export const KINDS = new Set(["mac", "pod", "phone", "service"]);
+export const CODE_KINDS = new Set(["phone", "service"]);
+
+export function serviceMay(method, path) {
+  if (path === "/me" || path === "/seats") return method === "GET";
+  return path === "/births" && (method === "GET" || method === "POST");
+}
 export const WAKES = new Set(["done", "needs"]);
 export const DONE_FLOOR_MS = 5 * 60 * 1000;
 export const NOTICE_FIELD_CEILING = 1200;
@@ -113,11 +120,11 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
     return signers.get(key);
   }
 
-  function openCode({ person = owner, ttlMs = CODE_TTL_MS } = {}) {
+  function openCode({ person = owner, ttlMs = CODE_TTL_MS, kind = "phone" } = {}) {
     const code = mintCode();
     const lasts = Math.min(CODE_TTL_CEILING_MS, Math.max(60000, Number(ttlMs) || CODE_TTL_MS));
     state.codes = state.codes.filter((one) => one.expiresAt > now());
-    state.codes.push({ code, person, expiresAt: now() + lasts, tries: 0 });
+    state.codes.push({ code, person, kind: CODE_KINDS.has(kind) ? kind : "phone", expiresAt: now() + lasts, tries: 0 });
     save();
     return { code, expiresAt: now() + lasts };
   }
@@ -174,7 +181,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
 
   const validBox = (box) => !!box && typeof box === "object" && [box.epk, box.nonce, box.ct].every((one) => typeof one === "string" && one) && box.ct.length <= BOX_CEILING;
   const boxOf = (box) => ({ epk: box.epk, nonce: box.nonce, ct: box.ct });
-  const birthView = (one) => ({ id: one.id, from: one.from, to: one.to, box: one.box, at: one.at, done: one.done || null });
+  const birthView = (one) => ({ id: one.id, from: one.from, fromKind: one.fromKind || "", to: one.to, box: one.box, at: one.at, done: one.done || null });
 
   const askFile = (id, part = "") => join(dataDir, "asks", `${id}${part}.json`);
   const asks = new Map();
@@ -193,8 +200,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
   }
 
   function freshBirths() {
-    const floor = now() - BIRTH_TTL_MS;
-    const kept = state.births.filter((one) => one.at > floor).slice(-BIRTHS_KEPT);
+    const kept = state.births.filter((one) => one.at > now() - (one.fromKind === "service" ? SERVICE_BIRTH_TTL_MS : BIRTH_TTL_MS)).slice(-BIRTHS_KEPT);
     if (kept.length !== state.births.length) state.births = kept;
     return state.births;
   }
@@ -252,11 +258,12 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
     if (signerRaw.length !== 32 || agreerRaw.length !== 32) return refuse("a device brings two 32-byte public keys", 400);
     const fingerprint = await fingerprintOf(signerRaw);
     if (onRoster(fingerprint)) return refuse("that key is already on the roster", 409);
+    const kind = found.kind || "phone";
     const device = {
       fingerprint,
-      name: cleanName(asked.name, "phone"),
+      name: cleanName(asked.name, kind),
       person: found.person,
-      kind: "phone",
+      kind,
       admin: false,
       signer: toB64(signerRaw),
       agreer: toB64(agreerRaw),
@@ -389,6 +396,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
       return refuse(verdict.error, verdict.status, verdict.extra || {});
     }
     const device = verdict.device;
+    if (device.kind === "service" && !serviceMay(method, path)) return refuse("a service only asks for new chats", 403);
     let asked = {};
     if (body) {
       try { asked = JSON.parse(body); } catch { return refuse("unreadable body", 400); }
@@ -428,7 +436,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
     if (path === "/pair/open" && method === "POST") {
       const person = String(asked.person || device.person);
       if (person !== device.person && !isAdmin(device)) return refuse("only an admin invites another person", 403);
-      return asJson(openCode({ person, ttlMs: asked.ttlMs }));
+      return asJson(openCode({ person, ttlMs: asked.ttlMs, kind: asked.kind }));
     }
 
     if (path === "/profile" && method === "POST") {
@@ -478,11 +486,11 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
       const target = onRoster(String(asked.to || ""));
       if (!target || target.revokedAt || !target.agreer) return refuse("no live device with that key", 404);
       if (target.person !== device.person && !isAdmin(device)) return refuse("only your own devices open a chat for you", 403);
-      if (target.kind === "phone") return refuse("a phone does not open chats", 400);
+      if (target.kind === "phone" || target.kind === "service") return refuse(`a ${target.kind} does not open chats`, 400);
       if (!validBox(asked.box)) return refuse("a birth carries one sealed box", 400);
       const had = freshBirths().find((one) => one.id === id);
       if (had) return had.from === device.fingerprint ? asJson({ ...birthView(had), online: online(had.to) }) : refuse("that birth id is taken", 409);
-      const birth = { id, from: device.fingerprint, to: target.fingerprint, box: boxOf(asked.box), at: now(), done: null };
+      const birth = { id, from: device.fingerprint, fromKind: device.kind, to: target.fingerprint, box: boxOf(asked.box), at: now(), done: null };
       state.births.push(birth);
       save();
       push(target.fingerprint, "birth", birthView(birth));
@@ -550,7 +558,8 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
     }
 
     if (path === "/seats" && method === "GET") {
-      return asJson({ seats: readable(device).map((seat) => seatView(seat, device)), people: liveDevices().filter((one) => one.agreer).map(personView) });
+      const people = liveDevices().filter((one) => one.agreer && (device.kind !== "service" || (one.person === device.person && (one.kind === "mac" || one.kind === "pod"))));
+      return asJson({ seats: readable(device).map((seat) => seatView(seat, device)), people: people.map(personView) });
     }
 
     if (path === "/seats" && method === "POST") {
@@ -748,6 +757,12 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
       return { ok: false, error: verdict.error };
     }
     const device = verdict.device;
+    if (device.kind === "service") {
+      sink.head(403, { "content-type": "application/json", "cache-control": "no-store" });
+      sink.write(JSON.stringify({ error: "a service only asks for new chats" }));
+      sink.end();
+      return { ok: false, error: "a service only asks for new chats" };
+    }
     let cursors = {};
     try { cursors = body ? JSON.parse(body) : JSON.parse(atob(new URLSearchParams(query).get("cursors") || "e30")); } catch {}
     if (!cursors || typeof cursors !== "object" || Array.isArray(cursors)) cursors = {};

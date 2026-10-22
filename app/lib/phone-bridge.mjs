@@ -121,7 +121,7 @@ export function createPhoneBridge({
       if (!mine) return { error: lastWhy || "no server answered for the phones", devices: [] };
       try {
         const said = await mine.call("GET", "/roster");
-        return { devices: (said.devices || []).filter((one) => one.kind === "phone" && !one.revokedAt) };
+        return { devices: (said.devices || []).filter((one) => (one.kind === "phone" || one.kind === "service") && !one.revokedAt) };
       } catch (wrong) { return { error: wrong.message, devices: [] }; }
     },
 

@@ -62,8 +62,18 @@ over this file.
 | `HIVE_POKERS` | the people who may poke a teammate's chat, comma separated |
 | `HIVE_MEMORY_URL`, `HIVE_MEMORY_PLUGIN` | a shared memory server, and the agent plugin that reads it |
 | `HIVE_AVEIA_URL` | an Aveia for meeting captions ([meetings.md](meetings.md)) |
+| `HIVE_SCREENBOOK_STORE` | where the shelf reads [Screenbook](https://github.com/arvoreeducacao/screenbook) proposals from, as `owner/repo` or an `https://` server; off when empty |
 | `HIVE_INTERNAL_DOMAINS` | your domains, so a secret that names them is caught before it leaves a chat |
 | `HIVE_APP_PACKAGES` | short names for your Android apps, as `name=package` pairs |
+
+Screenbook is a separate open source project, and the hive points at no
+Screenbook unless you set `HIVE_SCREENBOOK_STORE`. With `owner/repo`, the hive
+reads the store through the GitHub API with the machine's `gh` login. With an
+`https://` address, it sends that machine's GitHub token (`gh auth token`) to
+the server, because the server checks who is asking. That token can usually read
+every repository the person can, so point the hive only at a Screenbook server
+your team runs or trusts. The address comes only from this file or the config,
+never from a page on the shelf.
 
 ### `hive-setup.sh`
 

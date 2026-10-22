@@ -1,22 +1,27 @@
 import { render } from "./arrange.js";
-import { codeOf, isLeader, keyLabel, saveBindings, silenced, whichChord } from "./brand-face.js";
+import { chordStep, codeOf, isLeader, keyLabel, saveBindings, silenced } from "./brand-face.js";
 import { paintNotices } from "./chimes-and-notices.js";
-import { $, ACTION_GROUPS, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, experienceNext, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { $, chordKeys, ACTION_GROUPS, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, experienceNext, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { ago } from "./pod.js";
 import { run } from "./themes.js";
 
-function armLeader() {
+const leaderPath = () => [keyLabel(st.leader), ...(st.layer?.path || [])].join(" ");
+
+function armLeader(layer) {
   st.pending = true;
+  st.layer = layer || null;
   $("mode").hidden = false;
   $("mode").classList.add("leader");
-  $("mode-txt").textContent = `${keyLabel(st.leader)} …`;
+  $("mode-txt").textContent = `${leaderPath()} …`;
   clearTimeout(st.whichTimer);
-  st.whichTimer = setTimeout(showWhich, 350);
+  if ($("which").classList.contains("on")) showWhich();
+  else st.whichTimer = setTimeout(showWhich, 350);
 }
 
 function disarmLeader() {
   if (!st.pending) return;
   st.pending = false;
+  st.layer = null;
   clearTimeout(st.whichTimer);
   $("which").classList.remove("on");
   $("mode").classList.remove("leader");
@@ -24,27 +29,48 @@ function disarmLeader() {
   $("mode").hidden = true;
 }
 
+/* what the next key does from here: one row per key, and a key that opens a layer says
+   "+" and the actions waiting under it, the way which-key does. the band shows what comes
+   before the dash; the whole sentence stays in the row's title. */
+function whichRows() {
+  const depth = st.layer?.depth || 0;
+  const open = st.layer?.open || ACTIONS.filter(([a]) => st.chords[a]).map(([a]) => [a, st.chords[a]]);
+  const rows = new Map();
+  for (const [a, b] of open) {
+    const keys = chordKeys(b);
+    const label = keyLabel(keys[depth], st.layer?.digit, digitSpan(a));
+    const full = phrase(ACTION_SAID[a], { limit: st.LIMIT });
+    const row = rows.get(label) || { label, layer: keys.length > depth + 1, said: [], full: [] };
+    row.said.push(full.split(" — ")[0]);
+    row.full.push(full);
+    rows.set(label, row);
+  }
+  return [...rows.values()].map((row) => ({
+    label: row.label,
+    layer: row.layer,
+    said: row.layer ? `+ ${row.said.join(" · ")}` : row.said.join(" · "),
+    full: row.full.join(" · ")
+  }));
+}
+
 function showWhich() {
   if (raycastOn()) return showWhichRaycast();
-  const literal = st.typing && literalOf(st.leader)
+  const literal = st.typing && !st.layer && literalOf(st.leader)
     ? ` · <b>${keyLabel(st.leader)} ${keyLabel(st.leader)}</b> ${phrase("goes to the terminal")}`
     : "";
-  $("which-head").innerHTML = `<span>${phrase("after")} <b>${keyLabel(st.leader)}</b>${phrase(", one key")}</span><span>${phrase("esc gives up{literal}", { literal: literal })}</span>`;
-  $("which-grid").innerHTML = ACTIONS.filter(([a]) => st.chords[a])
-    .map(([a, d]) => `<div><b>${keyLabel(st.chords[a])}</b><span>${d}</span></div>`).join("");
+  $("which-head").innerHTML = `<span>${phrase("after")} <b>${leaderPath()}</b>${phrase(", one key")}</span><span>${phrase("esc gives up{literal}", { literal: literal })}</span>`;
+  $("which-grid").innerHTML = whichRows()
+    .map((row) => `<div class="${row.layer ? "layer" : ""}" title="${esc(row.full)}"><b>${row.label}</b><span>${esc(row.said)}</span></div>`).join("");
   $("which").classList.add("on");
 }
 
 function showWhichRaycast() {
-  const literal = st.typing && literalOf(st.leader)
+  const literal = st.typing && !st.layer && literalOf(st.leader)
     ? ` · ${keyCaps(keyLabel(st.leader))} ${keyCaps(keyLabel(st.leader))} ${phrase("goes to the terminal")}`
     : "";
-  $("which-head").innerHTML = `<span>${phrase("after")}</span>${keyCaps(keyLabel(st.leader))}<span>${phrase("one key")}</span><span class="grow"></span>${keyCaps("esc")}<span>${phrase("gives up")}${literal}</span>`;
-  $("which-grid").innerHTML = ACTIONS.filter(([a]) => st.chords[a])
-    .map(([a]) => {
-      const said = phrase(ACTION_SAID[a], { limit: st.LIMIT });
-      return `<div title="${esc(said)}">${keyCaps(keyLabel(st.chords[a]))}<span>${esc(said)}</span></div>`;
-    }).join("");
+  $("which-head").innerHTML = `<span>${phrase("after")}</span>${keyCaps(leaderPath())}<span>${phrase("one key")}</span><span class="grow"></span>${keyCaps("esc")}<span>${phrase("gives up")}${literal}</span>`;
+  $("which-grid").innerHTML = whichRows()
+    .map((row) => `<div class="${row.layer ? "layer" : ""}" title="${esc(row.full)}"><span class="wk">${keyCaps(row.label)}</span><span>${esc(row.said)}</span></div>`).join("");
   $("which").classList.add("on");
 }
 
@@ -98,13 +124,16 @@ function resolveLeader(e) {
   if (["Alt", "Shift", "Control", "Meta"].includes(e.key)) return;
   e.preventDefault();
   e.stopPropagation();
-  const again = isLeader(e);
+  const again = !st.layer && isLeader(e);
+  const layer = st.layer;
+  if (again || codeOf(e) === "Escape") {
+    disarmLeader();
+    return again ? sendLiteral() : undefined;
+  }
+  const step = chordStep(e, layer);
+  if (step?.layer) return armLeader(step.layer);
   disarmLeader();
-  if (again) return sendLiteral();
-  if (codeOf(e) === "Escape") return;
-  const m = whichChord(e);
-  if (!m) return;
-  run(m.action, m.digit);
+  if (step) run(step.action, step.digit);
 }
 
 function keyHint(a) {

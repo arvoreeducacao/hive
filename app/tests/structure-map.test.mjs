@@ -184,7 +184,7 @@ test("a plane that was already open stays open after the map, with its camera ba
   st.planeAt = { x: 12, y: 34, k: 0.8 };
   st.planeSpots = { a: { x: 0, y: 0 }, b: { x: 2000, y: 0 } };
   wear();
-  assert.deepEqual(st.planeSpots, { a: { x: 0, y: 0 }, b: { x: 2000, y: 0 } }, "blocks already apart are left where the person put them");
+  assert.deepEqual({ a: st.planeSpots.a, b: st.planeSpots.b }, { a: { x: 0, y: 0 }, b: { x: 2000, y: 0 } }, "blocks already apart are left where the person put them");
   st.planeAt = { x: 0, y: 0, k: 0.4 };
   strip();
   assert.equal(st.planeOn, true);

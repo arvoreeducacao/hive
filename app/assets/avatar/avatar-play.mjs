@@ -1,4 +1,5 @@
 import { BOX, TAU, round2, clamp, lerp, hash, normalAvatar, avatarKey, wearKey, parseWear, bodyOf, bodySvg, eyeShapes } from "./avatar.mjs";
+import { FRAME_MS } from "../frame-rate.mjs";
 
 const ease = {
   outCubic: (t) => 1 - (1 - t) ** 3,
@@ -316,7 +317,7 @@ export function frameSvg(spec, frame, id) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${-BOX} ${-BOX} ${SPAN} ${SPAN}" aria-hidden="true" class="avatar"><g>${inner}</g></svg>`;
 }
 
-export const FRAME_MS = 1000 / 24;
+export { FRAME_MS };
 
 export const PARK_MS = 1000;
 

@@ -1,3 +1,5 @@
+import { nextFrame } from "../frame-rate.mjs";
+
 export const RALLY = {
   ball: 7,
   rise: 168,
@@ -12,7 +14,7 @@ export const RALLY = {
   petSpeed: 200,
   wobble: 14,
   step: 1 / 120,
-  catchup: 0.05,
+  catchup: 0.08,
   out: 30,
   serveWait: 900,
   longest: 180000,
@@ -149,7 +151,7 @@ export function mountRally(host, options = {}) {
   let phase = "";
   let waitUntil = 0;
   let clock = 0;
-  let raf = 0;
+  let frameCancel = null;
   let lastFrame = 0;
   let owed = 0;
 
@@ -217,7 +219,7 @@ export function mountRally(host, options = {}) {
   };
 
   const frame = (at) => {
-    raf = 0;
+    frameCancel = null;
     if (!phase) return;
     const dt = lastFrame ? Math.min((at - lastFrame) / 1000, RALLY.catchup) : RALLY.step;
     lastFrame = at;
@@ -228,19 +230,19 @@ export function mountRally(host, options = {}) {
       if (!advance(RALLY.step)) return stop();
     }
     paint();
-    raf = win.requestAnimationFrame(frame);
+    frameCancel = nextFrame(win, frame);
   };
 
   const spin = () => {
-    if (raf || !phase) return;
+    if (frameCancel || !phase) return;
     lastFrame = 0;
     owed = 0;
-    raf = win.requestAnimationFrame(frame);
+    frameCancel = nextFrame(win, frame);
   };
 
   function stop() {
-    if (raf) win.cancelAnimationFrame(raf);
-    raf = 0;
+    frameCancel?.();
+    frameCancel = null;
     if (!phase) return;
     phase = "";
     flight = null;

@@ -332,10 +332,9 @@ test("out of the corner it is measured against the window, and it always finds i
   assert.match(tama, /play\("strut"\);/, "the strut moved from the landing to the doorstep");
 });
 
-/* the flight left the 40ms tick: 25 frames a second is enough for a face that breathes and far
-   too few for something crossing the window */
-test("the flight is drawn per frame and stepped at a fixed rate underneath", () => {
-  assert.match(tama, /raf = win\.requestAnimationFrame\(glide\);/);
+test("the flight is drawn at twenty-four frames a second and stepped at a fixed rate underneath", () => {
+  assert.match(tama, /glideCancel = nextFrame\(win, glide\);/);
+  assert.match(tama, /const TICK_MS = FRAME_MS;/, "the tick the rest of the creature lives on shares the same cap");
   assert.match(tama, /while \(owed >= FLING\.step\) \{/, "the physics keeps its own fixed step");
   assert.match(tama, /Math\.min\(\(now - lastFrame\) \/ 1000, FLING\.catchup\)/, "a skipped frame cannot teleport it");
   assert.doesNotMatch(tama, /flightStep\(fly, TICK_MS \/ 1000/, "and the tick no longer flies it");

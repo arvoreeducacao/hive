@@ -202,10 +202,30 @@ function stepFocus(dx, dy) {
     if (stepAcrossLanes(dx)) render();
     return;
   }
+  if (dy === 0 && (x < 0 || x >= rows[r].length)) return stepAcrossBlocks(dx, r);
   if (y < 0 || y >= rows.length || x < 0 || x >= rows[y].length) return;
   const target = rows[y][x];
   if (target === st.focus) return;
   goToSeat(target);
+  if (st.moveMode === "type" && list[target]?.kind === "session") takeKeyboard(list[target].name);
+}
+
+/* past the side edge the focus goes on to the block beside it, on the seat facing the one it
+   left; past the last block of the space it stops. a held key never crosses, so holding it to
+   run to the edge still stops at the edge. */
+function stepAcrossBlocks(dx, r) {
+  if (st.keyHeld) return;
+  const mine = blocksOf(st.space);
+  const at = mine.indexOf(st.blocks[st.block]);
+  const next = at < 0 ? null : mine[at + dx];
+  if (!next) return;
+  goToBlock(st.blocks.indexOf(next));
+  const list = activeItems();
+  const rows = gridRows(Math.min(st.LIMIT, list.length));
+  if (!rows) return;
+  const row = rows[Math.min(r, rows.length - 1)];
+  const target = dx > 0 ? row[0] : row[row.length - 1];
+  if (target !== st.focus) goToSeat(target);
   if (st.moveMode === "type" && list[target]?.kind === "session") takeKeyboard(list[target].name);
 }
 

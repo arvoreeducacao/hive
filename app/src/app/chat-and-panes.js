@@ -1,6 +1,7 @@
 import { switchSeatProvider } from "./provider-transfer.js";
 import { render } from "./arrange.js";
 import { markCopied } from "./avatars.js";
+import { forgetSeat } from "./blocks.js";
 import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svTrimTurns, svTypePath } from "./chat-stretches.js";
 import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
 import { svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRunOff, svConvSaid, svConvShow, svConvStream, svConvThink, svConvThumb, svConvTurnDone, svConvUnsay } from "./conversation-model.js";
@@ -3072,7 +3073,7 @@ function svEvent(e, ev) {
       const m = ev.compact_metadata || {};
       const kfmt = (t) => t == null ? "?" : `${(t / 1000).toFixed(t >= 99500 ? 0 : 1)}k`;
       const secs = m.duration_ms ? ` · ${Math.max(1, Math.round(m.duration_ms / 1000))}s` : "";
-      const how = m.trigger === "auto" ? phrase("on its own") : phrase("you asked");
+      const how = m.trigger === "auto" ? phrase("on its own") : m.trigger === "idle" ? phrase("while idle, before the cache expired") : phrase("you asked");
       svLine(e, "sv-meta sv-compacted", phrase("context compacted ({how}) · {pre} → {post} tokens{secs}", { how, pre: kfmt(m.pre_tokens), post: kfmt(m.post_tokens), secs }));
       if (live) endCompactShow(e, m);
       if (live) refreshContext(e);
@@ -4581,6 +4582,7 @@ async function structuredCtrlC(e) {
   if (now - (e.ctrlCAt || 0) < 2000) {
     e.ctrlCAt = 0;
     await fetch("/api/kill", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: e.name, where: e.where }) });
+    forgetSeat(e.name);
     closeTile();
     pull();
     return;

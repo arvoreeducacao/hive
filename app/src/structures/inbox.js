@@ -1,5 +1,5 @@
 import { IS_MAC, st } from "../app/core.js";
-import { keepDraftingAfterSend, openDraft } from "../app/draft-seat.js";
+import { allowSendingBehind, openDraft } from "../app/draft-seat.js";
 import { markSeatRead, pool } from "../app/leader-key.js";
 import { rename, retitle } from "../app/chat-name.js";
 import { archiveSeatNow, reviveArchived } from "../app/mirror.js";
@@ -1175,7 +1175,7 @@ const inbox = {
   settleMarks,
   snoozePresets,
   enter(ctx) {
-    keepDraftingAfterSend(true);
+    allowSendingBehind(true);
     mine.marks = readJson(MARKS_KEY, {});
     mine.details = readJson(PANEL_KEY, false) === true;
     mine.shelves = { snoozed: false, settled: false, team: false, archived: false, ...readJson(SHELVES_KEY, {}) };
@@ -1215,7 +1215,7 @@ const inbox = {
     if (IS_MAC && window.hiveWindow?.placeButtons) ctx.root.classList.add("tx-mac");
   },
   leave(ctx) {
-    keepDraftingAfterSend(false);
+    allowSendingBehind(false);
     clearInterval(mine.ticker);
     holdJump(false);
     closeMenu();

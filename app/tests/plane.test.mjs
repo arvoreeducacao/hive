@@ -28,6 +28,7 @@ const HARNESS = `
   const prsOfChat = () => [];
   const prIsGone = () => false;
   const refit = () => {};
+  const seatGrace = () => () => false;
   const render = () => {};
   const went = [];
   const goTo = (key) => went.push(key);

@@ -113,3 +113,12 @@ test("each state paints in the new hive's own palette, the same hues the tiles u
   assert.match(css, /#rail-hud \.rh-bar i:is\(\[data-state="idle"\], \[data-state="stalled"\]\) \{ right: 65%; \}/, "a sleeping chat draws a short bar");
   assert.doesNotMatch(read("src/next-rail.jsx"), /style=\{\{ (background|color): /, "an inline colour from the old palette wins over the theme");
 });
+
+test("the box layer is a point in the corner, so it never covers the top bar the window is dragged by", () => {
+  const css = read("assets/experience.css");
+  const layer = css.match(/^#rail-hud \{[^}]*\}/m)?.[0] || "";
+  assert.match(layer, /width: 0; height: 0;/, "a layer as big as the window comes after #top and its no-drag wins over the bar");
+  assert.doesNotMatch(layer, /inset: 0/);
+  assert.match(css, /#rail-hud \.rh-ln \{ position: absolute; left: 0; top: 0; width: 100vw; height: 100vh;/, "the line has to reach the whole window from a layer with no size");
+  assert.match(css, /#rail-hud \.rh-box \{ position: absolute; box-sizing: border-box; width: max-content; max-width: 420px;/, "inside a layer with no width the box shrinks to its longest word");
+});

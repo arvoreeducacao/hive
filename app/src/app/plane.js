@@ -1,5 +1,5 @@
 import { render } from "./arrange.js";
-import { itemOf } from "./blocks.js";
+import { itemOf, seatGrace } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { $, GLYPH, IS_MAC, LABEL, esc, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { goTo, pull } from "./focus-navigation.js";
@@ -1178,6 +1178,8 @@ function paintPlaneTook() {
   }
 }
 
+const spotAwayBriefly = seatGrace();
+
 function paintPlane() {
   const alive = new Set(planeSeatKeys());
   let dropped = false;
@@ -1185,6 +1187,9 @@ function paintPlane() {
     if (alive.has(key)) continue;
     node.remove();
     planeNodes.delete(key);
+  }
+  for (const key of Object.keys(st.planeSpots)) {
+    if (alive.has(key) || spotAwayBriefly(key, alive)) continue;
     delete st.planeSpots[key];
     dropped = true;
   }

@@ -935,7 +935,7 @@ async function watch() {
   if (app.dock) app.dock.setBadge(asking ? String(asking) : "");
 }
 
-const GAZE_MS = 40;
+const GAZE_MS = 1000 / 24;
 const cursorWatch = new Map();
 
 function stopCursor(win) {
@@ -947,12 +947,17 @@ function stopCursor(win) {
 
 function watchCursor(win) {
   if (cursorWatch.has(win)) return;
+  let said = "";
   const tick = () => {
     if (!win || win.isDestroyed()) return stopCursor(win);
     if (!win.isVisible() || win.isMinimized()) return;
     const at = screen.getCursorScreenPoint();
     const box = win.getContentBounds();
-    win.webContents.send("hive:gaze-at", { x: at.x - box.x, y: at.y - box.y });
+    const point = { x: at.x - box.x, y: at.y - box.y };
+    const key = `${point.x},${point.y}`;
+    if (key === said) return;
+    said = key;
+    win.webContents.send("hive:gaze-at", point);
   };
   cursorWatch.set(win, setInterval(tick, GAZE_MS));
   win.once("closed", () => stopCursor(win));

@@ -4002,32 +4002,13 @@
      sits there is more room around it than that. */
   svg.avatar { overflow: visible; }
   #rail .item.team { grid-template-columns: 30px 1fr auto; }
-  @keyframes av-breath { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 1.028); } }
-  @keyframes av-sway { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
-  @keyframes av-blink { 0%, 93.5%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.08); } }
-  .av-alive svg { transform-origin: 50% 62%; animation: av-breath var(--av-breath, 4s) ease-in-out infinite; }
-  .av-alive .avatar > g { transform-origin: 50% 50%; animation: av-sway var(--av-sway, 7s) ease-in-out infinite; }
-  .av-alive .av-eye { transform-box: fill-box; transform-origin: center; animation: av-blink var(--av-blink, 5s) ease-in-out infinite; animation-delay: var(--av-blink-at, 0s); }
-  .av-alive .av-look { animation: var(--av-look) var(--av-glance, 14s) steps(1, end) infinite; animation-delay: var(--av-glance-at, 0s); animation-timing-function: cubic-bezier(.2, .9, .2, 1); }
-  .av-follow .av-look { animation: none; transition: transform .34s cubic-bezier(.2, .9, .2, 1); }
-  @keyframes av-flicker { 0%, 100% { opacity: 1; } 47% { opacity: .93; } 49% { opacity: 1; } 78% { opacity: .96; } }
-  .av-alive .av-eyes { animation: av-flicker 3.1s steps(2) infinite; }
-  /* the same percentages read differently at 20px and at 104px. on the face in the welcome a 2.8%
-     breath is a chest rising; on the mug in the top bar it is 0.35 of one pixel, which is nothing
-     at all — the amplitude above was chosen on the big face and inherited by the small one, so the
-     mug has looked frozen since the day it was added. these are the numbers for its size. */
-  @keyframes av-breath-mug { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.05, 1.11); } }
-  @keyframes av-sway-mug { 0%, 100% { transform: rotate(-4.5deg); } 50% { transform: rotate(4.5deg); } }
-  .brand .mug.av-alive svg { animation-name: av-breath-mug; }
-  .brand .mug.av-alive .avatar > g { animation-name: av-sway-mug; }
+  .av-alive { transform-origin: 50% 62%; will-change: scale, rotate; --av-still: 0; }
+  .av-alive .av-eye { transform-box: fill-box; transform-origin: center; }
+  .av-alive.av-blinking .av-eye { transform: scaleY(.08); }
+  body.no-motion .av-alive, #shell.rail-min #rail .av-alive { --av-still: 1; }
   @media (prefers-reduced-motion: reduce) {
-    .av-alive svg, .av-alive .avatar > g, .av-alive .av-eye, .av-alive .av-look, .av-alive .av-eyes { animation: none; }
-    .brand .mug.av-alive svg, .brand .mug.av-alive .avatar > g { animation: none; }
-    .av-follow .av-look { transition: none; }
+    .av-alive { --av-still: 1; }
   }
-  #shell.rail-min #rail .item.team .av-alive svg, #shell.rail-min #rail .item.team .av-alive .avatar > g,
-  #shell.rail-min #rail .item.team .av-alive .av-eye, #shell.rail-min #rail .item.team .av-alive .av-look,
-  #shell.rail-min #rail .item.team .av-alive .av-eyes { animation-play-state: paused; }
   #rail .item.team .name { color: var(--txt-2); }
   #rail .item.team.quiet .name, #rail .item.team.quiet .n { color: var(--txt-3); opacity: .5; }
   #blocks .mirror-btn { align-items: center; }
@@ -5326,9 +5307,9 @@ try {
     <p class="hint">Every native chat takes the ceiling, on Claude, Codex, Kimi, Kiro or Cursor; a terminal takes it only on Claude. The field is off while none of yours does.</p>
     <h3 data-t>Closing quiet chats</h3>
     <div class="pair">
-      <div><label for="f-quiet-days" data-t>close a chat after it sits quiet for</label><div class="unit-row"><input id="f-quiet-days" type="number" min="1" max="90" step="1" placeholder="never" /><span class="unit" data-t>days</span></div></div>
+      <div><label for="f-quiet-days" data-t>close a chat after it sits quiet for</label><div class="unit-row"><input id="f-quiet-days" type="number" min="0" max="90" step="1" placeholder="2" /><span class="unit" data-t>days</span></div></div>
     </div>
-    <p class="hint">Empty keeps every chat open until you close it. A number from 1 to 90 closes, once an hour, every chat on this machine that nobody wrote to and that did nothing for that many days. A chat that is working or waiting for you is never closed. The closed chat goes to the archive with its whole conversation, and comes back from there with one click.</p>
+    <p class="hint">Every chat on this machine that nobody wrote to and that did nothing for this many days is closed, once an hour; 2 unless you change it. A chat that is working or waiting for you is never closed. It closes for good, the same as closing it yourself: it does not go to the archive. 0 keeps every chat open until you close it.</p>
     <h3 data-t>Clearing closed chats' history</h3>
     <div class="pair">
       <div><label for="f-diary-days" data-t>clear a closed chat's screen history after</label><div class="unit-row"><input id="f-diary-days" type="number" min="0" max="365" step="1" placeholder="30" /><span class="unit" data-t>days</span></div></div>

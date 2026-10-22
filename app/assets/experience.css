@@ -788,12 +788,12 @@ body.experience-next.rail-hud-on :is(#top, #stage, #rail-sessions, .nr-sec, .nr-
 body.experience-next .nr-row.lit { color: var(--txt); }
 body.experience-next #shell.rail-min .nr-row.lit:not(.nr-group, .nr-mate) .nr-cell { box-sizing: border-box; width: 28px; height: 28px; margin: 0 -4px; border: 1px solid var(--txt); background: var(--panel-3); }
 body.experience-next #shell.rail-min .nr-row.lit:not(.nr-group, .nr-mate) { background: none; }
-#rail-hud { position: fixed; inset: 0; z-index: 85; pointer-events: none; font-family: var(--mono); }
-#rail-hud .rh-ln { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: var(--txt); stroke-width: 1; }
+#rail-hud { position: fixed; left: 0; top: 0; width: 0; height: 0; overflow: visible; z-index: 85; pointer-events: none; font-family: var(--mono); }
+#rail-hud .rh-ln { position: absolute; left: 0; top: 0; width: 100vw; height: 100vh; fill: none; stroke: var(--txt); stroke-width: 1; }
 #rail-hud:has(.rh-box[data-tone="acc"]) .rh-ln { stroke: var(--accent); }
 #rail-hud:has(.rh-box[data-tone="warn"]) .rh-ln { stroke: var(--yellow); }
 #rail-hud:has(.rh-box[data-tone="fail"]) .rh-ln { stroke: var(--red); }
-#rail-hud .rh-box { position: absolute; box-sizing: border-box; max-width: 420px; padding: 10px 12px 11px; border: 1px solid var(--line-2); background: var(--panel); color: var(--txt); box-shadow: 0 0 0 4px var(--bg); }
+#rail-hud .rh-box { position: absolute; box-sizing: border-box; width: max-content; max-width: 420px; padding: 10px 12px 11px; border: 1px solid var(--line-2); background: var(--panel); color: var(--txt); box-shadow: 0 0 0 4px var(--bg); }
 #rail-hud .rh-box::before, #rail-hud .rh-box::after, #rail-hud .rh-c1, #rail-hud .rh-c2 { content: ""; position: absolute; width: 7px; height: 7px; border: 0 solid var(--txt); }
 #rail-hud .rh-box::before { left: -4px; top: -4px; border-left-width: 1px; border-top-width: 1px; }
 #rail-hud .rh-box::after { right: -4px; bottom: -4px; border-right-width: 1px; border-bottom-width: 1px; }

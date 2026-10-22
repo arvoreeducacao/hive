@@ -317,8 +317,8 @@ export class Device {
     return this.call("POST", "/profile", { avatar: String(profile?.avatar || ""), wear: String(profile?.wear || ""), language: String(profile?.language || "") });
   }
 
-  async openCode({ ttlMs, person } = {}) {
-    return this.call("POST", "/pair/open", { ...(ttlMs ? { ttlMs } : {}), ...(person ? { person } : {}) });
+  async openCode({ ttlMs, person, kind } = {}) {
+    return this.call("POST", "/pair/open", { ...(ttlMs ? { ttlMs } : {}), ...(person ? { person } : {}), ...(kind ? { kind } : {}) });
   }
 
   async noticesKey() {
@@ -495,7 +495,7 @@ export class Device {
     if (view.to === this.fingerprint && !view.done) {
       let mission = null;
       try { mission = await this.openBox(view.box); } catch { return; }
-      for (const ear of this.ears) ear({ kind: "birth", id: view.id, from: view.from, at: view.at, mission });
+      for (const ear of this.ears) ear({ kind: "birth", id: view.id, from: view.from, fromKind: view.fromKind || "", at: view.at, mission });
     }
     if (view.from === this.fingerprint && view.done) {
       const asked = this.births.get(view.id);

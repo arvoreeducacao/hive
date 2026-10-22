@@ -42,6 +42,13 @@ const fresh = (hive) => {
   st.focus = 0;
 };
 
+const afterTheGrace = (step) => {
+  const realNow = Date.now;
+  const later = realNow() + 61000;
+  Date.now = () => later;
+  try { step(); } finally { Date.now = realNow; }
+};
+
 test("a detached seat leaves the grid, and tidy does not drag it back", () => {
   fresh(grid);
   lay([{ keys: ["a", "b", "c", "d"] }]);
@@ -70,6 +77,7 @@ test("a seat that died while detached stops being detached, and never comes back
   grid.detachSeat("b");
   live(["a"]);
   grid.tidy();
+  afterTheGrace(() => grid.tidy());
   assert.equal(grid.detached.has("b"), false);
   assert.deepEqual(keysOf(), [["a"]]);
 });
@@ -82,6 +90,7 @@ test("a death while detached reaches the disk, so a namesake seat is not born hi
   assert.deepEqual(JSON.parse(localStorage.getItem("hive.detached")), ["b"]);
   live(["a"]);
   grid.tidy();
+  afterTheGrace(() => grid.tidy());
   assert.deepEqual(JSON.parse(localStorage.getItem("hive.detached")), []);
 });
 

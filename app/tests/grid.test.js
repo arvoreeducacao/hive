@@ -100,3 +100,74 @@ test("side by side: the row reset undoes the grid-of-three placement, so it must
   assert.ok(placed > -1, "the grid of three still places its tiles by hand");
   assert.ok(reset > placed, "without :nth-child(n) the row reset loses to the grid of three and one seat ends up squeezed below");
 });
+
+const twoBlocks = (left, right, block, at, layout = "row") => {
+  lay(left, at, layout);
+  const keys = Array.from({ length: right }, (_, i) => `r${i}`);
+  st.data.sessions.push(...keys.map((name) => ({ name, state: "idle" })));
+  st.blocks.push({ id: "b1", ws: "w0", label: "", manual: true, keys });
+  st.block = block;
+  st.focus = at;
+  st.keyHeld = false;
+};
+
+test("side by side: right from the last seat goes on to the first seat of the block beside it", () => {
+  twoBlocks(3, 2, 0, 2);
+  stepFocus(1, 0);
+  assert.equal(st.block, 1);
+  assert.equal(st.focus, 0);
+});
+
+test("side by side: left from the first seat comes back to the last seat of the block before", () => {
+  twoBlocks(3, 2, 1, 0);
+  stepFocus(-1, 0);
+  assert.equal(st.block, 0);
+  assert.equal(st.focus, 2);
+});
+
+test("past the last block of the space the focus stops at the edge", () => {
+  twoBlocks(3, 2, 1, 1);
+  stepFocus(1, 0);
+  assert.equal(st.block, 1);
+  assert.equal(st.focus, 1);
+  twoBlocks(3, 2, 0, 0);
+  stepFocus(-1, 0);
+  assert.equal(st.block, 0);
+  assert.equal(st.focus, 0);
+});
+
+test("a held key runs to the edge and stops there instead of crossing", () => {
+  twoBlocks(3, 2, 0, 2);
+  st.keyHeld = true;
+  stepFocus(1, 0);
+  assert.equal(st.block, 0);
+  assert.equal(st.focus, 2);
+  st.keyHeld = false;
+});
+
+test("up and down never cross into another block", () => {
+  twoBlocks(3, 2, 0, 2);
+  stepFocus(0, 1);
+  assert.equal(st.block, 0);
+  assert.equal(st.focus, 2);
+});
+
+test("in the grid the crossing lands on the seat facing the row it left", () => {
+  twoBlocks(4, 4, 0, 3, "grid");
+  stepFocus(1, 0);
+  assert.equal(st.block, 1);
+  assert.equal(st.focus, 2);
+  twoBlocks(4, 4, 1, 0, "grid");
+  stepFocus(-1, 0);
+  assert.equal(st.block, 0);
+  assert.equal(st.focus, 1);
+});
+
+test("a block of another space is not beside this one", () => {
+  twoBlocks(3, 2, 0, 2);
+  st.spaces.push({ id: "w1", name: "", tint: "#4A8ACD" });
+  st.blocks[1].ws = "w1";
+  stepFocus(1, 0);
+  assert.equal(st.block, 0);
+  assert.equal(st.focus, 2);
+});

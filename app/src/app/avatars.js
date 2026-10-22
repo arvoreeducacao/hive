@@ -1,6 +1,8 @@
 import { render } from "./arrange.js";
 import { blockWithRoom, openBlock, saveBlockAt, saveBlocks } from "./blocks.js";
 import { offerFace, pickFace, stripWear } from "./brand-face.js";
+import { FRAME_MS } from "/assets/frame-rate.mjs";
+import { startIdleClock } from "/assets/avatar/idle-clock.mjs";
 import { $, BLOB_FACE, GLYPH, LABEL, MOOD_BREATH, STAYS, avatarFor, avatarKey, avatarSvg, esc, every, fleetMood, holdOf, lookDeltas, mountPlayer, nearestFree, phrase, playOfMood, st, stopBeat, wearKey, stateColor } from "./core.js";
 import { pull, releaseKeyboard } from "./focus-navigation.js";
 import { justCreated, keyHint } from "./leader-key.js";
@@ -89,7 +91,7 @@ function mugPlay(state, { hold = true } = {}) {
   }
   if (!st.mugPlayer) {
     st.mugPlayer = mountPlayer(slot, mugFace(), { salt: "brand", onRest: () => mugRest() });
-    slot.classList.remove("av-alive", "av-follow");
+    slot.classList.remove("av-alive");
   }
   st.mugPlayer.play(state, { hold });
 }
@@ -240,48 +242,43 @@ function teamWaiting() {
 
 const followReach = () => Math.hypot(innerWidth, innerHeight);
 
-const follower = { slot: null, spec: null, eyes: [], near: false, idle: 0 };
+const follower = { slot: null, spec: null };
+
+const idleClock = startIdleClock({ doc: document, win: window });
 
 function followPointer(slot, spec) {
   follower.slot = slot;
   follower.spec = spec;
-  follower.eyes = [...slot.querySelectorAll(".av-seat")];
-  follower.near = false;
-  slot.classList.remove("av-follow");
 }
 
 function aimFace(x, y) {
   const slot = follower.slot;
-  if (!slot || !slot.isConnected || !follower.eyes.length) return;
+  if (!slot || !slot.isConnected) return;
   const box = slot.getBoundingClientRect();
   if (!box.width) return;
   const dx = x - (box.left + box.width / 2);
   const dy = y - (box.top + box.height / 2);
   const reach = followReach();
-  const near = Math.hypot(dx, dy) < reach;
-  if (near !== follower.near) {
-    follower.near = near;
-    slot.classList.toggle("av-follow", near);
-    if (!near) for (const g of follower.eyes) g.querySelector(".av-look")?.removeAttribute("style");
+  if (Math.hypot(dx, dy) >= reach) {
+    idleClock.aim(slot, null);
+    return;
   }
-  if (!near) return;
   const yaw = clampAim(dx / (reach / 2)) * 15;
   const pitch = -clampAim(dy / (reach / 2)) * 11;
-  const deltas = lookDeltas(follower.spec, yaw, pitch);
-  for (const g of follower.eyes) {
-    const d = deltas[Number(g.dataset.eye)] || { dx: 0, dy: 0 };
-    const look = g.querySelector(".av-look");
-    if (look) look.style.transform = `translate(${d.dx}px, ${d.dy}px)`;
-  }
+  idleClock.aim(slot, lookDeltas(follower.spec, yaw, pitch));
 }
 
 const clampAim = (v) => (v < -1 ? -1 : v > 1 ? 1 : v);
 
 st.aimQueued = 0;
 
+let pointerAt = { x: 0, y: 0 };
+
 addEventListener("pointermove", (ev) => {
-  if (ev.pointerType === "touch" || st.aimQueued) return;
-  st.aimQueued = requestAnimationFrame(() => { st.aimQueued = 0; aimFace(ev.clientX, ev.clientY); });
+  if (ev.pointerType === "touch") return;
+  pointerAt = { x: ev.clientX, y: ev.clientY };
+  if (st.aimQueued) return;
+  st.aimQueued = window.setTimeout(() => { st.aimQueued = 0; aimFace(pointerAt.x, pointerAt.y); }, FRAME_MS);
 }, { passive: true });
 
 document.addEventListener("pointerleave", () => aimFace(-9999, -9999));

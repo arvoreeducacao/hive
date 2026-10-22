@@ -49,6 +49,22 @@ const detached = new Set(soloSeat ? [] : readDetached());
 
 const WAKES_ON = new Set(["working", "needs"]);
 
+const SEAT_GRACE = 60000;
+
+function seatGrace() {
+  const missingSince = new Map();
+  return (key, alive) => {
+    for (const back of missingSince.keys()) if (alive.has(back)) missingSince.delete(back);
+    if (alive.has(key)) return false;
+    const since = missingSince.get(key) ?? Date.now();
+    if (Date.now() - since >= SEAT_GRACE) { missingSince.delete(key); return false; }
+    missingSince.set(key, since);
+    return true;
+  };
+}
+
+const awayBriefly = seatGrace();
+
 function readHidden() {
   try {
     const raw = JSON.parse(localStorage.getItem("hive.hidden") || "{}");
@@ -76,6 +92,15 @@ function hideSeat(key) {
   return true;
 }
 
+function forgetSeat(key) {
+  let changed = false;
+  for (const b of st.blocks) {
+    const at = b.keys.indexOf(key);
+    if (at >= 0) { b.keys.splice(at, 1); changed = true; }
+  }
+  if (changed) saveBlocks();
+}
+
 function unhideSeat(key) {
   if (!hidden.delete(key)) return false;
   saveHidden();
@@ -88,7 +113,12 @@ function wakeHidden() {
   let changed = false;
   for (const [key, one] of hidden) {
     const s = alive.get(key);
-    if (!s) { hidden.delete(key); changed = true; continue; }
+    if (!s) {
+      if (awayBriefly(key, alive)) continue;
+      hidden.delete(key);
+      changed = true;
+      continue;
+    }
     const busy = WAKES_ON.has(s.raw || s.state);
     if (busy && one.armed) { hidden.delete(key); changed = true; }
     else if (!busy && !one.armed) { one.armed = true; changed = true; }
@@ -333,7 +363,7 @@ function tidy() {
   settleSpaces();
   const alive = new Set(st.data.sessions.map((s) => s.name));
   let shed = false;
-  for (const key of [...detached]) if (!alive.has(key)) { detached.delete(key); shed = true; }
+  for (const key of [...detached]) if (!alive.has(key) && !awayBriefly(key, alive)) { detached.delete(key); shed = true; }
   if (shed) saveDetached();
   wakeHidden();
   const jobs = new Map((st.data.spawning || []).map((j) => [j.id, j]));
@@ -362,7 +392,7 @@ function tidy() {
         if (!editors.has(c.slice(5))) continue;
       } else if (c.startsWith("draft:")) {
         if (!drafts.has(c.slice(6))) continue;
-      } else if (!alive.has(c) || detached.has(c) || hidden.has(c)) continue;
+      } else if ((!alive.has(c) && !awayBriefly(c, alive)) || detached.has(c) || hidden.has(c)) continue;
       if (seen.has(key)) continue;
       seen.add(key);
       kept.push(key);
@@ -428,4 +458,4 @@ function blockTitle(b, items) {
     : phrase("{name} and {n} more seats: {names}", { name: head, n: rest.length, names: rest.join(", ") });
 }
 
-export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, giveSeatBack, hideSeat, hidden, isHidden, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };
+export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, hideSeat, hidden, isHidden, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };

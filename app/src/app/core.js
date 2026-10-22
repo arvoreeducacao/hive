@@ -434,6 +434,10 @@ st.directMode = "keep";
 
 st.pending = false;
 
+st.keyHeld = false;
+
+st.layer = null;
+
 st.whichTimer = null;
 
 st.moveMode = "navigate";
@@ -514,7 +518,23 @@ function formatKey(b) {
   else if (b.code.startsWith("Key")) parts.push(b.code.slice(3).toLowerCase());
   else if (/^Digit\d$/.test(b.code)) parts.push(b.code.slice(5));
   else parts.push(b.code);
-  return parts.join("+");
+  const one = parts.join("+");
+  return b.then?.length ? [one, ...b.then.map(formatKey)].join(" ") : one;
+}
+
+/* a chord after the leader can be a sequence ("s n"): its first keys open a layer, and the
+   keys after the first ride along in then, so every place that holds one binding still does. */
+function parseChord(text) {
+  const keys = String(text || "").trim().split(/\s+/).filter(Boolean).map(parseKey);
+  if (!keys.length || keys.some((b) => !b)) return null;
+  const [first, ...then] = keys;
+  return then.length ? { ...first, then } : first;
+}
+
+function chordKeys(b) {
+  if (!b) return [];
+  const { then, ...first } = b;
+  return [first, ...(then || [])];
 }
 
 const isOff = (text) => OFF_WORDS.includes(String(text || "").trim().toLowerCase());
@@ -602,4 +622,4 @@ function fontFromPanel() {
   };
 }
 
-export { $, ACTION_GROUPS, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };
+export { $, chordKeys, parseChord, ACTION_GROUPS, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };

@@ -1,5 +1,6 @@
 import { BASE, COLOURS, PAPER, avatarFor, avatarKey, isAvatar, wearKey } from "../avatar/avatar.mjs";
 import { frameOf, frameSvg, holdOf, playHasEyes } from "../avatar/avatar-play.mjs";
+import { FRAME_MS, nextFrame } from "../frame-rate.mjs";
 import { phrase } from "../i18n.mjs";
 import { ASK, RALLY, askDue, mountRally } from "./rally.mjs";
 
@@ -138,10 +139,7 @@ export function vidaMansaDue(date, sawBusy, quietNow, lastDay) {
    start threshold, flies with the hand's own velocity, bounces off the walls of its strip and
    off the ceiling, and lands when the floor takes the last of the fall. calm mode never lifts
    it — a drag under calm is just a pat that wandered. */
-/* `ceil` saiu: a arena deixou de ser a caixinha do rodapé e passou a ser a janela, que se mede na
-   hora. `step`, `catchup` e `home` são o preço de desenhar o voo a cada quadro da tela em vez de
-   nos 25 do tick — sem eles as constantes acima só valeriam a 25fps. */
-export const FLING = { start: 8, grav: 2600, bounce: 0.55, settle: 130, max: 1600, window: 90, step: 1 / 120, catchup: 0.05, home: 47, edge: 10 };
+export const FLING = { start: 8, grav: 2600, bounce: 0.55, settle: 130, max: 1600, window: 90, step: 1 / 120, catchup: 0.08, home: 47, edge: 10 };
 
 /* the walls are answered by clamping the position and turning the velocity around, so nothing can
    leave the arena in a single step however hard it is thrown.
@@ -250,7 +248,7 @@ export function writeNest(store, nest) {
   try { store && store.setItem(NEST_KEY, JSON.stringify(nest)); } catch {}
 }
 
-const TICK_MS = 40;
+const TICK_MS = FRAME_MS;
 
 const STROLL_PX = 0.55;
 
@@ -396,7 +394,7 @@ export function mountTamagotchi(host, options = {}) {
   let cross = false;
   let glee = false;
   let tally = { throws: 0, sulkUntil: 0 };
-  let raf = 0;
+  let glideCancel = null;
   let lastFrame = 0;
   let owed = 0;
   let aloftClock = 0;
@@ -677,13 +675,8 @@ export function mountTamagotchi(host, options = {}) {
     place();
   };
 
-  /* the screen sets how often this is drawn; the physics is stepped at its own fixed rate however
-     many of those fit in the frame, so a 120Hz mac and a 60Hz one see the same throw, and a frame
-     the browser skipped while the window was hidden cannot teleport the creature. the 40ms tick
-     the rest of the creature lives on is 25 frames a second: enough for a face that breathes, far
-     too few for something crossing the window. */
   const glide = (now) => {
-    raf = 0;
+    glideCancel = null;
     if (!fly) return;
     const dt = lastFrame ? Math.min((now - lastFrame) / 1000, FLING.catchup) : FLING.step;
     lastFrame = now;
@@ -696,19 +689,19 @@ export function mountTamagotchi(host, options = {}) {
       }
     }
     place();
-    raf = win.requestAnimationFrame(glide);
+    glideCancel = nextFrame(win, glide);
   };
 
   const soar = () => {
-    if (raf || still()) return;
+    if (glideCancel || still()) return;
     lastFrame = 0;
     owed = 0;
-    raf = win.requestAnimationFrame(glide);
+    glideCancel = nextFrame(win, glide);
   };
 
   const grounded = () => {
-    if (raf) win.cancelAnimationFrame(raf);
-    raf = 0;
+    glideCancel?.();
+    glideCancel = null;
   };
 
   const step = () => {
