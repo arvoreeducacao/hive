@@ -3195,6 +3195,7 @@ function svEvent(e, ev) {
     if (ev.subtype === "effort_changed") {
       e.effort = ev.level || "";
       paintPills(e);
+      if (live) render();
       return;
     }
     if (ev.subtype === "account_changed") {
