@@ -93,6 +93,8 @@ export const PT_BR = {
   "go to the seat": "vai ao assento",
   "zoom in / back": "amplia / volta",
   "the seat numbers": "os números dos assentos",
+  "the seat's menu": "o menu do assento",
+  "nothing in the seat's menu answers to that": "nada no menu do assento responde a isso",
   "browser beside": "navegador ao lado",
   "focus beside": "foco ao lado",
   "focus above / below": "foco acima / abaixo",

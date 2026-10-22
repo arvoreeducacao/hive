@@ -4,10 +4,11 @@ import { catalogRow } from "../app/chat-and-panes.js";
 import { FOCUS_MOVES, st } from "../app/core.js";
 import { goToBlockAt, gridRows } from "../app/focus-navigation.js";
 import { disarmLeader, keyCaps } from "../app/leader-key.js";
-import { prButtonViewModel } from "../app/seat-menu.js";
+import { prButtonViewModel, seatMenuCommands } from "../app/seat-menu.js";
 import { inAStrip } from "../app/seat-layout.js";
 import { structPool } from "../app/structured-seats.js";
 import { run } from "../app/themes.js";
+import { closeMini, miniKey, miniOn, openMini } from "./cockpit-minibuffer.js";
 
 const COLUMNS = 6;
 
@@ -20,6 +21,7 @@ const WHICH = [
   ["calls", "who needs you", true],
   ["zoom", "zoom in / back"],
   ["numbers", "the seat numbers"],
+  ["seatMenu", "the seat's menu"],
   ["browser", "browser beside"],
   ["prs", "PRs"],
   ["focusLeft focusRight", "focus beside"],
@@ -201,6 +203,7 @@ function cockpitModel(ctx, now = Date.now()) {
 
 function chordCaps(action) {
   if (OWN_CHORDS[action]) return keyCaps(action === "zoom" ? "z" : "q");
+  if (action === "seatMenu") return keyCaps(":");
   if (action === "seat") return keyCaps(`1-${Math.max(2, st.LIMIT || 6)}`);
   return action.split(" ").map((one) => (st.chords?.[one] ? keyCaps(keyLabel(st.chords[one])) : "")).join("");
 }
@@ -325,10 +328,29 @@ function stepPane(ctx, dx, dy) {
 
 const bare = (event) => !event.altKey && !event.ctrlKey && !event.metaKey;
 
+function openSeatLine(ctx) {
+  const key = ctx.focused();
+  const seat = st.data?.sessions?.find((one) => one.name === key);
+  if (!seat) return;
+  openMini(ctx.root, {
+    prompt: `${seat.title || seat.name} :`,
+    history: "seat",
+    items: seatMenuCommands(seat),
+    empty: ctx.phrase("nothing in the seat's menu answers to that"),
+    pick: (item) => { item.go(); ctx.render(); },
+    cancel: () => ctx.render()
+  });
+}
+
 function leaderKey(event, ctx) {
   if (["Alt", "Shift", "Control", "Meta"].includes(event.key)) return false;
   const chord = whichChord(event);
   const own = !chord && bare(event) && !event.shiftKey;
+  if (event.key === ":" && bare(event)) {
+    disarmLeader();
+    openSeatLine(ctx);
+    return true;
+  }
   if (own && event.code === OWN_CHORDS.zoom) {
     disarmLeader();
     run("fullscreen");
@@ -391,6 +413,7 @@ const cockpit = {
     clearInterval(clockTimer);
     clearTimeout(numbersTimer);
     numbersOn = false;
+    closeMini();
     dom.panes.clear();
     dom.grid = dom.which = dom.line = null;
     ctx.root.classList.remove("ck");
@@ -399,6 +422,7 @@ const cockpit = {
     if (dom.grid) paintCockpit(ctx);
   },
   keydown(event, ctx) {
+    if (miniOn()) return miniKey(event);
     if (st.pending && !st.layer) return leaderKey(event, ctx);
     if (numbersOn) return numbersKey(event, ctx);
     return false;

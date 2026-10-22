@@ -244,6 +244,48 @@ test("the which-key band lists the cockpit's keys, the one that answers you firs
   setStructure("classic", { quiet: true });
 });
 
+const mini = () => $("structure-root").querySelector(".ck-mini");
+const typeIn = (text) => {
+  const input = mini().querySelector("input");
+  input.value = text;
+  input.dispatchEvent(new Event("input"));
+};
+const rows = () => [...mini().querySelectorAll(".ck-mc")].map((one) => one.querySelector(".ck-ml")?.textContent);
+
+test("⌃B : opens the focused seat's menu as a line at the foot, the same rows the right click shows", () => {
+  try { localStorage.removeItem("hive.cockpit.history.seat"); } catch {}
+  wear([["a", "b"], ["g"]]);
+  chord("Semicolon", { key: ":", shiftKey: true });
+  assert.ok(mini(), "the line opened");
+  assert.equal(mini().querySelector(".ck-mq").textContent, "a :");
+  assert.equal(document.activeElement, mini().querySelector("input"));
+  assert.ok(rows().includes("open the browser here"));
+  assert.ok(rows().includes("open the phone here"));
+  typeIn("open brow");
+  assert.equal(rows()[0], "open the browser here");
+  press("Escape", { key: "Escape" });
+  assert.equal(mini(), null, "esc closes it and runs nothing");
+  assert.equal(st.webChat, null);
+  setStructure("classic", { quiet: true });
+});
+
+test("a few letters pick a row of the seat's menu, even one inside a submenu, and enter runs it", () => {
+  wear([["a", "b"], ["g"]]);
+  chord("Semicolon", { key: ":", shiftKey: true });
+  typeIn("move block 2");
+  assert.equal(rows()[0], "move to a block · block 2");
+  press("Enter", { key: "Enter" });
+  assert.equal(mini(), null);
+  assert.ok(st.blocks[1].keys.includes("a"), "the seat moved to block 2");
+  setStructure("classic", { quiet: true });
+});
+
+test("the which-key band says ⌃B : opens the seat's menu", () => {
+  wear([["a", "b"]]);
+  assert.match($("structure-root").querySelector(".ck-which").textContent, /:the seat's menu/);
+  setStructure("classic", { quiet: true });
+});
+
 test("an empty block says how to start one instead of showing nothing", () => {
   wear([[]]);
   assert.equal(panes().length, 0);
