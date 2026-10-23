@@ -250,6 +250,11 @@ function focusedSeatName() {
   return it?.kind === "session" ? it.name : null;
 }
 
+function scrollFocusedChat(d) {
+  const scroll = structPool.get(focusedSeatName())?.scroll;
+  if (scroll?.isConnected) scroll.scrollBy({ top: d * Math.round(scroll.clientHeight / 2) });
+}
+
 function sendSeatToBlockAt(i) {
   const name = focusedSeatName();
   const mine = blocksOf(st.space);
@@ -392,4 +397,4 @@ function pollKey(raw, now) {
   return `${Math.floor(now / beat)}|${JSON.stringify(withoutClock(raw))}`;
 }
 
-export { GRID_ROWS, POLL_STILL, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };
+export { GRID_ROWS, POLL_STILL, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, scrollFocusedChat, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };

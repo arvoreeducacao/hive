@@ -324,7 +324,7 @@ const CTRL_KEYS = {
   plane: { ctrl: true, shift: true, code: "KeyL" }
 };
 
-const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null };
+const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null, scrollUp: null, scrollDown: null };
 
 const RETIRED_ACTIONS = ["pod", "asked"];
 
@@ -353,10 +353,12 @@ const FOCUS_MOVES = { focusLeft: [-1, 0], focusRight: [1, 0], focusUp: [0, -1], 
 
 const MOVE_DIRS = { moveLeft: [-1, 0], moveRight: [1, 0], moveUp: [0, -1], moveDown: [0, 1] };
 
+const CHAT_SCROLLS = { scrollUp: -1, scrollDown: 1 };
+
 const MOVE_MODES = ["navigate", "type"];
 
 const ACTION_GROUPS = [
-  ["chats", "chats and seats", ["new", "term", "calls", "fullscreen", "detach", "rename", "reconnect", "type", "release", "copy", "archive", "kill"]],
+  ["chats", "chats and seats", ["new", "term", "calls", "fullscreen", "detach", "rename", "reconnect", "type", "release", "copy", "scrollUp", "scrollDown", "archive", "kill"]],
   ["screens", "screens and panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "compose", "bar", "dim"]],
   ["talking", "talking instead of typing", ["talk"]],
   ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
@@ -375,6 +377,8 @@ const ACTION_SAID = {
   type: "type in the focused session (hands over the keyboard)",
   release: "release the terminal keyboard",
   copy: "copy the terminal selection",
+  scrollUp: "scroll the focused chat up half a screen",
+  scrollDown: "scroll the focused chat down half a screen",
   archive: "archive the focused chat — it stops, and comes back the same",
   kill: "kill the focused chat — it stops for good and the seat is freed",
   palette: "search anything — sessions, blocks, commands",
@@ -622,4 +626,4 @@ function fontFromPanel() {
   };
 }
 
-export { $, chordKeys, parseChord, ACTION_GROUPS, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };
+export { $, chordKeys, parseChord, ACTION_GROUPS, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };

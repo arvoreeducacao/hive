@@ -928,6 +928,8 @@ export const PT_BR = {
   "The eyes are the little you at the foot of the rail — it has to be on above for them to have anywhere to look. Anywhere on the screen means it keeps following you into the window you moved to, and stops while the hive is minimised or hidden.": "Os olhos são o mini você no pé do rail — ele precisa estar ligado acima para que haja para onde olhar. Em qualquer lugar da tela quer dizer que ele continua te seguindo na janela para onde você foi, e para enquanto o hive está minimizado ou escondido.",
   "{settings} shows every shortcut and lets you rebind them — it is where your face and the little you live too — and it reopens this setup. Now go answer your first chat.": "{settings} mostra todos os atalhos e deixa você remapeá-los — é onde o seu rosto e o mini você moram também — e reabre esta configuração. Agora vá responder seu primeiro chat.",
   "focus the tile on the left": "focar o tile da esquerda",
+  "scroll the focused chat up half a screen": "rolar o chat em foco meia tela para cima",
+  "scroll the focused chat down half a screen": "rolar o chat em foco meia tela para baixo",
   "focus the tile on the right": "focar o tile da direita",
   "focus the tile above": "focar o tile de cima",
   "focus the tile below": "focar o tile de baixo",
