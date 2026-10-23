@@ -5,7 +5,7 @@ import { codeOf, hasMod, isLeader, keyLabel, modsMatch, silenced, whichAction } 
 import { closeBrowser, closeCockpit, closeDevice, closeEveryPicker, structuredCtrlC } from "./chat-and-panes.js";
 import { attachFilesToSeat, loadingChips, seatReceiving } from "./chat-stretches.js";
 import { ROOM_KEYS } from "./composer-head.js";
-import { $, DIGIT_ACTIONS, FOCUS_MOVES, IS_MAC, MOVE_DIRS, experienceNext, isImageName, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { $, CHAT_SCROLLS, DIGIT_ACTIONS, FOCUS_MOVES, IS_MAC, MOVE_DIRS, experienceNext, isImageName, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { closeDay, dayOnScreen } from "./day.js";
 import { attachFilesToDraft, draftFrom, draftInFocus } from "./draft-seat.js";
 import { faceSheetOpen, toggleFaceSheet } from "./face-door.js";
@@ -435,6 +435,11 @@ document.addEventListener("keydown", (e) => {
       run(m.action);
     }
     if (m && ROOM_KEYS.includes(m.action) && roomTakesKey(m.action, !!literalOf(st.keys[m.action])) && hasMod(st.keys[m.action])) {
+      e.preventDefault();
+      e.stopPropagation();
+      run(m.action);
+    }
+    if (m && CHAT_SCROLLS[m.action] && hasMod(st.keys[m.action]) && structPool.has(st.typing)) {
       e.preventDefault();
       e.stopPropagation();
       run(m.action);

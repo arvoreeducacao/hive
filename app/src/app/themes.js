@@ -4,10 +4,10 @@ import { activeItems, itemOf } from "./blocks.js";
 import { keyLabel, saveConfig } from "./brand-face.js";
 import { startRename } from "./chat-name.js";
 import { DEFAULT_SOUNDS, ensureAudio, openNewestSeatNotice, paintNotices, playSound, setAnswered, setSound, setVolume } from "./chimes-and-notices.js";
-import { $, BUILTIN_THEMES, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, experienceNext, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
+import { $, BUILTIN_THEMES, CHAT_SCROLLS, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, experienceNext, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { closeTasks, openTasks, tasksOn } from "./tasks.js";
-import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
+import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, scrollFocusedChat, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
 import { closeHistory, openHistory } from "./history.js";
 import { commitKeys, disarmLeader, paintKeys } from "./leader-key.js";
 import { closeLimPop, limPopOpen, placeLimPop, pullLimits, toggleLimPop } from "./limit-chip.js";
@@ -823,6 +823,8 @@ function run(action, digit) {
     case "moveRight":
     case "moveUp":
     case "moveDown": return stepMove(...MOVE_DIRS[action]);
+    case "scrollUp":
+    case "scrollDown": return scrollFocusedChat(CHAT_SCROLLS[action]);
   }
 }
 
