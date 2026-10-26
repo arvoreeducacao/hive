@@ -27,7 +27,7 @@ let listening = [];
 
 const broken = new Set();
 
-const suspended = () => !!soloSeat || !!st.mirrorDev || st.focusMode;
+const suspended = (def) => !!soloSeat || !!st.mirrorDev || (st.focusMode && !def?.module?.holdsFocusMode);
 
 const effective = () => (raycastOn() ? st.structure : STRUCTURE_DEFAULT);
 
@@ -112,7 +112,7 @@ function contextFor(def) {
 
 function wantedStructure() {
   const def = structureOf(effective());
-  return def.module?.ready && !broken.has(def.id) && !suspended() ? def : null;
+  return def.module?.ready && !broken.has(def.id) && !suspended(def) ? def : null;
 }
 
 function giveUp(def, err) {
@@ -159,7 +159,7 @@ function paintStructureFrame() {
   if (root) root.hidden = !worn;
   const note = $("structure-note");
   if (!note) return;
-  const waiting = def.id !== STRUCTURE_DEFAULT && !worn && !suspended();
+  const waiting = def.id !== STRUCTURE_DEFAULT && !worn && !suspended(def);
   note.hidden = !waiting;
   if (!waiting) return;
   const name = phrase(def.name);
