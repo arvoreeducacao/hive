@@ -10,7 +10,7 @@ const PR_FRESH_RUNNING = 20000;
 const PR_FRESH_SETTLED = 6 * 60 * 60 * 1000;
 const PR_RETIRE_AFTER = 24 * 60 * 60 * 1000;
 const PR_LANES = 4;
-const PR_FIELDS = "number,title,url,state,isDraft,author,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,mergeable,autoMergeRequest,statusCheckRollup,updatedAt,body,isCrossRepository";
+const PR_FIELDS = "number,title,url,state,isDraft,author,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,mergeable,autoMergeRequest,statusCheckRollup,updatedAt,body,isCrossRepository,labels,reviewRequests";
 const CHECK_GOOD = ["SUCCESS", "NEUTRAL", "SKIPPED"];
 const CHECK_ABANDONED = ["CANCELLED", "STALE", "EXPECTED"];
 const PR_NOT_THERE = /could not resolve to (a|an) (repository|pullrequest)|no pull requests found|could not find|\b404\b/i;
@@ -306,6 +306,8 @@ export function createPrDomain({
       ciDetail: rollup.detail,
       checks: rollup.checks,
       body: String(raw.body || "").slice(0, 8000),
+      labels: (raw.labels || []).map((label) => ({ name: label.name || "", color: label.color || "" })),
+      reviewers: (raw.reviewRequests || []).map((asked) => asked.login || asked.name || asked.slug || "").filter(Boolean),
       updatedAt: raw.updatedAt
     };
     prCache.set(key, { at: Date.now(), data });

@@ -55,7 +55,7 @@ test("the name belongs to one seat where it runs, not to the seat name alone", (
   assert.equal(h.myTitle("ajustar-paths", "cloud"), "Paths do Slack");
 });
 
-test("a title is asked for at spawn, looked at once more only when the model said it was unsure, and on request", () => {
+test("a title is asked for at spawn, looked at once more only when the model was unsure or said nothing, and on request", () => {
   /* the retry-until-settled titler was a third of a much bigger bill — see the
      simplificar-contexto-chats mission. what stays is T3 Code's bound: one ask at spawn,
      one refinement when the first answer flagged the subject as unknown, and a hand's ask. */
@@ -65,7 +65,7 @@ test("a title is asked for at spawn, looked at once more only when the model sai
   assert.ok(refine.indexOf("refineLater.delete(key)") < refine.indexOf("retitle("), "the refinement is spent before it is asked, so it runs once");
   assert.match(refine, /if \(mine \|\| label !== asked\.title\) return;/);
   const background = slice("function titleInTheBackground(name, where, prompt, agent) {", "async function chatSoFar");
-  assert.match(background, /landed && guess && said\.needsRefinement/);
+  assert.match(background, /landed && \(!guess \|\| said\.needsRefinement\)/, "a title the model never gave is looked at again after the first turn");
 });
 
 test("a name written by hand keeps the hand's words, number or no number", () => {

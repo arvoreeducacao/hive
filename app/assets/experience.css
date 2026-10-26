@@ -60,6 +60,10 @@ body.experience-next .sv-user .sv-stamp { bottom: -21px; }
 body.experience-next .sv-user a { color: #205650; text-decoration: underline; }
 body.experience-next .sv-user :is(code, pre) { color: var(--txt); background: var(--panel); }
 body.experience-next .sv-user :is(.said-img, .said-cmd) { padding: 1px 3px; font: 11px var(--mono); color: #873509; background: none; border-radius: 0; }
+body.experience-next { --cc-image: var(--accent); --cc-path: var(--txt-2); --cc-chat: var(--blue); --cc-person: var(--blue); --cc-pr: var(--line-2); --cc-pr-open: var(--blue); --cc-pr-draft: var(--line-2); --cc-pr-merged: var(--green); --cc-pr-closed: var(--accent-d); }
+body.experience-next .ctx-chip { height: 1.6em; }
+body.experience-next .ctx-chip[data-kind=image] { --cc: var(--cc-image) !important; }
+body.experience-next .sv-user:not(.peer) .ctx-chip { --cc-base: #111111; --cc-edge: var(--line-2); }
 body.experience-next .sv-user .sv-said-quote { --quote-hue: #3a403b; align-items: center; gap: 8px; margin-bottom: 8px; padding: 2px 0 2px 8px; border-left-color: var(--quote-hue); color: var(--quote-hue); font-size: 12px; }
 body.experience-next .sv-user .sv-said-quote .qi { margin-top: 0; color: var(--quote-hue); }
 body.experience-next .sv-user.peer { background: var(--panel-2); color: var(--txt); border: 1px solid var(--blue); }
@@ -183,6 +187,9 @@ body.experience-next :is(button, input, select, textarea, a):focus-visible { out
 
 body.experience-next :is(.menu, .sv-menu, .box, .pal-sheet, .relpop, #btrade, #plane-hud, .plink-menu, .pbar, #plane-said, #plane-map, .sv-queue, .sv-subs, .sv-suggest::before) { background: var(--panel-2); }
 body.experience-next :is(.sv-jump, .w-bar) { background: var(--panel); }
+body.experience-next .sv-jump-anchor { grid-row: 1; align-self: end; }
+body.experience-next .sv-jump { bottom: 12px; padding: 6px 12px; font: 11px/14px var(--mono); letter-spacing: 0; color: var(--txt); border-color: var(--line-2); }
+body.experience-next .sv-jump:hover { color: var(--accent); border-color: var(--accent); }
 body.experience-next .wn-list { background: var(--well); }
 body.experience-next :is(#confirm.at, .pal-scrim) { background: rgba(8, 8, 8, .82); }
 body.experience-next :is(#mission-scrim, #nudge-scrim) { background: rgba(6, 6, 6, .86); }

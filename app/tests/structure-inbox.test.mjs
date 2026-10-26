@@ -1,7 +1,13 @@
 import { after, test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { app, state } from "./dom.mjs";
+import { forgetMarksCache, keepMarks, readMarks } from "../lib/inbox-marks.mjs";
 
+const markHome = mkdtempSync(join(tmpdir(), "hive-inbox-structure-"));
+const marksSent = [];
 const archived = [];
 let hive = null;
 const answered = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
@@ -9,10 +15,19 @@ const realFetch = globalThis.fetch;
 globalThis.fetch = (url, init) => {
   if (String(url).includes("/api/seat/archive")) archived.push(JSON.parse(init.body).name);
   if (String(url).includes("/api/hive") && hive) return Promise.resolve(answered(JSON.parse(JSON.stringify(hive.data))));
+  if (String(url).includes("/api/inbox/marks")) {
+    const body = JSON.parse(init.body);
+    marksSent.push(body);
+    return Promise.resolve(answered({ ok: true, ...keepMarks(markHome, body.marks, { moving: body.moving === true }) }));
+  }
   return Promise.resolve(answered({ sessions: [], ok: true }));
 };
 window.hiveLink = { open: () => ({ send() {}, close() {} }) };
-after(() => { globalThis.fetch = realFetch; });
+after(() => {
+  globalThis.fetch = realFetch;
+  rmSync(markHome, { recursive: true, force: true });
+  forgetMarksCache();
+});
 
 const st = await state();
 hive = st;
@@ -45,7 +60,7 @@ function lay() {
   const names = Object.keys(SEATS);
   st.LIMIT = 4;
   st.calmOn = false;
-  st.data = { sessions: names.map((name) => ({ name, where: "local", kind: "chat", structured: true, model: "Opus 5.5", ...SEATS[name] })), spawning: [], archived: [], pod: { up: false, name: "" } };
+  st.data = { sessions: names.map((name) => ({ name, where: "local", kind: "chat", structured: true, model: "Opus 5.5", ...SEATS[name] })), spawning: [], archived: [], pod: { up: false, name: "" }, marks: readMarks(markHome) };
   st.spaces = [{ id: "w0", name: "" }];
   st.space = "w0";
   st.blocks = [{ id: "b0", ws: "w0", label: "", manual: true, keys: ["quiet", "asks"] }, { id: "b1", ws: "w0", label: "", manual: true, keys: ["busy", "back"] }];
@@ -71,7 +86,7 @@ const press = (key, extra = {}) => {
   return ev;
 };
 const same = (a, b, said) => assert.ok(a === b, said);
-const marks = () => JSON.parse(localStorage.getItem("hive.inbox.marks") || "{}");
+const marks = () => Object.fromEntries(Object.entries(readMarks(markHome)).filter(([, mark]) => Object.keys(mark).some((field) => field !== "at")));
 const shelf = (id) => root().querySelector(`[data-shelf="${id}"]`);
 
 localStorage.removeItem("hive.inbox.marks");
@@ -122,9 +137,9 @@ test("a chat is snoozed until its time, then settled, then pinned, else active",
 
 test("a snooze that ran out wakes the chat, and new words from a settled chat bring it back", () => {
   const seats = [{ key: "a", state: "idle" }, { key: "b", state: "needs", finish: { at: new Date(5000).toISOString() } }];
-  const kept = { a: { snoozeUntil: 900 }, b: { settledAt: 4000 } };
-  assert.equal(inbox.settleMarks(kept, seats, 1000), true);
-  assert.deepEqual(kept, { a: { wokeAt: 1000 } });
+  const kept = { a: { snoozeUntil: 900, at: 1 }, b: { settledAt: 4000, at: 1 } };
+  assert.deepEqual(inbox.settleMarks(kept, seats, 1000), ["a", "b"]);
+  assert.deepEqual(kept, { a: { wokeAt: 1000, at: 1000 }, b: { at: 1000 } }, "each change carries its moment, so a stale copy cannot undo it");
 });
 
 test("entering wears the T3 sidebar: one card per chat, newest first, with project, title, branch and the status in the corner", () => {
@@ -170,6 +185,76 @@ test("clicking a card reads that seat, from any block, and the same tile moves",
   assert.match(root().querySelector(".tx-head").textContent, /oms-web/);
   assert.match(root().querySelector(".tx-head a.tx-ob-pr").getAttribute("href"), /pull\/35/);
   assert.match(root().querySelector(".tx-details").textContent, /jonas\/valores-lote/);
+});
+
+test("a PR opens beside the chat, the way T3 shows it, and the chat stays whole", async () => {
+  const { diffs, talks, commits } = await app("thread");
+  Object.assign(st.prs[0], { title: "valores do lote", state: "merged", author: "jonas", base: "main", branch: "jonas/valores-lote", files: 1, added: 2, removed: 1, body: "## Summary\n\nveja [o outro](https://example.com/x)", checks: [] });
+  talks.set("pr35", [{ who: "mees", when: ago(5), body: "<details><summary>achados</summary>um</details>", kind: "review", verdict: "approved" }]);
+  commits.set("pr35", [{ sha: "abc1234", title: "fix: lote", who: "jonas", when: ago(9) }]);
+  diffs.set("pr35", [{ path: "src/lote.ts", added: 2, removed: 1, lines: [{ t: "added", a: null, d: 1, h: "const a = 1" }] }]);
+  rowEl("back").click();
+  root().querySelector(".tx-head a.tx-ob-pr").click();
+  const panel = root().querySelector(".tx-prside");
+  assert.equal(panel.hidden, false);
+  same(tiles.get("back").parentElement, root().querySelector(".tx-host"), "the chat keeps its column");
+  assert.equal(root().querySelector(".tx-details").hidden, true, "the PR takes the place of the details");
+  assert.match(panel.querySelector(".tp-repo").textContent, /acme\/oms-web #35/);
+  assert.equal(panel.querySelector(".tp-title").textContent, "valores do lote");
+  assert.match(panel.querySelector(".tp-badge").className, /s-merged/);
+  assert.equal(panel.querySelector(".tp-code").textContent, "gh pr checkout 35");
+  assert.match(panel.querySelector(".tp-branch").textContent, /main.*jonas\/valores-lote/);
+  assert.deepEqual([...panel.querySelectorAll(".tp-seg button")].map((b) => b.dataset.tab), ["summary", "timeline", "code"]);
+  assert.match(panel.querySelector(".tp-ck").textContent, /No checks reported/);
+  assert.match(panel.querySelector(".tp-fields").textContent, /mees/, "who reviewed shows as a reviewer");
+  assert.equal(panel.querySelector(".tp-cmt .tp-md").textContent.includes("<details>"), false, "the html a bot leaves is not shown as text");
+  panel.querySelector('[data-tab="timeline"]').click();
+  assert.deepEqual([...panel.querySelectorAll(".tp-ev")].map((ev) => ev.textContent.includes("abc1234") ? "commit" : "review"), ["commit", "review"], "oldest first, the way it happened");
+  panel.querySelector('[data-tab="code"]').click();
+  assert.equal(panel.querySelector(".tp-diff"), null, "a file opens only when asked");
+  panel.querySelector(".tp-fhead").click();
+  assert.match(panel.querySelector(".tp-diff").textContent, /const a = 1/);
+});
+
+test("the comment being written survives the panel repainting around it", () => {
+  const panel = root().querySelector(".tx-prside");
+  panel.querySelector(".tp-fab").click();
+  const box = panel.querySelector(".tp-text");
+  box.value = "olha a linha 3";
+  box.dispatchEvent(new Event("input", { bubbles: true }));
+  st.prs[0].title = "valores do lote, de novo";
+  render();
+  same(panel.querySelector(".tp-text"), box, "the box is the same element");
+  assert.equal(box.value, "olha a linha 3");
+  panel.querySelector('.tp-compose [data-act="pr-compose"]').click();
+});
+
+test("a link inside the PR goes to the browser and never takes over the window", () => {
+  const opened = [];
+  const was = window.open;
+  window.open = (url) => opened.push(url);
+  const panel = root().querySelector(".tx-prside");
+  panel.querySelector('[data-tab="summary"]').click();
+  const link = panel.querySelector('.tp-md a[href="https://example.com/x"]');
+  const ev = new MouseEvent("click", { bubbles: true, cancelable: true });
+  link.dispatchEvent(ev);
+  window.open = was;
+  assert.equal(ev.defaultPrevented, true);
+  assert.deepEqual(opened, ["https://example.com/x"]);
+});
+
+test("the PR closes by its button, by escape, and by its own header button, and any PR link opens it", async () => {
+  const panel = root().querySelector(".tx-prside");
+  panel.querySelector('[data-act="pr-close"]').click();
+  assert.equal(panel.hidden, true);
+  const { goToPr } = await app("seat-menu");
+  goToPr(st.prs[0]);
+  assert.equal(panel.hidden, false, "a chip or a link in the chat lands in the same panel");
+  assert.ok(press("Escape").defaultPrevented);
+  assert.equal(panel.hidden, true);
+  root().querySelector(".tx-head a.tx-ob-pr").click();
+  root().querySelector(".tx-head a.tx-ob-pr").click();
+  assert.equal(panel.hidden, true, "the header button toggles it");
 });
 
 test("j and k walk the list, and stay put at its ends", () => {
@@ -249,6 +334,30 @@ test("p pins the chat above the rest", () => {
   press("p");
   assert.equal(marks().quiet, undefined);
   assert.equal(rows()[0], "busy");
+});
+
+test("the marks live in the hive: a pin made in another window arrives with the hive, and a stale copy does not undo a newer change", () => {
+  const sent = marksSent.length;
+  rowEl("quiet").click();
+  press("p");
+  assert.equal(marksSent.length, sent + 1, "the pin goes to the hive, not to this browser");
+  assert.equal(localStorage.getItem("hive.inbox.marks"), null);
+  const stale = { quiet: { at: 1 } };
+  st.data = { ...st.data, marks: stale };
+  render();
+  assert.equal(rows()[0], "quiet", "a copy older than the pin does not unpin it");
+  press("p");
+  st.data = { ...st.data, marks: { busy: { pinnedAt: 1, at: Date.now() - 1 } } };
+  render();
+  assert.equal(rows()[0], "busy", "a pin made elsewhere shows here");
+  assert.ok(rowEl("busy").querySelector(".tx-mark"));
+  rowEl("busy").click();
+  press("p");
+  assert.equal(marks().busy, undefined);
+  st.data = { ...st.data, marks: readMarks(markHome) };
+  render();
+  assert.equal(rows()[0], "busy");
+  assert.equal(rowEl("busy").querySelector(".tx-mark"), null);
 });
 
 test("snoozing from the card menu hides the chat until its time, under its own shelf", () => {
@@ -354,4 +463,51 @@ test("leaving gives every tile back to the classic", () => {
   assert.equal(press("j").defaultPrevented, false);
   localStorage.removeItem("hive.inbox.marks");
   localStorage.removeItem("hive.inbox.shelves");
+});
+
+test("the first load moves the marks this browser held to the hive, keeps what the hive already had, and clears the browser only after the hive took them", async () => {
+  rmSync(join(markHome, "inbox-marks.json"), { force: true });
+  forgetMarksCache();
+  keepMarks(markHome, { asks: { pinnedAt: 5, at: 5 } });
+  localStorage.setItem("hive.inbox.marks", JSON.stringify({ quiet: { pinnedAt: 2 }, asks: { settledAt: 9 }, back: {} }));
+  st.data = { ...st.data, marks: readMarks(markHome) };
+  setStructure("inbox", { quiet: true });
+  await new Promise((go) => setTimeout(go, 0));
+  assert.equal(marksSent.at(-1).moving, true);
+  assert.deepEqual(Object.keys(marks()).sort(), ["asks", "quiet"]);
+  assert.equal(marks().quiet.pinnedAt, 2);
+  assert.equal(marks().asks.settledAt, undefined, "the hive's own mark wins over the browser's");
+  assert.equal(localStorage.getItem("hive.inbox.marks"), null);
+  assert.deepEqual(rows().slice(0, 2).sort(), ["asks", "quiet"]);
+  const sent = marksSent.length;
+  setStructure("classic", { quiet: true });
+  setStructure("inbox", { quiet: true });
+  await new Promise((go) => setTimeout(go, 0));
+  assert.equal(marksSent.length, sent, "once moved, nothing is moved again");
+  setStructure("classic", { quiet: true });
+});
+
+test("a hive that keeps no marks leaves them in this browser, and the browser keeps every one until the hive can take them", async () => {
+  const { marks: _, ...rest } = st.data;
+  st.data = rest;
+  localStorage.removeItem("hive.inbox.marks");
+  const sent = marksSent.length;
+  setStructure("inbox", { quiet: true });
+  rowEl("quiet").click();
+  press("p");
+  assert.equal(marksSent.length, sent);
+  assert.ok(JSON.parse(localStorage.getItem("hive.inbox.marks")).quiet.pinnedAt);
+  const answering = globalThis.fetch;
+  globalThis.fetch = (url, init) => (String(url).includes("/api/inbox/marks") ? Promise.resolve({ ok: false, status: 404, json: async () => ({}) }) : answering(url, init));
+  st.data = { ...st.data, marks: {} };
+  render();
+  await new Promise((go) => setTimeout(go, 0));
+  assert.ok(JSON.parse(localStorage.getItem("hive.inbox.marks")).quiet.pinnedAt, "a hive that refused the move does not cost the browser its marks");
+  globalThis.fetch = answering;
+  st.data = { ...st.data, marks: {} };
+  render();
+  await new Promise((go) => setTimeout(go, 0));
+  assert.equal(localStorage.getItem("hive.inbox.marks"), null, "the next word from the hive tries the move again");
+  assert.ok(marks().quiet.pinnedAt);
+  setStructure("classic", { quiet: true });
 });

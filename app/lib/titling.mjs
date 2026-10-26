@@ -5,6 +5,7 @@ const MAX_MESSAGE = 2000;
 const OMITTED = "[Earlier content truncated]\n\n";
 const TRUNCATED = "\n[Content truncated]\n";
 const GITHUB_ITEM = /https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/(?:pull|issues)\/\d+/g;
+const LINK = /https?:\/\/\S+/gi;
 
 export const TITLE_SCHEMA = JSON.stringify({
   type: "object",
@@ -192,6 +193,12 @@ export function titleFromAnswer(raw) {
 export function titleSeed(text) {
   const said = String(text || "").trim().replace(/\s+/g, " ");
   return said.length <= SEED_LENGTH ? said : `${said.slice(0, SEED_LENGTH)}...`;
+}
+
+export function titleFallback(text) {
+  const lines = String(text || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const said = lines.map((line) => line.replace(LINK, " ").replace(/\s+/g, " ").trim()).find(Boolean);
+  return said || lines[0] || "";
 }
 
 export function githubLinksIn(text) {

@@ -1,0 +1,48 @@
+:root {
+  --cc-image: oklch(0.62 0.16 16);
+  --cc-path: oklch(0.62 0.11 215);
+  --cc-chat: oklch(0.62 0.12 190);
+  --cc-person: oklch(0.62 0.134 163);
+  --cc-pr: oklch(0.62 0.16 277);
+  --cc-pr-open: oklch(0.62 0.134 163);
+  --cc-pr-draft: oklch(0.62 0.02 259);
+  --cc-pr-merged: oklch(0.62 0.16 292);
+  --cc-pr-closed: oklch(0.62 0.16 16);
+}
+
+.ctx-chip { --cc: var(--cc-path); --cc-base: var(--tx-fg, var(--txt)); --cc-edge: var(--tx-border, var(--line-2));
+  display: inline-flex; align-items: center; gap: .33em; height: 1.41em; max-width: 100%; box-sizing: border-box; padding: 0 .5em; vertical-align: middle;
+  border: 1px solid color-mix(in oklab, var(--cc) 34%, var(--cc-edge)); border-radius: .5em;
+  background: color-mix(in oklab, var(--cc) 11%, transparent); color: color-mix(in oklab, var(--cc) 22%, var(--cc-base));
+  font-family: inherit; font-size: .86em; font-weight: 500; line-height: 1; letter-spacing: normal; text-decoration: none; white-space: nowrap; cursor: default;
+  transition: background-color 120ms, border-color 120ms; }
+.ctx-chip svg { display: block; flex: none; width: 1.17em; height: 1.17em; }
+.ctx-chip img { display: block; flex: none; width: 1.17em; height: 1.17em; border-radius: 2px; object-fit: cover; }
+.ctx-chip .cl { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+.ctx-chip:is(a, [data-kind=chat], [data-kind=image][data-path]) { cursor: pointer; }
+.ctx-chip:is(a, [data-kind=chat], [data-kind=image][data-path]):hover { border-color: color-mix(in oklab, var(--cc) 48%, var(--cc-edge)); background: color-mix(in oklab, var(--cc) 17%, transparent); color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); text-decoration: none; }
+.ctx-chip:focus-visible { outline: 2px solid var(--cc-base); outline-offset: -2px; }
+
+.ctx-chip[data-kind=image] { --cc: var(--cc-image); }
+.ctx-chip[data-kind=chat] { --cc: var(--cc-chat); }
+.ctx-chip[data-kind=person] { --cc: var(--cc-person); }
+.ctx-chip[data-kind=pr] { --cc: var(--cc-pr); }
+.ctx-chip[data-kind=pr][data-state=open] { --cc: var(--cc-pr-open); }
+.ctx-chip[data-kind=pr][data-state=draft] { --cc: var(--cc-pr-draft); }
+.ctx-chip[data-kind=pr][data-state=merged] { --cc: var(--cc-pr-merged); }
+.ctx-chip[data-kind=pr][data-state=closed] { --cc: var(--cc-pr-closed); }
+
+/* older looks style .said-img and bubble links themselves; the chip has to win. */
+:is(.sv-user, .sv-qitem) .ctx-chip.said-img, body.experience-next .sv-user .ctx-chip.said-img { padding: 0 .5em; font: inherit; font-size: .86em; font-weight: 500; color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); background: color-mix(in oklab, var(--cc) 11%, transparent); border-radius: .5em; }
+body.experience-next .sv-user a.ctx-chip { color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); text-decoration: none; }
+
+/* the box is a textarea with this layer drawn under it: padding or border here would shift the caret. */
+.sv-ink .ink-chip { --cc: var(--cc-path); color: color-mix(in oklab, var(--cc) 30%, var(--tx-fg, var(--txt))); background: color-mix(in oklab, var(--cc) 14%, transparent); border-radius: 4px; box-shadow: 0 0 0 1px color-mix(in oklab, var(--cc) 34%, transparent); }
+.sv-ink .ink-image { --cc: var(--cc-image); }
+.sv-ink .ink-chat { --cc: var(--cc-chat); }
+.sv-ink .ink-person { --cc: var(--cc-person); }
+.sv-ink .ink-pr-unknown { --cc: var(--cc-pr); }
+.sv-ink .ink-pr-open { --cc: var(--cc-pr-open); }
+.sv-ink .ink-pr-draft { --cc: var(--cc-pr-draft); }
+.sv-ink .ink-pr-merged { --cc: var(--cc-pr-merged); }
+.sv-ink .ink-pr-closed { --cc: var(--cc-pr-closed); }

@@ -1,5 +1,19 @@
-import { For, Show } from "solid-js";
+import { For, Show, createMemo } from "solid-js";
+import { encode } from "../vendor/uqr.mjs";
 import { mountView } from "../view.jsx";
+
+function PairQr(props) {
+  const qr = createMemo(() => {
+    const { size, data } = encode(props.link, { border: 4 });
+    let d = "";
+    data.forEach((row, y) => row.forEach((dark, x) => { if (dark) d += `M${x} ${y}h1v1h-1z`; }));
+    return { size, d };
+  });
+  return (
+    <svg class="pt-qr" viewBox={`0 0 ${qr().size} ${qr().size}`} shape-rendering="crispEdges"
+      role="img" aria-label={props.label} data-link={props.link}><path d={qr().d} /></svg>
+  );
+}
 
 function Act(props) {
   return (
@@ -41,7 +55,10 @@ function Portaria(props) {
         <button class="btn" data-pt="pair-service">{props.model.pairServiceSay}</button>
         <button class="btn go" data-pt="pair">{props.model.pairSay}</button></h3>
         <Show when={props.model.code}>
-          <div class="pt-code">
+          <div class="pt-code" classList={{ "with-qr": !!props.model.code.link }}>
+            <Show when={props.model.code.link}>
+              <PairQr link={props.model.code.link} label={props.model.code.qrSay} />
+            </Show>
             <span><span class="num">{props.model.code.num}</span>
               <small>{props.model.code.say}</small></span>
             <button class="btn" data-pt="unpair">{props.model.code.close}</button></div>

@@ -12,13 +12,15 @@ import { closeTile, focusSeat, goToBlock, goToSpace, openTile, pull, takeKeyboar
 import { keyHint, keyParts, liveBadge, liveOf, liveTitle, pool, receiving, tiles } from "./leader-key.js";
 import { memoryChip, memoryChipClick } from "./memory-signal.js";
 import { archiveSeatNow } from "./mirror.js";
-import { paneOnField } from "./plane.js";
+import { paneOnField, planeShown } from "./plane.js";
 import { ago, ask } from "./pod.js";
 import { paintDiffOfChat, paintInfoOfChat } from "./seat-changes.js";
 import { appendLeftovers, leftoversOf, worktreesThatStayed, worktreesToDrop } from "./seat-leftovers.js";
 import { WHERE_ICON, knock, shortBranch } from "./seat-layout.js";
 import { SHELF_TABS } from "./shelf.js";
 import { openPrInASeat } from "./page-in-a-seat.js";
+import { structureWorn } from "./structure.js";
+import { openPrSide } from "../structures/inbox-pr.js";
 import { paintSlim, toggleFold } from "./shared.js";
 import { artFileOf } from "./subagents-dock.js";
 import { goToTeam, takeKeyboardBack, teamRow } from "./team.js";
@@ -1430,6 +1432,10 @@ function goToPr(p) {
   closePrPop();
   if (finishOn()) closeFinish();
   if (experienceNext()) return openPrInASeat(p);
+  if (raycastOn() && structureWorn() === "inbox" && !planeShown()) {
+    openPrSide(p.key);
+    return render();
+  }
   st.openPr = p.key;
   st.openFile = null;
   if (chatOfPr(p)) return reviewInChat(p.session, p.key);

@@ -36,7 +36,7 @@ import { byErrand, closedErrands, errandOf, forgetOldKin, goneKin, keepErrands, 
 import { seatsOfStatus, takeoverMessages } from "./lib/canopy-watch.mjs";
 import { assertSpawnArgs } from "./lib/spawn-args.mjs";
 import { freeNameAmong, nameFromMission, namerCommand, pastHandles, slug } from "./lib/naming.mjs";
-import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
+import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFallback, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
 import { isPlainObject, FONT_DEFAULTS, GITHUB_REPO_URL, cleanFont, cleanKeys, cleanSound, cleanSounds, cleanVolume, cleanFlag, cleanMachine, cleanLayout, cleanBlockSize, cleanLanguage, cleanTerminal, cleanSttLanguage, cleanSttModel, cleanPet, cleanBrandFace, cleanGaze, cleanExperience, cleanExperienceOff, cleanInfoWidth, cleanInfoHeight, cleanThreadWidth, cleanPaneWidth, cleanLook, cleanStructure, cleanVisual, cleanShelf, cleanThemeName, cleanThemes, cleanAvatar, cleanWear, cleanPatch, cleanAutocompact, cleanQuietDays, cleanProviders, cleanExtensions, sameGithubRepo } from "./lib/config.mjs";
 import { seatsGoneQuiet, quietReason, QUIET_SWEEP_EVERY_MS } from "./lib/quiet-seats.mjs";
@@ -83,6 +83,8 @@ import { registerHistoryRoutes } from "./routes/history.mjs";
 import { registerHiveRoutes } from "./routes/hive.mjs";
 import { registerDraftRoutes } from "./routes/drafts.mjs";
 import { draftOf, dropGoneDrafts, keepDraft, readDrafts } from "./lib/drafts.mjs";
+import { registerInboxRoutes } from "./routes/inbox.mjs";
+import { readMarks } from "./lib/inbox-marks.mjs";
 import { registerMcpRoutes } from "./routes/mcp.mjs";
 import { registerOnboardingRoutes } from "./routes/onboarding.mjs";
 import { registerPortariaRoutes } from "./routes/portaria.mjs";
@@ -1484,6 +1486,7 @@ async function collect() {
     configAt: configStamp(),
     thumbs: shelfThumbs.next(),
     drafts: readDrafts(HIVE_HOME),
+    marks: readMarks(HIVE_HOME),
     at: new Date().toISOString()
   };
   dropGoneDrafts(HIVE_HOME, new Set([...alive, ...[...spawning.values()].map((j) => j.name).filter(Boolean)]));
@@ -3385,8 +3388,9 @@ const namingNow = new Set();
 
 const NAME_TRIES = 2;
 
-/* a title the model marked as still unsure gets one more look, with the first answer in
-   hand, once that first turn is over — never again after that, and never over a hand's name. */
+/* a title the model marked as still unsure, or never gave (a spent account answers nothing),
+   gets one more look, with the first answer in hand, once that first turn is over — never
+   again after that, and never over a hand's name. */
 const refineLater = new Map();
 const retitlingNow = new Set();
 
@@ -3402,11 +3406,11 @@ async function guessedTitle(prompt, agent) {
 function titleInTheBackground(name, where, prompt, agent) {
   guessedTitle(prompt, agent).then(async (said) => {
     const guess = said.title;
-    const title = guess || cleanTitle(firstLine(prompt));
-    if (!guess) console.log(`hive: the model gave seat ${name} no title of its own — its first line holds the seat until it names itself`);
+    const title = guess || cleanTitle(titleFallback(pastHandles(prompt)));
+    if (!guess) console.log(`hive: the model gave seat ${name} no title of its own — its first words hold the seat until the first turn is over`);
     const landed = await titleTheSeat(name, where, title);
     if (landed) console.log(`hive: seat ${name} now reads "${title}"`);
-    if (landed && guess && said.needsRefinement) refineLater.set(seatKey(where, name), { agent, title: cleanTitle(title), prompt });
+    if (landed && (!guess || said.needsRefinement)) refineLater.set(seatKey(where, name), { agent, title: cleanTitle(title), prompt });
   }).catch((wrong) => console.log(`hive: naming seat ${name} in the background failed: ${String(wrong?.message || wrong)}`))
     .finally(() => { namingNow.delete(seatKey(where, name)); cache.at = 0; });
 }
@@ -5839,9 +5843,8 @@ function looseOf(porcelain, dir) {
 }
 
 const WT_LIST_FRESH = 60000;
-const WT_MEASURE_FRESH = 600000;
+const WT_MEASURE_FRESH = 3600000;
 const WT_IDLE_HOURS = 1;
-const WT_SKIP = new Set([".git", "node_modules", ".next", "dist", "build", "target", "venv", ".venv", "vendor", "coverage", ".turbo", ".cache"]);
 
 const WORKTREE_WALK = [
   'seen=""',
@@ -5918,21 +5921,6 @@ function worktreeTouched(path) {
   return Math.round(newest);
 }
 
-function newestUnder(path, budget) {
-  let newest = 0;
-  let entries = [];
-  try { entries = readdirSync(path, { withFileTypes: true }); } catch { return 0; }
-  for (const entry of entries) {
-    if (budget.left <= 0) break;
-    budget.left--;
-    if (WT_SKIP.has(entry.name)) continue;
-    const child = join(path, entry.name);
-    if (entry.isDirectory()) { newest = Math.max(newest, newestUnder(child, budget)); continue; }
-    try { newest = Math.max(newest, statSync(child).mtimeMs); } catch {}
-  }
-  return Math.round(newest);
-}
-
 /* the four gates a worktree has to pass before anything deletes it — a seat sitting in it,
    a file nobody committed, a commit nobody pushed, a lock somebody put there on purpose */
 function worktreeKeep(tree) {
@@ -5947,7 +5935,7 @@ function worktreeRows(trees, { hours = WT_IDLE_HOURS, measured = new Map(), now 
   const wait = Math.max(1, Number(hours) || WT_IDLE_HOURS) * 3600000;
   return trees.map((tree) => {
     const size = measured.get(tree.path);
-    const touched = Math.max(Number(tree.touched) || 0, Number(size?.deep) || 0);
+    const touched = Number(tree.touched) || 0;
     const age = touched ? now - touched : 0;
     const keep = worktreeKeep(tree);
     const idle = !!tree.gone || (!tree.seat && !!touched && age >= wait);
@@ -5994,7 +5982,7 @@ async function measureWorktrees(paths) {
     if (found) sizes.set(found[2].trim(), Number(found[1]) * 1024);
   }
   for (const path of paths) {
-    measured.set(path, { bytes: sizes.has(path) ? sizes.get(path) : null, deep: newestUnder(path, { left: 60000 }), at: Date.now() });
+    measured.set(path, { bytes: sizes.has(path) ? sizes.get(path) : null, at: Date.now() });
   }
   return measured;
 }
@@ -6659,6 +6647,7 @@ const MONACO_TYPES = { js: "text/javascript", mjs: "text/javascript", css: "text
 const STATIC = {
   "/assets/experience.css": ["assets/experience.css", "text/css"],
   "/assets/secret-asks.css": ["assets/secret-asks.css", "text/css"],
+  "/assets/context-chips.css": ["assets/context-chips.css", "text/css"],
   "/assets/raycast/foundation.css": ["assets/raycast/foundation.css", "text/css"],
   "/assets/raycast/top.css": ["assets/raycast/top.css", "text/css"],
   "/assets/raycast/rail.css": ["assets/raycast/rail.css", "text/css"],
@@ -6794,6 +6783,7 @@ const prDomain = registerPrRoutes(on, { bodyOf: body, sh, shr, extractJson, lang
 const workspaceDomain = registerWorkspaceRoutes(on, { sh, shr, inBash, podUp, onTheServer, hub: HUB, workspaceOf, readManifest, bodyOf: body, gitSaid });
 registerHiveRoutes(on, { collect });
 registerDraftRoutes(on, { bodyOf: body, HIVE_HOME, isSeatName, publish: async (name, text, at) => { await phoneBridge.sendDraft(name, text, at); } });
+registerInboxRoutes(on, { bodyOf: body, HIVE_HOME });
 registerMcpRoutes(on, { bodyOf: body, isSeatName, mcpLogins, onTheServer, startMcpLogin });
 registerFilesRoutes(on, { bodyOf: body, isSeatName, seatFiles, rankFiles, fileIndex, indexCache, rankIndex, searchCode, writeRepoFile, readRepoFile, languageOf, paintLines });
 registerChangesRoutes(on, { bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange });

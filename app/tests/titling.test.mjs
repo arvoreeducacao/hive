@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildTitlePrompt, formatTitleContext, githubLinksIn, limitTitleMessage, sanitizeTitle, titleFromAnswer, titleMessagesOf, titleSeed } from "../lib/titling.mjs";
+import { buildTitlePrompt, formatTitleContext, githubLinksIn, limitTitleMessage, sanitizeTitle, titleFallback, titleFromAnswer, titleMessagesOf, titleSeed } from "../lib/titling.mjs";
 import { namerCommand } from "../lib/naming.mjs";
 
 test("the first ask is T3 Code's: subject and outcome, JSON with needsRefinement, the user's message under it", () => {
@@ -64,6 +64,13 @@ test("a title is one line, unquoted, and never longer than the seat shows", () =
 test("the seed is the first message cut at fifty, as T3 Code shows it before the title lands", () => {
   assert.equal(titleSeed("curto"), "curto");
   assert.equal(titleSeed("a".repeat(60)), `${"a".repeat(50)}...`);
+});
+
+test("with no title from the model, the seat holds the person's words, not the link pasted ahead of them", () => {
+  assert.equal(titleFallback("https://acme.slack.com/archives/D0000000000/p1700000000000000\n\nExplica ai"), "Explica ai");
+  assert.equal(titleFallback("olha https://example.com/x isso aqui"), "olha isso aqui");
+  assert.equal(titleFallback("https://www.braspress.com/area-do-cliente/"), "https://www.braspress.com/area-do-cliente/");
+  assert.equal(titleFallback("\n  conserta o card\nsegunda linha"), "conserta o card");
 });
 
 test("only two GitHub PRs or issues are looked up", () => {
