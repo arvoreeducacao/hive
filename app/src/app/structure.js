@@ -27,7 +27,7 @@ let listening = [];
 
 const broken = new Set();
 
-const suspended = () => !!soloSeat || !!st.mirrorDev;
+const suspended = () => !!soloSeat || !!st.mirrorDev || st.focusMode;
 
 const effective = () => (raycastOn() ? st.structure : STRUCTURE_DEFAULT);
 

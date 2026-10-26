@@ -1,4 +1,4 @@
-import { openMission } from "./seat-layout.js";
+import { openMission, setFocusMode } from "./seat-layout.js";
 import { closeSpace, hideUntilItWorks, menuKeys, menuShow, menuStop, prOfChat, renameSpace, seatMenuRows, spaceCloseNote, threadsOfChat } from "./seat-menu.js";
 import { blockNumber, blocksOf, labelOf, ofBlock, openSpace, seatsOf, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel, saveConfig, whichAction } from "./brand-face.js";
@@ -453,6 +453,9 @@ function palActions() {
     { icon: "i-plug", name: phrase("connect an agent from outside that can talk"), ctx: phrase("the same, but it can also message and ask the chats"), search: "mcp external agent agente externo conectar operate", go: () => copyExternalMcp("operate") },
     { icon: "i-grid", name: st.dimOn ? phrase("stop dimming the other seats") : phrase("dim the other seats while you type"),
       ctx: phrase("while the keyboard is inside a seat"), key: keyHint("dim"), go: () => setPref("dim", !st.dimOn) },
+    { icon: "i-grid", name: st.focusMode ? phrase("leave focus mode") : phrase("focus mode"),
+      ctx: phrase("the chat in focus in the middle of the screen, the others of the block beside it"),
+      search: "focus mode modo foco focado zen center centro roleta carousel", key: keyHint("focusMode"), go: () => setFocusMode(!st.focusMode) },
     ...(experienceNext() ? [] : [{ icon: "i-term", name: st.barOn ? phrase("hide the message bar") : phrase("show the message bar"),
       ctx: phrase("the bar docked at the bottom of the canvas"), key: keyHint("bar"), go: () => setPref("bar", !st.barOn) }]),
     {
