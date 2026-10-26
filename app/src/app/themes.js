@@ -21,7 +21,7 @@ import { ask } from "./pod.js";
 import { setLanguage, setPet } from "./preferences.js";
 import { paintAutocompactReach, setAutocompact, setCalm, setDiaryDays, setPref, setQuietDays } from "./pure-helpers.js";
 import { discardDraft, draftInFocus, openDraft } from "./draft-seat.js";
-import { openComposer, setBlockSize, setLayout } from "./seat-layout.js";
+import { openComposer, setBlockSize, setFocusMode, setLayout } from "./seat-layout.js";
 import { closePrPop, placePrPop, prOfChat, prPopOpen, togglePrPop } from "./seat-menu.js";
 import { applyFonts, applyTheme } from "./shared.js";
 import { closeShelf, openShelf, shelfOnScreen } from "./shelf.js";
@@ -764,6 +764,7 @@ function run(action, digit) {
     }
     case "arrange": return arrangeOn() ? closeArrange() : openArrange();
     case "plane": return togglePlane();
+    case "focusMode": return setFocusMode(!st.focusMode);
     case "prevBlock": return stepBlock(-1);
     case "nextBlock": return stepBlock(1);
     case "sendPrevBlock": return stepSendSeat(-1);

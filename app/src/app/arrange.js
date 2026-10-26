@@ -14,7 +14,7 @@ import { palOn, palPaint } from "./palette.js";
 import { paintPlane, planeShown, planeSlot } from "./plane.js";
 import { pullThreads } from "./prs.js";
 import { calmly } from "./pure-helpers.js";
-import { born, flipEnd, flipStart, inARow, inAStrip, paintComposer, vanish } from "./seat-layout.js";
+import { born, flipEnd, flipStart, inARow, inAStrip, inFocusMode, paintComposer, vanish, watchFocusClicks } from "./seat-layout.js";
 import { closeSeatMenu, createJobTile, createOpeningTile, createTile, openSpaceMenu, update, updateJob, updateOpening } from "./seat-menu.js";
 import { followInStrip, forgetFollow, paintStripEdges, watchStripScroll } from "./strip.js";
 import { paintStructure } from "./structure.js";
@@ -723,7 +723,7 @@ let layoutSeen = "";
 
 function layoutKey(onPlane) {
   const seats = activeItems().map((it) => `${it.key}${statusFolded(it.key) ? "-" : "+"}`).join(",");
-  return [st.space, st.blocks[st.block]?.id, st.open, onPlane ? "plane" : "canvas", inAStrip() ? "strip" : inARow() ? "row" : "grid", seats].join("|");
+  return [st.space, st.blocks[st.block]?.id, st.open, onPlane ? "plane" : "canvas", inFocusMode() ? "focus" : inAStrip() ? "strip" : inARow() ? "row" : "grid", seats].join("|");
 }
 
 function paintCalls() {
@@ -748,6 +748,8 @@ function paintEverything({ animate = true } = {}) {
     paintYards();
     return;
   }
+  const focusing = !onPlane && inFocusMode();
+  if (focusing && !st.open) animate = false;
   const layout = layoutKey(onPlane);
   if (layout === layoutSeen) animate = false;
   layoutSeen = layout;
@@ -755,8 +757,8 @@ function paintEverything({ animate = true } = {}) {
   const c = $("canvas");
   const b = st.blocks[st.block];
   const list = activeItems();
-  const strip = !onPlane && !st.open && inAStrip();
-  document.body.classList.toggle("strip-on", !onPlane && inAStrip());
+  const strip = !onPlane && !st.open && !focusing && inAStrip();
+  document.body.classList.toggle("strip-on", !onPlane && !focusing && inAStrip());
   const shown = strip ? stripItems() : list.map((it, at) => ({ it, lane: 0, at, here: true }));
   if (placed.size && !onPlane) {
     for (const key of placed.keys()) {
@@ -789,7 +791,7 @@ function paintEverything({ animate = true } = {}) {
     }
   }
 
-  c.className = st.open ? "zoom" : strip ? "strip" : `g${Math.min(st.LIMIT, Math.max(1, list.length))}${inARow() ? " row" : ""}`;
+  c.className = st.open ? "zoom" : focusing ? "focus-mode" : strip ? "strip" : `g${Math.min(st.LIMIT, Math.max(1, list.length))}${inARow() ? " row" : ""}`;
 
   if (!shown.length) {
     for (const kid of [...c.children]) if (!kid.dataset.gone && !kid.classList.contains("blank")) kid.remove();
@@ -821,6 +823,8 @@ function paintEverything({ animate = true } = {}) {
       if (el.parentElement !== host) host.appendChild(el);
       if (fresh && !el.classList.contains("opening")) born(el);
       el.classList.toggle("lane-start", strip && lane > 0 && at === 0);
+      if (focusing && here) el.style.setProperty("--from-focus", String(at - st.focus));
+      else el.style.removeProperty("--from-focus");
       if (it.kind === "job") (el.classList.contains("opening") ? updateOpening : updateJob)(el, it, pos);
       else if (it.kind === "file") updateFile(el, it, pos);
       else if (it.kind === "draft") updateDraft(el, it, pos);
@@ -837,6 +841,7 @@ function paintEverything({ animate = true } = {}) {
     watchStripScroll(c);
     followInStrip(c);
   } else forgetFollow();
+  if (focusing) watchFocusClicks(c);
   paintStripEdges();
 
   const flights = flipEnd(moved);

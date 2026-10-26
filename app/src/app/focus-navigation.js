@@ -8,7 +8,7 @@ import { $, GLYPH, LABEL, ORDER, PILL_LABEL, apiGet, batch, markFinishSeen, pane
 import { disarmLeader, markSeatRead, pool, receiving, stateOf, tiles } from "./leader-key.js";
 import { paintLimitChip } from "./limit-chip.js";
 import { calmly } from "./pure-helpers.js";
-import { inARow, inAStrip } from "./seat-layout.js";
+import { inARow, inAStrip, inFocusMode } from "./seat-layout.js";
 import { markSeatLandedSeen, threadsOfChat } from "./seat-menu.js";
 import { takeShelfThumbs } from "./shelf-thumbs.js";
 import { stepAcrossLanes } from "./strip.js";
@@ -189,7 +189,7 @@ function goToSeat(i) {
 
 const GRID_ROWS = { 1: [[0]], 2: [[0, 1]], 3: [[0, 2], [1, 2]], 4: [[0, 1], [2, 3]], 5: [[0, 1, 2], [3, 4]], 6: [[0, 1, 2], [3, 4, 5]] };
 
-const gridRows = (n) => (inARow() || inAStrip() ? [Array.from({ length: n }, (_, i) => i)] : GRID_ROWS[n]);
+const gridRows = (n) => (inARow() || inAStrip() || inFocusMode() ? [Array.from({ length: n }, (_, i) => i)] : GRID_ROWS[n]);
 
 function stepFocus(dx, dy) {
   const list = activeItems();
@@ -198,7 +198,7 @@ function stepFocus(dx, dy) {
   const r = rows.findIndex((row) => row.includes(st.focus));
   if (r < 0) return;
   const y = r + dy, x = rows[r].indexOf(st.focus) + dx;
-  if (inAStrip() && dy === 0 && (x < 0 || x >= rows[r].length)) {
+  if (inAStrip() && !inFocusMode() && dy === 0 && (x < 0 || x >= rows[r].length)) {
     if (stepAcrossLanes(dx)) render();
     return;
   }

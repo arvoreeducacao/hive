@@ -324,7 +324,7 @@ const CTRL_KEYS = {
   plane: { ctrl: true, shift: true, code: "KeyL" }
 };
 
-const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null, scrollUp: null, scrollDown: null };
+const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusMode: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null, scrollUp: null, scrollDown: null };
 
 const RETIRED_ACTIONS = ["pod", "asked"];
 
@@ -361,7 +361,7 @@ const ACTION_GROUPS = [
   ["chats", "chats and seats", ["new", "term", "calls", "fullscreen", "detach", "rename", "reconnect", "type", "release", "copy", "scrollUp", "scrollDown", "archive", "kill"]],
   ["screens", "screens and panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "compose", "bar", "dim"]],
   ["talking", "talking instead of typing", ["talk"]],
-  ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
+  ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusMode", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
   ["notices", "notices", ["sound", "answered"]]
 ];
 
@@ -414,6 +414,7 @@ const ACTION_SAID = {
   sendBlock: "send the focused chat to block (1…9)",
   arrange: "the floors — every workspace at once, and every block inside it",
   plane: "the plane \u2014 every seat on one field, and you place them",
+  focusMode: "focus mode — the chat in focus stays in the middle, the others of the block beside it",
   focusLeft: "focus the tile on the left",
   focusRight: "focus the tile on the right",
   focusUp: "focus the tile above",

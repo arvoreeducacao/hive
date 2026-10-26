@@ -613,6 +613,13 @@
   .strip-edge[hidden] { display: none; }
   #canvas.zoom { grid-template-columns: 1fr; grid-template-rows: 1fr; }
   #canvas.zoom .tile:not(.open) { display: none; }
+  #canvas.focus-mode { --focus-w: min(100% - 24px, max(640px, 40%)); --focus-gap: 20px; display: block; overflow: clip; }
+  #canvas.focus-mode > .tile { position: absolute; top: 12px; bottom: 12px; left: calc((100% - var(--focus-w)) / 2); width: var(--focus-w); min-height: 0; translate: calc(var(--from-focus, 0) * (100% + var(--focus-gap))) 0; transition: translate 340ms var(--ease), scale 340ms var(--ease), opacity 240ms var(--ease), filter 240ms var(--ease), border-color 160ms var(--ease); }
+  #canvas.focus-mode > .tile:not(.focused) { scale: .94; opacity: .42; filter: blur(3px) saturate(.7); cursor: pointer; }
+  #canvas.focus-mode > .tile:not(.focused) > * { pointer-events: none; }
+  #canvas.focus-mode > .tile:not(.focused):hover { opacity: .6; filter: blur(1.5px) saturate(.85); }
+  @media (prefers-reduced-motion: reduce) { #canvas.focus-mode > .tile { transition: none; } }
+  body.no-motion #canvas.focus-mode > .tile { transition: none; }
 
   /* ── the plane: every seat on one field ── */
   #plane { position: relative; overflow: hidden; min-height: 0; min-width: 0; margin: 12px; border: 1px solid var(--line); border-radius: var(--r2); background-color: var(--well); background-image: radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px); background-size: 26px 26px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -3932,6 +3939,8 @@
     #canvas.row, #canvas.strip { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; grid-auto-columns: auto; grid-auto-rows: minmax(240px, 1fr); overflow-x: hidden; overflow-y: auto; scroll-snap-type: none; }
     #canvas.row > .tile, #canvas.strip > .tile { min-height: 240px; }
     #canvas.strip > .tile.lane-start { margin-left: 0; }
+    #canvas.focus-mode { overflow: clip; }
+    #canvas.focus-mode > .tile { min-height: 0; }
     #blocks button span { display: none; }
     .tile.open, .tile.open.reviewing, .tile.open.threading, .tile.open.arting { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, auto) minmax(0, 1fr); }
     .tile.open.fronting:not(.arting) { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, auto) minmax(0, 1fr) minmax(0, auto); }

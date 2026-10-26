@@ -26,10 +26,37 @@ const inARow = () => st.seatLayout === "row";
 
 const inAStrip = () => st.seatLayout === "strip";
 
+const FOCUS_MODE_KEY = "hive.focusMode";
+
+st.focusMode = false;
+
+const inFocusMode = () => st.focusMode;
+
 function bootLayout() {
-  let saved = "";
-  try { saved = localStorage.getItem(LAYOUT_KEY) || ""; } catch {}
+  let saved = "", focusing = "";
+  try {
+    saved = localStorage.getItem(LAYOUT_KEY) || "";
+    focusing = localStorage.getItem(FOCUS_MODE_KEY) || "";
+  } catch {}
   st.seatLayout = LAYOUTS.includes(saved) ? saved : LAYOUTS[0];
+  st.focusMode = focusing === "1";
+}
+
+function setFocusMode(on) {
+  st.focusMode = !!on;
+  try { localStorage.setItem(FOCUS_MODE_KEY, st.focusMode ? "1" : ""); } catch {}
+  render();
+  for (const e of pool.values()) if (e.host.isConnected) requestAnimationFrame(() => refit(e));
+}
+
+function watchFocusClicks(canvas) {
+  if (canvas.dataset.focusWatched) return;
+  canvas.dataset.focusWatched = "1";
+  canvas.addEventListener("pointerdown", (ev) => {
+    if (!inFocusMode()) return;
+    const tile = ev.target.closest?.(".tile");
+    if (tile?.parentElement === canvas && tile.dataset.key && focusSeat(tile.dataset.key)) render();
+  });
 }
 
 function setLayout(id, quiet) {
@@ -616,4 +643,4 @@ function stepQuestionCard() {
   return true;
 }
 
-export { GONE_MS, LAYOUTS, LAYOUT_KEY, LAYOUT_NAMES, WHERE_ICON, adoptBlockSize, adoptLayout, aimedAt, answerWithDigit, bootLayout, born, closeMission, cmpMenuClose, cmpMenuCompute, cmpMenuKey, cmpMenuPaint, cmpMenuPick, composerSend, composerTarget, composerTo, composerToSolid, composerToViewModel, driverUp, flipEnd, flipStart, growComposer, inARow, inAStrip, knock, missionHint, missionWhere, onASleepingPod, openChatFromBar, openComposer, openMission, openQuestionCard, paintAim, paintComposer, paintComposerTo, paintMission, sendToSeat, setBlockSize, setLayout, setMission, shortBranch, stepQuestionCard, vanish, wakeAndSay };
+export { FOCUS_MODE_KEY, GONE_MS, LAYOUTS, LAYOUT_KEY, LAYOUT_NAMES, WHERE_ICON, adoptBlockSize, adoptLayout, aimedAt, answerWithDigit, bootLayout, born, closeMission, cmpMenuClose, cmpMenuCompute, cmpMenuKey, cmpMenuPaint, cmpMenuPick, composerSend, composerTarget, composerTo, composerToSolid, composerToViewModel, driverUp, flipEnd, flipStart, growComposer, inARow, inAStrip, inFocusMode, knock, missionHint, missionWhere, onASleepingPod, openChatFromBar, openComposer, openMission, openQuestionCard, paintAim, paintComposer, paintComposerTo, paintMission, sendToSeat, setBlockSize, setFocusMode, setLayout, setMission, shortBranch, stepQuestionCard, vanish, wakeAndSay, watchFocusClicks };
