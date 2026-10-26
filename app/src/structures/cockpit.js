@@ -2,10 +2,10 @@ import { blocksOf, labelOf, ofBlock } from "../app/blocks.js";
 import { keyLabel, whichChord } from "../app/brand-face.js";
 import { catalogRow } from "../app/chat-and-panes.js";
 import { FOCUS_MOVES, st } from "../app/core.js";
-import { goToBlockAt, gridRows } from "../app/focus-navigation.js";
+import { goToBlockAt, gridRows, stepFocus } from "../app/focus-navigation.js";
 import { disarmLeader, keyCaps } from "../app/leader-key.js";
 import { prButtonViewModel, seatMenuCommands } from "../app/seat-menu.js";
-import { inAStrip } from "../app/seat-layout.js";
+import { inAStrip, inFocusMode } from "../app/seat-layout.js";
 import { structPool } from "../app/structured-seats.js";
 import { run } from "../app/themes.js";
 import { closeMini, miniKey, miniOn, openMini } from "./cockpit-minibuffer.js";
@@ -135,6 +135,8 @@ function barModel(ctx, seat, now) {
   return { tone: need ? "need" : seat.state, segs, model: seat.model || "", effort: effortOf(live) };
 }
 
+const focusing = () => !st.open && inFocusMode();
+
 function panesOf(ctx) {
   const here = ctx.seats().filter((one) => one.here).sort((a, b) => a.at - b.at);
   if (!st.open) return here;
@@ -180,10 +182,12 @@ function lineModel(ctx, now) {
 function cockpitModel(ctx, now = Date.now()) {
   const panes = panesOf(ctx);
   const focused = ctx.focused();
+  const middle = panes.findIndex((seat) => seat.key === focused);
   const cells = paneCells(panes.length);
   return {
     zoom: !!st.open,
-    strip: !st.open && inAStrip(),
+    strip: !st.open && !inFocusMode() && inAStrip(),
+    focus: focusing(),
     columns: Math.max(1, ...cells.map((c) => c.col + c.cols - 1)),
     numbers: numbersOn,
     panes: panes.map((seat, i) => ({
@@ -192,6 +196,7 @@ function cockpitModel(ctx, now = Date.now()) {
       title: seat.title || seat.name || "",
       where: st.open ? [whereOf(seat), ctx.phrase("zoomed")].filter(Boolean).join(" · ") : whereOf(seat),
       on: seat.key === focused,
+      from: i - Math.max(0, middle),
       need: seat.state === "needs",
       cell: cells[i],
       bar: barModel(ctx, seat, now)
@@ -271,10 +276,12 @@ function paintCockpit(ctx) {
   dom.grid.classList.toggle("zoom", view.zoom);
   dom.grid.classList.toggle("numbers", view.numbers);
   dom.grid.classList.toggle("strip", view.strip);
+  dom.grid.classList.toggle("focus-mode", view.focus);
+  const loose = view.strip || view.focus;
   dom.grid.dataset.empty = view.empty;
   const rows = Math.max(1, ...view.panes.map((p) => p.cell.row + p.cell.rows - 1));
-  dom.grid.style.gridTemplateRows = view.strip ? "" : `repeat(${rows}, minmax(0, 1fr))`;
-  dom.grid.style.gridTemplateColumns = view.strip ? "" : `repeat(${view.columns}, minmax(0, 1fr))`;
+  dom.grid.style.gridTemplateRows = loose ? "" : `repeat(${rows}, minmax(0, 1fr))`;
+  dom.grid.style.gridTemplateColumns = loose ? "" : `repeat(${view.columns}, minmax(0, 1fr))`;
   const keep = new Set(view.panes.map((p) => p.key));
   for (const [key, pane] of dom.panes) {
     if (keep.has(key)) continue;
@@ -284,8 +291,10 @@ function paintCockpit(ctx) {
   view.panes.forEach((p, i) => {
     const pane = paneEl(p.key);
     if (dom.grid.children[i] !== pane.box) dom.grid.insertBefore(pane.box, dom.grid.children[i] || null);
-    const area = view.strip ? "" : `${p.cell.row} / ${p.cell.col} / span ${p.cell.rows} / span ${p.cell.cols}`;
+    const area = loose ? "" : `${p.cell.row} / ${p.cell.col} / span ${p.cell.rows} / span ${p.cell.cols}`;
     if (pane.box.style.gridArea !== area) pane.box.style.gridArea = area;
+    if (view.focus) pane.box.style.setProperty("--from-focus", String(p.from));
+    else pane.box.style.removeProperty("--from-focus");
     pane.box.classList.toggle("on", p.on);
     pane.box.classList.toggle("need", p.need);
     pane.bar.className = `ck-sl ${p.bar.tone}`;
@@ -313,6 +322,7 @@ function showNumbers(ctx) {
 }
 
 function stepPane(ctx, dx, dy) {
+  if (focusing()) return stepFocus(dx, dy);
   const panes = panesOf(ctx);
   if (st.open || !panes.length) return;
   const rows = gridRowsOf(panes.length);
@@ -399,6 +409,7 @@ function onDoubleClick(event) {
 const cockpit = {
   id: "cockpit",
   ready: true,
+  holdsFocusMode: true,
   enter(ctx) {
     numbersOn = false;
     dom.panes.clear();
