@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/node:22.23.2-bookworm
+FROM public.ecr.aws/docker/library/node:22.23.4-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
