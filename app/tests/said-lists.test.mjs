@@ -76,9 +76,10 @@ test("a link in a sent message can be clicked, and the punctuation after it stay
   assert.deepEqual(links.map((a) => a.getAttribute("href")), [deck, "https://github.com/acme/hive/pull/1125"]);
   assert.equal(links[0].target, "_blank");
   assert.equal(links[0].nextSibling.nodeValue.startsWith("."), true);
-  assert.equal(bubble.querySelector("ul.said-list > li").textContent, "the PR (https://github.com/acme/hive/pull/1125)");
+  assert.equal(bubble.querySelector("ul.said-list > li").textContent, "the PR (hive#1125)", "a PR reads as its chip, not as the whole url");
+  assert.equal(links[1].nextSibling.nodeValue, ")");
   assert.equal(bubble.querySelector(".said-cmd")?.textContent, "/compact");
-  assert.equal(bubble.querySelector(".said-img")?.textContent, "[Image #1]");
+  assert.equal(bubble.querySelector(".ctx-chip[data-kind=image]")?.textContent, "Image #1");
   assert.equal(links[1].dataset.here, "1", "a PR link opens inside the hive like the ones the AI writes");
   e.convView.dispose();
   structPool.delete(name);

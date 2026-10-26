@@ -268,34 +268,6 @@ function paintSaidCommand(el) {
   return el;
 }
 
-const SAID_IMAGE_MARK = /\[Image #(\d+)\]/g;
-
-function paintSaidImageMarks(el) {
-  for (const node of [...el.childNodes]) {
-    if (node.nodeType !== 3) {
-      if (node.nodeType === 1) paintSaidImageMarks(node);
-      continue;
-    }
-    const said = node.nodeValue;
-    SAID_IMAGE_MARK.lastIndex = 0;
-    if (!SAID_IMAGE_MARK.test(said)) continue;
-    const pieces = [];
-    let last = 0;
-    SAID_IMAGE_MARK.lastIndex = 0;
-    for (let m; (m = SAID_IMAGE_MARK.exec(said)); ) {
-      if (m.index > last) pieces.push(document.createTextNode(said.slice(last, m.index)));
-      const token = document.createElement("span");
-      token.className = "said-img";
-      token.textContent = m[0];
-      pieces.push(token);
-      last = m.index + m[0].length;
-    }
-    if (last < said.length) pieces.push(document.createTextNode(said.slice(last)));
-    node.replaceWith(...pieces);
-  }
-  return el;
-}
-
 function splitLeadingQuotes(text) {
   const lines = String(text ?? "").split("\n");
   if (!lines[0]?.startsWith("> ")) return null;
@@ -323,4 +295,4 @@ function svLine(e, cls, text) {
   return svConvLine(e, cls, text);
 }
 
-export { MENU_MARK, SAY_QUIET, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, WORK_KINDS, growStamp, paintActivity, paintSaidCommand, paintSaidImageMarks, stampClock, stampDate, paintStamp, refreshContext, refreshDriverState, sayKind, slashFamily, splitLeadingQuotes, forgetStruct, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine, svQueueRefused, svQuoteCard, svRunTail, svRunText, svSaidNear, svWasDequeuedEarly, workSummary, workVerb };
+export { MENU_MARK, SAY_QUIET, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, WORK_KINDS, growStamp, paintActivity, paintSaidCommand, stampClock, stampDate, paintStamp, refreshContext, refreshDriverState, sayKind, slashFamily, splitLeadingQuotes, forgetStruct, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine, svQueueRefused, svQuoteCard, svRunTail, svRunText, svSaidNear, svWasDequeuedEarly, workSummary, workVerb };

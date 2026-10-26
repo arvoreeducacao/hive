@@ -26,10 +26,8 @@ function slice(text, from, to, what) {
 
 const srv = new Function(`
   const WT_IDLE_HOURS = 1;
-  const WT_SKIP = new Set([".git", "node_modules"]);
   const statSync = () => ({ mtimeMs: 0 });
   const readFileSync = () => { throw new Error("no file here"); };
-  const readdirSync = () => [];
   const join = (...parts) => parts.join("/");
   ${slice(server, "function readWorktreeWalk", "let wtCache =", "server.mjs")}
   return { readWorktreeWalk, readWorktreeStats, worktreeKeep, worktreeRows, worktreeSummary };
@@ -174,12 +172,21 @@ test("a worktree nobody could read the time of is never swept by accident", () =
   assert.equal(row.idle, false, "no reading is not the same as old");
 });
 
-test("the deep read of the files wins over the shallow one", () => {
-  const measured = new Map([["/tmp/wt", { bytes: 1024, deep: NOW - 60000 }]]);
-  const [row] = srv.worktreeRows([tree()], { hours: 1, measured, now: NOW });
-  assert.equal(row.touched, NOW - 60000, "a file written a minute ago beats a folder stamped two hours ago");
-  assert.equal(row.idle, false);
-  assert.equal(row.bytes, 1024);
+test("measuring the worktrees leaves the files to du, so the server never stops to walk them", async () => {
+  const walked = [];
+  const measure = new Function("walked", `
+    const quoted = (text) => "'" + text + "'";
+    const inBash = (script) => [script];
+    const sh = async () => "1024\\t/tmp/wt\\n";
+    const readdirSync = (path) => { walked.push(path); return []; };
+    const statSync = (path) => { walked.push(path); return { mtimeMs: 0 }; };
+    ${slice(server, "async function measureWorktrees", "async function scanWorktrees", "server.mjs")}
+    return measureWorktrees;
+  `)(walked);
+  const measured = await measure(["/tmp/wt", "/tmp/unreadable"]);
+  assert.equal(measured.get("/tmp/wt").bytes, 1024 * 1024);
+  assert.equal(measured.get("/tmp/unreadable").bytes, null, "a folder du could not read stays unsized, not zero");
+  assert.deepEqual(walked, [], "41 worktrees walked file by file froze the whole hive for seconds");
 });
 
 test("the summary is what the sidebar shows, and it only frees what it may sweep", () => {

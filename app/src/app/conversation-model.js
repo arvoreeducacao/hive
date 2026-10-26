@@ -1,5 +1,6 @@
 import { render } from "./arrange.js";
 import { paintMentions, wireLinks } from "./chat-and-panes.js";
+import { giveImageChipItsPicture, paintSaidChips, wireChips } from "./context-chips.js";
 import { liveStart, liveStep, phrase, raycastOn, renderMarkdownBlocks, solidMounts } from "./core.js";
 import { focusSeat } from "./focus-navigation.js";
 import { openShot, wireMdShots } from "./picture-preview.js";
@@ -8,7 +9,7 @@ import { openMemoryAt } from "./memories.js";
 import { svMemorySaveLanded } from "./memory-signal.js";
 import { resultText, shotOfInput, shotsOfSaid, shotsOfTool, withoutImageNotes } from "./session-images.js";
 import { fillSaid } from "/assets/said-lists.mjs";
-import { paintSaidCommand, paintSaidImageMarks, splitLeadingQuotes, svQuoteCard, workSummary } from "./structured-seats.js";
+import { paintSaidCommand, splitLeadingQuotes, svQuoteCard, workSummary } from "./structured-seats.js";
 import { AGENT_TOOL, ASYNC_LAUNCH, DIFF_HUNK, IMAGE_NOTE_ONLY, SUB_LOG_MAX, SUB_STALE, diffLines, openArtifact, paintSubs, svArtLanded, svSubAsync, svSubPin, svSubUnpin, tookLabel } from "./subagents-dock.js";
 import { SKILL_TOOL, artifactLink, oneLine, toolArg, toolFace, toolTitle, trimBody } from "./tool-face.js";
 
@@ -275,13 +276,13 @@ function svConvLine(e, cls, text) {
   const hold = document.createElement("div");
   const split = splitLeadingQuotes(text);
   if (!split) {
-    paintSaidImageMarks(fillSaid(hold, text, paintSaidCommand));
+    paintSaidChips(fillSaid(hold, text, paintSaidCommand));
   } else {
     for (const said of split.quotes) hold.appendChild(svQuoteCard(said));
     if (split.rest) {
       const body = document.createElement("div");
       body.className = "sv-said-body";
-      paintSaidImageMarks(fillSaid(body, split.rest, paintSaidCommand));
+      paintSaidChips(fillSaid(body, split.rest, paintSaidCommand));
       hold.appendChild(body);
     }
   }
@@ -298,11 +299,15 @@ function svConvMentions(block) {
 
 function svConvThumb(e, block, path) {
   const short = path.split("/").pop();
+  const src = `/api/image?path=${encodeURIComponent(path)}&where=${e.where}&name=${encodeURIComponent(e.name)}`;
+  const inline = giveImageChipItsPicture(block.body, block.thumbs.length + 1, { src, name: short, path });
+  if (inline) block.body = inline;
   block.thumbs.push({
     key: `${block.key}:${block.thumbs.length}`,
+    inline: !!inline,
     path,
     mark: `#${block.thumbs.length + 1}`,
-    src: `/api/image?path=${encodeURIComponent(path)}&where=${e.where}&name=${encodeURIComponent(e.name)}`,
+    src,
     alt: short,
     name: short,
     title: phrase("{short} — click to see it big", { short })
@@ -576,7 +581,11 @@ function svConvSubsAged(e) {
 
 function svConvActions(e) {
   return {
-    wire: (root) => { wireMdShots(e, root); wireLinks(e.name, root); },
+    wire: (root) => {
+      wireMdShots(e, root);
+      wireLinks(e.name, root);
+      wireChips(root);
+    },
     shot: (path) => openShot(path, e.where, e.name),
     shotSeen: (img) => {
       const card = img.closest(".sv-tool");

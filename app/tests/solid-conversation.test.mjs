@@ -56,8 +56,8 @@ test("a mention is woven into the body the block already holds, never into a sec
   const bubble = hive.svConvLine(e, "sv-user", "fala #rafa");
   hive.svConvMentions(bubble);
   assert.equal(e.conv.blocks.length, 1);
-  assert.match(bubble.body, /^fala <span class="mention" data-seat="rafa"/);
-  assert.match(bubble.body, /#rafa/);
+  assert.match(bubble.body, /^fala <span class="ctx-chip" data-kind="chat" data-seat="rafa"/);
+  assert.equal((bubble.body.match(/data-seat="rafa"/g) || []).length, 1);
 });
 
 test("an image the person sent hangs on the bubble, keyed so two of the same file still show twice", () => {
@@ -77,8 +77,21 @@ test("each picture wears the number its mark carries in the words, and the file'
   hive.svConvThumb(e, bubble, "/tmp/depois.png");
   assert.deepEqual(bubble.thumbs.map((one) => one.mark), ["#1", "#2"]);
   assert.deepEqual(bubble.thumbs.map((one) => one.name), ["antes.png", "depois.png"]);
-  assert.match(bubble.body, /<span class="said-img">\[Image #1\]<\/span>/);
-  assert.match(bubble.body, /<span class="said-img">\[Image #2\]<\/span>/);
+  const hold = document.createElement("div");
+  hold.innerHTML = bubble.body;
+  const chips = [...hold.querySelectorAll(".ctx-chip[data-kind=image]")];
+  assert.deepEqual(chips.map((chip) => chip.dataset.path), ["/tmp/antes.png", "/tmp/depois.png"], "the mark in the words carries its own picture");
+  assert.deepEqual(chips.map((chip) => chip.textContent), ["antes.png", "depois.png"]);
+  assert.ok(chips.every((chip) => chip.querySelector("img")?.getAttribute("src")?.startsWith("/api/image?")));
+  assert.deepEqual(bubble.thumbs.map((one) => one.inline), [true, true], "a picture already in the words is not shown twice over the bubble");
+});
+
+test("a picture the words never mark still hangs over the bubble", () => {
+  const e = seat();
+  const bubble = hive.svConvLine(e, "sv-user", "olha [Image #1]");
+  hive.svConvThumb(e, bubble, "/tmp/um.png");
+  hive.svConvThumb(e, bubble, "/tmp/dois.png");
+  assert.deepEqual(bubble.thumbs.map((one) => one.inline), [true, false]);
 });
 
 test("what the model said is kept block by block, the way the render hands it over", () => {

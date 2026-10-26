@@ -4,6 +4,7 @@ import { activeItems } from "./blocks.js";
 import { whichAction } from "./brand-face.js";
 import { NATIVE_COMMANDS, openSeatPicker, paintMentions, refreshCatalog, runNativeCommand, structuredCtrlC, svEvent, svShellBlock, svUserThumb, weaveHandles } from "./chat-and-panes.js";
 import { svConvCutKey, svConvDrain, svConvMount, svConvPrepend, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
+import { inkChips } from "./context-chips.js";
 import { openContextWindow } from "./context-window.js";
 import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, experienceNext, isImageName, isNativeCommand, phrase, raycastOn, st, withCommand, withoutCommand } from "./core.js";
 import { releaseKeyboard } from "./focus-navigation.js";
@@ -1004,7 +1005,7 @@ document.addEventListener("hive:experience", (event) => {
   }
 });
 
-const listInkMarks = (said) => listMarks(said).map((mark) => ({ ...mark, cls: mark.kind === "ul" ? "ink-bullet" : "ink-num" }));
+const listInkMarks = (said) => [...listMarks(said).map((mark) => ({ ...mark, cls: mark.kind === "ul" ? "ink-bullet" : "ink-num" })), ...inkChips(said)];
 
 function drawInk(composer, ink, textarea, found) {
   const said = textarea.value;

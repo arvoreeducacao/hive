@@ -194,7 +194,7 @@ test("while the background name is on its way the seat says so, and stops saying
   const guess = slice(server, "async function guessedTitle(prompt, agent) {", "function titleInTheBackground");
   assert.match(guess, /tries < NAME_TRIES/);
   const fallback = slice(server, "function titleInTheBackground(name, where, prompt, agent) {", "async function runJob");
-  assert.match(fallback, /guess \|\| cleanTitle\(firstLine\(prompt\)\)/);
+  assert.match(fallback, /guess \|\| cleanTitle\(titleFallback\(pastHandles\(prompt\)\)\)/);
 });
 
 

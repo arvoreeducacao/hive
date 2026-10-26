@@ -71,6 +71,22 @@ test("the open code is on screen with its countdown, and vanishes when there is 
   assert.equal(screen(full()).querySelector(".pt-code"), null);
 });
 
+test("a phone code also comes as a QR of the link that pairs it, and a code nobody can scan has none", () => {
+  const open = screen(full({ pairing: { code: "KRQ7F2MJ", expiresAt: NOW + 277000 } })) && zoneOf(0);
+  const qr = open.querySelector(".pt-code svg.pt-qr");
+  assert.ok(qr, "the phone code has no QR to scan");
+  assert.equal(qr.getAttribute("data-link"), "https://pod-jonas.hive.hive.example/phone/?code=KRQ7F2MJ");
+  assert.match(qr.querySelector("path").getAttribute("d"), /^M\d/);
+  assert.match(open.querySelector(".pt-code small").textContent, /scan it with the phone camera, or open https:\/\/pod-jonas\.hive\.hive\.example\/phone\/ and type the code/);
+
+  const service = screen(full({ pairing: { code: "PT7KQ2MJ", expiresAt: NOW + 1700000, kind: "service" } })) && zoneOf(0);
+  assert.equal(service.querySelector(".pt-qr"), null, "a service pairs by script, not by camera");
+
+  const nowhere = screen(full({ pairing: { code: "KRQ7F2MJ", expiresAt: NOW + 277000 }, phone: { enrolled: false, host: "", running: false, following: [], why: "", error: "" } })) && zoneOf(0);
+  assert.equal(nowhere.querySelector(".pt-qr"), null, "without the hive address the QR would point nowhere");
+  assert.match(nowhere.querySelector(".pt-code small").textContent, /open the hive address, \/phone\/ on the phone and type it/);
+});
+
 test("a service is connected by a code of its own, says it only opens chats, and can be taken out", () => {
   const service = { fingerprint: "SHA256:service", name: "ticket bot", kind: "service", pairedAt: NOW - 3600000, lastSeen: NOW, revoked: false };
   const devices = screen(full({ devices: [service], pairing: { code: "PT7KQ2MJ", expiresAt: NOW + 1700000, kind: "service" } })) && zoneOf(0);

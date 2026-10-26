@@ -626,6 +626,9 @@ function portariaViewModel() {
   const door = st.portaria.door === "cloud" ? phrase("on the machine that stays online")
     : st.portaria.door === "local" ? phrase("on this machine only — nobody outside can knock here") : "";
   const phoneSaid = st.portaria.phone || {};
+  const phonePage = phoneSaid.host ? phoneSaid.host.replace(/\/sync$/, "/phone/") : "";
+  const pairing = st.portaria.pairing;
+  const pairLink = pairing && pairing.kind !== "service" && phonePage ? `${phonePage}?code=${pairing.code}` : "";
   return {
     count: [
       `${ptCount(devices.length, "1 device", "{n} devices")} · ${ptCount(inside, "1 person", "{n} people")}`,
@@ -633,11 +636,15 @@ function portariaViewModel() {
     ].filter(Boolean).join(" · "),
     zones: true, error: "",
     devicesSay: phrase("devices"), devicesCount: devices.length, pairSay: phrase("pair a device"), pairServiceSay: phrase("connect a service"),
-    code: st.portaria.pairing ? {
-      num: st.portaria.pairing.code,
-      say: st.portaria.pairing.kind === "service"
-        ? phrase("give the service {url} and this code · {left} left · works once · it can only open new chats", { url: phoneSaid.host || "the hive address, /sync", left: ptLeft(st.portaria.pairing.expiresAt) })
-        : phrase("open {url} on the phone and type it · {left} left · works once · five wrong tries close it", { url: phoneSaid.host ? phoneSaid.host.replace(/\/sync$/, "/phone/") : "the hive address, /phone/", left: ptLeft(st.portaria.pairing.expiresAt) }),
+    code: pairing ? {
+      num: pairing.code,
+      link: pairLink,
+      qrSay: phrase("QR code that pairs the phone"),
+      say: pairing.kind === "service"
+        ? phrase("give the service {url} and this code · {left} left · works once · it can only open new chats", { url: phoneSaid.host || "the hive address, /sync", left: ptLeft(pairing.expiresAt) })
+        : pairLink
+          ? phrase("scan it with the phone camera, or open {url} and type the code · {left} left · works once · five wrong tries close it", { url: phonePage, left: ptLeft(pairing.expiresAt) })
+          : phrase("open {url} on the phone and type it · {left} left · works once · five wrong tries close it", { url: "the hive address, /phone/", left: ptLeft(pairing.expiresAt) }),
       close: phrase("close")
     } : null,
     devices: devices.map((one) => ({

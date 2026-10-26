@@ -14,6 +14,8 @@ import { paintStamp } from "../app/structured-seats.js";
 import { prettyModelId } from "../app/chat-and-panes.js";
 import { openSeatMenu } from "../app/seat-menu.js";
 import { goToTeam } from "../app/team.js";
+import { prOf as prOfUrl } from "../app/context-chips.js";
+import { closePrSide, openPrSide, prSideAct, prSideDraft, prSideHtml, prSideKey, prSideTyped } from "./inbox-pr.js";
 
 const MARKS_KEY = "hive.inbox.marks";
 const PANEL_KEY = "hive.inbox.details";
@@ -69,7 +71,18 @@ const LUCIDE = {
   bars: '<path d="M5 21v-6"/><path d="M12 21V3"/><path d="M19 21V9"/>',
   worktree: '<path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5"/><circle cx="13" cy="12" r="2"/><path d="M18 19c-2.8 0-5-2.2-5-5v8"/><circle cx="20" cy="19" r="2"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
-  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>'
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  external: '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+  merge: '<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>',
+  arrowLeft: '<path d="m12 19-7-7 7-7"/><path d="M19 12H5"/>',
+  circleDashed: '<path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7"/>',
+  circleX: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+  tag: '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/>',
+  message: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>',
+  sort: '<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/>',
+  commit: '<circle cx="12" cy="12" r="3"/><line x1="3" x2="9" y1="12" y2="12"/><line x1="15" x2="21" y1="12" y2="12"/>',
+  eye: '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>'
 };
 
 const FAV_HUES = [212, 262, 152, 28, 338, 190, 48, 286, 0, 120];
@@ -179,23 +192,24 @@ function sectionOf(mark = {}, now = Date.now(), settles = false) {
 }
 
 function settleMarks(marks, seats, now = Date.now()) {
-  let changed = false;
+  const changed = [];
   const known = new Set(seats.map((seat) => seat.key));
   for (const [key, mark] of Object.entries(marks)) {
     if (!known.has(key)) continue;
     const seat = seats.find((one) => one.key === key);
+    let moved = false;
     if (mark.snoozeUntil && mark.snoozeUntil <= now) {
       delete mark.snoozeUntil;
       mark.wokeAt = now;
-      changed = true;
+      moved = true;
     }
     if (mark.settledAt && WAITING.has(groupOf(seat.state)) && stampOf(seat) > mark.settledAt) {
       delete mark.settledAt;
-      changed = true;
+      moved = true;
     }
-    if (!Object.keys(mark).length) {
-      delete marks[key];
-      changed = true;
+    if (moved) {
+      mark.at = now;
+      changed.push(key);
     }
   }
   return changed;
@@ -229,6 +243,7 @@ const treeOf = (seat) => (Array.isArray(seat.trees) ? seat.trees.find((one) => o
 
 function prsOf(name, prs) {
   return (prs || []).filter((p) => p.session === name).map((p) => ({
+    key: p.key || "",
     url: p.url || "",
     tag: `${String(p.repo || "").split("/").pop()}#${p.number}`,
     title: p.title || "",
@@ -427,7 +442,9 @@ function viewModel(ctx) {
   const now = Date.now();
   const focused = ctx.focused();
   const seats = ctx.seats();
-  if (settleMarks(mine.marks, seats, now)) writeJson(MARKS_KEY, mine.marks);
+  adoptMarks(ctx);
+  const woke = settleMarks(mine.marks, seats, now);
+  if (woke.length) saveMarks(woke);
   const all = seats.map((seat) => rowOf(seat, { now, prs: st.prs, phrase }));
   const repos = [...new Set(all.map((row) => row.repo).filter(Boolean))].sort();
   if (mine.scope && !repos.includes(mine.scope)) mine.scope = "";
@@ -636,7 +653,7 @@ function headHtml(v, ctx) {
   if (web && !web.hidden) groups.push(`<span class="tx-group"><button type="button" class="tx-ob" data-act="web" title="${esc(phrase("Browser"))}">${icon("globe")}</button></span>`);
   if (r.prs.length) {
     const p = r.prs[0];
-    groups.push(`<span class="tx-group"><a class="tx-ob tx-ob-pr pr-${esc(p.state)}${p.failing ? " fail" : ""}" href="${esc(p.url)}" target="_blank" rel="noreferrer" title="${esc(p.title || p.tag)}">${icon("pr")}<span>#${esc(p.tag.split("#").pop())}</span></a>${r.prs.length > 1 ? `<button type="button" class="tx-ob tx-ob-chev" data-act="details" title="${esc(phrase("Thread details"))}">${icon("down")}</button>` : ""}</span>`);
+    groups.push(`<span class="tx-group"><a class="tx-ob tx-ob-pr pr-${esc(p.state)}${p.failing ? " fail" : ""}${prSideKey() && prSideKey() === p.key ? " on" : ""}" data-act="pr-open" data-pr="${esc(p.key)}" href="${esc(p.url)}" target="_blank" rel="noreferrer" title="${esc(p.title || p.tag)}">${icon("pr")}<span>#${esc(p.tag.split("#").pop())}</span></a>${r.prs.length > 1 ? `<button type="button" class="tx-ob tx-ob-chev" data-act="details" title="${esc(phrase("Thread details"))}">${icon("down")}</button>` : ""}</span>`);
   }
   if (r.session) groups.push(`<span class="tx-group"><button type="button" class="tx-ob" data-act="diff" title="${esc(phrase("Changes"))}">${icon("diff")}<span>Diff</span></button></span>`);
   const project = r.repo
@@ -660,7 +677,7 @@ function detailsHtml(v, ctx) {
   const status = s ? phrase(s.label) : ctx.label(r.state);
   const ci = (p) => (p.ci === "failed" ? phrase("checks failing") : p.ci === "passed" || p.ci === "success" ? phrase("checks passing") : p.ci === "pending" || p.ci === "running" ? phrase("checks running") : "");
   const said = (p) => (p.state === "merged" ? phrase("merged") : p.state === "draft" ? phrase("draft") : p.conflict ? phrase("conflict") : ci(p));
-  const prs = r.prs.map((p) => `<a class="tx-drow tx-dlink pr-${esc(p.state)}${p.failing || p.conflict ? " fail" : ""}" href="${esc(p.url)}" target="_blank" rel="noreferrer" title="${esc(p.title)}">${icon("pr")}<span class="tx-dv">${esc(p.tag)}</span><span class="tx-dl">${esc(said(p))}</span></a>`).join("");
+  const prs = r.prs.map((p) => `<a class="tx-drow tx-dlink pr-${esc(p.state)}${p.failing || p.conflict ? " fail" : ""}" data-act="pr-open" data-pr="${esc(p.key)}" href="${esc(p.url)}" target="_blank" rel="noreferrer" title="${esc(p.title)}">${icon("pr")}<span class="tx-dv">${esc(p.tag)}</span><span class="tx-dl">${esc(said(p))}</span></a>`).join("");
   const blockAt = typeof r.block === "number" ? phrase("block {n}", { n: r.block + 1 }) : "";
   const about = r.summary || r.description;
   return `<div class="tx-dsec"><div class="tx-dhead">${esc(phrase("Chat"))}</div>
@@ -712,6 +729,21 @@ function paintTools(ctx) {
   paintInto(n.foot, `<button type="button" class="tx-foot-btn" data-act="settings" title="${esc(phrase("Settings"))}">${icon("settings")}</button><button type="button" class="tx-foot-btn" data-act="prs" title="${esc(phrase("Pull requests"))}">${icon("prArrow")}</button><button type="button" class="tx-foot-btn" data-act="usage" title="${esc(phrase("Usage"))}">${icon("bars")}</button>`);
 }
 
+function paintPrSide(ctx) {
+  const n = mine.nodes;
+  const { main, compose } = prSideHtml(icon, ctx.render);
+  const body = n.prMain.querySelector(".tp-body");
+  const kept = body ? { tab: n.prMain.querySelector(".tp-seg .on")?.dataset.tab, top: body.scrollTop } : null;
+  paintInto(n.prMain, main);
+  const now = n.prMain.querySelector(".tp-body");
+  if (now && kept && kept.tab === n.prMain.querySelector(".tp-seg .on")?.dataset.tab) now.scrollTop = kept.top;
+  if (paintInto(n.prCompose, compose)) {
+    const box = n.prCompose.querySelector(".tp-text");
+    if (box) box.value = prSideDraft();
+  }
+  n.prSide.hidden = !main;
+}
+
 function build(ctx) {
   const { esc, phrase } = ctx;
   ctx.root.innerHTML = `<div class="tx">
@@ -729,6 +761,7 @@ function build(ctx) {
       <div class="tx-body">
         <div class="tx-page"><div class="tx-host"></div><div class="tx-blankhost"></div><div class="tx-patchhost"></div></div>
         <aside class="tx-details" aria-label="${esc(phrase("Thread details"))}"></aside>
+        <aside class="tx-prside" aria-label="${esc(phrase("Pull request panel"))}" hidden><div class="tp"><div class="tp-main"></div><div class="tp-composehost"></div></div></aside>
       </div>
     </section>
   </div>`;
@@ -736,6 +769,7 @@ function build(ctx) {
   mine.nodes = {
     wsname: q(".tx-wsname"), scroll: q(".tx-scroll"), foot: q(".tx-sfoot"), head: q(".tx-head"),
     host: q(".tx-host"), blank: q(".tx-blankhost"), patch: q(".tx-patchhost"), details: q(".tx-details"), query: q(".tx-q"),
+    prSide: q(".tx-prside"), prMain: q(".tp-main"), prCompose: q(".tp-composehost"),
     newChat: q(".tx-iconbtn[data-act=new]"), scope: q(".tx-scope"), frame: q(".tx")
   };
   mine.nodes.query.value = mine.query;
@@ -772,8 +806,44 @@ function composerOf(ctx, key) {
   return key ? ctx.tile(key)?.querySelector(".sv-composer textarea") || null : null;
 }
 
-function saveMarks() {
-  writeJson(MARKS_KEY, mine.marks);
+const MARKS_ROUTE = "/api/inbox/marks";
+
+function sendMarks(body) {
+  return fetch(MARKS_ROUTE, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })
+    .then((res) => (res.ok ? res.json() : null))
+    .catch(() => null);
+}
+
+function saveMarks(keys) {
+  if (!st.data?.marks) return writeJson(MARKS_KEY, mine.marks);
+  sendMarks({ marks: Object.fromEntries(keys.map((key) => [key, mine.marks[key]])) });
+}
+
+function takeMarks(said) {
+  for (const [key, mark] of Object.entries(said || {})) if ((mark?.at || 0) > (mine.marks[key]?.at || 0)) mine.marks[key] = { ...mark };
+}
+
+function adoptMarks(ctx) {
+  const said = st.data?.marks;
+  if (!said || said === mine.marksSeen) return;
+  mine.marksSeen = said;
+  takeMarks(said);
+  if (!mine.moved) moveOldMarks(ctx);
+}
+
+function moveOldMarks(ctx) {
+  mine.moved = true;
+  const old = readJson(MARKS_KEY, null);
+  if (!old) return;
+  sendMarks({ marks: old, moving: true }).then((said) => {
+    if (!said?.ok) {
+      mine.moved = false;
+      return;
+    }
+    try { localStorage.removeItem(MARKS_KEY); } catch {}
+    takeMarks(said.marks);
+    if (mine.nodes) ctx.render();
+  });
 }
 
 function markOf(key) {
@@ -781,15 +851,11 @@ function markOf(key) {
   return mine.marks[key];
 }
 
-function tidy(key) {
-  if (mine.marks[key] && !Object.keys(mine.marks[key]).length) delete mine.marks[key];
-}
-
 function setMark(ctx, key, change) {
   if (!key || key.startsWith("team:")) return;
   change(markOf(key));
-  tidy(key);
-  saveMarks();
+  mine.marks[key].at = Date.now();
+  saveMarks([key]);
   ctx.render();
 }
 
@@ -828,8 +894,8 @@ function choose(ctx, key) {
   if (mark && (mark.wokeAt || mark.unread)) {
     delete mark.wokeAt;
     delete mark.unread;
-    tidy(key);
-    saveMarks();
+    mark.at = Date.now();
+    saveMarks([key]);
   }
   markSeatRead(key);
   if (ctx.focused() === key) ctx.render();
@@ -865,8 +931,8 @@ function archive(ctx, key = mine.reading?.key) {
   const s = sessionOf(row.name);
   if (!s) return;
   if (key === mine.reading?.key) moveOff(ctx, key);
-  delete mine.marks[key];
-  saveMarks();
+  mine.marks[key] = { at: Date.now() };
+  saveMarks([key]);
   archiveSeatNow(s);
 }
 
@@ -966,6 +1032,16 @@ function rowMenu(ctx, key, x, y) {
 
 function clicked(event, ctx) {
   if (mine.menu && !mine.menu.contains(event.target)) closeMenu();
+  const link = event.target.closest(".tx-prside a[href]:not([data-act])");
+  if (link) {
+    event.preventDefault();
+    const pr = prOfUrl(link.href);
+    if (pr && (st.prs || []).some((p) => p.key === pr.key) && !event.metaKey && !event.ctrlKey) {
+      openPrSide(pr.key);
+      return ctx.render();
+    }
+    return window.open(link.href, "_blank", "noopener,noreferrer");
+  }
   const hit = event.target.closest("[data-shelf], [data-act], [data-key], [data-arch]");
   if (!hit || !ctx.root.contains(hit)) return;
   if (hit.dataset.shelf) {
@@ -975,6 +1051,19 @@ function clicked(event, ctx) {
     return;
   }
   const act = hit.dataset.act;
+  if (act === "pr-open") {
+    if (event.metaKey || event.ctrlKey || event.button === 1) return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeMenu();
+    if (prSideKey() === hit.dataset.pr) closePrSide();
+    else openPrSide(hit.dataset.pr);
+    return ctx.render();
+  }
+  if (act?.startsWith("pr-")) {
+    event.stopPropagation();
+    return prSideAct(hit, ctx.render);
+  }
   if (act) {
     event.stopPropagation();
     const of = hit.dataset.of;
@@ -1156,7 +1245,7 @@ function dressComposer(ctx, r) {
   }
   const strip = place("tx-ctx", "after");
   const where = r.where === "cloud" ? `${icon("cloud")}<span>${esc(phrase("Cloud"))}</span>` : r.path ? `${icon("worktree")}<span>${esc(phrase("Worktree"))}</span>` : `${icon("laptop")}<span>${esc(phrase("Local"))}</span>`;
-  const prs = r.prs.slice(0, 1).map((p) => `<a class="tx-ctx-pr pr-${esc(p.state)}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${icon("pr")}<span>#${esc(p.tag.split("#").pop())}</span></a>`).join("");
+  const prs = r.prs.slice(0, 1).map((p) => `<a class="tx-ctx-pr pr-${esc(p.state)}" data-act="pr-open" data-pr="${esc(p.key)}" href="${esc(p.url)}" target="_blank" rel="noreferrer">${icon("pr")}<span>#${esc(p.tag.split("#").pop())}</span></a>`).join("");
   const branch = r.branch ? `<span class="tx-ctx-br" title="${esc(r.branch)}">${icon("branch")}<span>${esc(r.branch)}</span></span>` : "";
   const html = `<span class="tx-ctx-where">${where}</span><span class="tx-ctx-fill"></span>${prs}${branch}`;
   if (strip.dataset.h !== html) { strip.innerHTML = html; strip.dataset.h = html; }
@@ -1177,6 +1266,8 @@ const inbox = {
   enter(ctx) {
     allowSendingBehind(true);
     mine.marks = readJson(MARKS_KEY, {});
+    mine.marksSeen = null;
+    mine.moved = false;
     mine.details = readJson(PANEL_KEY, false) === true;
     mine.shelves = { snoozed: false, settled: false, team: false, archived: false, ...readJson(SHELVES_KEY, {}) };
     mine.scope = String(readJson(SCOPE_KEY, "") || "");
@@ -1203,6 +1294,7 @@ const inbox = {
       if (key && !key.startsWith("team:")) beginRename(ctx, key);
     });
     ctx.listen(ctx.root, "input", (event) => {
+      if (prSideTyped(event.target)) return;
       if (!event.target.classList.contains("tx-q")) return;
       mine.query = event.target.value;
       ctx.render();
@@ -1248,9 +1340,10 @@ const inbox = {
     if (!mine.renaming) paintInto(n.head, headHtml(v, ctx));
     paintInto(n.blank, blankHtml(v, ctx));
     paintInto(n.details, detailsHtml(v, ctx));
+    paintPrSide(ctx);
     paintInto(n.patch, patchHtml(ctx));
     if (v.reading?.session && v.reading.where !== "cloud" && v.reading.path) pullTurns(ctx, v.reading.name);
-    n.details.hidden = !v.reading || !mine.details;
+    n.details.hidden = !v.reading || !mine.details || !!prSideKey();
     n.host.hidden = !v.reading;
     if (v.reading) ctx.place(v.reading.key, n.host);
     queueMicrotask(() => { refreshDiffs(v.shown, v.selected); dressComposer(ctx, v.reading); placeLights(); });
@@ -1265,6 +1358,8 @@ const inbox = {
     if ((event.key === "Meta" && IS_MAC) || (event.key === "Control" && !IS_MAC)) { holdJump(true); return false; }
     if (mod && !/^[1-9]$/.test(event.key)) holdJump(false);
     if (event.key === "Escape" && mine.menu) { closeMenu(); return true; }
+    if (event.key === "Enter" && mod && event.target?.classList?.contains("tp-text")) { prSideAct({ dataset: { act: "pr-send" } }, ctx.render); return true; }
+    if (event.key === "Escape" && prSideKey() && !ctx.inField()) { closePrSide(); ctx.render(); return true; }
     if (mod && !event.shiftKey && !event.altKey && /^[1-9]$/.test(event.key)) {
       const row = mine.shown[Number(event.key) - 1];
       if (!row) return false;

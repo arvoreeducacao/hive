@@ -104,9 +104,9 @@ function Bubble(props) {
       data-at={props.block.at || undefined}
       data-said={props.block.said || undefined}
     >
-      <Show when={props.block.thumbs.length}>
+      <Show when={props.block.thumbs.some((thumb) => !thumb.inline)}>
         <span class="uatts">
-          <For each={props.block.thumbs}>{(thumb) => (
+          <For each={props.block.thumbs.filter((thumb) => !thumb.inline)}>{(thumb) => (
             <span class="uatt" title={thumb.title} on:click={() => props.actions.shot(thumb.path)}>
               <img src={thumb.src} alt={thumb.alt} />
               <span class="am">{thumb.mark}</span>
@@ -310,10 +310,11 @@ export function Conversation(props) {
 export function mountConversation(host, actions) {
   const view = mountView(host, Conversation, { blocks: [] }, { actions });
   const onClick = (ev) => {
-    const chip = ev.target.closest?.(".mention:not(.person)");
+    const chip = ev.target.closest?.(".ctx-chip[data-kind=chat], .ctx-chip[data-kind=image][data-path]");
     if (!chip) return;
     ev.stopPropagation();
-    actions.seat(chip.dataset.seat);
+    if (chip.dataset.kind === "chat") actions.seat(chip.dataset.seat);
+    else actions.shot(chip.dataset.path);
   };
   host.addEventListener("click", onClick);
   return {
