@@ -24,7 +24,7 @@ function moreOf(row) {
   return more;
 }
 
-export function fitChipRow(row, on) {
+function refitChipRow(row, on) {
   row.querySelector(":scope > .c.more")?.remove();
   const chips = [...row.querySelectorAll(":scope > .c")];
   const trees = chips.filter((chip) => chip.classList.contains("tree"));
@@ -53,4 +53,19 @@ export function fitChipRow(row, on) {
   }
   more.textContent = `+${hidden.length}`;
   more.title = hidden.map(chipSaid).join("\n");
+}
+
+const fitted = new WeakMap();
+
+function rowShape(row, on) {
+  const chips = [...row.querySelectorAll(":scope > .c")];
+  return { on, chips, said: chips.map((chip) => `${chip.className}|${chip.hidden}|${chip.textContent}`).join("\n") };
+}
+
+const sameShape = (was, now) => !!was && was.on === now.on && was.said === now.said && was.chips.length === now.chips.length && was.chips.every((chip, at) => chip === now.chips[at]);
+
+export function fitChipRow(row, on, { resized = false } = {}) {
+  if (!resized && sameShape(fitted.get(row), rowShape(row, on))) return;
+  refitChipRow(row, on);
+  fitted.set(row, rowShape(row, on));
 }
