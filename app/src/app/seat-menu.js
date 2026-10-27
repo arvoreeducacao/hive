@@ -772,6 +772,7 @@ function update(el, s, pos) {
   el.classList.toggle("open", st.open === s.name);
   el.classList.toggle("fielded", paneOnField(s.name));
   el.classList.toggle("anon", !!s.anon);
+  el.classList.toggle("composer-ready", !!el.querySelector(".sv-composer.ready"));
   if (raycastOn()) side.show(tileViewModel(s, { pos }));
   else side.show(tileViewModel(s));
   fitChipsOf(el);
@@ -1109,7 +1110,7 @@ function watchChipRow(row) {
   chipRows ||= new ResizeObserver((entries) => {
     for (const { target } of entries) {
       const el = target.closest(".tile");
-      if (el) fitChipRow(target, chipsFit(el));
+      if (el) fitChipRow(target, chipsFit(el), { resized: true });
     }
   });
   chipRows.observe(row);

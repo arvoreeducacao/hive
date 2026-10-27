@@ -65,9 +65,14 @@ const withoutQuotes = (quotes, said) => {
   return said.slice(front.length).replace(/^\n\n/, "");
 };
 
+function paintComposerReady(host, ready) {
+  host.querySelector(".sv-composer").classList.toggle("ready", ready);
+  host.closest(".tile")?.classList.toggle("composer-ready", ready);
+}
+
 function svAttachImage(e, path) {
   e.tray.add(path);
-  e.host.querySelector(".sv-composer").classList.add("ready");
+  paintComposerReady(e.host, true);
 }
 
 function svTypePath(e, path) {
@@ -508,8 +513,7 @@ function getStructured(s) {
     e.command.set(found[0]?.name || "");
   };
   e.tray = imageTray(host.querySelector(".sv-attach"), textarea, () => ({ where: e.where, name: e.name }));
-  const paintReady = () => host.querySelector(".sv-composer")
-    .classList.toggle("ready", !!textarea.value.trim() || !!e.tray.count() || !!e.quotes?.count() || !!e.command?.count());
+  const paintReady = () => paintComposerReady(host, !!textarea.value.trim() || !!e.tray.count() || !!e.quotes?.count() || !!e.command?.count());
   e.quotes = quoteTray(host.querySelector(".sv-attach"), paintReady);
   e.command = commandTray(() => { paintReady(); paintInk(); });
   /* fromDraft says the words came from this seat's textarea. the universal composer sends
@@ -534,7 +538,7 @@ function getStructured(s) {
        machine, and the panel that owns the seat is the one that types it in. the bubble is painted
        on the spot because the answer comes back on the next read of the file, seconds later. */
     if (e.mirror) {
-      if (fromDraft) { e.tray.clear(); e.quotes.clear(); e.command.clear(); host.querySelector(".sv-composer").classList.remove("ready"); }
+      if (fromDraft) { e.tray.clear(); e.quotes.clear(); e.command.clear(); paintComposerReady(host, false); }
       const said = sending.length ? inlineImageList(text, sending) : text;
       if (!said) return;
       rememberSent(e, said);
@@ -561,7 +565,7 @@ function getStructured(s) {
         e.tray.clear();
         e.quotes.clear();
         e.command.clear();
-        e.host.querySelector(".sv-composer").classList.remove("ready");
+        paintComposerReady(e.host, false);
       }
       const shownText = typeof r.shown === "string" ? r.shown : text;
       const wentIn = svWasDequeuedEarly(e, r.cid);

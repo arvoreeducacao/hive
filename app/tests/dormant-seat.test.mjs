@@ -4,14 +4,17 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "assets", "experience.css"), "utf8");
-const DORMANT = 'body.experience-next #canvas > .tile:is([data-state="idle"], [data-state="stalled"]):not(.focused, .open, .typing, .draft):not(:has(.sv-composer.ready))';
+const here = dirname(fileURLToPath(import.meta.url));
+const css = readFileSync(join(here, "..", "assets", "experience.css"), "utf8");
+const stretches = readFileSync(join(here, "..", "src", "app", "chat-stretches.js"), "utf8");
+const seatMenu = readFileSync(join(here, "..", "src", "app", "seat-menu.js"), "utf8");
+const DORMANT = 'body.experience-next #canvas > .tile:is([data-state="idle"], [data-state="stalled"]):not(.focused, .open, .typing, .draft):not(.composer-ready)';
 const rule = (tail) => css.split("\n").find((line) => line.startsWith(`${DORMANT}${tail}`)) || "";
 
 test("a chat that stopped a while ago goes dark until the person picks it", () => {
   assert.ok(DORMANT.includes('[data-state="idle"]') && DORMANT.includes('[data-state="stalled"]'), "only idle and quiet chats sleep; ready, done, needs and working stay lit");
   assert.ok(DORMANT.includes(":not(.focused, .open"), "picking the chat wakes it, and leaving it without a message puts it back to sleep");
-  assert.ok(DORMANT.includes(":not(:has(.sv-composer.ready))"), "a chat with an unsent message never sleeps");
+  assert.ok(DORMANT.includes(":not(.composer-ready)"), "a chat with an unsent message never sleeps");
   assert.match(rule(", "), /background-color: var\(--bg\) !important;/, "the chat darkens to the page background");
   assert.match(rule("::after"), /display: none;/, "it drops the halftone shadow");
 });
@@ -33,4 +36,11 @@ test("a slow, faint shine crosses the sleeping chat, each at its own time, and r
   assert.match(moving, /animation: sleeping-shimmer 8s linear infinite;/, "one pass every eight seconds");
   assert.match(moving, /animation-delay: calc\(sibling-index\(\) \* -2\.7s\);/, "sleeping chats never shine together");
   assert.match(css, new RegExp(`@media \\(prefers-reduced-motion: reduce\\) \\{ ${DORMANT.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\.well::after \\{ animation: none !important; \\} \\}`), "reduced motion keeps it still");
+});
+
+test("the chat says it holds an unsent message with a class, so a change inside it never restyles the whole conversation", () => {
+  assert.doesNotMatch(css.split("\n").filter((line) => line.includes(DORMANT)).join("\n"), /:has\(/, "no :has() in the sleeping rules: with .well > * it restyled every message on each change in the chat");
+  assert.match(stretches, /host\.closest\("\.tile"\)\?\.classList\.toggle\("composer-ready", ready\)/, "the composer marks its chat the moment it fills or empties");
+  assert.equal((stretches.match(/\.sv-composer"\)\s*\.classList\.(add|remove|toggle)\("ready"/g) || []).length, 1, "every change of the composer goes through the one painter");
+  assert.match(seatMenu, /el\.classList\.toggle\("composer-ready", !!el\.querySelector\("\.sv-composer\.ready"\)\)/, "each paint of the chat checks it again, in case the composer moved");
 });
