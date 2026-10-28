@@ -109,7 +109,7 @@ test("each state paints in the new hive's own palette, the same hues the tiles u
   assert.equal(hue("needs"), "var(--accent)");
   assert.equal(hue("working"), "var(--blue)");
   assert.equal(hue("done"), "var(--green)");
-  assert.match(css, /body\.experience-next \.tile\[data-state="working"\] \{ --pill-hue: var\(--blue\); \}/, "the tiles changed their palette and the rail did not follow");
+  assert.match(css, /body\.experience-next \.tile\[data-state="working"\] :is\(\.t-pill, \.t-live\) \{ --pill-hue: var\(--blue\); \}/, "the tiles changed their palette and the rail did not follow");
   assert.match(css, /#rail-hud \.rh-bar i:is\(\[data-state="idle"\], \[data-state="stalled"\]\) \{ right: 65%; \}/, "a sleeping chat draws a short bar");
   assert.doesNotMatch(read("src/next-rail.jsx"), /style=\{\{ (background|color): /, "an inline colour from the old palette wins over the theme");
 });

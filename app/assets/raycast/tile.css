@@ -1,3 +1,7 @@
+@property --rc-shadow { syntax: "*"; inherits: false; }
+@property --rc-edge { syntax: "*"; inherits: false; }
+@property --rc-card { syntax: "*"; inherits: false; }
+@property --rc-motion { syntax: "*"; inherits: false; }
 :where(body.experience-raycast) .tile.spawning { border-style: solid; box-shadow: var(--rc-shadow); border-color: var(--rc-edge); }
 :where(body.experience-raycast) .tile.opening { border-style: solid; border-color: var(--rc-edge); }
 :where(body.experience-raycast) .tile { --ring-in: inset 0 1px 0 color-mix(in srgb, var(--txt) 5%, transparent), inset 0 -1px 0 rgba(0,0,0,.2); --rc-shadow: var(--e1); --rc-edge: transparent; --rc-card: var(--panel); position: relative; border: 1px solid var(--rc-edge); transition: box-shadow 160ms var(--ease); border-radius: var(--r4); background: var(--rc-card); box-shadow: var(--rc-shadow); }

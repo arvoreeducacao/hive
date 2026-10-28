@@ -20,11 +20,13 @@ test("a chat that stopped a while ago goes dark until the person picks it", () =
 });
 
 test("the sleeping chat keeps its header and shows the same plain skeleton whatever the conversation", () => {
-  assert.match(rule(" .well > * {"), /visibility: hidden;/, "the conversation and its scrollbar are gone, so nothing mirrors the messages");
+  assert.match(rule(" .well {"), /visibility: hidden;/, "the conversation and its scrollbar are gone, so nothing mirrors the messages");
+  assert.ok(!css.includes(`${DORMANT} .well > *`), "hiding every child of the well restyled the whole conversation each time the chat changed state or focus");
   const bones = rule(" .well::before");
   assert.match(bones, /--bone: color-mix\(in srgb, var\(--line\) 70%, var\(--bg\)\);/, "the bones sit a step darker than the lines");
   assert.equal((bones.match(/linear-gradient\(var\(--bone\) 0 8px, transparent 8px\)/g) || []).length, 4, "a paragraph of four lines, repeated down the chat");
   assert.match(bones, /112px repeat-y/, "the paragraph repeats every 112px");
+  assert.match(bones, /visibility: visible;/, "the bones show inside the hidden well");
   assert.match(rule(" .well {"), /mask: radial-gradient\(circle, #000 \.7px, transparent \.9px\) 0 0 \/ 3px 3px;/, "the bones wear the same 3px halftone as the loading skeleton");
   assert.doesNotMatch(css.split("\n").filter((line) => line.startsWith(DORMANT)).join("\n"), /\.t-head \*|\.side \*/, "the header stays readable");
   assert.match(rule(" .side {"), /opacity: \.6;/, "the header dims a little but can still be read");
@@ -32,6 +34,7 @@ test("the sleeping chat keeps its header and shows the same plain skeleton whate
 
 test("a slow, faint shine crosses the sleeping chat, each at its own time, and rests when motion is off", () => {
   assert.match(rule(" .well::after"), /mix-blend-mode: color-dodge;/, "the shine lifts the bars and leaves the dark background as it was");
+  assert.match(rule(" .well::after"), /visibility: visible;/, "the shine shows inside the hidden well");
   const moving = css.split("\n").find((line) => line.startsWith("body.experience-next:not(.no-motion) #canvas > .tile") && line.includes(".well::after")) || "";
   assert.match(moving, /animation: sleeping-shimmer 8s linear infinite;/, "one pass every eight seconds");
   assert.match(moving, /animation-delay: calc\(sibling-index\(\) \* -2\.7s\);/, "sleeping chats never shine together");

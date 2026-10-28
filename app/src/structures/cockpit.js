@@ -296,6 +296,7 @@ function paintCockpit(ctx) {
     if (view.focus) pane.box.style.setProperty("--from-focus", String(p.from));
     else pane.box.style.removeProperty("--from-focus");
     pane.box.classList.toggle("on", p.on);
+    pane.box.classList.toggle("focus-aside", view.focus && !p.on);
     pane.box.classList.toggle("need", p.need);
     pane.bar.className = `ck-sl ${p.bar.tone}`;
     setHtml(pane.head, headHtml(ctx, p));

@@ -825,6 +825,7 @@ function paintEverything({ animate = true } = {}) {
       el.classList.toggle("lane-start", strip && lane > 0 && at === 0);
       if (focusing && here) el.style.setProperty("--from-focus", String(at - st.focus));
       else el.style.removeProperty("--from-focus");
+      el.classList.toggle("focus-aside", focusing && pos !== st.focus);
       if (it.kind === "job") (el.classList.contains("opening") ? updateOpening : updateJob)(el, it, pos);
       else if (it.kind === "file") updateFile(el, it, pos);
       else if (it.kind === "draft") updateDraft(el, it, pos);

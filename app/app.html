@@ -616,7 +616,7 @@
   #canvas.focus-mode { --focus-w: min(100% - 24px, max(640px, 40%)); --focus-gap: 20px; display: block; overflow: clip; }
   #canvas.focus-mode > .tile { position: absolute; top: 12px; bottom: 12px; left: calc((100% - var(--focus-w)) / 2); width: var(--focus-w); min-height: 0; translate: calc(var(--from-focus, 0) * (100% + var(--focus-gap))) 0; transition: translate 340ms var(--ease), scale 340ms var(--ease), opacity 240ms var(--ease), filter 240ms var(--ease), border-color 160ms var(--ease); }
   #canvas.focus-mode > .tile:not(.focused) { scale: .94; opacity: .42; filter: blur(3px) saturate(.7); cursor: pointer; }
-  #canvas.focus-mode > .tile:not(.focused) > * { pointer-events: none; }
+  #canvas.focus-mode > .tile.focus-aside > * { pointer-events: none; }
   #canvas.focus-mode > .tile:not(.focused):hover { opacity: .6; filter: blur(1.5px) saturate(.85); }
   @media (prefers-reduced-motion: reduce) { #canvas.focus-mode > .tile { transition: none; } }
   body.no-motion #canvas.focus-mode > .tile { transition: none; }
