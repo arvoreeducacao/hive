@@ -56,7 +56,9 @@ test("the cockpit keeps its shape in focus mode and lines the panes of the block
   assert.ok(grid().classList.contains("focus-mode"));
   assert.equal(grid().style.gridTemplateColumns, "");
   assert.deepEqual(panes(), [["a", "-1"], ["b", "0"], ["c", "1"]]);
+  assert.deepEqual([...grid().querySelectorAll(".ck-pane.focus-aside")].map((el) => el.dataset.key), ["a", "c"], "the faded panes take no clicks of their own");
   setFocusMode(false);
+  assert.equal(grid().querySelectorAll(".focus-aside").length, 0, "out of focus mode no pane is set aside");
 });
 
 test("the cockpit's own arrows walk the panes and cross into the next block like the normal view", () => {

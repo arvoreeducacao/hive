@@ -41,6 +41,15 @@ test("focus mode lines up only the chats of the block, each one placed by its di
   assert.deepEqual(onCanvas(), ["s1", "s2", "s3"]);
   assert.deepEqual(["s1", "s2", "s3"].map(offsetOf), ["-1", "0", "1"]);
   assert.deepEqual([...canvas().querySelectorAll(":scope > .focused")].map((el) => el.dataset.key), ["s2"]);
+  assert.deepEqual([...canvas().querySelectorAll(":scope > .focus-aside")].map((el) => el.dataset.key), ["s1", "s3"], "the faded neighbours take no clicks of their own");
+});
+
+test("outside focus mode no chat is set aside, so moving the focus never restyles a whole conversation", () => {
+  hive({ focus: 1, focusMode: false });
+  render({ animate: false });
+  assert.equal(canvas().querySelectorAll(".focus-aside").length, 0);
+  stepFocus(1, 0);
+  assert.equal(canvas().querySelectorAll(".focus-aside").length, 0);
 });
 
 test("focus mode wins over the strip, and the block tabs stay on screen", () => {
