@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 import { connect } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { accountRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail } from "./protocol.mjs";
+import { accountRanDry, compactRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail } from "./protocol.mjs";
 import { DEFAULT_ACCOUNT } from "./accounts.mjs";
 import { accountFailover } from "./failover.mjs";
 import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault } from "./agents.mjs";
@@ -239,6 +239,7 @@ async function userMessage(text, images = []) {
 
 const gate = sayGate();
 let lastSaid = null;
+let compactRefused = null;
 
 function dispatchSay(item) {
   if (!item) return;
@@ -593,7 +594,7 @@ async function rebornAsleep() {
   await sessionStore.flush();
   await appendChain;
   server.close();
-  process.execve(process.execPath, [process.execPath, ...rebornArgs(process.argv.slice(1), sessionId)], process.env);
+  process.execve(process.execPath, [process.execPath, ...rebornArgs(process.argv.slice(1), sessionId)], options.env || process.env);
 }
 
 function ensureAwake() {
@@ -669,7 +670,8 @@ function moveToAccount(wanted, why = "asked") {
 }
 
 async function theTurnEnded(message) {
-  const spent = accountRanDry(message);
+  const spent = accountRanDry(message) || compactRefused;
+  compactRefused = null;
   if (await logins.turnEnded(spent)) return true;
   if (endedOnApiError(message)) suspect = true;
   dispatchSay(gate.turnEnded());
@@ -979,6 +981,7 @@ async function runConsume(mine = generation) {
           })
           .catch(() => {});
       }
+      compactRefused = compactRanDry(message) || compactRefused;
       noteTasks(message);
       emit(idleCompactTurn ? idleTagged(message) : message);
       noteIdleCompact(message);

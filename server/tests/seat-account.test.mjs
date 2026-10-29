@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { accountRanDry } from "../engine/protocol.mjs";
+import { accountRanDry, compactRanDry } from "../engine/protocol.mjs";
 import { accountUnder, accountsRoot, hasRoom, noteBack, noteSpent, readLedger, DEFAULT_ACCOUNT, GUESSED_WAIT_MS } from "../engine/accounts.mjs";
 import { accountFailover } from "../engine/failover.mjs";
 
@@ -133,6 +133,20 @@ test("a turn that dies with no room left is carried on by another login", async 
   const took = b.emitted.find((e) => e.subtype === "account_took_over");
   assert.equal(took.from, "work");
   assert.equal(took.account, DEFAULT_ACCOUNT);
+});
+
+test("a compaction refused for a spent login is asked again on another login", async () => {
+  const b = bench({ bornOn: "work", home: "work" });
+  b.remember({ text: "/compact", images: [] });
+  const refused = compactRanDry({ type: "system", subtype: "status", compact_result: "failed", compact_error: `Error during compaction: ${SPENT}` });
+  assert.equal(await b.logins.turnEnded(refused), true);
+  assert.equal(b.logins.name, "");
+  assert.deepEqual(b.said.map((i) => i.text), ["/compact"]);
+});
+
+test("the driver carries a refused compaction to the end of its turn, where the logins read it", () => {
+  assert.match(driver, /compactRefused = compactRanDry\(message\) \|\| compactRefused;/);
+  assert.match(driver, /async function theTurnEnded\(message\) \{\s*const spent = accountRanDry\(message\) \|\| compactRefused;\s*compactRefused = null;/);
 });
 
 test("a login already written down as spent is stepped over, not walked into", async () => {

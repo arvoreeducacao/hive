@@ -74,6 +74,7 @@ function jobs() {
     const nameFromMission = (text) => slug(String(text || "").split(" ").slice(0, 3).join("-"));
     const firstLine = (text) => String(text || "").split("\\n")[0];
     const freeNameNow = (name) => name;
+    const freshNameNow = (name) => name;
     ${slice(server, "function openJob(body) {", "async function pushMissionAsset")}
     return { openJob };
   `);

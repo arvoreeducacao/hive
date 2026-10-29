@@ -134,6 +134,7 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
   let startedAt = 0;
   let unlisten = null;
   let profileSent = "";
+  let missing = new Set();
   const intentFloor = new Map();
 
   const eventsFile = (name) => join(base, "events", `${name}.ndjson`);
@@ -185,6 +186,12 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
       await device.closeSeat(name).catch((wrong) => log(`sync: ${name} did not close on the hive: ${wrong.message}`));
       log(`sync: ${name} closed on the hive`);
     }
+    const strays = [...device.seats].filter(([name, seat]) => !names.has(name) && !seat.closedAt && seat.runner === device.fingerprint).map(([name]) => name);
+    for (const name of strays.filter((one) => missing.has(one))) {
+      await device.closeSeat(name).catch((wrong) => log(`sync: ${name} did not close on the hive: ${wrong.message}`));
+      log(`sync: ${name} ended while nobody was following it, so it closes on the hive now`);
+    }
+    missing = new Set(strays);
   }
 
   function wakeOfPass(held, ones, catchingUp) {

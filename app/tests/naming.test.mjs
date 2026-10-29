@@ -69,6 +69,17 @@ test("the first words of the mission name the seat on the spot", async () => {
   assert.equal(nameFromMission(""), "");
 });
 
+test("the names that lived on this machine are read off the leftovers each chat leaves behind", async () => {
+  const { namesThatLived } = await import("../lib/naming.mjs");
+  const disk = {
+    "/h/sessions": ["o-que-houve-aq.json", "faz-ai-pfv.json", "notes.txt"],
+    "/h/events": ["faz-ai-pfv.ndjson", "so-eventos.ndjson"]
+  };
+  const read = (dir) => { if (!disk[dir]) throw new Error("ENOENT"); return disk[dir]; };
+  assert.deepEqual([...namesThatLived("/h", read)].sort(), ["faz-ai-pfv", "o-que-houve-aq", "so-eventos"]);
+  assert.deepEqual([...namesThatLived("/vazio", read)], []);
+});
+
 test("a mission that opens with hive handles is named by the words after them", async () => {
   const { nameFromMission, pastHandles } = await import("../lib/naming.mjs");
   const woven = "[hive] peer: o-doutor · local · idle\n[hive] reach it: message(seat, text)\n\nolha o #o-doutor e conserta o login";

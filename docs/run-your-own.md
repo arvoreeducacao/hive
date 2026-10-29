@@ -83,7 +83,7 @@ Sign in there. The credential lands on the volume and the server picks it up.
 ## More than one login
 
 Providers and accounts (⌥A in the app) lists every agent this hive can seat — Claude, Codex,
-Kimi, Kiro, Cursor, OpenCode — with its version, a switch, the login it is authenticated as, and three
+Kimi, Kiro, Cursor, Gemini, OpenCode — with its version, a switch, the login it is authenticated as, and three
 tabs: the logins, the configuration and the models. A model shows in the pickers only while its
 provider is on, installed and signed in; an agent that is off, missing or signed out says why
 instead of a list.
@@ -94,7 +94,8 @@ A second login of any agent is signed in from that screen. Claude's logins live 
 settings, sessions and history are the same files — except what holds the sign-in, which is the
 login's own. The CLI is pointed at that folder by its own variable (`CLAUDE_CONFIG_DIR`,
 `CODEX_HOME`, `KIMI_CODE_HOME`, `XDG_DATA_HOME` for Kiro and OpenCode, `XDG_CONFIG_HOME` for Cursor,
-whose login mirrors `~/.config` too so `gh` and `git` keep their files), so a chat reads the same
+whose login mirrors `~/.config` too so `gh` and `git` keep their files, `GEMINI_CLI_HOME` for Gemini,
+which names a whole home and keeps the login in the `.gemini` folder inside it), so a chat reads the same
 either way. The sign-in itself is the CLI's own command, run in a window the screen reads and
 types into for you.
 
@@ -317,6 +318,32 @@ in Cursor's own `mcp.json`. A new seat is titled by `cursor-agent -p` in ask mod
 `cursor-agent --force --trust`, and comes back with `--continue`. The plan limits of a Cursor login are
 not on the footer yet: the CLI asks its own backend for them and the hive does not read that yet.
 
+## Seats on Gemini
+
+A structured Gemini seat is driven by `server/engine/gemini-driver.mjs`, which keeps one
+`gemini --acp --yolo --skip-trust` process per seat: Gemini CLI speaking the Agent Client Protocol, with
+Kimi's translation (`server/engine/gemini-acp.mjs` only adds what is Gemini's). Gemini sends a tool call
+without its arguments, so the card opens with the tool's title and the file it touches, and fills in when
+the tool ends. The seat gets text and thinking streamed, stop (`session/cancel`), a conversation that
+survives a restart of the driver (`session/load`, replayed silently), `/model` from the `models` block
+Gemini returns on `session/new` (`session/set_model` to switch), and `/context` from the `usage_update`
+Gemini sends at the end of every model call.
+
+There is no `authenticate` call: Gemini signs in with the auth type its own `settings.json` holds
+(`security.auth.selectedType`), and a `session/new` refused for want of a login fails the seat with one
+sentence pointing at `gemini`. The sign-in is the interactive `gemini` itself: Gemini CLI has no login
+command, so the providers screen opens it and the person picks Google or an API key. A Google login keeps
+its token in `.gemini/oauth_creds.json`, which is what a second login holds apart. `--yolo` and
+`--skip-trust` ride on the command line because Gemini builds each session's config from it; the driver
+still sets the `yolo` mode should a session open in another. The hive peer MCP, the hub's gateway and the
+remote servers of `.mcp.json` ride along through `mcpServers` on `session/new`.
+
+What Gemini does not have over ACP: a question card, a message in the middle of a turn, reasoning effort,
+per-server MCP status, and compaction (`/compact` is refused; Gemini compresses the conversation by its own
+threshold). MCP login from the card has no command behind it: Gemini signs in to a server from inside its
+chat, with `/mcp auth`. A new seat is titled by `gemini -p` on the `flash` alias. A terminal seat runs
+`gemini --yolo --skip-trust`, and comes back with `--resume latest`.
+
 ## One autocompact ceiling for every provider
 
 The `autocompact` line of the hive config (`auto`, or `100k` to `1000k`) reaches every structured seat, not
@@ -326,20 +353,21 @@ by itself, the seat shows the boundary); Kimi and Kiro by the driver, which asks
 context size when a turn ends (`/usage` on Kimi, `/context` on Kiro) and, past the ceiling, runs the
 provider's own compaction before the next message goes in. Both mark it in the chat as a compaction
 with `trigger: auto`. Cursor by the driver too, off the `usage_update` it sends every turn, and only when
-Cursor lists a `compact` command; otherwise the ceiling is noted once and left alone. A ceiling the seat cannot get under even after compacting (the tool schemas of a
+Cursor lists a `compact` command; otherwise the ceiling is noted once and left alone. Gemini only notes it:
+it has no compact command over ACP and compresses the conversation by its own threshold. A ceiling the seat cannot get under even after compacting (the tool schemas of a
 big MCP list alone can weigh more than 100k) is reported once and automatic compaction stays off for that
 seat until it reopens: raise the ceiling or trim the MCP list.
 
 ## The same hive, whatever the provider
 
-Everything the hive does around a seat works the same on Claude, Codex, Kimi, Kiro, Cursor and OpenCode,
+Everything the hive does around a seat works the same on Claude, Codex, Kimi, Kiro, Cursor, Gemini and OpenCode,
 with these rules:
 
 - **Restore.** After a restart every seat comes back through the driver of the agent it runs on, resuming
   the session that agent named (`sessions/<name>.json` keeps it; the fleet learns it from the driver's first
-  init event) and carrying the autocompact ceiling. A terminal on Codex, Kimi, Kiro, Cursor or OpenCode never tells
+  init event) and carrying the autocompact ceiling. A terminal on Codex, Kimi, Kiro, Cursor, Gemini or OpenCode never tells
   the hive which session it opened, so it comes back on that CLI's own "continue the last conversation of
-  this folder" (`codex resume --last`, `kimi -c`, `kiro-cli chat --resume`, `cursor-agent --continue`, `opencode -c`). On the box the
+  this folder" (`codex resume --last`, `kimi -c`, `kiro-cli chat --resume`, `cursor-agent --continue`, `gemini --resume latest`, `opencode -c`). On the box the
   same rule holds; only a Claude seat still needs its transcript under `~/.claude/projects`.
 - **History.** The archives list the seats of every agent: a Claude session comes off its transcript, the
   others off the record their driver keeps and their events file. Each row says its agent; revive reopens
@@ -351,11 +379,11 @@ with these rules:
 - **Config.** The model picked in the new-chat form, the autocompact field, routines and the usage panel
   follow the agent. `/config` and `/agents` are Claude Code's own and say so on any other seat. MCP login
   from the card works on Claude, Codex (its own login), Kiro (the seat hands over the OAuth page) and says
-  plainly that Kimi and Cursor have no login command the hive can drive.
+  plainly that Kimi, Cursor and Gemini have no login command the hive can drive.
 - **OpenCode** runs one process per turn, but a seat on it still has peers (message, ask, expect), the
   preamble and the hive's own MCP tools plus the hub's gateway, handed over through
   `OPENCODE_CONFIG_CONTENT`. Its ceiling is noted, not enforced: OpenCode compacts by its own rules.
-- **The doctor** calls a machine ready when Codex, Kimi, Kiro, Cursor or OpenCode is installed, even with no
+- **The doctor** calls a machine ready when Codex, Kimi, Kiro, Cursor, Gemini or OpenCode is installed, even with no
   Claude login, and the box reports which of them it carries. The file picker refuses every agent's
   credential folder, not only `~/.claude`.
 

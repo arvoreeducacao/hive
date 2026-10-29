@@ -42,7 +42,7 @@ buzzes and you answer from there.
 
 It does not replace your agent. It runs the one you already use, signed in the
 way you already signed in: the Claude Code CLI by default, and Codex, Kimi,
-Kiro, Cursor and OpenCode as first-class seats too. Same tile, same tools, same
+Kiro, Cursor, Gemini and OpenCode as first-class seats too. Same tile, same tools, same
 archive, whatever the provider.
 
 Yes, it is another AI developer tool. The difference is the shape: not one chat
@@ -133,7 +133,7 @@ offers each new release on its own.
 | git | the seats work on repositories |
 | tmux | every local seat lives in a tmux window (not needed on Windows) |
 | the GitHub CLI, `gh`, signed in (`gh auth login`) | the pull request panel, reviews and merges |
-| at least one agent CLI, signed in | the seats themselves: the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) by default, or Codex, Kimi, Kiro, Cursor or OpenCode |
+| at least one agent CLI, signed in | the seats themselves: the [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) by default, or Codex, Kimi, Kiro, Cursor, Gemini or OpenCode |
 
 **The first run** walks you through four steps, about five minutes:
 
@@ -271,7 +271,8 @@ time. Kimi Code CLI runs through `kimi acp` (Agent Client Protocol), with
 streamed text and thinking, tool cards, stop, resume, `/model`, `/compact` and
 `/context`. Kiro CLI runs through `kiro-cli acp`, with `/effort` and a real
 `/mcp` on top. Cursor CLI runs through `cursor-agent acp`, signed in with the
-CLI's own login.
+CLI's own login. Gemini CLI runs through `gemini --acp`, signed in with a
+Google account or an API key.
 
 Whatever the agent, the seat comes back after a restart, sits in the archives,
 revives on the same agent and takes the hive's autocompact ceiling (see

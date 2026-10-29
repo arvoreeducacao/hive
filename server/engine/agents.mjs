@@ -485,7 +485,48 @@ agents.cursor = {
   },
 };
 
-export const KIRO_EFFORT_LEVELS = ["low", "medium", "high", "xhigh", "max"];
+export function parseGeminiModels(result) {
+  const models = result?.models || {};
+  return (models.availableModels || []).map((row) => ({
+    value: row.modelId, label: row.name || row.modelId, description: row.description || "", group: "gemini",
+    isDefault: row.modelId === models.currentModelId, efforts: [], defaultEffort: "", badges: [],
+  })).filter((row) => row.value);
+}
+
+agents.gemini = {
+  label: "Gemini",
+  binary: "gemini",
+  effortLevels: [],
+  turnArgs({ text, model = "", sessionId = "" }) {
+    const args = ["-p", text, "--output-format", "stream-json", "--yolo", "--skip-trust"];
+    if (model) args.push("--model", model);
+    if (sessionId) args.push("--resume", sessionId);
+    return args;
+  },
+  async listModels(run, io) {
+    const models = await this.listCatalog({ run, ...io });
+    return models.map((m) => ({ value: m.value, displayName: m.label, description: m.description }));
+  },
+  async listCatalog({ rpc }) {
+    if (!rpc) throw new Error("this seat's driver cannot reach gemini --acp");
+    const opened = await rpc("gemini", ["--acp"], async (call) => {
+      await call("initialize", { protocolVersion: 1, clientCapabilities: {}, clientInfo: { name: "hive", title: "Hive", version: "1" } });
+      return call("session/new", { cwd: process.cwd(), mcpServers: [] });
+    });
+    return parseGeminiModels(opened);
+  },
+  async listMcp() {
+    return [];
+  },
+  translate(ev, ctx) {
+    const out = [];
+    if (ev.type === "init" && ev.session_id) ctx.sessionId = ev.session_id;
+    if (ev.type === "message" && ev.role === "assistant" && typeof ev.content === "string" && ev.content) out.push(assistant([{ type: "text", text: ev.content }]));
+    return out;
+  },
+};
+
+export const KIRO_EFFORT_LEVELS =["low", "medium", "high", "xhigh", "max"];
 
 export function parseKiroModels(result) {
   const models = result?.models || {};

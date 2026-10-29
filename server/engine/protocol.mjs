@@ -498,15 +498,24 @@ export function resetsAtFrom(text, now = Date.now()) {
   }
 }
 
-const OUT_OF_ROOM = /you'?ve hit your (?:org'?s |individual )?(?:monthly |weekly |session )?(?:spend )?limit|usage limit reached|credit balance is too low/i;
+const OUT_OF_ROOM = /you'?ve hit your (?:org'?s |individual )?(?:monthly |weekly |session |\d+-hour )?(?:spend )?limit|usage limit reached|credit balance is too low/i;
 const LOGIN_IS_GONE = /failed to authenticate|oauth session expired|please run \/login|invalid api key/i;
 
-export function accountRanDry(result, now = Date.now()) {
-  if (!endedOnApiError(result)) return null;
-  const says = String(result.result || "").trim();
+function refusalOf(said, now) {
+  const says = String(said || "").trim();
   if (LOGIN_IS_GONE.test(says)) return { why: "login", says, until: 0 };
   if (!OUT_OF_ROOM.test(says)) return null;
   return { why: "spent", says, until: resetsAtFrom(says, now) };
+}
+
+export function accountRanDry(result, now = Date.now()) {
+  if (!endedOnApiError(result)) return null;
+  return refusalOf(result.result, now);
+}
+
+export function compactRanDry(message, now = Date.now()) {
+  if (message?.type !== "system" || message.subtype !== "status" || message.compact_result !== "failed") return null;
+  return refusalOf(message.compact_error, now);
 }
 
 const HOOK_NOTES = new Set(["hook_started", "hook_progress", "hook_response"]);

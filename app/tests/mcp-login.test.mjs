@@ -75,7 +75,7 @@ test("a login on a kimi seat says plainly there is no command to drive, here and
   assert.match(local, /if \(engine === "kimi"\) \{\n\s+job\.state = "failed";\n\s+job\.error = `kimi has no login command/);
   assert.ok(local.indexOf('engine === "kimi"') < local.indexOf("theClaude(), [\"mcp\", \"login\""), "kimi reached claude's login");
   const cloud = server.slice(server.indexOf("async function runCloudMcpLogin("), server.indexOf("async function codexKnowsTheServer("));
-  assert.match(cloud, /kimi\|kiro\|cursor\) echo "\$engine has no login command/);
+  assert.match(cloud, /kimi\|kiro\|cursor\|gemini\) echo "\$engine has no login command/);
   assert.match(local, /if \(engine === "cursor"\) \{\n\s+job\.state = "failed";\n\s+job\.error = `cursor's mcp login only knows/);
   assert.ok(local.indexOf('engine === "cursor"') < local.indexOf("theClaude(), [\"mcp\", \"login\""), "cursor reached claude's login");
   assert.match(cloud, /claude\|""\) claude mcp login/, "an unknown agent on the box still fell through to claude's login");

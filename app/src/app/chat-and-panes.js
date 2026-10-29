@@ -3275,7 +3275,7 @@ function svShellBlock(e, ev) {
   return el;
 }
 
-const AGENT_NAMES = { claude: "claude", codex: "codex", kimi: "kimi", kiro: "kiro", cursor: "cursor", opencode: "opencode" };
+const AGENT_NAMES = { claude: "claude", codex: "codex", kimi: "kimi", kiro: "kiro", cursor: "cursor", gemini: "gemini", opencode: "opencode" };
 
 function seatAgent(e) {
   return AGENT_NAMES[e.agent] || "claude";

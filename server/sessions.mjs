@@ -100,7 +100,7 @@ export function stateOfSeat({ alive, lastEvent }) {
   return "working";
 }
 
-export const AGENTS = new Set(["claude", "opencode", "codex", "kimi", "kiro", "cursor"]);
+export const AGENTS = new Set(["claude", "opencode", "codex", "kimi", "kiro", "cursor", "gemini"]);
 
 export function agentOf(asked) {
   const one = String(asked || "claude").trim().toLowerCase();
@@ -112,6 +112,7 @@ export function driverFileFor(agent) {
   if (agent === "kimi") return "kimi-driver.mjs";
   if (agent === "kiro") return "kiro-driver.mjs";
   if (agent === "cursor") return "cursor-driver.mjs";
+  if (agent === "gemini") return "gemini-driver.mjs";
   if (agent === "opencode") return "opencode-driver.mjs";
   if (agent && agent !== "claude") return "turn-driver.mjs";
   return "driver.mjs";

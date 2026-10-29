@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { accountRanDry, resetsAtFrom } from "../engine/protocol.mjs";
+import { accountRanDry, compactRanDry, resetsAtFrom } from "../engine/protocol.mjs";
 import {
   accountOrder, accountsHeld, hasRoom, noteBack, noteSpent, pickAccount, readLedger,
   DEFAULT_ACCOUNT, GUESSED_WAIT_MS,
@@ -27,6 +27,7 @@ const NOON = Date.parse("2026-08-24T15:00:00Z");
 test("the hour an account says it comes back is read out of the sentence it says it in", () => {
   const said = [
     ["You've hit your session limit · resets 6:30pm (America/Sao_Paulo)", "2026-08-24T21:30:00.000Z"],
+    ["You've hit your 5-hour limit · resets 1:10pm (America/Sao_Paulo)", "2026-08-24T16:10:00.000Z"],
     ["You've hit your weekly limit · resets Aug 25 at 2pm (America/Sao_Paulo)", "2026-08-25T17:00:00.000Z"],
     ["You've hit your org's monthly spend limit · run /usage-credits to raise it · your session limit resets 1am (America/Sao_Paulo)", "2026-08-25T04:00:00.000Z"],
   ];
@@ -50,11 +51,23 @@ test("a spent login and a busy server arrive as the same refusal and are told ap
   assert.equal(accountRanDry(refused("You've hit your org's monthly spend limit · run /usage-credits to raise it"), NOON).why, "spent");
   assert.equal(accountRanDry(refused("You've hit your individual spend limit · run /usage-credits to raise it"), NOON).why, "spent");
   assert.equal(accountRanDry(refused("You've hit your weekly limit · resets 2pm (America/Sao_Paulo)"), NOON).why, "spent");
+  assert.equal(accountRanDry(refused("You've hit your 5-hour limit · resets 1:10pm (America/Sao_Paulo)"), NOON).why, "spent");
   assert.equal(accountRanDry(refused("Claude AI usage limit reached"), NOON).why, "spent");
   assert.equal(accountRanDry(refused("Your credit balance is too low to run this"), NOON).why, "spent");
   assert.equal(accountRanDry(refused("Failed to authenticate: OAuth session expired"), NOON).why, "login");
   assert.equal(accountRanDry(refused("API Error: 529 Overloaded. This is a server-side issue"), NOON), null);
   assert.equal(accountRanDry(refused("API Error: Connection lost mid-response."), NOON), null);
+});
+
+test("a compaction refused for a spent login reads as one, and a compaction that failed for anything else does not", () => {
+  const failed = (error) => ({ type: "system", subtype: "status", status: null, compact_result: "failed", compact_error: error });
+  const spent = compactRanDry(failed("Error during compaction: You've hit your 5-hour limit · resets 6:10pm (America/Sao_Paulo)"), NOON);
+  assert.equal(spent.why, "spent");
+  assert.equal(new Date(spent.until).toISOString(), "2026-08-24T21:10:00.000Z");
+  assert.equal(compactRanDry(failed("Error during compaction: Failed to authenticate: OAuth session expired"), NOON).why, "login");
+  assert.equal(compactRanDry(failed("Error during compaction: Conversation too short to compact"), NOON), null);
+  assert.equal(compactRanDry({ type: "system", subtype: "status", status: "compacting" }, NOON), null);
+  assert.equal(compactRanDry({ type: "system", subtype: "status", compact_result: "success" }, NOON), null);
 });
 
 test("a turn that ended well is never read as a spent login", () => {

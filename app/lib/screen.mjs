@@ -22,6 +22,10 @@ export const AGENT_CHROME = {
     running: /esc to (?:cancel|interrupt|stop)|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏◐◓◑◒] (?:Thinking|Working|Generating|Running)/i,
     dialog: /Trust this workspace|Allow (?:this|the) (?:command|edit|tool)|Run this command\?|\(y\/n\)|\[y\/N\]|❯ (?:Yes|No|Allow|Run|Skip)/i
   },
+  gemini: {
+    running: /esc to cancel|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] \S/,
+    dialog: /Allow execution|Apply this change\?|Do you want to proceed\?|Allow once|Do you trust (?:this|the files in this) folder/i
+  },
   opencode: {
     running: /esc interrupt|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] (Thinking|Working)/,
     dialog: /permission|allow once|\(y\/n\)/i

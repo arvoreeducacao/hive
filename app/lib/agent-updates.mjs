@@ -6,6 +6,7 @@ export const AGENT_UPDATES = {
   opencode: { npm: "opencode-ai", native: ["upgrade"], knowsItsInstall: true, nativeAt: ["/.opencode/bin/opencode"] },
   kiro: { npm: "", native: ["update", "--non-interactive"], nativeAt: ["/.local/bin/kiro-cli", "/.local/share/kiro-cli/"] },
   cursor: { npm: "", native: ["update"], nativeAt: ["/.local/share/cursor-agent/", "/.local/bin/cursor-agent"] },
+  gemini: { npm: "@google/gemini-cli", native: [], nativeAt: [] },
   kimi: { npm: "", native: ["upgrade", "--yes"], nativeAt: ["/.kimi-code/bin/"] },
 };
 

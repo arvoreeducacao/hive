@@ -27,6 +27,7 @@ export const TUI_CONTINUES = {
   kimi: "kimi -c --yolo",
   kiro: "kiro-cli chat --resume --trust-all-tools",
   cursor: "cursor-agent --continue --force --trust",
+  gemini: "gemini --resume latest --yolo --skip-trust",
   opencode: "opencode -c --agent build"
 };
 

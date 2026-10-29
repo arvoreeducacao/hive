@@ -45,7 +45,7 @@ $("f-label").addEventListener("blur", () => {
   render();
 });
 
-const NEW_CHAT_AGENTS = ["claude", "codex", "kimi", "kiro", "cursor", "opencode"];
+const NEW_CHAT_AGENTS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
 
 const kindOf = (agent, terminal) => (agent === "claude" ? (terminal ? "terminal" : "structured") : terminal ? `${agent}-tui` : agent);
 
@@ -131,7 +131,7 @@ $("n-where").addEventListener("change", () => {
 const NEW_CHAT_MODELS = new Map();
 
 function agentOfKind(kind) {
-  return /^opencode/.test(kind) ? "opencode" : /^codex/.test(kind) ? "codex" : /^kimi/.test(kind) ? "kimi" : /^kiro/.test(kind) ? "kiro" : /^cursor/.test(kind) ? "cursor" : "claude";
+  return /^opencode/.test(kind) ? "opencode" : /^codex/.test(kind) ? "codex" : /^kimi/.test(kind) ? "kimi" : /^kiro/.test(kind) ? "kiro" : /^cursor/.test(kind) ? "cursor" : /^gemini/.test(kind) ? "gemini" : "claude";
 }
 
 const NEW_CHAT_ASKING = new Set();

@@ -103,7 +103,7 @@ test("claude's chrome is untouched, and an agent nobody knows reads as claude", 
   assert.equal(readScreen(claude, "pi").running, true);
   assert.equal(readScreen(CODEX_WORKING).running, true, "codex's footer happens to carry claude's words too");
   assert.equal(readScreen(KIRO_WORKING).running, false, "claude's pattern does not read kiro — that was the whole bug");
-  assert.deepEqual(Object.keys(AGENT_CHROME), ["claude", "codex", "kimi", "kiro", "cursor", "opencode"]);
+  assert.deepEqual(Object.keys(AGENT_CHROME), ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
 });
 
 test("codex and kiro say their model on the footer; kimi keeps the model the seat opened with", () => {
