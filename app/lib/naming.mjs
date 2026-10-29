@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const NAME_SHAPE = /^[a-z0-9]+(-[a-z0-9]+){0,4}$/;
@@ -39,6 +40,18 @@ export function freeNameAmong(name, taken) {
   return `${name}-${Date.now().toString().slice(-4)}`;
 }
 
+const LEFTOVERS = [["sessions", ".json"], ["events", ".ndjson"]];
+
+export function namesThatLived(home, read = readdirSync) {
+  const lived = new Set();
+  for (const [dir, ext] of LEFTOVERS) {
+    let files = [];
+    try { files = read(join(home, dir)); } catch { continue; }
+    for (const file of files) if (file.endsWith(ext)) lived.add(file.slice(0, -ext.length));
+  }
+  return lived;
+}
+
 export function nameFromMission(prompt) {
   const mission = pastHandles(prompt);
   const said = mission.replace(LINK, " ").trim();
@@ -53,7 +66,7 @@ export function nameFromAnswer(line, prompt) {
   return nameFromMission(prompt);
 }
 
-export const NAMER_MODELS = { claude: "haiku", codex: "gpt-5.6-luna", kimi: "", kiro: "claude-haiku-4.5", cursor: "" };
+export const NAMER_MODELS = { claude: "haiku", codex: "gpt-5.6-luna", kimi: "", kiro: "claude-haiku-4.5", cursor: "", gemini: "flash" };
 
 export function kimiAnswer(out) {
   const said = [];
@@ -82,6 +95,9 @@ export function namerCommand({ agent, prompt, outFile, claude, engineDir = "", s
   }
   if (agent === "cursor") {
     return { exe: "cursor-agent", args: ["-p", prompt, "--output-format", "text", "--mode", "ask", "--trust"], answerIn: "" };
+  }
+  if (agent === "gemini") {
+    return { exe: "gemini", args: ["-p", prompt, "--model", NAMER_MODELS.gemini, "--output-format", "text", "--skip-trust"], answerIn: "" };
   }
   const shaped = schema
     ? ["--output-format", "json", "--json-schema", schema, "--tools", "", "--disable-slash-commands", "--settings", '{"disableAllHooks":true}', "--permission-mode", "dontAsk"]

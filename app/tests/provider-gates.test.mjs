@@ -18,7 +18,7 @@ const provider = (id, over = {}) => ({ id, label: id, name: id, color: "#000000"
 test("before the list arrives every agent is offered, so an app that cannot reach its server keeps working", () => {
   st.providers = [];
   assert.equal(providerReady("kimi"), true);
-  assert.deepEqual(readyAgents(), ["claude", "codex", "kimi", "kiro", "cursor", "opencode"]);
+  assert.deepEqual(readyAgents(), ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
 });
 
 test("an agent that is off, missing or signed out leaves the pickers, and the chat's own agent always stays", () => {
@@ -29,7 +29,7 @@ test("an agent that is off, missing or signed out leaves the pickers, and the ch
 });
 
 test("the new-chat kinds hide the agents the pickers hide, and a hidden choice falls to the first one left", () => {
-  st.providers = [provider("claude", { ready: false, why: "nobody is signed in to Claude" }), provider("codex"), provider("kimi", { ready: false, why: "off" }), provider("kiro"), provider("cursor", { ready: false, why: "off" }), provider("opencode")];
+  st.providers = [provider("claude", { ready: false, why: "nobody is signed in to Claude" }), provider("codex"), provider("kimi", { ready: false, why: "off" }), provider("kiro"), provider("cursor", { ready: false, why: "off" }), provider("gemini"), provider("opencode")];
   const sel = document.getElementById("n-kind");
   sel.value = "structured";
   paintNewChatKinds();

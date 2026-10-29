@@ -70,7 +70,7 @@ export function parseCron(text) {
   return { minute, hour, day, month, weekday, dayStar: parts[2] === "*", weekdayStar: parts[4] === "*" };
 }
 
-export const ROUTINE_AGENTS = ["claude", "codex", "kimi", "kiro", "cursor", "opencode"];
+export const ROUTINE_AGENTS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
 
 export function cleanRoutine(body = {}) {
   const name = oneLine(body.name, ROUTINE_NAME_MAX);

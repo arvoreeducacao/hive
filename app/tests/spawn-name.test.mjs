@@ -15,13 +15,15 @@ function slice(src, from, to) {
   return src.slice(a, b);
 }
 
-function naming({ seats = [], jobs = [], onScreen = [] } = {}) {
-  const made = new Function("freeNameAmong", "spawning", "fleet", "cache", `
+function naming({ seats = [], jobs = [], onScreen = [], lived = [] } = {}) {
+  const made = new Function("freeNameAmong", "namesThatLived", "HIVE_HOME", "spawning", "fleet", "cache", `
     ${slice(server, "function namesOnTheBoard(exceptJob = \"\") {", "async function freeName(")}
-    return { namesOnTheBoard, freeNameNow };
+    return { namesOnTheBoard, freeNameNow, freshNameNow };
   `);
   return made(
     freeNameAmong,
+    () => new Set(lived),
+    "/hive",
     new Map(jobs.map((j) => [j.id, j])),
     new Map(seats.map((s) => [`${s.where}:${s.name}`, s])),
     { at: 1, data: { sessions: onScreen } }
@@ -59,7 +61,7 @@ test("what the rail already shows counts too, whichever side of the fleet it run
 
 test("the name a chat is born with is free before the door answers, not after the seat opens", () => {
   const open = slice(server, "function openJob(body) {", "async function pushMissionAssets");
-  assert.match(open, /name: freeNameNow\(/,
+  assert.match(open, /name: named \? freeNameNow\(named\) : freshNameNow\(/,
     "/api/spawn answers with this name and the rail binds the tile to it — a colliding name here is a tile pointing at another chat");
   const run = slice(server, "async function runJob(job, body) {", "\n}\n");
   assert.match(run, /job\.name = await freeName\(job\.name, job\.where, job\.id\)/,
@@ -68,9 +70,9 @@ test("the name a chat is born with is free before the door answers, not after th
 
 const firstLine = (text) => pastHandles(text).split("\n").map((l) => l.trim()).find(Boolean)?.slice(0, 120) || "";
 
-function openJobWith({ seats = [], onScreen = [] } = {}) {
+function openJobWith({ seats = [], onScreen = [], lived = [] } = {}) {
   const spawning = new Map();
-  const made = new Function("freeNameAmong", "slug", "nameFromMission", "firstLine", "spawning", "fleet", "cache", "CLOUD", "podCache", `
+  const made = new Function("freeNameAmong", "namesThatLived", "HIVE_HOME", "slug", "nameFromMission", "firstLine", "spawning", "fleet", "cache", "CLOUD", "podCache", `
     let jobCount = 0;
     ${slice(server, "function namesOnTheBoard(exceptJob = \"\") {", "async function freeName(")}
     ${slice(server, "function openJob(body) {", "async function pushMissionAsset")}
@@ -78,6 +80,8 @@ function openJobWith({ seats = [], onScreen = [] } = {}) {
   `);
   const openJob = made(
     freeNameAmong,
+    () => new Set(lived),
+    "/hive",
     slug,
     nameFromMission,
     firstLine,
@@ -103,4 +107,22 @@ test("two chats asked for in the same breath do not come out with one name", () 
   const second = openJob({ prompt: "amigão, me ajuda a entender outro bug", where: "local" });
   assert.equal(first.name, "amigao-me-ajuda-a");
   assert.equal(second.name, "amigao-me-ajuda-a-2");
+});
+
+test("a chat closed a moment ago does not lend its name to the next mission with the same first words", () => {
+  const { openJob } = openJobWith({ lived: ["o-que-houve-aq"] });
+  const job = openJob({ prompt: "https://github.com/acme/hive/pull/275\n\no que houve aq?", where: "local" });
+  assert.equal(job.name, "o-que-houve-aq-2",
+    "the tile of the closed chat still answers to that name and drops every event of the newborn, so the person sees the old chat");
+});
+
+test("a name the person or a caller chose is kept even when a chat once wore it", () => {
+  const { openJob } = openJobWith({ lived: ["your-conductor"] });
+  assert.equal(openJob({ name: "your-conductor", prompt: "brief", where: "local" }).name, "your-conductor");
+});
+
+test("only a mission-derived name steps aside from the dead, the live board still counts for both", () => {
+  const { freeNameNow, freshNameNow } = naming({ lived: ["faz-ai-pfv", "faz-ai-pfv-2"], onScreen: [{ name: "faz-ai-pfv-3", where: "local" }] });
+  assert.equal(freeNameNow("faz-ai-pfv"), "faz-ai-pfv");
+  assert.equal(freshNameNow("faz-ai-pfv"), "faz-ai-pfv-4");
 });

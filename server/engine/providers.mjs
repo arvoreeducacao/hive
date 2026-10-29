@@ -19,7 +19,7 @@ export const PROVIDERS = {
     own: [],
     login: ["claude", "auth", "login"],
     logout: ["claude", "auth", "logout"],
-    spent: /you'?ve hit your (?:org'?s |individual )?(?:monthly |weekly |session )?(?:spend )?limit|usage limit reached|credit balance is too low/i,
+    spent: /you'?ve hit your (?:org'?s |individual )?(?:monthly |weekly |session |\d+-hour )?(?:spend )?limit|usage limit reached|credit balance is too low/i,
     gone: /failed to authenticate|oauth session expired|please run \/login|invalid api key/i,
   },
   codex: {
@@ -78,6 +78,21 @@ export const PROVIDERS = {
     logout: ["cursor-agent", "logout"],
     spent: /usage limit|rate.?limit|too many requests|quota|out of (?:credits|requests)|spend limit|hard limit|\b429\b/i,
     gone: /authentication required|not logged in|agent login|login required|unauthorized|\b401\b|token.*expired|auth token expired/i,
+  },
+  gemini: {
+    id: "gemini",
+    label: "Gemini",
+    binary: "gemini",
+    color: "#4285F4",
+    home: ".gemini",
+    homeEnv: "GEMINI_CLI_HOME",
+    envDir: "home",
+    envHome: ".gemini",
+    own: ["oauth_creds.json", "google_accounts.json"],
+    login: ["gemini"],
+    logout: [],
+    spent: /RESOURCE_EXHAUSTED|exceeded your current quota|quota exceeded|usage limit|rate.?limit|too many requests|\b429\b/i,
+    gone: /api key is missing|authentication required|login required|invalid_grant|UNAUTHENTICATED|unauthorized|\b401\b|token.*expired|reauthenticat/i,
   },
   opencode: {
     id: "opencode",
@@ -139,6 +154,13 @@ export function providerEnvDir(provider, dir) {
   const spec = providerOf(provider);
   if (!spec || !dir) return "";
   return spec.envDir ? join(dir, spec.envDir) : dir;
+}
+
+export function providerSelfDir(provider, dir) {
+  const spec = providerOf(provider);
+  const held = providerEnvDir(provider, dir);
+  if (!held) return "";
+  return spec.envHome ? join(held, spec.envHome) : held;
 }
 
 export const providerEnvName = (provider) => providerOf(provider)?.homeEnv || "";

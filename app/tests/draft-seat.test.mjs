@@ -39,7 +39,7 @@ test("a fresh draft starts on claude, local, native chat when nothing was kept",
 test("what the person chose last time comes back, and junk does not", () => {
   assert.deepEqual(helpers.draftChoices({ agent: "codex", model: "gpt-5", where: "cloud", kind: "terminal" }),
     { agent: "codex", model: "gpt-5", where: "cloud", kind: "terminal" });
-  assert.deepEqual(helpers.draftChoices({ agent: "gemini", model: 7, where: "moon", kind: "shell" }),
+  assert.deepEqual(helpers.draftChoices({ agent: "aider", model: 7, where: "moon", kind: "shell" }),
     { agent: "claude", model: "", where: "local", kind: "structured" });
 });
 
@@ -137,7 +137,7 @@ test("a name born again forgets the children the old chat opened", () => {
 
 test("the seat is named from the mission at once and the title comes later, off the critical path", () => {
   const open = slice(server, "function openJob(body) {", "async function pushMissionAssets");
-  assert.match(open, /name: freeNameNow\(named \|\| nameFromMission\(body\.prompt\)\)/);
+  assert.match(open, /name: named \? freeNameNow\(named\) : freshNameNow\(nameFromMission\(body\.prompt\)\)/);
   assert.doesNotMatch(open, /"naming"/);
   const run = slice(server, "async function runJob(job, body) {", "\n}\n");
   assert.doesNotMatch(run, /await nameSession\(/);

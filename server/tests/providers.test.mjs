@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PROVIDERS, PROVIDER_IDS, ACCOUNT_IN_COMMAND, accountDirFromEnv, accountNameInCommand, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOwn, providerRanDry } from "../engine/providers.mjs";
+import { PROVIDERS, PROVIDER_IDS, ACCOUNT_IN_COMMAND, accountDirFromEnv, accountNameInCommand, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOwn, providerRanDry, providerSelfDir } from "../engine/providers.mjs";
 
 test("every agent the hive seats is a provider, and each says how a login is kept apart", () => {
-  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "opencode"]);
+  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
   for (const spec of Object.values(PROVIDERS)) {
     assert.ok(spec.binary && spec.homeEnv && spec.home && spec.label && /^#[0-9A-Fa-f]{6}$/.test(spec.color), `${spec.id} is missing a field`);
     assert.ok(Array.isArray(spec.own) && Array.isArray(spec.login), `${spec.id} says nothing about its login`);
@@ -44,8 +44,12 @@ test("a login folder becomes the variable its CLI reads, share/ inside it for th
   assert.deepEqual(providerEnv("opencode", "/h/x"), { XDG_DATA_HOME: "/h/x/share" });
   assert.deepEqual(providerEnv("cursor", "/h/x"), { XDG_CONFIG_HOME: "/h/x/config" });
   assert.deepEqual(providerEnv("codex", ""), {}, "the login everybody starts with sets nothing");
-  assert.deepEqual(providerEnv("gemini", "/h/x"), {});
+  assert.deepEqual(providerEnv("gemini", "/h/x"), { GEMINI_CLI_HOME: "/h/x/home" }, "gemini's variable names a whole home");
+  assert.deepEqual(providerEnv("aider", "/h/x"), {});
   assert.equal(providerEnvDir("kiro", "/h/x"), "/h/x/share");
+  assert.equal(providerSelfDir("gemini", "/h/x"), "/h/x/home/.gemini", "the CLI makes its own folder inside that home");
+  assert.equal(providerSelfDir("kiro", "/h/x"), "/h/x/share");
+  assert.equal(providerSelfDir("gemini", ""), "");
 });
 
 test("the environment a seat runs in reads back as the login folder, or nothing", () => {
@@ -55,6 +59,8 @@ test("the environment a seat runs in reads back as the login folder, or nothing"
   assert.equal(accountDirFromEnv("kiro", { XDG_DATA_HOME: "/home/someone/.local/share" }), "", "a machine-wide xdg folder is not a login");
   assert.equal(accountDirFromEnv("cursor", { XDG_CONFIG_HOME: "/h/p/cursor/accounts/work/config" }), "/h/p/cursor/accounts/work");
   assert.equal(accountDirFromEnv("cursor", { XDG_CONFIG_HOME: "/home/someone/.config" }), "");
+  assert.equal(accountDirFromEnv("gemini", { GEMINI_CLI_HOME: "/h/p/gemini/accounts/work/home" }), "/h/p/gemini/accounts/work");
+  assert.equal(accountDirFromEnv("gemini", { GEMINI_CLI_HOME: "/srv/gemini-job" }), "");
   assert.equal(accountDirFromEnv("claude", { CLAUDE_CONFIG_DIR: "/h/.hive/accounts/work" }), "/h/.hive/accounts/work");
 });
 
@@ -68,6 +74,7 @@ test("the name of the login is read out of the command tmux started, whichever v
 });
 
 test("a refusal is read as a spent login, a lost login, or neither — per agent", () => {
+  assert.equal(providerRanDry("claude", "You've hit your 5-hour limit · resets 1:10pm (America/Sao_Paulo)").why, "spent");
   assert.equal(providerRanDry("codex", "usage_limit_reached: You have hit your usage limit").why, "spent");
   assert.equal(providerRanDry("codex", "rate limit exceeded: try again later").why, "spent");
   assert.equal(providerRanDry("codex", "Not logged in. Run codex login").why, "login");
@@ -81,5 +88,8 @@ test("a refusal is read as a spent login, a lost login, or neither — per agent
   assert.equal(providerRanDry("cursor", "You have hit your usage limit for this billing cycle").why, "spent");
   assert.equal(providerRanDry("codex", "the app-server stopped answering"), null);
   assert.equal(providerRanDry("kimi", ""), null);
-  assert.equal(providerRanDry("gemini", "rate limit"), null);
+  assert.equal(providerRanDry("gemini", "Gemini API key is missing or not configured.").why, "login");
+  assert.equal(providerRanDry("gemini", "[API Error: RESOURCE_EXHAUSTED: Quota exceeded for quota metric]").why, "spent");
+  assert.equal(providerRanDry("gemini", "the pipe broke"), null);
+  assert.equal(providerRanDry("aider", "rate limit"), null);
 });

@@ -218,6 +218,43 @@ test("a runner that comes back keeps its place: nothing is mirrored twice and an
   rmSync(root, { recursive: true, force: true });
 });
 
+test("a chat that ended while the runner was away closes on the phone once the runner is back and misses it twice", async () => {
+  const { root, base, mac, broker, fetchImpl } = stage();
+  writeFileSync(join(base, "events", "morto.ndjson"), line(1, { type: "assistant", message: { content: [{ type: "text", text: "tchau" }] } }));
+  writeFileSync(join(base, "events", "vivo.ndjson"), line(1, { type: "assistant", message: { content: [{ type: "text", text: "oi" }] } }));
+  const store = fileStore(join(root, "mac-store"));
+  const listed = [{ name: "morto", title: "morto" }, { name: "vivo", title: "vivo" }];
+  const make = async (fleetMs) => {
+    const device = await Device.fromIdentity({ name: "mac", secret: mac.secret, publicSsh: mac.publicSsh, store, fetchImpl, lean: true });
+    await device.enroll("http://sync/sync");
+    return { device, runner: createRunner({ device, base, seats: async () => listed, say: async () => ({ ok: true }), pollMs: 50, fleetMs }) };
+  };
+  const first = await make(100);
+  await first.runner.start();
+  const phone = await Device.create({ name: "phone", fetchImpl });
+  await phone.pair("http://sync/sync", (await first.device.openCode()).code);
+  phone.listen(() => {});
+  await waitFor(() => phone.seats.has("morto") && phone.seats.has("vivo"));
+  first.runner.stop();
+
+  listed.splice(0, 1);
+  const second = (await make(60 * 60 * 1000)).runner;
+  await second.start();
+  await phone.sync();
+  assert.equal(phone.seats.get("morto").closedAt, 0, "one listing without the chat is enough to close it, and a listing that blinks would close every chat");
+
+  await second.refreshFleet();
+  await phone.sync();
+  assert.ok(phone.seats.get("morto").closedAt > 0, "the chat that ended while the runner was away stays open on the phone");
+  assert.equal(phone.seats.get("vivo").closedAt, 0);
+  assert.deepEqual(second.following, ["vivo"]);
+
+  second.stop();
+  phone.stream?.stop();
+  broker.close();
+  rmSync(root, { recursive: true, force: true });
+});
+
 test("the chat's slash commands travel to the phone with the first turn and when they change", () => {
   const first = slim({ type: "system", subtype: "init", model: "claude", slash_commands: ["compact", "clear", { name: "review" }], terminal_slash_commands: ["clear"] });
   assert.deepEqual(first.map((one) => [one.type, one.slash]), [["system", ["compact", "review"]]]);

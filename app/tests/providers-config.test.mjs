@@ -28,11 +28,11 @@ test("what the person wrote about a provider comes back clean", () => {
 
 test("an agent this hive does not run is refused by name, and the rest is kept", () => {
   const problems = [];
-  const got = cleanProviders({ gemini: { enabled: true }, kimi: { enabled: true } }, "here", problems);
+  const got = cleanProviders({ aider: { enabled: true }, kimi: { enabled: true } }, "here", problems);
   assert.deepEqual(Object.keys(got), ["kimi"]);
   assert.equal(problems.length, 1);
-  assert.match(problems[0], /providers\.gemini is not an agent this hive runs/);
-  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "opencode"]);
+  assert.match(problems[0], /providers\.aider is not an agent this hive runs/);
+  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
 });
 
 test("a colour that is not hex, a flag that is not a boolean and a variable with a strange name are each called out", () => {

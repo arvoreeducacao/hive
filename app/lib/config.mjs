@@ -381,7 +381,7 @@ export function cleanAvatar(raw, where, problems) {
   return "";
 }
 
-export const PROVIDER_IDS = ["claude", "codex", "kimi", "kiro", "cursor", "opencode"];
+export const PROVIDER_IDS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
 const PROVIDER_NAME_MAX = 40;
 const PROVIDER_ARGS_MAX = 40;
 const PROVIDER_ENV_MAX = 40;

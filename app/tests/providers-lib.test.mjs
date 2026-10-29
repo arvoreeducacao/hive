@@ -4,7 +4,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
-  PROVIDER_IDS, codexIdentity, cursorIdentity, kimiIdentity, kiroIdentity, mirrorHome, opencodeIdentity, parseVersion, providerIdentity,
+  PROVIDER_IDS, codexIdentity, cursorIdentity, geminiIdentity, kimiIdentity, kiroIdentity, mirrorHome, opencodeIdentity, parseVersion, providerIdentity,
   providerReadiness, providerSettings, readProviderAccounts, shapeProviderAccount,
 } from "../lib/providers.mjs";
 
@@ -34,8 +34,26 @@ function machine() {
   mkdirSync(join(home, ".config", "gh"), { recursive: true });
   writeFileSync(join(home, ".config", "cursor", "auth.json"), JSON.stringify({ accessToken: "t" }));
   writeFileSync(join(home, ".config", "gh", "hosts.yml"), "");
+  mkdirSync(join(home, ".gemini", "tmp"), { recursive: true });
+  writeFileSync(join(home, ".gemini", "settings.json"), JSON.stringify({ security: { auth: { selectedType: "oauth-personal" } } }));
+  writeFileSync(join(home, ".gemini", "oauth_creds.json"), JSON.stringify({ access_token: "t", refresh_token: "r" }));
+  writeFileSync(join(home, ".gemini", "google_accounts.json"), JSON.stringify({ active: "me@x", old: [] }));
   return home;
 }
+
+test("a gemini login is a home of its own with .gemini mirrored inside, the google token kept apart", async () => {
+  const home = machine();
+  const dir = join(home, ".hive", "providers", "gemini", "accounts", "work");
+  assert.equal(shapeProviderAccount(home, "gemini", dir, "linux"), dir);
+  assert.equal(isLink(join(dir, "home", ".gemini")), false, "the CLI's folder is real, so the token inside can differ");
+  assert.ok(isLink(join(dir, "home", ".gemini", "settings.json")), "settings are shared");
+  assert.ok(isLink(join(dir, "home", ".gemini", "tmp")), "sessions are shared, so a moved login picks the conversation up");
+  assert.equal(existsSync(join(dir, "home", ".gemini", "oauth_creds.json")), false, "the login starts signed out");
+  assert.equal(existsSync(join(dir, "home", ".gemini", "google_accounts.json")), false);
+  assert.deepEqual(await providerIdentity({ home, provider: "gemini", dir: "", platform: "linux" }), { loggedIn: true, email: "me@x", tier: "google", blind: false });
+  assert.equal((await providerIdentity({ home, provider: "gemini", dir, platform: "linux" })).loggedIn, false);
+  rmSync(home, { recursive: true, force: true });
+});
 
 test("a cursor login mirrors ~/.config into config/ (so gh and git keep their files), adds ~/.cursor under config/cursor and keeps auth.json to itself", () => {
   const home = machine();
@@ -103,6 +121,10 @@ test("each CLI's login file says who is signed in, without a network", () => {
   assert.deepEqual(cursorIdentity({ apiKey: "k" }), { loggedIn: true, email: "", tier: "api key" });
   assert.equal(cursorIdentity({}).loggedIn, false);
   assert.equal(cursorIdentity(null).loggedIn, false);
+  assert.deepEqual(geminiIdentity({ creds: { access_token: "t", refresh_token: "r" }, accounts: { active: "me@x" } }), { loggedIn: true, email: "me@x", tier: "google" });
+  assert.deepEqual(geminiIdentity({ settings: { security: { auth: { selectedType: "gemini-api-key" } } }, env: { GEMINI_API_KEY: "k" } }), { loggedIn: true, email: "", tier: "api key" });
+  assert.equal(geminiIdentity({ settings: { security: { auth: { selectedType: "gemini-api-key" } } }, env: {} }).loggedIn, false, "an api key chosen but not set is no login");
+  assert.equal(geminiIdentity({}).loggedIn, false);
   assert.equal(kimiIdentity({ access_token: "t", expires_at: 1 }).loggedIn, false, "an expired token with nothing to refresh it is signed out");
   assert.equal(kimiIdentity({ access_token: "t", expires_at: 1, refresh_token: "r" }).loggedIn, true);
   assert.deepEqual(opencodeIdentity({ openai: { type: "oauth" }, "kimi-for-coding": { type: "api" } }), { loggedIn: true, email: "", tier: "openai · oauth, kimi-for-coding · api" });
@@ -184,5 +206,5 @@ test("the settings of a provider fall back to the registry, and the readiness sa
   assert.deepEqual(providerReadiness({ enabled: true, installed: false, accounts: [], label: "Kimi" }), { ready: false, why: "Kimi is not installed on this machine" });
   assert.match(providerReadiness({ enabled: true, installed: true, accounts: [{ loggedIn: false }], label: "Kiro" }).why, /nobody is signed in to Kiro/);
   assert.deepEqual(providerReadiness({ enabled: true, installed: true, accounts: [{ loggedIn: true }], label: "Kiro" }), { ready: true, why: "" });
-  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "opencode"]);
+  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
 });

@@ -1,6 +1,6 @@
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
-import { PROVIDERS, PROVIDER_IDS, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOf, providerOwn } from "../../server/engine/providers.mjs";
+import { PROVIDERS, PROVIDER_IDS, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOf, providerOwn, providerSelfDir } from "../../server/engine/providers.mjs";
 import { accountDir, accountsHeld } from "../../server/engine/accounts.mjs";
 import { shapeAccount } from "./accounts.mjs";
 
@@ -44,7 +44,7 @@ export function shapeProviderAccount(home, provider, dir, platform = process.pla
   if (!spec) throw new Error(`no agent goes by ${provider}`);
   const only = oneLoginOnly(provider, platform);
   if (only) throw new Error(only);
-  mirrorHome(providerHomeOf(home, provider, platform), providerEnvDir(provider, dir), providerOwn(provider, platform));
+  mirrorHome(providerHomeOf(home, provider, platform), providerSelfDir(provider, dir), providerOwn(provider, platform));
   if (provider === "cursor") mirrorHome(join(home, ".cursor"), join(providerEnvDir(provider, dir), "cursor"), ["auth.json"]);
   return dir;
 }
@@ -97,6 +97,16 @@ export function cursorIdentity(auth) {
   return { loggedIn: false, email: "", tier: "" };
 }
 
+export function geminiIdentity({ creds, accounts, settings, env = process.env } = {}) {
+  if (creds && typeof creds === "object" && (creds.refresh_token || creds.access_token)) {
+    return { loggedIn: true, email: String(accounts?.active || ""), tier: "google" };
+  }
+  const chosen = settings?.security?.auth?.selectedType || "";
+  if (chosen === "gemini-api-key" && env.GEMINI_API_KEY) return { loggedIn: true, email: "", tier: "api key" };
+  if (chosen === "vertex-ai" && (env.GOOGLE_API_KEY || env.GOOGLE_CLOUD_PROJECT)) return { loggedIn: true, email: "", tier: "vertex ai" };
+  return { loggedIn: false, email: "", tier: "" };
+}
+
 export function kiroIdentity(said) {
   const text = String(said || "");
   if (!text.trim() || /not logged in/i.test(text)) return { loggedIn: false, email: "", tier: "" };
@@ -111,7 +121,7 @@ export function kiroIdentity(said) {
 export async function providerIdentity({ home, provider, dir, run, platform = process.platform }) {
   const spec = providerOf(provider);
   if (!spec) return { loggedIn: false, email: "", tier: "", blind: true };
-  const root = dir ? providerEnvDir(provider, dir) : providerHomeOf(home, provider, platform);
+  const root = dir ? providerSelfDir(provider, dir) : providerHomeOf(home, provider, platform);
   if (provider === "codex") return { ...codexIdentity(readJson(join(root, "auth.json"))), blind: false };
   if (provider === "kimi") {
     let region = "";
@@ -120,6 +130,10 @@ export async function providerIdentity({ home, provider, dir, run, platform = pr
   }
   if (provider === "opencode") return { ...opencodeIdentity(readJson(join(root, "opencode", "auth.json"))), blind: false };
   if (provider === "cursor") return { ...cursorIdentity(readJson(join(root, ...providerOwn(provider, platform)[0].split("/")))), blind: false };
+  if (provider === "gemini") {
+    const said = { creds: readJson(join(root, "oauth_creds.json")), accounts: readJson(join(root, "google_accounts.json")), settings: readJson(join(root, "settings.json")) };
+    return { ...geminiIdentity(said), blind: false };
+  }
   if (provider === "kiro") {
     if (!existsSync(join(root, "kiro-cli", "data.sqlite3"))) return { loggedIn: false, email: "", tier: "", blind: false };
     if (!run) return { loggedIn: false, email: "", tier: "", blind: true };

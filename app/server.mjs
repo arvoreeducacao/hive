@@ -35,7 +35,7 @@ import { rebuildWhenStale } from "./lib/fresh-bundle.mjs";
 import { byErrand, closedErrands, errandOf, forgetOldKin, goneKin, keepErrands, markSeen, noteErrand, readErrands, readSeen, renameErrand, withErrands, zonesOf } from "./lib/errands.mjs";
 import { seatsOfStatus, takeoverMessages } from "./lib/canopy-watch.mjs";
 import { assertSpawnArgs } from "./lib/spawn-args.mjs";
-import { freeNameAmong, nameFromMission, namerCommand, pastHandles, slug } from "./lib/naming.mjs";
+import { freeNameAmong, nameFromMission, namerCommand, namesThatLived, pastHandles, slug } from "./lib/naming.mjs";
 import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFallback, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
 import { isPlainObject, FONT_DEFAULTS, GITHUB_REPO_URL, cleanFont, cleanKeys, cleanSound, cleanSounds, cleanVolume, cleanFlag, cleanMachine, cleanLayout, cleanBlockSize, cleanLanguage, cleanTerminal, cleanSttLanguage, cleanSttModel, cleanPet, cleanBrandFace, cleanGaze, cleanExperience, cleanExperienceOff, cleanInfoWidth, cleanInfoHeight, cleanThreadWidth, cleanPaneWidth, cleanLook, cleanStructure, cleanVisual, cleanShelf, cleanThemeName, cleanThemes, cleanAvatar, cleanWear, cleanPatch, cleanAutocompact, cleanQuietDays, cleanProviders, cleanExtensions, sameGithubRepo } from "./lib/config.mjs";
@@ -1506,7 +1506,7 @@ async function runCloudMcpLogin(name, mcpServer, job) {
     'case "$engine" in',
     `  opencode) opencode mcp auth ${quoted(mcpServer)} ;;`,
     `  codex) codex mcp login ${quoted(mcpServer)} ;;`,
-    `  kimi|kiro|cursor) echo "$engine has no login command the hive can drive from outside its chat — sign in to ${quoted(mcpServer)} from a $engine terminal on the box, then reopen the seat"; false ;;`,
+    `  kimi|kiro|cursor|gemini) echo "$engine has no login command the hive can drive from outside its chat — sign in to ${quoted(mcpServer)} from a $engine terminal on the box, then reopen the seat"; false ;;`,
     `  claude|"") claude mcp login ${quoted(mcpServer)} --no-browser ;;`,
     `  *) echo "$engine is not an agent this box knows how to sign in"; false ;;`,
     "esac",
@@ -1605,6 +1605,11 @@ function startMcpLogin(name, mcpServer, where = "local") {
       if (engine === "cursor") {
         job.state = "failed";
         job.error = `cursor's mcp login only knows the servers in its own mcp.json — sign in to ${mcpServer} from a cursor terminal in ${cwd} (agent mcp login), then reopen the seat`;
+        return;
+      }
+      if (engine === "gemini") {
+        job.state = "failed";
+        job.error = `gemini signs in to an mcp server only from inside its chat — run /mcp auth ${mcpServer} in a gemini terminal in ${cwd}, then reopen the seat`;
         return;
       }
       if (engine === "codex") await codexKnowsTheServer(mcpServer, cwd);
@@ -3028,6 +3033,12 @@ function freeNameNow(name, exceptJob = "") {
   return freeNameAmong(name, namesOnTheBoard(exceptJob));
 }
 
+function freshNameNow(name, exceptJob = "") {
+  const taken = namesOnTheBoard(exceptJob);
+  for (const lived of namesThatLived(HIVE_HOME)) taken.add(lived);
+  return freeNameAmong(name, taken);
+}
+
 async function freeName(name, where, exceptJob = "") {
   const { used, blind, why } = await namesInUse(where);
   if (blind) throw blindNamingError(where, why);
@@ -3035,7 +3046,7 @@ async function freeName(name, where, exceptJob = "") {
   return freeNameAmong(name, used);
 }
 
-const OTHER_AGENTS = new Set(["opencode", "codex", "kimi", "kiro", "cursor"]);
+const OTHER_AGENTS = new Set(["opencode", "codex", "kimi", "kiro", "cursor", "gemini"]);
 const AGENT_BINARY = { kiro: "kiro-cli", cursor: "cursor-agent" };
 
 const OVER_THE_WIRE = 10000;
@@ -3282,7 +3293,7 @@ function openJob(body) {
   const job = {
     id,
     anon,
-    name: freeNameNow(named || nameFromMission(body.prompt)),
+    name: named ? freeNameNow(named) : freshNameNow(nameFromMission(body.prompt)),
     where,
     mission: anon ? "" : firstLine(body.prompt),
     model: String(body.model || ""),
@@ -3491,7 +3502,7 @@ async function runJob(job, body) {
     if (opened.changed) {
       prompt = opened.prompt;
       body = opened.body;
-      if (opened.name && !slug(body.name)) job.name = freeNameNow(opened.name, job.id);
+      if (opened.name && !slug(body.name)) job.name = freshNameNow(opened.name, job.id);
       if (String(body.title || "").trim()) job.titleLater = false;
       job.mission = firstLine(prompt);
       cache.at = 0;
@@ -3505,7 +3516,7 @@ async function runJob(job, body) {
         await fleetTick();
       }
     }
-    if (!job.name) job.name = freeNameNow(nameFromMission(prompt) || `chat-${Date.now().toString().slice(-4)}`, job.id);
+    if (!job.name) job.name = freshNameNow(nameFromMission(prompt) || `chat-${Date.now().toString().slice(-4)}`, job.id);
     job.name = await freeName(job.name, job.where, job.id);
     job.settled = true;
     cache.at = 0;
@@ -3698,7 +3709,7 @@ SEATS="\${HIVE_SESSIONS:-$HOME/.hive/sessions}"
 for j in "$SEATS"/*.json; do
   [ -f "$j" ] || continue
   n=$(basename "$j" .json)
-  if grep -qE '"agent": *"(codex|kimi|kiro|cursor|opencode)"' "$j"; then
+  if grep -qE '"agent": *"(codex|kimi|kiro|cursor|gemini|opencode)"' "$j"; then
     e="\${SEATS%/sessions}/events/$n.ndjson"
     printf '==J==%s\n' "$n"
     head -c 8192 "$j"
@@ -6391,10 +6402,10 @@ const DEPS = [
   { name: "kubectl", why: "reaches a server hosted on kubernetes", install: installCommand("kubectl"), forCluster: true },
   { name: "aws", why: `the credential for a server on that cluster, profile ${AWS_PROFILE}`, install: installCommand("awscli"), forCluster: true },
   { name: "gh", why: "the PR panel, reviews and merges", install: installCommand("gh") },
-  { name: "claude", why: "the sessions themselves — or codex, kimi, kiro, cursor or opencode, whichever the seats run on", install: "npm install -g @anthropic-ai/claude-code", forSeats: true }
+  { name: "claude", why: "the sessions themselves — or codex, kimi, kiro, cursor, gemini or opencode, whichever the seats run on", install: "npm install -g @anthropic-ai/claude-code", forSeats: true }
 ];
 
-const SEAT_AGENT_BINARIES = { codex: "codex", kimi: "kimi", kiro: "kiro-cli", cursor: "cursor-agent", opencode: "opencode" };
+const SEAT_AGENT_BINARIES = { codex: "codex", kimi: "kimi", kiro: "kiro-cli", cursor: "cursor-agent", gemini: "gemini", opencode: "opencode" };
 
 async function otherAgentsOnThisMachine() {
   const found = {};

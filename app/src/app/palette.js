@@ -467,7 +467,7 @@ function palActions() {
         if (window.hiveDoctorCheck) window.hiveDoctorCheck();
       }
     },
-    { icon: "i-user", name: phrase("providers and accounts"), ctx: phrase("the agents this hive can seat, and their logins"), search: "providers accounts logins codex kimi kiro cursor opencode claude contas provedores", key: keyHint("accounts"), go: () => run("accounts") },
+    { icon: "i-user", name: phrase("providers and accounts"), ctx: phrase("the agents this hive can seat, and their logins"), search: "providers accounts logins codex kimi kiro cursor gemini opencode claude contas provedores", key: keyHint("accounts"), go: () => run("accounts") },
     { icon: "i-plug", name: phrase("extensions"), ctx: phrase("what this hive runs on top of the hive"), search: "extensions extensões plugins hooks", key: keyHint("extensions"), go: () => run("extensions") },
     { icon: "i-chart", name: phrase("usage and concurrency"), ctx: phrase("how many chats you really hold at once"), key: keyHint("usage"), go: () => run("usage") },
     { icon: "i-book", name: phrase("memories"), ctx: phrase("what the team memory holds, and how it grows"), search: "memory memories memória memórias jev ponte bridge", key: keyHint("memories"), go: () => run("memories") },
@@ -545,7 +545,7 @@ function palPaint() {
   palPreviewAsk();
 }
 
-const AGENT_ICONS = new Set(["claude", "codex", "kimi", "kiro", "cursor", "opencode"]);
+const AGENT_ICONS = new Set(["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
 
 const agentIcon = (s) => (AGENT_ICONS.has(s?.agent) ? `i-${s.agent}` : s?.kind === "shell" ? "i-term" : "i-agent");
 
