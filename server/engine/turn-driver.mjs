@@ -153,6 +153,18 @@ function initEvent(extra = {}) {
   return { type: "system", subtype: "init", session_id: sessionId, model: model || "", effort, slash_commands: SLASH_COMMANDS, terminal_slash_commands: [], agent: agentName, ...extra };
 }
 
+const homeTrouble = makeWarnOnce((message) => emit({ type: "driver", subtype: "warning", message }));
+
+function envForThisTurn() {
+  if (!agent.turnHome) return turnEnv;
+  try {
+    return { ...turnEnv, HOME: agent.turnHome({ seat: name, base, peerMcp: PEER_MCP, gateway: gatewayLink, remote: hubRemoteServers(hubFor(cwd)) }) };
+  } catch (e) {
+    homeTrouble(`the hive's tools could not be handed to ${agent.label} this turn: ${String(e?.message || e)}`);
+    return turnEnv;
+  }
+}
+
 function runTurn(turn) {
   if (!turn.providerContext) turn = { ...turn, text: transferText(turn.text, sessionStore), providerContext: true };
   const ctx = newTurnContext();
@@ -165,7 +177,7 @@ function runTurn(turn) {
   lastTurn = turn;
   const troubles = [];
   emit(initEvent());
-  const child = spawn(agent.binary, args, { cwd, env: turnEnv, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(agent.binary, args, { cwd, env: envForThisTurn(), stdio: ["ignore", "pipe", "pipe"] });
   current = { child, startedAt: Date.now(), interrupted: false, killTimer: null };
   let buf = "";
   let errTail = "";
@@ -197,6 +209,7 @@ function runTurn(turn) {
     if (current?.killTimer) clearTimeout(current.killTimer);
     const interrupted = current?.interrupted;
     current = null;
+    for (const out of agent.finishTurn?.(ctx, !!interrupted) || []) emit(out);
     let spent = null;
     if (code !== 0 && !interrupted) {
       const said = errTail.trim().split("\n").pop() || `${agent.binary} exited with code ${code}`;
@@ -227,7 +240,7 @@ function interrupt(reply) {
   }
   const started = Date.now();
   current.interrupted = true;
-  current.child.kill("SIGTERM");
+  current.child.kill(agent.stopSignal || "SIGTERM");
   current.killTimer = setTimeout(() => { try { current?.child.kill("SIGKILL"); } catch {} }, 4000);
   current.child.once("close", () => emit({ type: "driver", subtype: "interrupted", ms: Date.now() - started }));
   return reply({ ok: true });
@@ -278,7 +291,7 @@ function runRpc(bin, args, use) {
 
 function runCapture(bin, args) {
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { cwd, env: turnEnv });
+    const child = spawn(bin, args, { cwd, env: envForThisTurn() });
     let out = "", err = "";
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { err += d; });
@@ -396,7 +409,7 @@ function handleCommand(cmd, reply) {
         if (allowed.length) {
           if (!allowed.includes(level)) throw new Error(`this model takes ${allowed.join(", ")}`);
         } else if (!agent.effortLevels.includes(level)) {
-          throw new Error(`effort must be one of ${agent.effortLevels.join(", ")}`);
+          throw new Error(agent.effortLevels.length ? `effort must be one of ${agent.effortLevels.join(", ")}` : `${agent.label} has no reasoning effort apart from the model — pick the level with /model`);
         }
         effort = level;
         persistSession({ effort });

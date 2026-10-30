@@ -26,6 +26,10 @@ export const AGENT_CHROME = {
     running: /esc to cancel|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] \S/,
     dialog: /Allow execution|Apply this change\?|Do you want to proceed\?|Allow once|Do you trust (?:this|the files in this) folder/i
   },
+  antigravity: {
+    running: /esc to cancel|[⡀-⣿]\s+(?:Generating|Running|Thinking)/,
+    dialog: /Do you trust the contents of this project\?|Yes, I trust this folder|Allow (?:once|always)|\(y\/n\)/i
+  },
   opencode: {
     running: /esc interrupt|[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏] (Thinking|Working)/,
     dialog: /permission|allow once|\(y\/n\)/i

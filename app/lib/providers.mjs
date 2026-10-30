@@ -1,40 +1,15 @@
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PROVIDERS, PROVIDER_IDS, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOf, providerOwn, providerSelfDir } from "../../server/engine/providers.mjs";
+import { PROVIDERS, PROVIDER_IDS, mirrorHome, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOf, providerOwn, providerSelfDir } from "../../server/engine/providers.mjs";
 import { accountDir, accountsHeld } from "../../server/engine/accounts.mjs";
 import { shapeAccount } from "./accounts.mjs";
+import { antigravityIdentity } from "../../server/engine/antigravity-stream.mjs";
 
-export { PROVIDERS, PROVIDER_IDS, providerOf };
+export { PROVIDERS, PROVIDER_IDS, providerOf, antigravityIdentity, mirrorHome };
 
 export function providerHomeOf(home, provider, platform = process.platform) {
   const held = providerHome(provider, platform);
   return held ? join(home, held) : "";
-}
-
-/* an account is the CLI's home mirrored with links, except what is the login's
-   own — those paths start as nothing and the CLI writes them at sign-in. A path
-   with a slash in it makes its parent a real folder, mirrored the same way. */
-export function mirrorHome(from, to, own = []) {
-  mkdirSync(to, { recursive: true });
-  let entries = [];
-  try { entries = readdirSync(from, { withFileTypes: true }); } catch { return to; }
-  for (const entry of entries) {
-    const inner = own.filter((path) => path === entry.name || path.startsWith(`${entry.name}/`));
-    if (inner.some((path) => path === entry.name)) continue;
-    const source = join(from, entry.name);
-    const target = join(to, entry.name);
-    if (inner.length) {
-      mirrorHome(source, target, inner.map((path) => path.slice(entry.name.length + 1)));
-      continue;
-    }
-    if (existsSync(target) || isLink(target)) continue;
-    try { symlinkSync(source, target); } catch {}
-  }
-  return to;
-}
-
-function isLink(path) {
-  try { return lstatSync(path).isSymbolicLink(); } catch { return false; }
 }
 
 export function shapeProviderAccount(home, provider, dir, platform = process.platform) {
@@ -133,6 +108,11 @@ export async function providerIdentity({ home, provider, dir, run, platform = pr
   if (provider === "gemini") {
     const said = { creds: readJson(join(root, "oauth_creds.json")), accounts: readJson(join(root, "google_accounts.json")), settings: readJson(join(root, "settings.json")) };
     return { ...geminiIdentity(said), blind: false };
+  }
+  if (provider === "antigravity") {
+    if (!run) return { loggedIn: false, email: "", tier: "", blind: true };
+    const said = await run(spec.binary, ["models"], providerEnv(provider, dir)).catch(() => "");
+    return { ...antigravityIdentity(said), blind: !said };
   }
   if (provider === "kiro") {
     if (!existsSync(join(root, "kiro-cli", "data.sqlite3"))) return { loggedIn: false, email: "", tier: "", blind: false };

@@ -1,4 +1,4 @@
-import { switchSeatProvider } from "./provider-transfer.js";
+import { startFresh, switchSeatProvider } from "./provider-transfer.js";
 import { render } from "./arrange.js";
 import { markCopied } from "./avatars.js";
 import { forgetSeat } from "./blocks.js";
@@ -3148,6 +3148,13 @@ function svEvent(e, ev) {
       paintPills(e);
       return void svLine(e, "sv-meta", phrase("continued with {agent} · {model}", { agent: providerName(ev.agent), model: ev.model }));
     }
+    if (ev.subtype === "started_fresh") {
+      e.turnOpen = false;
+      if (live) refreshContext(e);
+      return void svLine(e, "sv-meta", ev.history
+        ? phrase("started fresh — your next message carries an extract of the old conversation, and the whole of it is in {file}", { file: ev.history })
+        : phrase("started fresh"));
+    }
     if (ev.subtype === "model_changed") {
       e.model = ev.model || "";
       paintPills(e);
@@ -3275,7 +3282,7 @@ function svShellBlock(e, ev) {
   return el;
 }
 
-const AGENT_NAMES = { claude: "claude", codex: "codex", kimi: "kimi", kiro: "kiro", cursor: "cursor", gemini: "gemini", opencode: "opencode" };
+const AGENT_NAMES = { claude: "claude", codex: "codex", kimi: "kimi", kiro: "kiro", cursor: "cursor", gemini: "gemini", antigravity: "antigravity", opencode: "opencode" };
 
 function seatAgent(e) {
   return AGENT_NAMES[e.agent] || "claude";
@@ -4383,6 +4390,7 @@ async function runNativeCommand(e, cmd, arg) {
     svLine(e, r?.ok ? "sv-meta" : "sv-meta warn", r?.ok ? said : r?.error || phrase("failed"));
     return;
   }
+  if (cmd === "fresh") return void startFresh(e);
   if (cmd === "compact") {
     const r = await svCmd(e, { type: "control", op: "compact", focus: arg || "" });
     if (r?.ok) {

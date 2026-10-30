@@ -391,6 +391,27 @@ function adoptAutocompact(r) {
   paintAutocompactReach();
 }
 
+function paintContextUsage() {
+  const flip = $("t-context-usage");
+  if (!flip) return;
+  const on = !!st.contextUsage;
+  flip.textContent = on ? "on" : "off";
+  flip.classList.toggle("on", on);
+  flip.setAttribute("aria-pressed", on ? "true" : "false");
+  $("s-context-usage-say").textContent = on ? phrase("Claude chats see how full they are") : phrase("Claude chats do not see how full they are");
+}
+
+function adoptContextUsage(r) {
+  st.contextUsage = !!r.config?.contextUsage;
+  paintContextUsage();
+}
+
+function setContextUsage(on) {
+  st.contextUsage = on;
+  paintContextUsage();
+  saveConfig({ contextUsage: on }).then((r) => adoptContextUsage(r)).catch(() => {});
+}
+
 function setAutocompact(raw) {
   const k = autocompactK(raw);
   saveConfig({ autocompact: k ? `${k}k` : AUTOCOMPACT_AUTO }).then((r) => adoptAutocompact(r)).catch(() => {});
@@ -441,4 +462,4 @@ function setDiaryDays(raw) {
   saveConfig({ pruneDiariesAfterDays: diaryDays(raw) }).then((r) => adoptDiaryDays(r)).catch(() => {});
 }
 
-export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, BAR_KEY, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };
+export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, BAR_KEY, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };

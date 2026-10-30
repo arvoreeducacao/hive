@@ -206,5 +206,5 @@ test("the settings of a provider fall back to the registry, and the readiness sa
   assert.deepEqual(providerReadiness({ enabled: true, installed: false, accounts: [], label: "Kimi" }), { ready: false, why: "Kimi is not installed on this machine" });
   assert.match(providerReadiness({ enabled: true, installed: true, accounts: [{ loggedIn: false }], label: "Kiro" }).why, /nobody is signed in to Kiro/);
   assert.deepEqual(providerReadiness({ enabled: true, installed: true, accounts: [{ loggedIn: true }], label: "Kiro" }), { ready: true, why: "" });
-  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
+  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"]);
 });

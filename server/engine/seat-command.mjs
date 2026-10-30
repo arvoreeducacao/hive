@@ -110,6 +110,10 @@ export function seatCommand({
     const back = resumeId ? ` --resume ${quoteForShell(resumeId)}` : continueLast ? " --resume latest" : "";
     words.push(`${carried}${held}${mine} gemini --yolo --skip-trust${model_}${back}`);
     if (promptFile && !back) words.push(` ${readPrompt(promptFile)}`);
+  } else if (agent === "antigravity") {
+    const back = resumeId ? ` --conversation ${quoteForShell(resumeId)}` : continueLast ? " --continue" : "";
+    words.push(`${carried}${held}${mine} agy --dangerously-skip-permissions${model_}${back}`);
+    if (promptFile && !back) words.push(` ${readPrompt(promptFile)}`);
   } else {
     const seen = remoteControl ? ` --remote-control ${quoteForShell(name)}` : "";
     const resumed = resumeId ? ` --resume ${quoteForShell(resumeId)}` : "";
@@ -217,6 +221,12 @@ export function seatArgv({
     args.push("--yolo", "--skip-trust", ...withModel, ...back);
     if (promptFile && !back.length) args.push(promptText(promptFile, readPrompt));
     return { program: "gemini", args, env, cwd, fallback };
+  }
+  if (agent === "antigravity") {
+    const back = resumeId ? ["--conversation", resumeId] : continueLast ? ["--continue"] : [];
+    args.push("--dangerously-skip-permissions", ...withModel, ...back);
+    if (promptFile && !back.length) args.push(promptText(promptFile, readPrompt));
+    return { program: "agy", args, env, cwd, fallback };
   }
   if (resumeId) args.push("--resume", resumeId);
   args.push("--dangerously-skip-permissions");

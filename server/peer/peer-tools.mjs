@@ -2,6 +2,7 @@ import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSe
 import { BIRTHS_MAX } from "../engine/protocol.mjs";
 import { allows, readCeiling } from "./ceilings.mjs";
 import { stateDir } from "../engine/paths.mjs";
+import { answerGuide } from "./guide.mjs";
 
 export const PEER_TOOLS = [
   {
@@ -46,6 +47,18 @@ export const PEER_TOOLS = [
         lines: { type: "number", description: "how many lines back, default 30" },
       },
       required: ["seat"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "guide",
+    description: "How the Hive itself works, written for the version of the app that is running: installing and updating it, the hub, skills, extensions, MCP servers, chats and providers, the interface, settings and keys, the team, the server and the phone, and the tools built into it. Call it before you read the Hive's source or guess about it, and whenever the person asks how to set up, configure or use something in the Hive. With no argument it lists the topics; topic reads one whole; search returns the sections that mention a few words.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        topic: { type: "string", description: "a topic from the list, e.g. mcp or team-and-cloud" },
+        search: { type: "string", description: "a few words to look for across every topic, e.g. add an mcp server" },
+      },
       additionalProperties: false,
     },
   },
@@ -253,7 +266,7 @@ export const PEER_TOOLS = [
         where: { type: "string", description: "local (this machine) or cloud (the pod) — defaults to where you are" },
         repo: { type: "string", description: "optional repo the seat should start in" },
         model: { type: "string", description: "which model it runs on — the id the person's agent knows, like opus or sonnet. Leave it out for the one that seat would pick by itself" },
-        agent: { type: "string", description: "which chat program runs it — claude, codex, kimi, kiro, cursor, gemini or opencode. Leave it out to open it on the same one you are on. Only what the person has a login for opens; anything else comes back refused" },
+        agent: { type: "string", description: "which chat program runs it — claude, codex, kimi, kiro, cursor, gemini, antigravity or opencode. Leave it out to open it on the same one you are on. Only what the person has a login for opens; anything else comes back refused" },
         account: { type: "string", description: "which login of that program to use, when the person has more than one. Only for a seat on this machine: on the server the account is the server's" },
         ceiling: { type: "string", enum: ["read", "operate", "full"], description: "how much the new chat may do through these tools: read only looks, operate also messages, browses and asks, full also opens chats and publishes. It can only be the same as yours or narrower — leave it out to give it yours" },
         count: { type: "integer", minimum: 1, maximum: 3, description: "open the SAME mission in 2 to 3 chats at once — a race: each works in its own worktree, the person compares the results and keeps one. Only when the person asked for a race, or when the task is small and the approaches genuinely differ; each extra chat costs a model. Default 1" },
@@ -356,7 +369,7 @@ const OPERATE = "operate";
 const FULL = "full";
 
 export const TOOL_ACCESS = {
-  peers: READ, peek: READ,
+  peers: READ, peek: READ, guide: READ,
   browser_screenshot: READ, browser_snapshot: READ, browser_cookies: READ, browser_console: READ, browser_network: READ,
   device_screenshot: READ, device_tree: READ, device_logs: READ,
   message: OPERATE, ask: OPERATE, reply_on_page: OPERATE, rename: OPERATE, task: OPERATE, buzz: OPERATE,
@@ -372,6 +385,8 @@ export const TOOL_ACCESS = {
    same socket, so the socket's owner is already the person; what it gets is a ceiling,
    read by default and never more than operate — it can look and talk, not open chats. */
 export const EXTERNAL_CEILINGS = [READ, OPERATE];
+
+export const HIVE_INSTRUCTIONS = "These are the Hive's own tools. For anything about the Hive itself (installing or updating it, the hub, skills, extensions, MCP servers, providers, settings and keys, the team, the server, the phone), call guide first: it ships with the version that is running, and the Hive's source may not be on this machine.";
 
 export function ceilingOf(env = process.env) {
   if (env.HIVE_SEAT) return readCeiling(stateDir(env), env.HIVE_SEAT);
@@ -432,6 +447,11 @@ export function peerCalls(env = process.env) {
 
 function rawCalls(env) {
   const calls = {
+    async guide(args) {
+      const done = answerGuide(args);
+      if (done.error) return failure(done.error);
+      return text(done.text);
+    },
     async browser_navigate(args) {
       const done = await browserNavigate({ url: args.url, env });
       if (done.error) return failure(done.error);

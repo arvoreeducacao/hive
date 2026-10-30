@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import { ceilingOf, peerCalls, toolsFor } from "./peer-tools.mjs";
+import { HIVE_INSTRUCTIONS, ceilingOf, peerCalls, toolsFor } from "./peer-tools.mjs";
 
 const calls = peerCalls(process.env);
 
@@ -14,6 +14,7 @@ async function handle(request) {
       protocolVersion: params?.protocolVersion === "2025-06-18" ? "2025-06-18" : "2024-11-05",
       capabilities: { tools: {} },
       serverInfo: { name: "hive", version: "1.0.0" },
+      instructions: HIVE_INSTRUCTIONS,
     };
   }
   if (method === "ping") return {};

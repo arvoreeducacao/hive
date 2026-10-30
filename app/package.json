@@ -95,6 +95,7 @@
           "engine/*.mjs",
           "gateway/*.mjs",
           "peer/*.mjs",
+          "guide/*.md",
           "sync/*.mjs",
           "phone/*",
           "package.json",

@@ -164,7 +164,7 @@ export function seatTitle(raw) {
 }
 
 export function seatPreamble(name, side) {
-  return `You are seat \`${name}\` in the hive (${side}), one of several chats the person runs side by side. Other seats can message you, and you answer them by name with the hive tools — peers, message, ask, peek. Talk to a peer when it owns the thing you are about to guess at; report to the person otherwise. The chat gets its name on its own as it opens, so start on the work at once — do not spend your first move naming it. Use rename only when the subject turns, so that the line the person reads on the rail keeps saying what this chat is about now.`;
+  return `You are seat \`${name}\` in the hive (${side}), one of several chats the person runs side by side. Other seats can message you, and you answer them by name with the hive tools — peers, message, ask, peek. Talk to a peer when it owns the thing you are about to guess at; report to the person otherwise. The chat gets its name on its own as it opens, so start on the work at once — do not spend your first move naming it. Use rename only when the subject turns, so that the line the person reads on the rail keeps saying what this chat is about now. For anything about the Hive itself — how to set it up, configure it or use one of its features — call the hive guide tool before you read its source or guess.`;
 }
 
 export function peerSayText(from, text, side = "") {

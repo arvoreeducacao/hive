@@ -520,7 +520,7 @@ function getStructured(s) {
      with it false, so what the person is writing down here — and what they attached — survives. */
   const deliver = (text, sending, fromDraft, cutIn = false) => {
     if (e.providerTransfer && e.providerTransfer.phase !== "waiting") {
-      svLine(e, "sv-meta", phrase("the provider is changing; your draft is kept here until it finishes"));
+      svLine(e, "sv-meta", e.providerTransfer.fresh ? phrase("the chat is starting fresh; your draft is kept here until it finishes") : phrase("the provider is changing; your draft is kept here until it finishes"));
       return;
     }
     if (!text && !sending.length) return;
@@ -754,7 +754,7 @@ function getStructured(s) {
     textarea,
     suggest: host.querySelector(".sv-suggest"),
     mine: () => e.name,
-    commands: () => ({ list: e.slash || [], info: e.slashInfo || {}, none: phrase("the command list arrives with the session's first turn") }),
+    commands: () => ({ ...offeredCommands(e), none: phrase("the command list arrives with the session's first turn") }),
     files: {
       searching: () => phrase("searching the session's directory…"),
       none: () => phrase("nothing with that name in the session's directory"),
@@ -1046,6 +1046,13 @@ function continueListOnShiftEnter(kev, textarea) {
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
   }
   return true;
+}
+
+function offeredCommands(e) {
+  const list = e.slash || [];
+  const info = e.slashInfo || {};
+  if (!list.length || list.includes("fresh")) return { list, info };
+  return { list: [...list, "fresh"], info: { ...info, fresh: { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "" } } };
 }
 
 export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, seatReceiving, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };

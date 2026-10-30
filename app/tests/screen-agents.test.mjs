@@ -103,7 +103,7 @@ test("claude's chrome is untouched, and an agent nobody knows reads as claude", 
   assert.equal(readScreen(claude, "pi").running, true);
   assert.equal(readScreen(CODEX_WORKING).running, true, "codex's footer happens to carry claude's words too");
   assert.equal(readScreen(KIRO_WORKING).running, false, "claude's pattern does not read kiro — that was the whole bug");
-  assert.deepEqual(Object.keys(AGENT_CHROME), ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
+  assert.deepEqual(Object.keys(AGENT_CHROME), ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"]);
 });
 
 test("codex and kiro say their model on the footer; kimi keeps the model the seat opened with", () => {
@@ -120,4 +120,28 @@ test("the server reads every terminal through the chrome of the agent that runs 
   assert.match(server, /deriveState\(lines, status, thinking, running, agent\)/);
   assert.match(server, /findModel\(name, lines, agent\)/);
   assert.match(server, /const thinking = agent === "claude" \? findThinking\(lines\) : null;/);
+});
+
+test("antigravity's footer says it is working, its idle footer does not, and the folder trust reads as a dialog", () => {
+  const working = `> Run \`sleep 8 && echo done\` with your shell tool, then say ok.
+○ Running (sleep 8 && echo done) (ctrl+o to expand)
+⡿  Running command...
+────────────────────────────────────────
+>
+────────────────────────────────────────
+esc to cancel                                  Gemini 3.8 Flash · high`;
+  const idle = `● Ran (sleep 8 && echo done) (ctrl+o to expand)
+  ok
+────────────────────────────────────────
+>
+────────────────────────────────────────
+? for shortcuts                                Gemini 3.8 Flash · high`;
+  const trust = `Do you trust the contents of this project?
+Antigravity CLI requires permission to read, edit, and execute files here.
+> Yes, I trust this folder
+  No, exit`;
+  assert.equal(readScreen(working, "antigravity").running, true);
+  assert.equal(readScreen(idle, "antigravity").running, false);
+  assert.ok(AGENT_CHROME.antigravity.dialog.test(trust));
+  assert.ok(!AGENT_CHROME.antigravity.dialog.test(idle));
 });

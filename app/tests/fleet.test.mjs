@@ -114,8 +114,19 @@ test("the local script resumes the id in the seat's cwd with its account", () =>
   assert.match(script, /new-window -d -t hive-local -n acq-front/);
   assert.match(script, /claude --resume 3f1c9a2e-1111-4222-8333-444455556666/);
   assert.match(script, /CLAUDE_CONFIG_DIR=\/home\/dev\/\.hive\/accounts\/extra /);
-  assert.match(script, /--model opus/);
+  assert.match(script, /--model 'opus'/);
   assert.match(script, /--remote-control acq-front/);
+});
+
+test("a terminal chat on a 1m model comes back under zsh instead of dying on the bracket", () => {
+  const script = localRestoreScript(
+    [chat({ model: "opus[1m]" }), chat({ name: "estruturado", kind: "structured", model: "opus[1m]" })],
+    { hub: "/home/dev/Acme/acme-hub", hiveHome: "/home/dev/.hive", shell: "zsh", engineDir: "/eng" }
+  );
+  assert.match(script, /claude --resume 3f1c9a2e-1111-4222-8333-444455556666 [^"]*--model 'opus\[1m\]'/,
+    "zsh reads an unquoted opus[1m] as a glob, aborts with no matches found, the window dies and the fleet archives the chat");
+  assert.match(script, /driver\.mjs [^"]*--model 'opus\[1m\]'/);
+  assert.doesNotMatch(script, /--model opus\[1m\]/);
 });
 
 test("the local script honours the remote-control switch and restores shells", () => {
