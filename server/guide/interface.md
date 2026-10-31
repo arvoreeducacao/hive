@@ -60,7 +60,7 @@ On a narrow window, grid and row both settle into one column. Outside New Hive t
 
 **Focus mode** keeps the chat in focus in the middle and the rest of the block beside it. Turn it on with the palette row "focus mode" (it then reads "leave focus mode") or the `focusMode` key, which has no default. The app window remembers it. Structures, except Cockpit, pause in focus mode.
 
-**Open a chat full screen** with the `fullscreen` key (⌘Enter on macOS, Ctrl+Enter on Linux/Windows); Esc leaves. The full-screen button in the strip ("full screen — the chat alone on the screen") takes the whole monitor; Esc or "leave" exits.
+**Open a chat full screen** with the `fullscreen` key (⌘Enter on macOS, Ctrl+Enter on Linux/Windows); Esc leaves. Inside a message box the same keys stop the turn and send instead, so press it with the box out of focus. The full-screen button in the strip ("full screen — the chat alone on the screen") takes the whole monitor; Esc or "leave" exits.
 
 **Resize an open chat**: drag the thin handle between its info side and the conversation (also the thread, pane and info height handles). Double-click restores the default. With the handle focused, the arrows move it 10 px and Shift+arrows 40 px. The sizes go to `infoWidth`, `threadWidth`, `paneWidth` and `infoHeight`.
 

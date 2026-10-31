@@ -1,4 +1,6 @@
-import { createReadStream } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { createReadStream, existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
 export function parseCommand(line) {
@@ -38,6 +40,7 @@ export function sayEvent(text, images = [], cid = null, from = null, consumed = 
   };
   if (from) event.from = from;
   if (consumed) event.consumed = true;
+  else event.uuid = randomUUID();
   return event;
 }
 
@@ -586,6 +589,49 @@ export async function* fileLines(path) {
     if (start < chunk.length) pending.push(chunk.subarray(start));
   }
   if (pending.length) yield Buffer.concat(pending).toString("utf8");
+}
+
+export async function transcriptFileOf(id, configDirs) {
+  if (!id) return "";
+  for (const dir of configDirs) {
+    const projects = join(dir, "projects");
+    let folders = [];
+    try { folders = await readdir(projects); } catch { continue; }
+    for (const folder of folders) {
+      const candidate = join(projects, folder, `${id}.jsonl`);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return "";
+}
+
+export const EDIT_BEFORE_COMPACT = "this message is from before the conversation was compacted, so the chat can no longer pick it up from there";
+export const EDIT_NO_RECORD = "this chat keeps no record of its conversation, so a message cannot be edited";
+
+export function forkPoint(entries, target) {
+  const byId = new Map();
+  let newest = null;
+  for (const entry of entries) {
+    if (!entry?.uuid || entry.isSidechain) continue;
+    byId.set(entry.uuid, entry);
+    newest = entry;
+  }
+  for (let at = newest; at; at = at.parentUuid ? byId.get(at.parentUuid) : null) {
+    if (at.uuid === target) return { found: true, at: at.parentUuid || "" };
+  }
+  return { found: false, error: EDIT_BEFORE_COMPACT };
+}
+
+export async function transcriptEntries(file) {
+  const entries = [];
+  for await (const line of fileLines(file)) {
+    if (!line.includes('"uuid"')) continue;
+    try {
+      const entry = JSON.parse(line);
+      entries.push({ uuid: entry.uuid, parentUuid: entry.parentUuid || null, isSidechain: !!entry.isSidechain });
+    } catch {}
+  }
+  return entries;
 }
 
 export const REPLAY_TAIL = 400;

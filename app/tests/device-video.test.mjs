@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { EventEmitter } from "node:events";
-import { RECORD_BITRATE, RECORD_LIMIT, createDriver, recordArgs } from "../lib/device.mjs";
+import { PICTURE_END, PICTURE_QUIET, RECORD_BITRATE, RECORD_LIMIT, createDriver, markPictureEnds, recordArgs } from "../lib/device.mjs";
 import { app } from "./dom.mjs";
 
 const { canWatchVideo, codecOfSps, h264Pictures, h264Units } = await app("chat-and-panes");
@@ -155,9 +155,11 @@ test("the route hands the seat's recorder straight to the response, and stops it
   assert.match(route, /content-type": "video\/h264"/);
   assert.match(route, /cache-control": "no-store"/);
   assert.match(route, /foundOne\.drive\.record\(foundOne\.d\.serial/);
-  assert.match(route, /onChunk: \(chunk\) => \{ if \(!res\.writableEnded\) res\.write\(chunk\); \}/);
-  assert.match(route, /req\.on\("close", \(\) => tape\.stop\(\)\)/);
-  assert.match(route, /res\.on\("close", \(\) => tape\.stop\(\)\)/);
+  assert.match(route, /markPictureEnds\(\(bytes\) => \{ if \(!res\.writableEnded\) res\.write\(bytes\); \}\)/);
+  assert.match(route, /onChunk: \(chunk\) => ends\.chunk\(chunk\)/);
+  assert.match(route, /const stop = \(\) => \{ ends\.stop\(\); tape\.stop\(\); \};/);
+  assert.match(route, /req\.on\("close", stop\)/);
+  assert.match(route, /res\.on\("close", stop\)/);
   assert.match(route, /if \(!isSeatName\(name\)\) return json/);
 });
 
@@ -168,7 +170,7 @@ test("the pane has a canvas for the video, a tap on it, and the photo loop steps
   const ask = cut(panes, "function askDeviceFrame(name, now = false) {", "\n}\n", "chat-and-panes.js");
   assert.match(ask, /deviceTape\?\.painted/, "no photo is taken while the video is painting");
   const paint = cut(panes, "function paintDeviceOfChat(el, s) {", "\n}\n", "chat-and-panes.js");
-  assert.match(paint, /if \(!st\.deviceGone && startDeviceVideo\(s\.name\)\) \{ gone\.hidden = true; return; \}/);
+  assert.match(paint, /if \(!st\.deviceGone && startDeviceVideo\(s\.name\)\) \{\n\s+gone\.hidden = true;/);
   const give = cut(panes, "function giveUpVideo(name, tape) {", "\n}\n", "chat-and-panes.js");
   assert.match(give, /askDeviceFrame\(name, true\)/, "when the video fails the photos come back");
 });
@@ -179,39 +181,100 @@ test("a tap lands the same whether it came from the photo or from the video", ()
   assert.match(tap, /face\.naturalHeight \|\| face\.height/);
 });
 
-test("when the stream goes quiet the last unit is shown instead of waiting for the next one", () => {
+test("the end mark written after a picture hands it over at once", () => {
   const shots = [];
-  const eat = h264Units(h264Pictures((bytes, key) => shots.push(key)));
+  const eat = h264Units(h264Pictures((bytes, key) => shots.push({ bytes, key })));
   eat(stream(nal(7, 8), nal(8, 4), nal(5, 30)));
-  assert.equal(shots.length, 0, "the key picture is still waiting for a start code that may never come");
-  eat.rest();
-  assert.equal(shots.length, 1, "a quiet stream hands over what it already holds");
-  assert.equal(shots[0], true);
-  eat.rest();
-  assert.equal(shots.length, 1, "and nothing is handed over twice");
+  assert.equal(shots.length, 0, "the key picture waits for a start code");
+  eat(PICTURE_END);
+  assert.equal(shots.length, 1, "the end mark is that start code");
+  assert.equal(shots[0].key, true);
+  assert.equal(shots[0].bytes.length, (3 + 1 + 8) + (3 + 1 + 4) + (3 + 1 + 30) + 1);
 });
 
-test("a half-read unit is never passed off as whole", () => {
-  const seen = [];
-  const eat = h264Units((one) => seen.push(one));
-  eat(Uint8Array.from([0, 0]));
-  eat.rest();
-  assert.equal(seen.length, 0, "bytes that are not even a start code are not a picture");
-  eat(Uint8Array.from([1, 0x65]));
-  eat.rest();
-  assert.equal(seen.length, 0, "a start code with almost nothing after it is not a picture either");
+test("a pause in the middle of a picture never hands half of it to the decoder", () => {
+  const shots = [];
+  const eat = h264Units(h264Pictures((bytes) => shots.push(bytes)));
+  const whole = stream(nal(7, 8), nal(8, 4), nal(5, 3000));
+  eat(whole.slice(0, 1200));
+  assert.equal(shots.length, 0);
+  eat(whole.slice(1200));
+  eat(PICTURE_END);
+  assert.equal(shots.length, 1);
+  assert.equal(shots[0].length, whole.length + 1, "the picture goes out whole, however long the pause was");
+  assert.equal(typeof eat.rest, "undefined", "nothing flushes a picture on a timer");
 });
 
-test("the settle timer is armed on every read and dropped when the tape stops", () => {
+test("the reader of the video has no timer that guesses where a picture ends", () => {
   const watch = cut(panes, "async function watchDevice(name, canvas, tape, control) {", "\n}\n", "chat-and-panes.js");
-  assert.match(watch, /clearTimeout\(tape\.settle\);\n\s+eat\(value\);/);
-  assert.match(watch, /tape\.settle = setTimeout\(\(\) => \{ if \(st\.deviceTape === tape\) eat\.rest\(\); \}, VIDEO_SETTLE\);/);
-  assert.match(cut(panes, "function stopDeviceVideo() {", "\n}\n", "chat-and-panes.js"), /clearTimeout\(tape\.settle\)/);
+  assert.doesNotMatch(watch, /settle|\.rest\(/);
+  assert.doesNotMatch(panes, /VIDEO_SETTLE/);
+});
+
+function clocks() {
+  const timers = [];
+  const soon = [];
+  return {
+    wait: (fn, ms) => { timers.push({ fn, ms, dead: false }); return timers.length; },
+    unwait: (n) => { if (n) timers[n - 1].dead = true; },
+    soon: (fn) => soon.push(fn),
+    fire: () => { for (const t of timers.filter((one) => !one.dead)) { t.dead = true; t.fn(); } },
+    turn: () => { for (const fn of soon.splice(0)) fn(); },
+    timers
+  };
+}
+
+test("the end mark is an access unit delimiter, which every h264 decoder skips", () => {
+  assert.deepEqual([...PICTURE_END.slice(0, 4)], [0, 0, 0, 1]);
+  assert.equal(PICTURE_END[4] & 0x1f, 9);
+  assert.ok(PICTURE_QUIET <= 30, "the mark costs the last picture of a burst only a few milliseconds");
+});
+
+test("the server marks the end of a burst once, right after its last chunk", () => {
+  const out = [];
+  const c = clocks();
+  const ends = markPictureEnds((bytes) => out.push([...bytes]), { wait: c.wait, unwait: c.unwait, soon: c.soon });
+  ends.chunk(Uint8Array.from([1, 2]));
+  ends.chunk(Uint8Array.from([3]));
+  assert.equal(c.timers.filter((t) => !t.dead).length, 1, "each chunk pushes the mark back");
+  assert.equal(c.timers.at(-1).ms, PICTURE_QUIET);
+  c.fire();
+  c.turn();
+  assert.deepEqual(out, [[1, 2], [3], [...PICTURE_END]]);
+  c.fire();
+  c.turn();
+  assert.equal(out.length, 3, "a quiet stream is marked once, not on every beat");
+});
+
+test("bytes already waiting when the timer fires cancel the mark, so a busy server never cuts a picture", () => {
+  const out = [];
+  const c = clocks();
+  const ends = markPictureEnds((bytes) => out.push([...bytes]), { wait: c.wait, unwait: c.unwait, soon: c.soon });
+  ends.chunk(Uint8Array.from([1]));
+  c.fire();
+  ends.chunk(Uint8Array.from([2]));
+  c.turn();
+  assert.deepEqual(out, [[1], [2]], "the chunk read before the check proves the picture was not over");
+  c.fire();
+  c.turn();
+  assert.deepEqual(out.at(-1), [...PICTURE_END]);
+});
+
+test("a stopped marker writes nothing more", () => {
+  const out = [];
+  const c = clocks();
+  const ends = markPictureEnds((bytes) => out.push(bytes), { wait: c.wait, unwait: c.unwait, soon: c.soon });
+  ends.chunk(Uint8Array.from([1]));
+  c.fire();
+  ends.stop();
+  c.turn();
+  ends.chunk(Uint8Array.from([2]));
+  assert.equal(out.length, 1);
 });
 
 test("the video pane says nothing while it connects, and the pointer is a finger", () => {
   const paint = cut(panes, "function paintDeviceOfChat(el, s) {", "\n}\n", "chat-and-panes.js");
-  assert.match(paint, /if \(!st\.deviceGone && startDeviceVideo\(s\.name\)\) \{ gone\.hidden = true; return; \}/);
+  assert.match(paint, /if \(!st\.deviceGone && startDeviceVideo\(s\.name\)\) \{\n\s+gone\.hidden = true;/);
   const waiting = paint.indexOf("waiting for the first frame");
   const video = paint.indexOf("startDeviceVideo");
   assert.ok(video < waiting, "the video decides before the waiting box is ever written");

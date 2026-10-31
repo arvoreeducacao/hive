@@ -1,4 +1,7 @@
 import { execFile } from "node:child_process";
+import { existsSync } from "node:fs";
+import { basename, join, sep } from "node:path";
+import { liveServerRoot, shippedServerRoot } from "./engine/peer-module.mjs";
 
 export const SLEEP_AFTER_MS = 30 * 60 * 1000;
 export const SLEEP_UNWATCHED_MS = 15 * 60 * 1000;
@@ -6,15 +9,23 @@ export const REBIRTH_CHILD_GRACE_MS = 10000;
 
 const ARGS_A_REBIRTH_DROPS = new Set(["--prompt-file", "--session-id", "--resume-id"]);
 
-export function rebornArgs(argv, sessionId) {
-  const kept = [];
-  for (let i = 0; i < argv.length; i++) {
+export function rebornArgs(argv, sessionId, script = argv[0]) {
+  const kept = [script];
+  for (let i = 1; i < argv.length; i++) {
     const one = argv[i];
     if (one === "--asleep") continue;
     if (ARGS_A_REBIRTH_DROPS.has(one)) { i += 1; continue; }
     kept.push(one);
   }
   return [...kept, "--resume-id", sessionId, "--asleep"];
+}
+
+export function rebornScript(script, { home = "", shipped = "", read, exists = existsSync } = {}) {
+  const bundle = shippedServerRoot(shipped);
+  const fromTheApp = [home && join(home, "js"), bundle].some((dir) => dir && String(script).startsWith(dir + sep));
+  const root = fromTheApp ? liveServerRoot({ shipped, home, read, exists }) || bundle : "";
+  const now = root ? join(root, "engine", basename(script)) : "";
+  return now && exists(now) ? now : script;
 }
 
 export function canBeReborn({ execve, platform } = {}, env = {}, sessionId = "") {
