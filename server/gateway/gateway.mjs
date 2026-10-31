@@ -19,7 +19,7 @@ import {
 
 import { HUB_SERVER, PEER_SERVER } from "./mcp-gateway.mjs";
 import { hubFacade } from "./hub-facade.mjs";
-import { ceilingOf, peerCalls, toolsFor } from "../peer/peer-tools.mjs";
+import { HIVE_INSTRUCTIONS, ceilingOf, peerCalls, toolsFor } from "../peer/peer-tools.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SELF = fileURLToPath(import.meta.url);
@@ -124,7 +124,7 @@ export function seatEnvFrom(headers, env) {
 
 export function buildPeerFacade(seatEnv) {
   const calls = peerCalls(seatEnv);
-  const server = new Server({ name: "hive", version: "1.0.0" }, { capabilities: { tools: {} } });
+  const server = new Server({ name: "hive", version: "1.0.0" }, { capabilities: { tools: {} }, instructions: HIVE_INSTRUCTIONS });
   server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolsFor(ceilingOf(seatEnv)) }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const call = calls[request.params.name];

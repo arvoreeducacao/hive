@@ -1225,6 +1225,23 @@
   .sv-user .sv-said-more:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 8%, transparent); }
   .sv-user .said-list { margin: 2px 0; padding-left: 1.4em; white-space: normal; }
   .sv-user .said-list > li { white-space: pre-wrap; padding-left: 2px; }
+  .sv-edit { align-self: flex-end; width: min(80%, 560px); display: grid; gap: 8px; }
+  .sv-edit-box { background: var(--panel-2); border: 1px solid var(--accent); border-radius: 14px; padding: 9px 13px; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+  .sv-edit-text { display: block; width: 100%; resize: none; border: 0; outline: none; background: none; color: var(--txt); font: inherit; line-height: var(--chat-line, 1.5); padding: 0; min-height: 1.5em; overflow-y: auto; }
+  .sv-edit-att { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .sv-edit-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--txt-2); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 7px; }
+  .sv-edit-chip img { width: 18px; height: 14px; object-fit: cover; border-radius: 3px; }
+  .sv-edit-row { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+  .sv-edit-hint { margin-right: auto; font-size: 11.5px; line-height: 1.45; color: var(--txt-2); max-width: 340px; }
+  .sv-edit-hint.bad { color: var(--red); }
+  .sv-edit-row button { all: unset; cursor: pointer; font-size: 12px; padding: 6px 11px; border-radius: var(--r1); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .sv-edit-row button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-edit-row kbd { font-family: var(--mono); font-size: 10px; opacity: .75; }
+  .sv-edit-cancel { color: var(--txt-2); border: 1px solid var(--line-2); }
+  .sv-edit-cancel:hover { color: var(--txt); }
+  .sv-edit-save { background: var(--accent); color: var(--bg); font-weight: 600; }
+  .sv-edit-save[disabled] { opacity: .55; cursor: progress; }
+  .sv-edit ~ * { opacity: .32; filter: saturate(.4); transition: opacity 120ms var(--ease); }
   .sv-think { font-size: 12.5px; color: var(--txt-3); padding: 1px 2px; }
   .sv-think summary { cursor: pointer; list-style: none; font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; display: flex; align-items: baseline; gap: 8px; }
   .sv-think summary::before { content: ""; flex: none; align-self: center; width: 9px; height: 9px; background: currentColor; -webkit-mask: var(--chev-mask) center / contain no-repeat; mask: var(--chev-mask) center / contain no-repeat; transform: rotate(-90deg); transition: transform 140ms var(--ease); }
@@ -1380,6 +1397,8 @@
   .sv-meta.warn { color: var(--yellow); }
   .sv-meta.sv-compacted { display: flex; align-items: center; gap: 10px; color: var(--txt-3); margin: 4px 0; }
   .sv-meta.sv-compacted::before, .sv-meta.sv-compacted::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
+  .sv-meta.sv-edited { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
+  .sv-meta.sv-edited::before, .sv-meta.sv-edited::after { content: ""; flex: 1; height: 1px; background: var(--line); }
   .sv-meta.wait { display: flex; align-items: center; gap: 9px; }
   .sv-meta.wait::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.1s var(--ease) infinite; flex: none; }
   .sv-earlier { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 11px; color: var(--txt-3); letter-spacing: .04em; }
@@ -3729,6 +3748,11 @@
   .sv-stamp .st-copy.said .tick { display: block; color: var(--accent); }
   .sv-stamp .st-copy:hover { color: var(--txt); }
   .sv-stamp .st-copy:focus-visible { color: var(--txt); outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-stamp .st-edit { all: unset; cursor: pointer; color: var(--txt-3); border-radius: 4px; padding: 1px; display: grid; place-items: center; order: 2; }
+  .sv-stamp .st-edit svg { width: 12px; height: 12px; display: block; }
+  .sv-stamp .st-edit:hover { color: var(--txt); }
+  .sv-stamp .st-edit:focus-visible { color: var(--txt); outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-stamp .st-edit.off { opacity: .4; cursor: not-allowed; }
   .sv-quote-pop { position: absolute; z-index: 7; display: none; align-items: center; gap: 5px; cursor: pointer; font-family: var(--mono); font-size: 10px; color: var(--txt-2); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 7px; padding: 3px 8px 3px 6px; box-shadow: 0 6px 18px -8px rgba(0,0,0,.9); }
   .sv-quote-pop.on { display: flex; }
   .sv-quote-pop:hover { color: var(--txt); border-color: var(--line-3); }
@@ -4373,7 +4397,7 @@
   body.look-dimension #cmp-controls select, body.look-dimension #cmp-controls input { border-radius: var(--r-row); }
   body.look-dimension #composer .to { border-radius: var(--r-card); }
   body.look-dimension #composer .slash { border-radius: var(--r-card); }
-  body.look-dimension .sv-stamp .st-copy { border-radius: var(--r-card); }
+  body.look-dimension .sv-stamp .st-copy, body.look-dimension .sv-stamp .st-edit { border-radius: var(--r-card); }
   body.look-dimension .sv-quote-pop { border-radius: var(--r-card); }
   body.look-dimension #btn-lim .track { border-radius: 4px; }
   body.look-dimension #btn-lim .track i { border-radius: 4px; }
@@ -4754,6 +4778,7 @@ try {
   <symbol id="i-kiro" viewBox="0 0 16 16"><path d="M3.4 13.6V7.6a4.6 4.6 0 0 1 9.2 0v6l-1.55-1.3-1.55 1.3L8 12.3l-1.5 1.3-1.55-1.3z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><ellipse cx="6.4" cy="7.6" rx=".8" ry="1.25" fill="currentColor"/><ellipse cx="9.6" cy="7.6" rx=".8" ry="1.25" fill="currentColor"/></symbol>
   <symbol id="i-cursor" viewBox="0 0 16 16"><path d="M3.2 2.4 13.4 8.2 8.9 9.4 6.6 13.6 3.2 2.4Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
   <symbol id="i-gemini" viewBox="0 0 16 16"><path d="M8 1.6C8.5 5 11 7.5 14.4 8 11 8.5 8.5 11 8 14.4 7.5 11 5 8.5 1.6 8 5 7.5 7.5 5 8 1.6Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></symbol>
+  <symbol id="i-antigravity" viewBox="0 0 16 16"><path d="M2.6 13.4 8 2.6l5.4 10.8M4.9 9.2c1.9-1.3 4.3-1.3 6.2 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-opencode" viewBox="0 0 16 16"><path d="M6.1 4.6 2.7 8l3.4 3.4M9.9 4.6 13.3 8l-3.4 3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-agent" viewBox="0 0 16 16"><path d="M8 1.9 13.4 5v6L8 14.1 2.6 11V5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="8" r="1.9" fill="currentColor"/></symbol>
   <symbol id="i-flow" viewBox="0 0 16 16"><circle cx="3.4" cy="8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12.6" cy="4.2" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12.6" cy="11.8" r="1.8" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.1 7.3 10.9 4.9M5.1 8.7l5.8 2.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
@@ -4948,6 +4973,8 @@ try {
           <option value="cursor-tui" title="the terminal">cursor · the TUI</option>
           <option value="gemini" title="markdown, cards, instant commands">gemini · native chat</option>
           <option value="gemini-tui" title="the terminal">gemini · the TUI</option>
+          <option value="antigravity" title="markdown, cards, instant commands">antigravity · native chat</option>
+          <option value="antigravity-tui" title="the terminal">antigravity · the TUI</option>
           <option value="opencode" title="markdown, cards, instant commands">opencode · native chat</option>
           <option value="opencode-tui" title="the terminal">opencode · the TUI</option>
         </select>
@@ -5316,6 +5343,9 @@ try {
     </div>
     <p class="hint">Empty leaves the choice to the agent; 100k to 1000k sets your own. A lower ceiling sums up more often — cheaper and quicker, at the cost of reading again what it still needs. A seat takes a new ceiling when it comes back, not while it runs.</p>
     <p class="hint">Every native chat takes the ceiling, on Claude, Codex, Kimi, Kiro or Cursor; a terminal takes it only on Claude. The field is off while none of yours does.</p>
+    <div><label for="t-context-usage" data-t>tell a Claude chat how full it is</label><div class="sound-row"><span class="fixed" id="s-context-usage-say"></span><button class="ghost flip" id="t-context-usage" type="button"></button></div></div>
+    <p class="hint">On, a Claude chat on this machine is told how full its context is, counted against the ceiling above. It reads a line like <code>Token usage: 120000/180000; 60000 remaining</code> and can finish a step or write down what matters before the summary. Off unless you turn it on; a chat takes it when it comes back.</p>
+    <p class="hint">To start over without a summary, type <code>/fresh</code> in a chat. A new session takes an extract of the old one and the path of the whole conversation, which it searches when it needs more.</p>
     <h3 data-t>Closing quiet chats</h3>
     <div class="pair">
       <div><label for="f-quiet-days" data-t>close a chat after it sits quiet for</label><div class="unit-row"><input id="f-quiet-days" type="number" min="0" max="90" step="1" placeholder="2" /><span class="unit" data-t>days</span></div></div>

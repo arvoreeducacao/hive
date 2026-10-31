@@ -96,35 +96,92 @@ function Said(props) {
 function Bubble(props) {
   const [open, setOpen] = createSignal(false);
   return (
-    <div
-      ref={(node) => keepsTheStamp(node, props.block)}
-      class="sv-user"
-      classList={{ peer: !!props.block.peer, stamped: !!props.block.stamped }}
-      data-cid={props.block.dataset.cid || undefined}
-      data-at={props.block.at || undefined}
-      data-said={props.block.said || undefined}
-    >
-      <Show when={props.block.thumbs.some((thumb) => !thumb.inline)}>
-        <span class="uatts">
-          <For each={props.block.thumbs.filter((thumb) => !thumb.inline)}>{(thumb) => (
-            <span class="uatt" title={thumb.title} on:click={() => props.actions.shot(thumb.path)}>
-              <img src={thumb.src} alt={thumb.alt} />
-              <span class="am">{thumb.mark}</span>
-              <span class="an">{thumb.name}</span>
-            </span>
-          )}</For>
-        </span>
-      </Show>
-      <Show keyed when={props.block.body}>{(html) => (
-        <Show when={props.block.clip} fallback={<Raw html={html} wire={props.actions.wire} />}>
-          <div class="sv-said-clip" classList={{ open: open() }}><Raw html={html} wire={props.actions.wire} /></div>
+    <Show when={props.block.editing} fallback={
+      <div
+        ref={(node) => keepsTheStamp(node, props.block)}
+        class="sv-user"
+        classList={{ peer: !!props.block.peer, stamped: !!props.block.stamped }}
+        data-cid={props.block.dataset.cid || undefined}
+        data-uuid={props.block.dataset.uuid || undefined}
+        data-at={props.block.at || undefined}
+        data-said={props.block.said || undefined}
+      >
+        <Show when={props.block.thumbs.some((thumb) => !thumb.inline)}>
+          <span class="uatts">
+            <For each={props.block.thumbs.filter((thumb) => !thumb.inline)}>{(thumb) => (
+              <span class="uatt" title={thumb.title} on:click={() => props.actions.shot(thumb.path)}>
+                <img src={thumb.src} alt={thumb.alt} />
+                <span class="am">{thumb.mark}</span>
+                <span class="an">{thumb.name}</span>
+              </span>
+            )}</For>
+          </span>
         </Show>
-      )}</Show>
-      <Show when={props.block.clip}>{(clip) => (
-        <button type="button" class="sv-said-more" aria-expanded={open() ? "true" : "false"} on:click={() => setOpen(!open())}>
-          {open() ? clip().less : clip().more}
-        </button>
-      )}</Show>
+        <Show keyed when={props.block.body}>{(html) => (
+          <Show when={props.block.clip} fallback={<Raw html={html} wire={props.actions.wire} />}>
+            <div class="sv-said-clip" classList={{ open: open() }}><Raw html={html} wire={props.actions.wire} /></div>
+          </Show>
+        )}</Show>
+        <Show when={props.block.clip}>{(clip) => (
+          <button type="button" class="sv-said-more" aria-expanded={open() ? "true" : "false"} on:click={() => setOpen(!open())}>
+            {open() ? clip().less : clip().more}
+          </button>
+        )}</Show>
+      </div>
+    }>
+      <EditBubble block={props.block} actions={props.actions} />
+    </Show>
+  );
+}
+
+const EDIT_TALLEST = 320;
+
+function fitEdit(node) {
+  node.style.height = "auto";
+  node.style.height = `${Math.min(node.scrollHeight, EDIT_TALLEST)}px`;
+}
+
+function EditBubble(props) {
+  const edit = () => props.block.editing || {};
+  let box = null;
+  const save = () => props.actions.editSave(props.block, box?.value ?? "");
+  const cancel = () => props.actions.editCancel(props.block);
+  return (
+    <div class="sv-edit" classList={{ busy: !!edit().busy }}>
+      <div class="sv-edit-box">
+        <textarea
+          ref={(node) => {
+            box = node;
+            node.value = edit().text || "";
+            queueMicrotask(() => {
+              node.focus();
+              node.setSelectionRange(node.value.length, node.value.length);
+              fitEdit(node);
+            });
+          }}
+          class="sv-edit-text"
+          rows="1"
+          aria-label={edit().label}
+          on:input={(ev) => fitEdit(ev.currentTarget)}
+          on:keydown={(ev) => {
+            ev.stopPropagation();
+            if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
+            else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); save(); }
+          }}
+        />
+        <Show when={props.block.thumbs.length}>
+          <span class="sv-edit-att">
+            <For each={props.block.thumbs}>{(thumb) => (
+              <span class="sv-edit-chip"><img src={thumb.src} alt={thumb.alt} /><span>{thumb.mark} · {thumb.name}</span></span>
+            )}</For>
+          </span>
+        </Show>
+      </div>
+      <div class="sv-edit-row">
+        <span class="sv-edit-hint" classList={{ bad: !!edit().error }} role={edit().error ? "alert" : undefined}>{edit().error || edit().hint}</span>
+        <button type="button" class="sv-edit-cancel" on:click={cancel}>{edit().cancel}<kbd>esc</kbd></button>
+        <button type="button" class="sv-edit-save" disabled={!!edit().busy} on:click={save}>{edit().save}<kbd>⏎</kbd></button>
+      </div>
     </div>
   );
 }

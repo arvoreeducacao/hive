@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sleepVerdict, sleepAfterMs, SLEEP_AFTER_MS, SLEEP_UNWATCHED_MS, rebornArgs, canBeReborn, childrenGone } from "../sleep.mjs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { sleepVerdict, sleepAfterMs, SLEEP_AFTER_MS, SLEEP_UNWATCHED_MS, rebornArgs, rebornScript, canBeReborn, childrenGone } from "../sleep.mjs";
 
 const base = {
   now: 100000,
@@ -79,6 +82,65 @@ test("sleepAfterMs: 30 min com o chat na tela, 15 min fora dela, cada um com seu
 test("a rebirth drops the mission and the old ids from the command line, and carries the session to resume and --asleep", () => {
   const argv = ["/x/driver.mjs", "--name", "seat", "--prompt-file", "/p/seat.md", "--session-id", "old", "--cwd", "/w", "--asleep", "--resume-id", "older"];
   assert.deepEqual(rebornArgs(argv, "abc"), ["/x/driver.mjs", "--name", "seat", "--cwd", "/w", "--resume-id", "abc", "--asleep"]);
+});
+
+test("a rebirth can run another copy of the driver with the same command line", () => {
+  const argv = ["/old/driver.mjs", "--name", "seat", "--resume-id", "older"];
+  assert.deepEqual(rebornArgs(argv, "abc", "/new/driver.mjs"), ["/new/driver.mjs", "--name", "seat", "--resume-id", "abc", "--asleep"]);
+});
+
+function installedHive({ tag = "hive-2026.10.30-new", print = "shell1", liveDriver = true } = {}) {
+  const root = mkdtempSync(join(tmpdir(), "hive-reborn-"));
+  const shipped = join(root, "Resources", "app");
+  mkdirSync(shipped, { recursive: true });
+  writeFileSync(join(shipped, "build.json"), JSON.stringify({ shell: "shell1" }));
+  const bundleEngine = join(root, "Resources", "server", "engine");
+  mkdirSync(bundleEngine, { recursive: true });
+  writeFileSync(join(bundleEngine, "driver.mjs"), "");
+  const home = join(root, "home");
+  const build = (dir) => {
+    mkdirSync(join(home, "js", dir, "server", "engine"), { recursive: true });
+    mkdirSync(join(home, "js", dir, "server", "peer"), { recursive: true });
+    writeFileSync(join(home, "js", dir, "server", "peer", "peer-mcp.mjs"), "");
+    if (dir !== "hive-2026_10_30-new" || liveDriver) writeFileSync(join(home, "js", dir, "server", "engine", "driver.mjs"), "");
+    return join(home, "js", dir, "server", "engine", "driver.mjs");
+  };
+  const old = build("hive-2026_10_28-old");
+  const fresh = build("hive-2026_10_30-new");
+  writeFileSync(join(home, "js", "current.json"), JSON.stringify(tag ? { tag, print } : { rejected: "x" }));
+  return { root, home, shipped, old, fresh, bundled: join(bundleEngine, "driver.mjs") };
+}
+
+test("a seat born on an older update wakes up on the engine the app runs now", () => {
+  const it = installedHive();
+  try {
+    assert.equal(rebornScript(it.old, { home: it.home, shipped: it.shipped }), it.fresh);
+    assert.equal(rebornScript(it.fresh, { home: it.home, shipped: it.shipped }), it.fresh);
+    assert.equal(rebornScript(it.bundled, { home: it.home, shipped: it.shipped }), it.fresh, "a seat born on the bundle moves up to the update too");
+  } finally {
+    rmSync(it.root, { recursive: true, force: true });
+  }
+});
+
+test("with no update the app can run, a seat wakes up on the bundle that shipped", () => {
+  for (const it of [installedHive({ tag: "" }), installedHive({ print: "another-shell" })]) {
+    try {
+      assert.equal(rebornScript(it.old, { home: it.home, shipped: it.shipped }), it.bundled);
+    } finally {
+      rmSync(it.root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("a seat keeps its engine when the new one has no driver, or when it was not started by the app", () => {
+  const it = installedHive({ liveDriver: false });
+  try {
+    assert.equal(rebornScript(it.old, { home: it.home, shipped: it.shipped }), it.old, "a missing file must never be handed to execve");
+    assert.equal(rebornScript("/work/hive/server/engine/driver.mjs", { home: it.home, shipped: it.shipped }), "/work/hive/server/engine/driver.mjs", "a dev seat from a worktree must not jump into the installed app");
+    assert.equal(rebornScript(it.old, {}), it.old);
+  } finally {
+    rmSync(it.root, { recursive: true, force: true });
+  }
 });
 
 test("a seat is reborn only when node has execve, off windows, with a session to resume and HIVE_SLEEP_REBIRTH not 0", () => {

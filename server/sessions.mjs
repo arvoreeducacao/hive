@@ -46,7 +46,7 @@ export function readSessionMeta(text) {
 }
 
 const AMBIENT_EVENTS = new Set(["stream_event", "system", "rate_limit_event", "memory"]);
-const TURNLESS_DRIVER_NOTES = new Set(["provider_changed", "shell", "started", "presence", "mcp_gateway", "mcp_peer", "mcp_routed"]);
+const TURNLESS_DRIVER_NOTES = new Set(["provider_changed", "started_fresh", "shell", "started", "presence", "mcp_gateway", "mcp_peer", "mcp_routed"]);
 const RECONNECT_TIMEOUT = 20000;
 
 export const marksTurn = (event) => !AMBIENT_EVENTS.has(event.type) && !(event.type === "driver" && TURNLESS_DRIVER_NOTES.has(event.subtype));
@@ -100,7 +100,7 @@ export function stateOfSeat({ alive, lastEvent }) {
   return "working";
 }
 
-export const AGENTS = new Set(["claude", "opencode", "codex", "kimi", "kiro", "cursor", "gemini"]);
+export const AGENTS = new Set(["claude", "opencode", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity"]);
 
 export function agentOf(asked) {
   const one = String(asked || "claude").trim().toLowerCase();
@@ -422,7 +422,13 @@ export function createSessions({
         try { return await transfers.begin(name, agent, cmd.model); }
         catch (error) { return { ok: false, error: String(error?.message || error) }; }
       }
-      if (transfers.busy(name) && transfers.status(name)?.phase !== "waiting" && !["state", "answer", "interrupt"].includes(cmd.type)) return { ok: false, error: "this chat is changing providers; send the message when it finishes" };
+      if (cmd.type === "control" && cmd.op === "startFresh") {
+        watch(name);
+        await transfers.restore(name);
+        try { return await transfers.fresh(name); }
+        catch (error) { return { ok: false, error: String(error?.message || error) }; }
+      }
+      if (transfers.busy(name) && transfers.status(name)?.phase !== "waiting" && !["state", "answer", "interrupt"].includes(cmd.type)) return { ok: false, error: transfers.busyError(name) };
       if (!sockMightAnswer(name)) return { ok: false, error: "that session is not listening" };
       watch(name);
       return oneshot(sockFileOf(name), { ...cmd, sent: now() }, { timeoutMs });

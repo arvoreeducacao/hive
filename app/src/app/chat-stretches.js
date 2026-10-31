@@ -3,6 +3,7 @@ import { render } from "./arrange.js";
 import { activeItems } from "./blocks.js";
 import { whichAction } from "./brand-face.js";
 import { NATIVE_COMMANDS, openSeatPicker, paintMentions, refreshCatalog, runNativeCommand, structuredCtrlC, svEvent, svShellBlock, svUserThumb, weaveHandles } from "./chat-and-panes.js";
+import { paintEditPencil } from "./edit-message.js";
 import { svConvCutKey, svConvDrain, svConvMount, svConvPrepend, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
 import { inkChips } from "./context-chips.js";
 import { openContextWindow } from "./context-window.js";
@@ -520,7 +521,7 @@ function getStructured(s) {
      with it false, so what the person is writing down here — and what they attached — survives. */
   const deliver = (text, sending, fromDraft, cutIn = false) => {
     if (e.providerTransfer && e.providerTransfer.phase !== "waiting") {
-      svLine(e, "sv-meta", phrase("the provider is changing; your draft is kept here until it finishes"));
+      svLine(e, "sv-meta", e.providerTransfer.fresh ? phrase("the chat is starting fresh; your draft is kept here until it finishes") : phrase("the provider is changing; your draft is kept here until it finishes"));
       return;
     }
     if (!text && !sending.length) return;
@@ -574,6 +575,7 @@ function getStructured(s) {
         const bubble = svLine(e, "sv-user", splitPeerHandle(text).body || "(image)");
         paintMentions(bubble);
         if (r.cid) bubble.dataset.cid = r.cid;
+        if (r.uuid) bubble.dataset.uuid = r.uuid;
         for (const path of sending) svUserThumb(e, bubble, path);
         interruptStructured(e);
       } else if (waits) {
@@ -584,6 +586,7 @@ function getStructured(s) {
         item.dataset.images = JSON.stringify(sending);
         item.dataset.quotes = JSON.stringify(pinned);
         item.dataset.cid = r.cid || "";
+        item.dataset.uuid = r.uuid || "";
         item.innerHTML = `<span class="qbadge">${phrase("queued")}</span><span class="qmarks"></span><span class="qtxt"></span><button type="button" class="qnow" title="${phrase("push it into the turn now — no waiting ({n})", { n: IS_MAC ? "⌥⏎" : "alt+enter" })}"><svg aria-hidden="true"><use href="#i-qnow"/></svg></button><button type="button" class="qdrop" title="${phrase("take it back into the box — it will not be sent (↑ in the empty box)")}"><svg aria-hidden="true"><use href="#i-qback"/></svg></button>`;
         const shown = withoutQuotes(pinned.map((one) => one.said), shownText);
         item.querySelector(".qmarks").innerHTML =
@@ -599,6 +602,7 @@ function getStructured(s) {
         paintActivity(e);
       } else {
         const bubble = svLine(e, "sv-user", shownText || "(image)");
+        if (r.uuid) bubble.dataset.uuid = r.uuid;
         for (const path of sending) svUserThumb(e, bubble, path);
       }
       if (fromDraft) { textarea.value = ""; textarea.style.height = ""; paintInk(); keepDraftNow(e.name, ""); }
@@ -619,6 +623,7 @@ function getStructured(s) {
       const bubble = svLine(e, "sv-user", splitPeerHandle(item.dataset.text || "").body || "(image)");
       paintMentions(bubble);
       if (item.dataset.cid) bubble.dataset.cid = item.dataset.cid;
+      if (item.dataset.uuid) bubble.dataset.uuid = item.dataset.uuid;
       for (const path of JSON.parse(item.dataset.images || "[]")) svUserThumb(e, bubble, path);
       paintActivity(e);
     });
@@ -679,6 +684,7 @@ function getStructured(s) {
     lit = tail || null;
     if (!lit) return;
     paintStamp(lit);
+    paintEditPencil(e, lit);
     lit.classList.add("lit");
   };
   scroll.addEventListener("mouseover", (ev) => {
@@ -754,7 +760,7 @@ function getStructured(s) {
     textarea,
     suggest: host.querySelector(".sv-suggest"),
     mine: () => e.name,
-    commands: () => ({ list: e.slash || [], info: e.slashInfo || {}, none: phrase("the command list arrives with the session's first turn") }),
+    commands: () => ({ ...offeredCommands(e), none: phrase("the command list arrives with the session's first turn") }),
     files: {
       searching: () => phrase("searching the session's directory…"),
       none: () => phrase("nothing with that name in the session's directory"),
@@ -1046,6 +1052,13 @@ function continueListOnShiftEnter(kev, textarea) {
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
   }
   return true;
+}
+
+function offeredCommands(e) {
+  const list = e.slash || [];
+  const info = e.slashInfo || {};
+  if (!list.length || list.includes("fresh")) return { list, info };
+  return { list: [...list, "fresh"], info: { ...info, fresh: { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "" } } };
 }
 
 export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, seatReceiving, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };

@@ -60,7 +60,7 @@ function providerWhyNot(id) {
 }
 
 function readyAgents(keep = "") {
-  const all = (st.providers || []).length ? st.providers.map((one) => one.id) : ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
+  const all = (st.providers || []).length ? st.providers.map((one) => one.id) : ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"];
   return all.filter((id) => id === keep || providerReady(id));
 }
 
@@ -650,7 +650,7 @@ function paintNewChatKinds() {
   const ready = new Set(readyAgents());
   let kept = sel.value;
   for (const opt of sel.options) {
-    const agent = /^opencode/.test(opt.value) ? "opencode" : /^codex/.test(opt.value) ? "codex" : /^kimi/.test(opt.value) ? "kimi" : /^kiro/.test(opt.value) ? "kiro" : /^cursor/.test(opt.value) ? "cursor" : /^gemini/.test(opt.value) ? "gemini" : "claude";
+    const agent = /^opencode/.test(opt.value) ? "opencode" : /^codex/.test(opt.value) ? "codex" : /^kimi/.test(opt.value) ? "kimi" : /^kiro/.test(opt.value) ? "kiro" : /^cursor/.test(opt.value) ? "cursor" : /^gemini/.test(opt.value) ? "gemini" : /^antigravity/.test(opt.value) ? "antigravity" : "claude";
     const ok = ready.has(agent);
     opt.disabled = !ok;
     opt.hidden = !ok;
@@ -666,7 +666,7 @@ function paintNewChatKinds() {
 function paintNewChatAccounts() {
   const sel = $("n-account");
   if (!sel) return;
-  const agent = /^opencode/.test($("n-kind")?.value || "") ? "opencode" : /^codex/.test($("n-kind")?.value || "") ? "codex" : /^kimi/.test($("n-kind")?.value || "") ? "kimi" : /^kiro/.test($("n-kind")?.value || "") ? "kiro" : /^cursor/.test($("n-kind")?.value || "") ? "cursor" : /^gemini/.test($("n-kind")?.value || "") ? "gemini" : "claude";
+  const agent = /^opencode/.test($("n-kind")?.value || "") ? "opencode" : /^codex/.test($("n-kind")?.value || "") ? "codex" : /^kimi/.test($("n-kind")?.value || "") ? "kimi" : /^kiro/.test($("n-kind")?.value || "") ? "kiro" : /^cursor/.test($("n-kind")?.value || "") ? "cursor" : /^gemini/.test($("n-kind")?.value || "") ? "gemini" : /^antigravity/.test($("n-kind")?.value || "") ? "antigravity" : "claude";
   const accounts = providerAccounts(agent);
   sel.hidden = accounts.length < 2;
   if (sel.hidden) return;

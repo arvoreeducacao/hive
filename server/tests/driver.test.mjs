@@ -355,7 +355,8 @@ test("a seat that sleeps is reborn without the agent sdk, and loads it again onl
   assert.match(retire, /canBeReborn\(process, process\.env, sessionId\)/, "the rebirth has to be guarded by what the platform can do");
   assert.match(retire, /await childrenGone\(/, "the claude child has to be gone before the process image is replaced");
   assert.match(retire, /await sessionStore\.flush\(\);\s*\n\s*await appendChain;/, "the session file and the events have to be on disk before execve");
-  assert.match(retire, /process\.execve\(process\.execPath, \[process\.execPath, \.\.\.rebornArgs\(process\.argv\.slice\(1\), sessionId\)\], options\.env \|\| process\.env\)/, "a seat that moved to another login has to wake up on that login, not the one it was born on");
+  assert.match(retire, /process\.execve\(process\.execPath, \[process\.execPath, \.\.\.rebornArgs\(process\.argv\.slice\(1\), sessionId, script\)\], options\.env \|\| process\.env\)/, "a seat that moved to another login has to wake up on that login, not the one it was born on");
+  assert.match(retire, /const script = rebornScript\(process\.argv\[1\], \{ home: base, shipped: process\.env\.HIVE_APP_SHIPPED \|\| "" \}\);/, "a seat open when an update landed has to wake up on the new engine, or the fix never reaches it");
   const handle = src.slice(src.indexOf("function handleCommand(cmd, reply)"), src.indexOf("const server = createSeatServer"));
   assert.match(handle, /if \(wakesTheSeat\(cmd\) && sleeping && !query\)/, "a command that wakes a reborn seat has to wait for the sdk before it is handled");
   assert.match(src, /if \(!bornAsleep\) await runConsume\(\);/, "a seat born asleep has no session to consume");

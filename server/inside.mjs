@@ -58,7 +58,7 @@ export function remoteControlUp(run = execFile) {
   });
 }
 
-export const SEAT_AGENT_BINARIES = { codex: "codex", kimi: "kimi", kiro: "kiro-cli", cursor: "cursor-agent", gemini: "gemini", opencode: "opencode" };
+export const SEAT_AGENT_BINARIES = { codex: "codex", kimi: "kimi", kiro: "kiro-cli", cursor: "cursor-agent", gemini: "gemini", antigravity: "agy", opencode: "opencode" };
 
 /* the box signs in to Claude through the hive; the other agents sign in by their own
    means, so the most the box can report is which of them are installed at all. */

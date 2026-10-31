@@ -7,7 +7,7 @@ import { paintRail } from "./mirror.js";
 import { adoptExperience } from "./experience.js";
 import { adoptBrandFace, adoptGaze, adoptLanguage, adoptLook, adoptPet } from "./preferences.js";
 import { adoptStructure } from "./structure.js";
-import { adoptAutocompact, adoptCalm, adoptDiaryDays, adoptPrefs, adoptQuietDays } from "./pure-helpers.js";
+import { adoptAutocompact, adoptCalm, adoptContextUsage, adoptDiaryDays, adoptPrefs, adoptQuietDays } from "./pure-helpers.js";
 import { adoptBlockSize, adoptLayout } from "./seat-layout.js";
 import { adoptTerminalEngine } from "./terminal-pool.js";
 import { adoptAvatar, adoptTheme, applyBindings, applyFonts, migrateStoredSound } from "./shared.js";
@@ -154,6 +154,7 @@ async function reloadConfig() {
     adoptPrefs(r);
     adoptCalm(r);
     adoptAutocompact(r);
+    adoptContextUsage(r);
     adoptQuietDays(r);
     adoptDiaryDays(r);
     adoptTheme(r);

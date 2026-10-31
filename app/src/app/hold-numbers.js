@@ -61,6 +61,8 @@ function heldLevel(e) {
 
 const holdSpan = (a) => (a === "seat" ? activeItems().length : a === "block" ? blocksOf(st.space).length : st.spaces.length);
 
+const aMessageBoxKeepsEnter = (e) => codeOf(e) === "Enter" && !!e.target?.closest?.(".sv-composer, .sv-edit");
+
 function paintSeatNumbers() {
   if (st.holding !== "seat") {
     for (const el of tiles.values()) el.querySelector(".t-num")?.remove();
@@ -424,7 +426,7 @@ document.addEventListener("keydown", (e) => {
     return backToLive(back);
   }
 
-  const m = whichAction(e);
+  const m = aMessageBoxKeepsEnter(e) ? null : whichAction(e);
 
   if (st.typing) {
     if (m?.action === "release") { e.preventDefault(); e.stopPropagation(); releaseKeyboard(); }

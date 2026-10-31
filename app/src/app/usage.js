@@ -224,7 +224,7 @@ const meterModel = (one, at) => ({ ...limitBlockModel(one, at), n: one.percent, 
 
 const accountKey = (row) => `acc:${row.provider || "claude"}/${row.account}`;
 
-const PROVIDER_ICONS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
+const PROVIDER_ICONS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"];
 
 function weekOf(row) {
   const limits = limitsShown(row);
