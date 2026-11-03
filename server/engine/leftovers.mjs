@@ -10,7 +10,7 @@ const POLL_MS = 150;
 const tagPattern = (name) => new RegExp(`(?:^|[\\s\\0])${name}=([^\\s\\0]+)`);
 const TAGS = { [SEAT_TAG]: tagPattern(SEAT_TAG), [HIVE_TAG]: tagPattern(HIVE_TAG) };
 const ENV_TOKEN = /^[A-Z_][A-Z0-9_]*=/;
-const MACHINERY = /engine\/[a-z-]*driver\.mjs|claude-agent-sdk|\/claude(?:\.exe)?(?:\s|$)|codex-app-server|(?:^|\/)codex(?:\s|$)|(?:^|\/)gemini(?:\.js)?(?:\s|$)|kimi-acp|kiro-acp|opencode-server|mcp-server|\.mcp-servers\/|peer-module\.mjs|npm exec(?:\s|$)|(?:^|\/)npx(?:\s|$)|gateway\/gateway\.mjs|hive-shell/;
+const MACHINERY = /engine\/[a-z-]*driver\.mjs|claude-agent-sdk|\/claude(?:\.exe)?(?:\s|$)|codex-app-server|(?:^|\/)codex(?:\s|$)|(?:^|\/)gemini(?:\.js)?(?:\s|$)|(?:^|\/)agy(?:\s|$)|kimi-acp|kiro-acp|opencode-server|mcp-server|\.mcp-servers\/|peer-module\.mjs|npm exec(?:\s|$)|(?:^|\/)npx(?:\s|$)|gateway\/gateway\.mjs|hive-shell/;
 
 export function headOf(command) {
   const tokens = String(command || "").trim().split(/\s+/);

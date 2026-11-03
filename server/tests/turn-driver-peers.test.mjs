@@ -40,7 +40,10 @@ test("the turn driver starts the gateway and runs every turn with the agent's co
   assert.match(driver, /subtype: "mcp_gateway"/);
   assert.match(driver, /return \{ \.\.\.inherited, \.\.\.providerEnv\(agentName, accountDir\), \.\.\.\(agent\.turnEnv \? agent\.turnEnv\(\{ seat: name, base, peerMcp: PEER_MCP, gateway: gatewayLink, remote: hubRemoteServers\(hubFor\(cwd\)\) \}\) : \{\}\) \};/);
   const run = cut("function runTurn(", "child.stdout.on");
-  assert.match(run, /spawn\(agent\.binary, args, \{ cwd, env: turnEnv,/, "the turn runs without the config env, so opencode has no hive tools");
+  assert.match(run, /spawn\(agent\.binary, args, \{ cwd, env: envForThisTurn\(\),/, "the turn runs without the config env, so opencode has no hive tools");
+  const env = cut("function envForThisTurn(", "function runTurn(");
+  assert.match(env, /if \(!agent\.turnHome\) return turnEnv;/, "an agent with no home of its own runs on the config env as before");
+  assert.match(env, /return \{ \.\.\.turnEnv, HOME: agent\.turnHome\(/);
 });
 
 test("a message from a peer arrives with the hive header, and an expected answer is consumed instead of queued", () => {

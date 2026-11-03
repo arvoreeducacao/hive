@@ -8,7 +8,7 @@ const browserOps = new Map();
 const browserJobs = new Map();
 
 const UPLOAD_CEILING = 25 << 20;
-const SECRET_PATHS = [/\/\.ssh\//, /\/\.aws\//, /\/\.gnupg\//, /\/\.hive\//, /\/\.config\/gh\//, /\/\.claude\//, /\/\.codex\//, /\/\.kimi\//, /\/\.kiro\//, /\/\.cursor\//, /\/\.config\/cursor\//, /\/\.gemini\//, /\/\.opencode\//, /\/\.config\/opencode\//, /\/\.local\/share\/opencode\//, /\/\.env(\.|$)/, /credentials/i];
+const SECRET_PATHS = [/\/\.ssh\//, /\/\.aws\//, /\/\.gnupg\//, /\/\.hive\//, /\/\.config\/gh\//, /\/\.claude\//, /\/\.codex\//, /\/\.kimi\//, /\/\.kiro\//, /\/\.cursor\//, /\/\.config\/cursor\//, /\/\.gemini\//, /\/\.config\/antigravity\//, /\/\.opencode\//, /\/\.config\/opencode\//, /\/\.local\/share\/opencode\//, /\/\.env(\.|$)/, /credentials/i];
 const SECRET_KINDS = /\.(pem|key|p12|pfx|keychain|kdbx)$/i;
 
 const refuseFile = (path) => {

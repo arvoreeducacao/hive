@@ -12,6 +12,8 @@ export const RECORD_LIMIT = 180;
 export const RECORD_BITRATE = 8000000;
 export const RECORD_MIN_RUN = 1500;
 export const RECORD_TRIES = 3;
+export const PICTURE_END = Uint8Array.from([0, 0, 0, 1, 9, 0xf0]);
+export const PICTURE_QUIET = 20;
 export const LOG_LINES = 200;
 export const LOG_LINES_MAX = 2000;
 export const DEFAULT_AVD = "hive-pixel";
@@ -165,6 +167,36 @@ export function recordArgs(serial, { limit = RECORD_LIMIT, bitrate = RECORD_BITR
     "exec-out", "screenrecord", "--output-format=h264",
     "--time-limit", String(limit), "--bit-rate", String(bitrate), "-"
   ];
+}
+
+export function markPictureEnds(write, { quiet = PICTURE_QUIET, wait = setTimeout, unwait = clearTimeout, soon = setImmediate } = {}) {
+  let clock = 0;
+  let seen = 0;
+  let marked = 0;
+  let stopped = false;
+  const mark = () => {
+    clock = 0;
+    const at = seen;
+    soon(() => {
+      if (stopped || at !== seen || marked === seen) return;
+      marked = seen;
+      write(PICTURE_END);
+    });
+  };
+  return {
+    chunk(bytes) {
+      if (stopped) return;
+      seen++;
+      write(bytes);
+      unwait(clock);
+      clock = wait(mark, quiet);
+    },
+    stop() {
+      stopped = true;
+      unwait(clock);
+      clock = 0;
+    }
+  };
 }
 
 export function pointOnDevice(click, box, natural) {

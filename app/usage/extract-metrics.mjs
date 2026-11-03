@@ -6,7 +6,7 @@ import { join, basename, dirname } from "node:path";
 
 const PROJECTS_ROOT = join(homedir(), ".claude", "projects");
 const HIVE_ROOT = process.env.HIVE_HOME || join(homedir(), ".hive");
-const OWN_AGENT = /^(codex|kimi|kiro|cursor|gemini|opencode)$/;
+const OWN_AGENT = /^(codex|kimi|kiro|cursor|gemini|antigravity|opencode)$/;
 const BUCKET_MS = 60_000;
 
 const RE_TIMESTAMP = /"timestamp":"([^"]{20,30})"/;

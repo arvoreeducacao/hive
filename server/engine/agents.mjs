@@ -1,6 +1,7 @@
 import { gatewayEntries } from "../gateway/mcp-gateway.mjs";
 import { peerEntry } from "./peer-module.mjs";
 import { modelsFromConfigOptions as parseKimiConfigOptions, setModelParams } from "./kimi-acp.mjs";
+import * as agy from "./antigravity-stream.mjs";
 
 export { parseKimiConfigOptions };
 
@@ -524,6 +525,29 @@ agents.gemini = {
     if (ev.type === "message" && ev.role === "assistant" && typeof ev.content === "string" && ev.content) out.push(assistant([{ type: "text", text: ev.content }]));
     return out;
   },
+};
+
+agents.antigravity = {
+  label: agy.LABEL,
+  binary: agy.BINARY,
+  effortLevels: [],
+  stopSignal: agy.STOP_SIGNAL,
+  turnArgs: agy.turnArgs,
+  turnHome: agy.writeSeatHome,
+  async listModels(run, io) {
+    const models = await this.listCatalog({ run, ...io });
+    return models.map((m) => ({ value: m.value, displayName: m.label, description: m.description }));
+  },
+  async listCatalog({ run }) {
+    const out = await run(agy.BINARY, ["models"]);
+    if (agy.needsLogin(out)) throw new Error(agy.LOGIN_HINT);
+    return agy.parseAgyModels(out);
+  },
+  async listMcp(run) {
+    return agy.parseAgyMcpList(await run(agy.BINARY, ["mcp", "list"]));
+  },
+  translate: agy.translate,
+  finishTurn: agy.finishTurn,
 };
 
 export const KIRO_EFFORT_LEVELS =["low", "medium", "high", "xhigh", "max"];

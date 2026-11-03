@@ -38,7 +38,7 @@ import { assertSpawnArgs } from "./lib/spawn-args.mjs";
 import { freeNameAmong, nameFromMission, namerCommand, namesThatLived, pastHandles, slug } from "./lib/naming.mjs";
 import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFallback, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
-import { isPlainObject, FONT_DEFAULTS, GITHUB_REPO_URL, cleanFont, cleanKeys, cleanSound, cleanSounds, cleanVolume, cleanFlag, cleanMachine, cleanLayout, cleanBlockSize, cleanLanguage, cleanTerminal, cleanSttLanguage, cleanSttModel, cleanPet, cleanBrandFace, cleanGaze, cleanExperience, cleanExperienceOff, cleanInfoWidth, cleanInfoHeight, cleanThreadWidth, cleanPaneWidth, cleanLook, cleanStructure, cleanVisual, cleanShelf, cleanThemeName, cleanThemes, cleanAvatar, cleanWear, cleanPatch, cleanAutocompact, cleanQuietDays, cleanProviders, cleanExtensions, sameGithubRepo } from "./lib/config.mjs";
+import { isPlainObject, FONT_DEFAULTS, GITHUB_REPO_URL, cleanFont, cleanKeys, cleanSound, cleanSounds, cleanVolume, cleanFlag, cleanMachine, cleanLayout, cleanBlockSize, cleanLanguage, cleanTerminal, cleanSttLanguage, cleanSttModel, cleanPet, cleanBrandFace, cleanGaze, cleanExperience, cleanExperienceOff, cleanInfoWidth, cleanInfoHeight, cleanThreadWidth, cleanPaneWidth, cleanLook, cleanStructure, cleanVisual, cleanShelf, cleanThemeName, cleanThemes, cleanAvatar, cleanWear, cleanPatch, cleanAutocompact, contextUsageEnv, CONTEXT_USAGE_ENV, cleanQuietDays, cleanProviders, cleanExtensions, sameGithubRepo } from "./lib/config.mjs";
 import { seatsGoneQuiet, quietReason, QUIET_SWEEP_EVERY_MS } from "./lib/quiet-seats.mjs";
 import { cleanDiaryDays, diariesToPrune, pruneDiary, readDiaries, readSeatMeta, syncedSessionIds } from "./lib/diary-prune.mjs";
 import { autocompactFromConfig } from "../server/engine/agents.mjs";
@@ -266,6 +266,8 @@ const CONFIG_HEADER = `// hive — written by the app's panels, safe to edit by 
 // pages you publish live in), autocompact (how far a seat's conversation runs
 // before it is summed up and carried on — \`auto\` leaves it to the agent,
 // \`100k\` to \`1000k\` sets your own ceiling; a seat takes it when it comes
+// back), contextUsage (whether a Claude chat on this machine is told how full
+// its context is, counted against that ceiling; a chat takes it when it comes
 // back), theme (the name of the palette the
 // app wears) and themes (your custom palettes — shareable as json).`;
 
@@ -306,6 +308,7 @@ async function readConfig() {
     layout: cleanLayout(raw.layout, tilde(CONFIG_FILE), problems),
     blockSize: cleanBlockSize(raw.blockSize, tilde(CONFIG_FILE), problems),
     autocompact: cleanAutocompact(raw.autocompact, tilde(CONFIG_FILE), problems),
+    contextUsage: cleanFlag(raw.contextUsage, "contextUsage", tilde(CONFIG_FILE), problems, false),
     closeQuietAfterDays: cleanQuietDays(raw.closeQuietAfterDays, tilde(CONFIG_FILE), problems),
     pruneDiariesAfterDays: cleanDiaryDays(raw.pruneDiariesAfterDays, tilde(CONFIG_FILE), problems),
     language: cleanLanguage(raw.language, tilde(CONFIG_FILE), problems),
@@ -344,7 +347,7 @@ async function readConfig() {
     keys: fromLegacy ? cleanKeys(legacy.value, tilde(LEGACY_KEYS_FILE), problems) : cleanKeys(raw.keys, tilde(CONFIG_FILE), problems)
   };
   if (!config.avatar) config.avatar = avatarKey(avatarFor(DEV || ""));
-  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, composer: raw.composer !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, keys: raw.keys !== undefined || fromLegacy };
+  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, composer: raw.composer !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, keys: raw.keys !== undefined || fromLegacy };
   return { config, defaults: { font: FONT_DEFAULTS }, file: tilde(CONFIG_FILE), has, fromLegacy, error: unreadable.join(" · "), ignored: problems.join(" · ") };
 }
 
@@ -636,23 +639,23 @@ function readEnvFile(text) {
 }
 
 async function hubSeatEnv() {
+  const tuning = contextUsageEnv((await readConfig()).config);
   let env = {};
   let wanted = new Set();
   try {
     env = readEnvFile(await readFile(join(HUB, ".env"), "utf8"));
     const mcp = await readFile(join(HUB, ".mcp.json"), "utf8");
     wanted = new Set([...mcp.matchAll(/\$\{([A-Z0-9_]+)\}/g)].map((m) => m[1]));
-  } catch { return {}; }
+  } catch { return tuning; }
   const found = secretsForSeats(wanted, { env, hub: HUB });
   const held = {};
   for (const key of wanted) if (found[key]) held[key] = found[key];
-  return held;
+  return { ...held, ...tuning };
 }
 
 async function hubEnvIntoTmux() {
   if (NATIVE) return 0;
   const found = await hubSeatEnv();
-  if (!Object.keys(found).length) return 0;
   const already = new Map();
   for (const line of (await sh(TMUX, ["show-environment", "-t", LOCAL_SESSION], { timeout: 5000 })).split("\n")) {
     const at = line.indexOf("=");
@@ -663,6 +666,10 @@ async function hubEnvIntoTmux() {
     if (already.get(key) === value) continue;
     lines.push(`tmux set-environment -g ${key} ${quoted(value)} 2>/dev/null`);
     lines.push(`tmux set-environment -t ${LOCAL_SESSION} ${key} ${quoted(value)} 2>/dev/null`);
+  }
+  if (!found[CONTEXT_USAGE_ENV] && already.has(CONTEXT_USAGE_ENV)) {
+    lines.push(`tmux set-environment -gu ${CONTEXT_USAGE_ENV} 2>/dev/null`);
+    lines.push(`tmux set-environment -t ${LOCAL_SESSION} -u ${CONTEXT_USAGE_ENV} 2>/dev/null`);
   }
   if (!lines.length) return 0;
   await sh(...inBash(`tmux has-session -t ${LOCAL_SESSION} 2>/dev/null || tmux new-session -d -s ${LOCAL_SESSION} -c "$HOME" -n hub "sleep 999999"; ${lines.join("; ")}; true`), { timeout: 20000, cwd: HOME });
@@ -1506,7 +1513,7 @@ async function runCloudMcpLogin(name, mcpServer, job) {
     'case "$engine" in',
     `  opencode) opencode mcp auth ${quoted(mcpServer)} ;;`,
     `  codex) codex mcp login ${quoted(mcpServer)} ;;`,
-    `  kimi|kiro|cursor|gemini) echo "$engine has no login command the hive can drive from outside its chat — sign in to ${quoted(mcpServer)} from a $engine terminal on the box, then reopen the seat"; false ;;`,
+    `  kimi|kiro|cursor|gemini|antigravity) echo "$engine has no login command the hive can drive from outside its chat — sign in to ${quoted(mcpServer)} from a $engine terminal on the box, then reopen the seat"; false ;;`,
     `  claude|"") claude mcp login ${quoted(mcpServer)} --no-browser ;;`,
     `  *) echo "$engine is not an agent this box knows how to sign in"; false ;;`,
     "esac",
@@ -1610,6 +1617,11 @@ function startMcpLogin(name, mcpServer, where = "local") {
       if (engine === "gemini") {
         job.state = "failed";
         job.error = `gemini signs in to an mcp server only from inside its chat — run /mcp auth ${mcpServer} in a gemini terminal in ${cwd}, then reopen the seat`;
+        return;
+      }
+      if (engine === "antigravity") {
+        job.state = "failed";
+        job.error = `antigravity signs in to an mcp server only from its own /mcp manager — run /mcp in an agy terminal in ${cwd}, authenticate ${mcpServer} there, then reopen the seat`;
         return;
       }
       if (engine === "codex") await codexKnowsTheServer(mcpServer, cwd);
@@ -3046,8 +3058,8 @@ async function freeName(name, where, exceptJob = "") {
   return freeNameAmong(name, used);
 }
 
-const OTHER_AGENTS = new Set(["opencode", "codex", "kimi", "kiro", "cursor", "gemini"]);
-const AGENT_BINARY = { kiro: "kiro-cli", cursor: "cursor-agent" };
+const OTHER_AGENTS = new Set(["opencode", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity"]);
+const AGENT_BINARY = { kiro: "kiro-cli", cursor: "cursor-agent", antigravity: "agy" };
 
 const OVER_THE_WIRE = 10000;
 
@@ -3709,7 +3721,7 @@ SEATS="\${HIVE_SESSIONS:-$HOME/.hive/sessions}"
 for j in "$SEATS"/*.json; do
   [ -f "$j" ] || continue
   n=$(basename "$j" .json)
-  if grep -qE '"agent": *"(codex|kimi|kiro|cursor|gemini|opencode)"' "$j"; then
+  if grep -qE '"agent": *"(codex|kimi|kiro|cursor|gemini|antigravity|opencode)"' "$j"; then
     e="\${SEATS%/sessions}/events/$n.ndjson"
     printf '==J==%s\n' "$n"
     head -c 8192 "$j"
@@ -6402,10 +6414,10 @@ const DEPS = [
   { name: "kubectl", why: "reaches a server hosted on kubernetes", install: installCommand("kubectl"), forCluster: true },
   { name: "aws", why: `the credential for a server on that cluster, profile ${AWS_PROFILE}`, install: installCommand("awscli"), forCluster: true },
   { name: "gh", why: "the PR panel, reviews and merges", install: installCommand("gh") },
-  { name: "claude", why: "the sessions themselves — or codex, kimi, kiro, cursor, gemini or opencode, whichever the seats run on", install: "npm install -g @anthropic-ai/claude-code", forSeats: true }
+  { name: "claude", why: "the sessions themselves — or codex, kimi, kiro, cursor, gemini, antigravity or opencode, whichever the seats run on", install: "npm install -g @anthropic-ai/claude-code", forSeats: true }
 ];
 
-const SEAT_AGENT_BINARIES = { codex: "codex", kimi: "kimi", kiro: "kiro-cli", cursor: "cursor-agent", gemini: "gemini", opencode: "opencode" };
+const SEAT_AGENT_BINARIES = { codex: "codex", kimi: "kimi", kiro: "kiro-cli", cursor: "cursor-agent", gemini: "gemini", antigravity: "agy", opencode: "opencode" };
 
 async function otherAgentsOnThisMachine() {
   const found = {};

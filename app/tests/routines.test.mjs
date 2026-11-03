@@ -101,9 +101,9 @@ test("the routines file round-trips and an empty or broken one reads as no routi
 test("a routine runs on any agent the hive opens, and the form offers the same list", async () => {
   const { readFileSync } = await import("node:fs");
   const { ROUTINE_AGENTS } = await import("../lib/routines.mjs");
-  assert.deepEqual(ROUTINE_AGENTS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
+  assert.deepEqual(ROUTINE_AGENTS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"]);
   for (const agent of ROUTINE_AGENTS) assert.equal(cleanRoutine({ name: "n", prompt: "p", trigger: "hourly", agent }).agent, agent, `${agent} was downgraded to claude`);
   assert.equal(cleanRoutine({ name: "n", prompt: "p", trigger: "hourly", agent: "pi" }).agent, "claude");
   const view = readFileSync(new URL("../src/app/routines.js", import.meta.url), "utf8");
-  assert.match(view, /const ROUTINE_AGENTS = \["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"\];/, "the form offers a different list than the server accepts");
+  assert.match(view, /const ROUTINE_AGENTS = \["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"\];/, "the form offers a different list than the server accepts");
 });

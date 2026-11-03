@@ -7,6 +7,7 @@ export const AGENT_UPDATES = {
   kiro: { npm: "", native: ["update", "--non-interactive"], nativeAt: ["/.local/bin/kiro-cli", "/.local/share/kiro-cli/"] },
   cursor: { npm: "", native: ["update"], nativeAt: ["/.local/share/cursor-agent/", "/.local/bin/cursor-agent"] },
   gemini: { npm: "@google/gemini-cli", native: [], nativeAt: [] },
+  antigravity: { npm: "", native: ["update"], nativeAt: ["/.local/bin/agy"] },
   kimi: { npm: "", native: ["upgrade", "--yes"], nativeAt: ["/.kimi-code/bin/"] },
 };
 

@@ -111,6 +111,36 @@ test("real driver sockets switch providers without deleting history and the next
   assert.equal(meta.session_id, "codex-session");
 });
 
+test("real driver sockets start a chat fresh on the same provider and the next turn receives the extract", async (t) => {
+  const { sessions, base } = await bench(t);
+  await sessions.command("example", { type: "say", text: "The release must preserve the public API" });
+  const before = sessions.history("example").events;
+  assert.equal((await sessions.command("example", { type: "control", op: "startFresh" })).ok, true);
+  const job = await waitFor(async () => {
+    const job = (await sessions.command("example", { type: "control", op: "transferStatus" })).data;
+    return ["done", "failed"].includes(job?.phase) ? job : null;
+  });
+  assert.equal(job.phase, "done", job.error);
+  assert.equal(job.fresh, true);
+  assert.equal((await sessions.command("example", { type: "state" })).agent, "claude");
+  const events = sessions.history("example").events;
+  assert.deepEqual(events.slice(0, before.length), before);
+  assert.match(events.find((event) => event.subtype === "started_fresh")?.history || "", /conversation\.md$/);
+  assert.equal(events.some((event) => event.subtype === "provider_changed"), false);
+  assert.equal((await sessions.one("example")).state, "idle");
+  await sessions.command("example", { type: "say", text: "Continue implementing" });
+  const received = await readFile(join(base, "received.txt"), "utf8");
+  assert.match(received, /new session of the same provider/);
+  assert.match(received, /preserve the public API/);
+  const meta = await waitFor(async () => {
+    try {
+      const saved = JSON.parse(await readFile(join(base, "sessions", "example.json"), "utf8"));
+      return saved.provider_context?.delivered ? saved : null;
+    } catch { return null; }
+  });
+  assert.equal(meta.model, "opus");
+});
+
 test("an invalid destination model restarts the legacy source through real sockets", async (t) => {
   const { sessions, base } = await bench(t, { legacy: true });
   await sessions.command("example", { type: "say", text: "Keep my work" });

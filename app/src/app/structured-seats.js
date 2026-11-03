@@ -130,6 +130,7 @@ function svDequeue(e, held) {
     item.dataset.gone = "1";
     const bubble = svLine(e, "sv-user", splitPeerHandle(item.dataset.text || item.textContent).body);
     paintMentions(bubble);
+    if (item.dataset.uuid) bubble.dataset.uuid = item.dataset.uuid;
     for (const path of JSON.parse(item.dataset.images || "[]")) svUserThumb(e, bubble, path);
     item.remove();
   }

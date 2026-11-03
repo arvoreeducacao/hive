@@ -47,6 +47,8 @@ function bench({ session = { interrupt: async () => {} } } = {}) {
   return { say, ask, doze, armed, emitted, dispatched, pendingQuestions, gate, wakes };
 }
 
+const withoutId = ({ uuid, ...rest }) => rest;
+
 function openQuestion(pendingQuestions, id = "q1") {
   let settled = null;
   pendingQuestions.set(id, (value) => { settled = value; });
@@ -75,13 +77,30 @@ test("a message with images is dropped into the queue too, so the pictures still
   const b = bench();
   openQuestion(b.pendingQuestions);
   b.say({ type: "say", text: "olha isso", images: ["/tmp/a.png"] });
-  assert.deepEqual(b.dispatched, [{ text: "olha isso", images: ["/tmp/a.png"], cid: null }]);
+  assert.deepEqual(b.dispatched.map(withoutId), [{ text: "olha isso", images: ["/tmp/a.png"], cid: null }]);
 });
 
 test("with no card open a message takes the usual road", () => {
   const b = bench();
-  assert.deepEqual(b.say({ type: "say", text: "oi" }), { ok: true, dismissed: 0, queued: false });
-  assert.deepEqual(b.dispatched, [{ text: "oi", images: [], cid: null }]);
+  assert.deepEqual(withoutId(b.say({ type: "say", text: "oi" })), { ok: true, dismissed: 0, queued: false });
+  assert.deepEqual(b.dispatched.map(withoutId), [{ text: "oi", images: [], cid: null }]);
+});
+
+test("the message, its bubble and the reply carry the same id, the one the transcript keeps it under", () => {
+  const b = bench();
+  const reply = b.say({ type: "say", text: "oi", cid: "c1-ab" });
+  const said = b.emitted.find((one) => one.subtype === "say");
+  assert.match(reply.uuid, /^[0-9a-f-]{36}$/);
+  assert.equal(said.uuid, reply.uuid);
+  assert.equal(b.dispatched[0].uuid, reply.uuid);
+});
+
+test("words that only answered an open card carry no id, so nobody is offered to edit them", () => {
+  const b = bench();
+  openQuestion(b.pendingQuestions);
+  const reply = b.say({ type: "say", text: "outro caminho" });
+  assert.equal(reply.uuid, undefined);
+  assert.equal(b.emitted.find((one) => one.subtype === "say").uuid, undefined);
 });
 
 test("answering from the card still settles with the answers", () => {

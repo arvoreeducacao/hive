@@ -28,6 +28,7 @@ export const TUI_CONTINUES = {
   kiro: "kiro-cli chat --resume --trust-all-tools",
   cursor: "cursor-agent --continue --force --trust",
   gemini: "gemini --resume latest --yolo --skip-trust",
+  antigravity: "agy --continue --dangerously-skip-permissions",
   opencode: "opencode -c --agent build"
 };
 
@@ -134,7 +135,7 @@ export function fleetPlan(seats, sessionAlive, liveNames, now = Date.now()) {
 function claudeFlags(seat, remoteControl, autocompact = "") {
   const flags = ["--dangerously-skip-permissions"];
   if (remoteControl) flags.push(`--remote-control ${seat.name}`);
-  if (seat.model) flags.push(`--model ${seat.model}`);
+  if (seat.model) flags.push(`--model '${seat.model}'`);
   if (autocompact) flags.push(`--autocompact ${autocompact}`);
   return flags.join(" ");
 }

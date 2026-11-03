@@ -96,6 +96,10 @@ export function createSeatServer({ sockFile, handleCommand, emit, leave, store, 
         emit({ type: "driver", subtype: "provider_changed", agent: cmd.provider, model: cmd.model || "" });
         emit({ type: "result", subtype: "provider_ready", is_error: false, num_turns: 0 });
       }
+      if (cmd.fresh) {
+        emit({ type: "driver", subtype: "started_fresh", history: typeof cmd.history === "string" ? cmd.history : "" });
+        emit({ type: "result", subtype: "provider_ready", is_error: false, num_turns: 0 });
+      }
       Promise.resolve(store?.persist({ provider_switching: false })).then(() => reply({ ok: true }));
       return;
     }

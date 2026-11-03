@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { PROVIDERS, PROVIDER_IDS, ACCOUNT_IN_COMMAND, accountDirFromEnv, accountNameInCommand, oneLoginOnly, providerEnv, providerEnvDir, providerHome, providerOwn, providerRanDry, providerSelfDir } from "../engine/providers.mjs";
 
 test("every agent the hive seats is a provider, and each says how a login is kept apart", () => {
-  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
+  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"]);
   for (const spec of Object.values(PROVIDERS)) {
     assert.ok(spec.binary && spec.homeEnv && spec.home && spec.label && /^#[0-9A-Fa-f]{6}$/.test(spec.color), `${spec.id} is missing a field`);
     assert.ok(Array.isArray(spec.own) && Array.isArray(spec.login), `${spec.id} says nothing about its login`);

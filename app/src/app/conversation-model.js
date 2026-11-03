@@ -7,6 +7,7 @@ import { openShot, wireMdShots } from "./picture-preview.js";
 import { keepPrintOnPage } from "./keep-print.js";
 import { openMemoryAt } from "./memories.js";
 import { svMemorySaveLanded } from "./memory-signal.js";
+import { saveEdit } from "./edit-message.js";
 import { resultText, shotOfInput, shotsOfSaid, shotsOfTool, withoutImageNotes } from "./session-images.js";
 import { fillSaid } from "/assets/said-lists.mjs";
 import { paintSaidCommand, splitLeadingQuotes, svQuoteCard, workSummary } from "./structured-seats.js";
@@ -286,7 +287,49 @@ function svConvLine(e, cls, text) {
       hold.appendChild(body);
     }
   }
-  return svConvPush(e, { key: svConvKey(e), kind: "bubble", body: hold.innerHTML, clip: svSaidClip(text), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "" });
+  return svConvPush(e, { key: svConvKey(e), kind: "bubble", body: hold.innerHTML, text, clip: svSaidClip(text), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "", editing: null });
+}
+
+const svConvBubbleAt = (e, uuid) => (uuid ? e.conv.blocks.findIndex((one) => one.kind === "bubble" && one.dataset?.uuid === uuid) : -1);
+
+function svConvBubbleOf(e, uuid) {
+  return e.conv.blocks[svConvBubbleAt(e, uuid)] || null;
+}
+
+function svConvBeforeCompact(e, uuid) {
+  const at = svConvBubbleAt(e, uuid);
+  return at >= 0 && e.conv.blocks.slice(at + 1).some((one) => one.kind === "meta" && /(^|\s)sv-compacted(\s|$)/.test(one.cls || ""));
+}
+
+function svConvEdit(e, uuid, words) {
+  const block = svConvBubbleOf(e, uuid);
+  if (!block) return null;
+  for (const one of e.conv.blocks) if (one.editing && one !== block) one.editing = null;
+  block.editing = { text: block.text || "", busy: false, error: "", ...words };
+  svConvShow(e);
+  return block;
+}
+
+function svConvEditing(e, block, change = null) {
+  if (!block) return;
+  block.editing = change && block.editing ? { ...block.editing, ...change } : null;
+  svConvShow(e);
+}
+
+function svConvRewind(e, uuid) {
+  const at = svConvBubbleAt(e, uuid);
+  if (at < 0) return false;
+  e.conv.run = null;
+  e.conv.blocks.splice(at);
+  svConvShow(e);
+  return true;
+}
+
+function svConvSaidAs(e, was, uuid) {
+  const block = svConvBubbleOf(e, was);
+  if (!block) return;
+  block.dataset.uuid = uuid;
+  svConvShow(e);
 }
 
 function svConvMentions(block) {
@@ -622,6 +665,8 @@ function svConvActions(e) {
       svConvShow(e);
       return kept;
     },
+    editCancel: (shown) => svConvEditing(e, e.conv.blocks.find((one) => one.key === shown.key)),
+    editSave: (shown, text) => saveEdit(e, e.conv.blocks.find((one) => one.key === shown.key), text),
     art: (row) => openArtifact(e, row),
     memory: (id) => openMemoryAt(id),
     seat: (name) => { if (focusSeat(name)) render(); },
@@ -638,4 +683,4 @@ function svConvMount(e) {
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRunOff, svConvSaid, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnDone, svConvTurnStarts, svConvTurnToggle, svConvTurnsBehind, svConvUnsay, svConvWrap, svSaidClips, svTurnTook };
+export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvEdit, svConvEditing, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnDone, svConvTurnStarts, svConvTurnToggle, svConvTurnsBehind, svConvUnsay, svConvWrap, svSaidClips, svTurnTook };

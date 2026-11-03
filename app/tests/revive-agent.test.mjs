@@ -16,7 +16,7 @@ const cut = (text, from, to) => {
 
 test("the archive scan reads the records the other agents' drivers keep, on this machine and on the box", () => {
   const scan = cut(server, "const HIST_SCAN = `", "rm -rf \"$D\"");
-  assert.match(scan, /"agent": \*"\(codex\|kimi\|kiro\|cursor\|gemini\|opencode\)"/);
+  assert.match(scan, /"agent": \*"\(codex\|kimi\|kiro\|cursor\|gemini\|antigravity\|opencode\)"/);
   assert.match(scan, /==J==/);
   assert.match(scan, /events\/\$n\.ndjson/);
   const here = cut(server, "async function scanLocalHistory", "async function runHistoryScan");

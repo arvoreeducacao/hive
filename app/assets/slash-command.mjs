@@ -1,4 +1,4 @@
-export const NATIVE_COMMAND_NAMES = ["model", "mcp", "context", "effort", "account", "agents", "config", "compact", "plane-mode"];
+export const NATIVE_COMMAND_NAMES = ["model", "mcp", "context", "effort", "account", "agents", "config", "compact", "fresh", "plane-mode"];
 
 const NATIVE = new Set(NATIVE_COMMAND_NAMES);
 

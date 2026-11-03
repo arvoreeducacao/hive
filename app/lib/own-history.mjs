@@ -4,7 +4,7 @@ const isSeatName = (name) => SEAT_NAME.test(String(name || ""));
 /* codex and kiro name a session with a uuid, kimi with `session_<uuid>` — one shell word either way */
 export const OWN_SESSION_ID = /^[A-Za-z0-9._-]{8,80}$/;
 
-export const OWN_HISTORY_AGENT = /^(codex|kimi|kiro|cursor|gemini|opencode)$/;
+export const OWN_HISTORY_AGENT = /^(codex|kimi|kiro|cursor|gemini|antigravity|opencode)$/;
 
 const HIVE_SESSION_BLOCK = /==J==([^\n]+)\n([\s\S]*?)\n==JT==([^\n]*)\n==JP==([^\n]*)\n+==\/J==/g;
 

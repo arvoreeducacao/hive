@@ -19,6 +19,7 @@ async function fixture(t, options = {}) {
   await writeFile(file, JSON.stringify(source));
   await writeFile(join(base, "events", "test.ndjson"), [user("Keep the public API"), answer("Updated src/parser.js; tests passed")].map(JSON.stringify).join("\n"));
   const calls = [];
+  const sent = [];
   let agent = "claude";
   let held = 0;
   let clock = 0;
@@ -29,6 +30,8 @@ async function fixture(t, options = {}) {
     wait: async () => { clock += 100; },
     command: async (name, cmd) => {
       calls.push(cmd.op || cmd.type);
+      sent.push(cmd);
+      if (cmd.op === "releaseTransfer" && options.failRelease) return { ok: false };
       if (cmd.op === "prepareTransfer") return { ok: true, data: { waiting: held++ < (options.waiting || 0) } };
       if (cmd.op === "catalog") return options.failTarget && agent === "codex" ? { ok: false, error: "sign in failed" } : { ok: true, data: { models: [{ value: agent === "codex" ? "gpt" : "opus" }] } };
       return { ok: true, agent };
@@ -37,7 +40,7 @@ async function fixture(t, options = {}) {
     stop: async () => { calls.push("stop"); },
     start: async (name, meta) => { calls.push(`start:${meta.agent}`); agent = meta.agent; },
   });
-  return { base, transfer, file, source, calls };
+  return { base, transfer, file, source, calls, sent };
 }
 
 async function finished(transfer) {
@@ -68,6 +71,61 @@ test("a provider switch keeps the chat history and cwd, starts a fresh provider 
   assert.equal(calls.filter((value) => value === "prepareTransfer").length, 3);
   assert.ok(calls.indexOf("stop") < calls.indexOf("start:codex"));
   assert.equal(calls.at(-1), "releaseTransfer");
+});
+
+test("a fresh start keeps the provider, model, effort and account, opens a new session and carries context", async (t) => {
+  const { base, transfer, file, calls, sent } = await fixture(t, { waiting: 1, validate: async () => { throw new Error("a fresh start checks no catalog"); } });
+  const before = await readFile(join(base, "events", "test.ndjson"), "utf8");
+  assert.equal((await transfer.fresh("test")).ok, true);
+  assert.match((await transfer.fresh("test")).error, /already starting fresh/);
+  assert.match((await transfer.begin("test", "codex", "gpt")).error, /already starting fresh/);
+  assert.match(transfer.busyError("test"), /starting fresh/);
+  const job = await finished(transfer);
+  assert.equal(job.phase, "done", job.error);
+  assert.equal(job.fresh, true);
+  const meta = JSON.parse(await readFile(file, "utf8"));
+  assert.equal(meta.session_id, undefined);
+  assert.equal(meta.agent, "claude");
+  assert.equal(meta.model, "opus");
+  assert.equal(meta.account, "second");
+  assert.equal(meta.effort, "max");
+  assert.equal(meta.title, "The task");
+  assert.equal(meta.errand, "The request");
+  assert.equal(await readFile(join(base, "events", "test.ndjson"), "utf8"), before);
+  const context = await readFile(meta.provider_context.path, "utf8");
+  assert.match(context, /new session of the same provider/);
+  assert.doesNotMatch(context, /another provider/);
+  assert.match(context, /Keep the public API/);
+  assert.match(context, /rg -n/);
+  assert.deepEqual(calls.filter((value) => value.startsWith("start:")), ["start:claude"]);
+  assert.ok(calls.indexOf("stop") < calls.indexOf("start:claude"));
+  const release = sent.at(-1);
+  assert.equal(release.op, "releaseTransfer");
+  assert.equal(release.fresh, true);
+  assert.equal(release.provider, undefined);
+  assert.equal(release.history, meta.provider_context.history);
+});
+
+test("a chat with no conversation yet has nothing to start fresh from", async (t) => {
+  const { transfer, file, source, calls } = await fixture(t);
+  const { session_id: dropped, ...unborn } = source;
+  await writeFile(file, JSON.stringify(unborn));
+  const result = await transfer.fresh("test");
+  assert.equal(result.ok, false);
+  assert.match(result.error, /no conversation/);
+  assert.deepEqual(calls, []);
+  assert.equal(transfer.status("test"), null);
+});
+
+test("a fresh start the new session refuses brings back the exact source session", async (t) => {
+  const { transfer, file, source, calls } = await fixture(t, { failRelease: true });
+  await transfer.fresh("test");
+  const job = await finished(transfer);
+  assert.equal(job.phase, "failed");
+  assert.equal(job.recovered, true);
+  assert.match(job.error, /new session could not accept/);
+  assert.deepEqual(JSON.parse(await readFile(file, "utf8")), source);
+  assert.deepEqual(calls.filter((value) => value.startsWith("start:")), ["start:claude", "start:claude"]);
 });
 
 test("failure in the destination restores the exact source session, model and account", async (t) => {

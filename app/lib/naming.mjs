@@ -66,7 +66,7 @@ export function nameFromAnswer(line, prompt) {
   return nameFromMission(prompt);
 }
 
-export const NAMER_MODELS = { claude: "haiku", codex: "gpt-5.6-luna", kimi: "", kiro: "claude-haiku-4.5", cursor: "", gemini: "flash" };
+export const NAMER_MODELS = { claude: "haiku", codex: "gpt-5.6-luna", kimi: "", kiro: "claude-haiku-4.5", cursor: "", gemini: "flash", antigravity: "" };
 
 export function kimiAnswer(out) {
   const said = [];
@@ -98,6 +98,9 @@ export function namerCommand({ agent, prompt, outFile, claude, engineDir = "", s
   }
   if (agent === "gemini") {
     return { exe: "gemini", args: ["-p", prompt, "--model", NAMER_MODELS.gemini, "--output-format", "text", "--skip-trust"], answerIn: "" };
+  }
+  if (agent === "antigravity") {
+    return { exe: "agy", args: ["-p", prompt, "--output-format", "text", "--disable-slash-commands", ...(NAMER_MODELS.antigravity ? ["--model", NAMER_MODELS.antigravity] : [])], answerIn: "" };
   }
   const shaped = schema
     ? ["--output-format", "json", "--json-schema", schema, "--tools", "", "--disable-slash-commands", "--settings", '{"disableAllHooks":true}', "--permission-mode", "dontAsk"]

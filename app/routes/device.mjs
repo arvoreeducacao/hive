@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { FRAME_FRESH, LOG_LINES, LOG_LINES_MAX, chooseAvd, createDriver, packageOf, sdkRootOf, toolsOf } from "../lib/device.mjs";
+import { FRAME_FRESH, LOG_LINES, LOG_LINES_MAX, chooseAvd, createDriver, markPictureEnds, packageOf, sdkRootOf, toolsOf } from "../lib/device.mjs";
 import { createIosDriver, iosToolsOf } from "../lib/device-ios.mjs";
 
 const deviceOfSeat = new Map();
@@ -170,12 +170,14 @@ export function registerDeviceRoutes(on, ctx) {
       "x-device-width": String(foundOne.d.width || 0),
       "x-device-height": String(foundOne.d.height || 0)
     });
+    const ends = markPictureEnds((bytes) => { if (!res.writableEnded) res.write(bytes); });
     const tape = foundOne.drive.record(foundOne.d.serial, {
-      onChunk: (chunk) => { if (!res.writableEnded) res.write(chunk); },
-      onEnd: () => { if (!res.writableEnded) res.end(); }
+      onChunk: (chunk) => ends.chunk(chunk),
+      onEnd: () => { ends.stop(); if (!res.writableEnded) res.end(); }
     });
-    req.on("close", () => tape.stop());
-    res.on("close", () => tape.stop());
+    const stop = () => { ends.stop(); tape.stop(); };
+    req.on("close", stop);
+    res.on("close", stop);
   });
 
   on("POST", "/api/device/tap", async (req, res, url, json) => {

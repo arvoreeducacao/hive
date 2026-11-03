@@ -1,3 +1,4 @@
+import { existsSync, lstatSync, mkdirSync, readdirSync, symlinkSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { CLAUDE } from "./accounts.mjs";
 
@@ -94,6 +95,19 @@ export const PROVIDERS = {
     spent: /RESOURCE_EXHAUSTED|exceeded your current quota|quota exceeded|usage limit|rate.?limit|too many requests|\b429\b/i,
     gone: /api key is missing|authentication required|login required|invalid_grant|UNAUTHENTICATED|unauthorized|\b401\b|token.*expired|reauthenticat/i,
   },
+  antigravity: {
+    id: "antigravity",
+    label: "Antigravity",
+    binary: "agy",
+    color: "#3D7BF7",
+    home: ".gemini/antigravity-cli",
+    homeEnv: "AGY_ACCOUNT",
+    own: [],
+    login: ["agy"],
+    logout: [],
+    spent: /RESOURCE_EXHAUSTED|exceeded your current quota|quota exceeded|out of (?:credits|quota)|usage limit|rate.?limit|too many requests|\b429\b/i,
+    gone: /authentication required|not logged in|not logged into antigravity|please sign in|UNAUTHENTICATED|unauthorized|\b401\b|invalid_grant|token.*expired|reauthenticat/i,
+  },
   opencode: {
     id: "opencode",
     label: "OpenCode",
@@ -111,6 +125,32 @@ export const PROVIDERS = {
 };
 
 export const PROVIDER_IDS = Object.keys(PROVIDERS);
+
+/* an account is the CLI's home mirrored with links, except what is the login's
+   own — those paths start as nothing and the CLI writes them at sign-in. A path
+   with a slash in it makes its parent a real folder, mirrored the same way. */
+export function mirrorHome(from, to, own = []) {
+  mkdirSync(to, { recursive: true });
+  let entries = [];
+  try { entries = readdirSync(from, { withFileTypes: true }); } catch { return to; }
+  for (const entry of entries) {
+    const inner = own.filter((path) => path === entry.name || path.startsWith(`${entry.name}/`));
+    if (inner.some((path) => path === entry.name)) continue;
+    const source = join(from, entry.name);
+    const target = join(to, entry.name);
+    if (inner.length) {
+      mirrorHome(source, target, inner.map((path) => path.slice(entry.name.length + 1)));
+      continue;
+    }
+    if (existsSync(target) || isLink(target)) continue;
+    try { symlinkSync(source, target); } catch {}
+  }
+  return to;
+}
+
+function isLink(path) {
+  try { return lstatSync(path).isSymbolicLink(); } catch { return false; }
+}
 
 export const providerOf = (id) => PROVIDERS[id] || null;
 
@@ -134,12 +174,15 @@ export function providerOwn(provider, platform = process.platform) {
   return spec.ownOn?.[platform] || spec.own;
 }
 
+const AGY_ONE_LOGIN = "agy holds its logins in the system keyring, not in a folder the hive can keep apart — sign in to a second account inside agy and pick it there";
+
 /* an agent only holds one login apart from another when its CLI reads the
    variable that moves its home. Both of these read theirs on linux alone: on a mac
    kiro-cli keeps to Application Support and puts the token in the login keychain,
    and cursor-agent reads its token from ~/.cursor under the person's own home — so
    a second login there would quietly answer as the first. */
 const ONE_LOGIN_ONLY = {
+  antigravity: { linux: AGY_ONE_LOGIN, darwin: AGY_ONE_LOGIN, win32: AGY_ONE_LOGIN },
   kiro: { darwin: "kiro-cli holds one login per mac: it reads XDG_DATA_HOME on linux alone, and keeps its token in the login keychain, so a second login here would answer as the first" },
   cursor: { darwin: "cursor-agent holds one login per mac: it reads XDG_CONFIG_HOME on linux alone, and keeps its token at ~/.cursor/auth.json under your own home, so a second login here would answer as the first" },
 };

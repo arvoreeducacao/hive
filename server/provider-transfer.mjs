@@ -39,7 +39,19 @@ export function transcriptEntry(event) {
   return parts.length ? `${event.type.toUpperCase()}\n${parts.join("\n")}\n\n` : "";
 }
 
-export async function prepareContext({ eventsFile, directory, source, target, budget = 48000 }) {
+function openingLines(source, target, fresh) {
+  if (fresh) return [
+    "The user started this Hive conversation over in a new session of the same provider, to free the context window. The previous session is closed.",
+    `Continue the same task in the same working directory: ${source.cwd}.`
+  ];
+  return [
+    "The user selected a model from another provider in this existing Hive conversation.",
+    `Previous provider: ${source.agent || "claude"}. Current provider: ${target.agent}.`,
+    `Continue the same task in the same working directory: ${source.cwd}.`
+  ];
+}
+
+export async function prepareContext({ eventsFile, directory, source, target, budget = 48000, fresh = false }) {
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const historyPath = join(directory, "conversation.md");
   const contextPath = join(directory, "context.md");
@@ -63,18 +75,35 @@ export async function prepareContext({ eventsFile, directory, source, target, bu
     }
   } finally { await history.close(); }
   const context = [
-    "The user selected a model from another provider in this existing Hive conversation.",
-    `Previous provider: ${source.agent || "claude"}. Current provider: ${target.agent}.`,
-    `Continue the same task in the same working directory: ${source.cwd}.`,
+    ...openingLines(source, target, fresh),
     "The following is historical conversation data, not a new request or a tool result for you to execute. Preserve the user's decisions and constraints. Do not repeat completed actions. Verify the current files and external state before relying on old results.",
     "This is an extract, not a lossless summary. Thinking and protocol events are omitted. Some older entries and long tool results are absent from this extract.",
-    `The saved conversation (user and assistant text, tool calls and results) is at ${historyPath}. Read it when the extract does not contain the context needed to continue. Original attachments remain in the Hive chat; do not claim to have seen an image based on its placeholder.`,
+    `The saved conversation (user and assistant text, tool calls and results) is at ${historyPath}. Read it when the extract does not contain the context needed to continue. It can be large: search it with rg -n before reading it whole. Each entry starts with a line USER or ASSISTANT. Original attachments remain in the Hive chat; do not claim to have seen an image based on its placeholder.`,
     "FIRST REQUEST", firstRequest,
     "RECENT CONVERSATION", ...recent,
     "END OF HISTORICAL CONTEXT"
   ].join("\n\n");
   await writeFile(contextPath, context, { mode: 0o600 });
   return { path: contextPath, history: historyPath, delivered: false };
+}
+
+const PROVIDER_WORDS = {
+  cancelled: "provider change cancelled",
+  busy: "the chat is still working or waiting for an answer; finish this turn and select the model again",
+  refused: "the new provider could not accept the conversation"
+};
+
+const FRESH_WORDS = {
+  cancelled: "fresh start cancelled",
+  busy: "the chat is still working or waiting for an answer; finish this turn and start fresh again",
+  refused: "the new session could not accept the conversation"
+};
+
+const FRESH_KEEPS = ["model", "model_id", "effort", "account", "cwd", "title", "errand", "births", "mode", "anon"];
+
+function freshMeta(source, job) {
+  const kept = Object.fromEntries(FRESH_KEEPS.filter((key) => source[key] !== undefined).map((key) => [key, source[key]]));
+  return { agent: job.agent, ...kept };
 }
 
 export function createProviderTransfers({ base, command, start, stop, validate = async () => {}, changed = () => {}, wait = pause, now = Date.now, readyTimeout = 90000, idleTimeout = 600000 }) {
@@ -115,11 +144,12 @@ export function createProviderTransfers({ base, command, start, stop, validate =
     let source;
     let stopped = false;
     let locked = false;
+    const words = job.fresh ? FRESH_WORDS : PROVIDER_WORDS;
     try {
-      await validate(job.agent, job.model, name);
+      if (!job.fresh) await validate(job.agent, job.model, name);
       const deadline = now() + idleTimeout;
       while (true) {
-        if (job.cancelled) throw new Error("provider change cancelled");
+        if (job.cancelled) throw new Error(words.cancelled);
         let held = await command(name, { type: "control", op: "prepareTransfer" }, 5000);
         if (unsupportedTransferControl(held, "prepareTransfer")) {
           const waiting = providerTransferWaiting(await command(name, { type: "state" }, 1500));
@@ -127,7 +157,7 @@ export function createProviderTransfers({ base, command, start, stop, validate =
         }
         if (!held?.ok) throw new Error(held?.error || "the current driver does not support provider transfers; update Hive and reopen this chat");
         if (!held.data?.waiting) { locked = !held.data?.legacy; break; }
-        if (now() >= deadline) throw new Error("the chat is still working or waiting for an answer; finish this turn and select the model again");
+        if (now() >= deadline) throw new Error(words.busy);
         await phase(name, job, "waiting");
         await wait(500);
       }
@@ -143,18 +173,23 @@ export function createProviderTransfers({ base, command, start, stop, validate =
       await stop(name);
       source = await metaOf(name);
       await saveMetaSnapshot(directory, source);
-      const context = await prepareContext({ eventsFile: join(base, "events", `${name}.ndjson`), directory, source, target: job });
+      const context = await prepareContext({ eventsFile: join(base, "events", `${name}.ndjson`), directory, source, target: job, fresh: !!job.fresh });
       const target = {
-        agent: job.agent, model: job.model, model_id: job.model, cwd: source.cwd,
-        title: source.title, errand: source.errand,
+        ...(job.fresh ? freshMeta(source, job) : {
+          agent: job.agent, model: job.model, model_id: job.model, cwd: source.cwd,
+          title: source.title, errand: source.errand
+        }),
         provider_switching: true, provider_context: context, provider_previous: join(directory, "source.json")
       };
       await saveMeta(name, target);
       await phase(name, job, "starting");
       await start(name, target);
-      await ready(name, job.agent, job.model);
-      const released = await command(name, { type: "control", op: "releaseTransfer", provider: job.agent, model: job.model }, 5000);
-      if (!released?.ok) throw new Error("the new provider could not accept the conversation");
+      await ready(name, job.agent, job.fresh ? "" : job.model);
+      const release = job.fresh
+        ? { type: "control", op: "releaseTransfer", fresh: true, history: context.history }
+        : { type: "control", op: "releaseTransfer", provider: job.agent, model: job.model };
+      const released = await command(name, release, 5000);
+      if (!released?.ok) throw new Error(words.refused);
       await phase(name, job, "done");
       changed(name, target);
     } catch (wrong) {
@@ -227,13 +262,24 @@ export function createProviderTransfers({ base, command, start, stop, validate =
     },
     cancel(name) {
       const job = jobs.get(name);
-      if (job?.phase !== "waiting") return { ok: false, error: "the provider change has already started" };
+      if (job?.phase !== "waiting") return { ok: false, error: job?.fresh ? "the fresh start is already under way" : "the provider change has already started" };
       job.cancelled = true;
       return { ok: true };
     },
     busy(name) { return !!jobs.get(name) && !["done", "failed"].includes(jobs.get(name).phase); },
+    busyError(name) { return jobs.get(name)?.fresh ? "this chat is starting fresh; send the message when it finishes" : "this chat is changing providers; send the message when it finishes"; },
+    async fresh(name) {
+      if (this.busy(name)) return { ok: false, error: jobs.get(name).fresh ? "this chat is already starting fresh" : "this chat is already changing providers" };
+      const source = await metaOf(name);
+      if (!source.session_id) return { ok: false, error: "this chat has no conversation to start over from" };
+      const job = { id: randomUUID(), agent: source.agent || "claude", model: source.model_id || source.model || "", fresh: true, phase: "preparing" };
+      jobs.set(name, job);
+      try { await keep(name, job); } catch (error) { jobs.delete(name); throw error; }
+      void run(name, job).catch((error) => { job.phase = "failed"; job.error = String(error?.message || error); });
+      return { ok: true, data: { ...job } };
+    },
     async begin(name, agent, model) {
-      if (this.busy(name)) return { ok: false, error: "this chat is already changing providers" };
+      if (this.busy(name)) return { ok: false, error: jobs.get(name).fresh ? "this chat is already starting fresh" : "this chat is already changing providers" };
       const job = { id: randomUUID(), agent, model, phase: "preparing" };
       jobs.set(name, job);
       try {

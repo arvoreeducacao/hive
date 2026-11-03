@@ -25,15 +25,16 @@ function cut(text, from, to, what = "app.html") {
 const block = cut(panes, "\nst.deviceChat = null;", "\nst.cockChat = null;", "chat-and-panes.js");
 const DEVICE = { platform: "android", avd: "hive-pixel", serial: "emulator-5554", booted: true, app: "com.example.reader", width: 1080, height: 2400, at: 1700000000000, want: 1 };
 
-function world({ device = DEVICE, visible = "visible", answer = { ok: true }, appears = DEVICE, list = { ok: true, avds: ["hive-pixel"], running: [], sims: [] } } = {}) {
+function world({ device = DEVICE, visible = "visible", answer = { ok: true }, appears = DEVICE, list = { ok: true, avds: ["hive-pixel"], running: [], sims: [] }, video = false } = {}) {
   const timers = [];
   const posted = [];
   const pulls = [];
   const srcs = [];
   const img = { hidden: true, naturalWidth: 1080, naturalHeight: 2400, get src() { return srcs.at(-1) || ""; }, set src(v) { srcs.push(v); } };
   const gone = { hidden: true, textContent: "", kids: [], append(...ones) { this.kids.push(...ones); } };
+  const live = { hidden: true };
   const id = { textContent: "" };
-  const pane = { gone: false, remove() { this.gone = true; }, querySelector: (sel) => (sel === ".device-screen" ? img : sel === ".art-gone" ? gone : id) };
+  const pane = { gone: false, remove() { this.gone = true; }, querySelector: (sel) => (sel === ".device-screen" ? img : sel === ".art-gone" ? gone : sel === ".device-live" ? live : id) };
   const chip = { hidden: true, dataset: {}, classes: new Set(), span: { textContent: "" }, on: {} };
   chip.classList = { toggle: (c, on) => (on ? chip.classes.add(c) : chip.classes.delete(c)) };
   chip.querySelector = () => chip.span;
@@ -52,20 +53,25 @@ function world({ device = DEVICE, visible = "visible", answer = { ok: true }, ap
     made.push(one);
     return one;
   };
-  const document = { visibilityState: visible, createElement: element, querySelector: (sel) => (sel.endsWith(".device-screen") ? img : sel.endsWith(".art.device") ? pane : null) };
+  const document = { visibilityState: visible, createElement: element, querySelector: (sel) => (sel.endsWith(".device-screen") ? img : sel.endsWith(".device-live") ? live : sel.endsWith(".art.device") ? pane : null) };
   const data = { sessions: [{ name: "ana", device }] };
   const closed = [];
   const stub = (what) => () => closed.push(what);
   const setTimeout = (fn, ms) => { timers.push({ fn, ms, dead: false }); return timers.length; };
   const clearTimeout = (n) => { if (n) timers[n - 1].dead = true; };
+  const tapes = [];
   const fetch = (url, opts) => {
+    if (String(url).startsWith("/api/device/video")) { tapes.push(url); return new Promise(() => {}); }
     posted.push({ url, body: opts ? JSON.parse(opts.body) : null });
     const said = String(url).startsWith("/api/device/list") ? list : answer;
     return Promise.resolve({ json: () => Promise.resolve(said) });
   };
   const pull = async () => { pulls.push(true); data.sessions[0].device = appears; };
+  const st = { data, open: "ana", cockChat: null, webChat: null, reviewChat: null, threadChat: null };
+  const decoder = video ? function VideoDecoder() {} : undefined;
+  const chunk = video ? function EncodedVideoChunk() {} : undefined;
   const api = new Function(
-    "document", "setTimeout", "clearTimeout", "fetch", "phrase", "st", "render", "openTile", "releaseKeyboard", "prsOnScreen", "finishOn",
+    "VideoDecoder", "EncodedVideoChunk", "document", "setTimeout", "clearTimeout", "fetch", "phrase", "st", "render", "openTile", "releaseKeyboard", "prsOnScreen", "finishOn",
     "closePrs", "closeFinish", "closeCockpit", "closeBrowser", "exitReview", "closeThreadPanel", "pull",
     "takeFieldPane", "dropFieldPane",
     `const paneShownFor = (name) => st.open === name;
@@ -73,14 +79,14 @@ function world({ device = DEVICE, visible = "visible", answer = { ok: true }, ap
      return { openDevice, closeDevice, askDeviceFrame, deviceFrameLanded, stopDeviceFrames, paintDeviceChipOfChat, paintDeviceOfChat, pointOnDevice, deviceSaid, deviceApplied,
        startDevice, bootDevice, askWhichPhone, phonesToBoot, deviceAct, sayOnDevice, tapDevice,
        now: () => ({ deviceChat: st.deviceChat, deviceClock, deviceLoading: st.deviceLoading, deviceGone: st.deviceGone, deviceBooting: st.deviceBooting }) };`
-  )(document, setTimeout, clearTimeout, fetch, (t) => t,
-    { data, open: "ana", cockChat: null, webChat: null, reviewChat: null, threadChat: null },
+  )(decoder, chunk, document, setTimeout, clearTimeout, fetch, (t) => t,
+    st,
     () => {}, () => {}, () => {}, () => false, () => false,
     stub("prs"), stub("finish"), stub("cockpit"), stub("browser"), stub("review"), stub("thread"), pull,
     () => false, () => false);
   const pending = () => timers.filter((t) => !t.dead);
   const tick = () => { for (const t of pending()) { t.dead = true; t.fn(); } };
-  return { ...api, img, gone, id, chip, el, document, data, posted, pulls, srcs, closed, pending, tick, made, seat: () => ({ name: "ana", device: data.sessions[0].device }) };
+  return { ...api, st, img, gone, live, id, chip, el, document, data, posted, pulls, srcs, tapes, closed, pending, tick, made, seat: () => ({ name: "ana", device: data.sessions[0].device }) };
 }
 
 test("the chip sits in the card next to the cockpit chip, hidden until a device exists", () => {
@@ -171,6 +177,54 @@ test("a frame that fails says the emulator is gone, keeps saying it, and asks ag
   w.deviceFrameLanded("ana", true);
   assert.equal(w.img.hidden, false);
   assert.equal(w.now().deviceGone, "", "a frame that lands lets the video come back");
+});
+
+test("while the video connects the photos carry the screen, and the pane still says nothing", () => {
+  const w = world({ video: true });
+  w.openDevice("ana");
+  w.paintDeviceOfChat(w.el, w.seat());
+  assert.equal(w.tapes.length, 1, "the video is asked for");
+  assert.equal(w.srcs.length, 1, "a photo is asked for alongside, so the pane is never an empty box");
+  assert.equal(w.gone.hidden, true);
+  w.deviceFrameLanded("ana", true);
+  assert.equal(w.img.hidden, false);
+  assert.ok(w.pending().some((t) => t.ms === 120), "the photos keep coming until the video paints");
+  w.paintDeviceOfChat(w.el, w.seat());
+  assert.equal(w.tapes.length, 1, "a repaint does not open a second video");
+});
+
+test("a video that never paints is dropped for that phone, and reopening the pane tries again", () => {
+  const w = world({ video: true });
+  w.openDevice("ana");
+  w.paintDeviceOfChat(w.el, w.seat());
+  w.deviceFrameLanded("ana", true);
+  const deadline = w.pending().find((t) => t.ms === 5000);
+  assert.ok(deadline, "the video has a deadline to show its first picture");
+  deadline.dead = true;
+  deadline.fn();
+  assert.equal(w.st.deviceTape, null);
+  assert.equal(w.live.hidden, true);
+  w.paintDeviceOfChat(w.el, w.seat());
+  assert.equal(w.tapes.length, 1, "the same phone is not asked for video again on every repaint");
+  w.tick();
+  assert.ok(w.srcs.length >= 2, "the photos go on");
+  w.closeDevice();
+  w.openDevice("ana");
+  w.paintDeviceOfChat(w.el, w.seat());
+  assert.equal(w.tapes.length, 2, "a pane opened again gives the video another chance");
+});
+
+test("a video that paints in time keeps its deadline from firing, and a late photo never covers it", () => {
+  const w = world({ video: true });
+  w.openDevice("ana");
+  w.paintDeviceOfChat(w.el, w.seat());
+  w.st.deviceTape.painted = true;
+  const deadline = w.pending().find((t) => t.ms === 5000);
+  deadline.fn();
+  assert.ok(w.st.deviceTape, "a painted video is kept");
+  w.deviceFrameLanded("ana", true);
+  assert.equal(w.img.hidden, true, "the photo that was in flight stays under the video");
+  assert.equal(w.pending().filter((t) => t.ms === 120).length, 0, "and no next photo is asked for");
 });
 
 test("a pane built from scratch starts with no frame in flight", () => {

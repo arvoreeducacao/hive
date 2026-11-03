@@ -32,7 +32,7 @@ test("an agent this hive does not run is refused by name, and the rest is kept",
   assert.deepEqual(Object.keys(got), ["kimi"]);
   assert.equal(problems.length, 1);
   assert.match(problems[0], /providers\.aider is not an agent this hive runs/);
-  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"]);
+  assert.deepEqual(PROVIDER_IDS, ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"]);
 });
 
 test("a colour that is not hex, a flag that is not a boolean and a variable with a strange name are each called out", () => {

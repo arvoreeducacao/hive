@@ -155,6 +155,12 @@ export const PANE_WIDTH_RANGE = [320, 2400];
 export const VISUAL_CHOICES = ["lean", "full"];
 export const VISUAL_DEFAULT = "lean";
 
+export const CONTEXT_USAGE_ENV = "CLAUDE_CODE_ENABLE_TOKEN_USAGE_ATTACHMENT";
+
+export function contextUsageEnv(config) {
+  return config?.contextUsage ? { [CONTEXT_USAGE_ENV]: "1" } : {};
+}
+
 export function cleanFlag(raw, name, where, problems, fallback = true) {
   if (raw === undefined) return fallback;
   if (typeof raw === "boolean") return raw;
@@ -381,7 +387,7 @@ export function cleanAvatar(raw, where, problems) {
   return "";
 }
 
-export const PROVIDER_IDS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
+export const PROVIDER_IDS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"];
 const PROVIDER_NAME_MAX = 40;
 const PROVIDER_ARGS_MAX = 40;
 const PROVIDER_ENV_MAX = 40;
@@ -520,6 +526,7 @@ export function cleanPatch(patch) {
   if (patch.visual !== undefined) clean.visual = cleanVisual(patch.visual, "patch", problems);
   if (patch.composer !== undefined) clean.composer = cleanFlag(patch.composer, "composer", "patch", problems);
   if (patch.autocompact !== undefined) clean.autocompact = cleanAutocompact(patch.autocompact, "patch", problems);
+  if (patch.contextUsage !== undefined) clean.contextUsage = cleanFlag(patch.contextUsage, "contextUsage", "patch", problems, false);
   if (patch.closeQuietAfterDays !== undefined) clean.closeQuietAfterDays = cleanQuietDays(patch.closeQuietAfterDays, "patch", problems);
   if (patch.pruneDiariesAfterDays !== undefined) clean.pruneDiariesAfterDays = cleanDiaryDays(patch.pruneDiariesAfterDays, "patch", problems);
   if (patch.share !== undefined) clean.share = cleanFlag(patch.share, "share", "patch", problems);

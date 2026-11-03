@@ -1,11 +1,12 @@
-import { switchSeatProvider } from "./provider-transfer.js";
+import { startFresh, switchSeatProvider } from "./provider-transfer.js";
 import { render } from "./arrange.js";
 import { markCopied } from "./avatars.js";
 import { forgetSeat } from "./blocks.js";
 import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svTrimTurns, svTypePath } from "./chat-stretches.js";
 import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
 import { paintSaidChips } from "./context-chips.js";
-import { svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRunOff, svConvSaid, svConvShow, svConvStream, svConvThink, svConvThumb, svConvTurnDone, svConvUnsay } from "./conversation-model.js";
+import { svConvBubbleOf, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvShow, svConvStream, svConvThink, svConvThumb, svConvTurnDone, svConvUnsay } from "./conversation-model.js";
+import { editFailed } from "./edit-message.js";
 import { $, apiGet, chooseOption, esc, experienceNext, raycastOn, forgetUpload, liveMarkdown, lookFor, markUpload, NATIVE_COMMAND_NAMES, phrase, reachRef, readPage, renderMarkdown, sayPage, st, svgIcon } from "./core.js";
 import { drafts } from "./draft-seat.js";
 import { closeTile, openTile, pull, releaseKeyboard } from "./focus-navigation.js";
@@ -168,6 +169,8 @@ st.deviceLoading = false;
 
 st.deviceGone = "";
 
+st.deviceNoVideo = "";
+
 st.deviceAgain = false;
 
 st.deviceBooting = "";
@@ -182,7 +185,7 @@ const DEVICE_RETRY = 3000;
 
 const VIDEO_STEP = 33333;
 
-const VIDEO_SETTLE = 60;
+const VIDEO_WAIT = 5000;
 
 const canWatchVideo = () => typeof VideoDecoder === "function" && typeof EncodedVideoChunk === "function";
 
@@ -209,12 +212,6 @@ function h264Units(onUnit) {
     if (!marks.length) { tail = buf; return; }
     for (let k = 0; k + 1 < marks.length; k++) onUnit(buf.slice(marks[k], marks[k + 1]));
     tail = buf.slice(marks[marks.length - 1]);
-  };
-  eat.rest = () => {
-    if (tail.length < 5 || tail[0] !== 0 || tail[1] !== 0 || tail[2] !== 1) return;
-    const held = tail;
-    tail = new Uint8Array(0);
-    onUnit(held);
   };
   return eat;
 }
@@ -339,6 +336,7 @@ function openDevice(name) {
   if (finishOn()) closeFinish();
   releaseKeyboard();
   st.deviceGone = "";
+  st.deviceNoVideo = "";
   st.deviceChat = name;
   if (!takeFieldPane(name)) openTile(name, false);
   render();
@@ -369,7 +367,7 @@ function stopDeviceVideo() {
   const tape = st.deviceTape;
   if (!tape) return;
   st.deviceTape = null;
-  clearTimeout(tape.settle);
+  clearTimeout(tape.deadline);
   try { tape.reader?.cancel(); } catch {}
   try { tape.stop(); } catch {}
   try { if (tape.decoder && tape.decoder.state !== "closed") tape.decoder.close(); } catch {}
@@ -380,13 +378,23 @@ const deviceCanvasOf = (name) => document.querySelector(`.tile[data-name="${name
 function startDeviceVideo(name) {
   if (!canWatchVideo()) return false;
   if (st.deviceTape) return st.deviceTape.name === name;
+  const d = deviceOfSeat(name);
+  if (d && st.deviceNoVideo === deviceKeyOf(d)) return false;
   const canvas = deviceCanvasOf(name);
   if (!canvas) return false;
   const control = new AbortController();
   const tape = { name, stop: () => control.abort(), decoder: null, reader: null, painted: false };
   st.deviceTape = tape;
+  tape.deadline = setTimeout(() => videoNeverCame(name, tape), VIDEO_WAIT);
   watchDevice(name, canvas, tape, control).catch(() => giveUpVideo(name, tape));
   return true;
+}
+
+function videoNeverCame(name, tape) {
+  if (st.deviceTape !== tape || tape.painted) return;
+  const d = deviceOfSeat(name);
+  st.deviceNoVideo = d ? deviceKeyOf(d) : "";
+  giveUpVideo(name, tape);
 }
 
 function giveUpVideo(name, tape) {
@@ -435,11 +443,8 @@ async function watchDevice(name, canvas, tape, control) {
     const { value, done } = await tape.reader.read();
     if (done) break;
     if (!value) continue;
-    clearTimeout(tape.settle);
     eat(value);
-    tape.settle = setTimeout(() => { if (st.deviceTape === tape) eat.rest(); }, VIDEO_SETTLE);
   }
-  clearTimeout(tape.settle);
   giveUpVideo(name, tape);
 }
 
@@ -475,6 +480,7 @@ function deviceFrameLanded(name, ok) {
   if (!pane) return;
   const img = pane.querySelector(".device-screen");
   const gone = pane.querySelector(".art-gone");
+  if (ok && st.deviceTape?.painted) return;
   if (ok) {
     st.deviceGone = "";
     img.hidden = false;
@@ -610,7 +616,11 @@ function paintDeviceOfChat(el, s) {
     return;
   }
   if (st.deviceGone && st.deviceGone !== deviceKeyOf(d)) st.deviceGone = "";
-  if (!st.deviceGone && startDeviceVideo(s.name)) { gone.hidden = true; return; }
+  if (!st.deviceGone && startDeviceVideo(s.name)) {
+    gone.hidden = true;
+    if (!st.deviceTape?.painted && !st.deviceLoading && !deviceClock) askDeviceFrame(s.name);
+    return;
+  }
   if (!img.hidden) gone.hidden = true;
   else if (!st.deviceLoading) {
     gone.hidden = false;
@@ -2953,7 +2963,9 @@ function svUser(e, ev) {
     const bubble = svLine(e, ev.from ? "sv-user peer" : "sv-user", splitPeerHandle(text).body || "(image)");
     paintMentions(bubble);
     if (ev.cid) bubble.dataset.cid = ev.cid;
+    if (ev.uuid && !ev.from) bubble.dataset.uuid = ev.uuid;
     for (const path of ev.images || []) svUserThumb(e, bubble, path);
+    if (ev.edited) svLine(e, "sv-meta sv-edited", phrase("you edited this message · what came after it left the conversation"));
     svTrimTurns(e);
     return;
   }
@@ -3148,6 +3160,13 @@ function svEvent(e, ev) {
       paintPills(e);
       return void svLine(e, "sv-meta", phrase("continued with {agent} · {model}", { agent: providerName(ev.agent), model: ev.model }));
     }
+    if (ev.subtype === "started_fresh") {
+      e.turnOpen = false;
+      if (live) refreshContext(e);
+      return void svLine(e, "sv-meta", ev.history
+        ? phrase("started fresh — your next message carries an extract of the old conversation, and the whole of it is in {file}", { file: ev.history })
+        : phrase("started fresh"));
+    }
     if (ev.subtype === "model_changed") {
       e.model = ev.model || "";
       paintPills(e);
@@ -3217,6 +3236,18 @@ function svEvent(e, ev) {
       }
       return;
     }
+    if (ev.subtype === "rewound") {
+      if (e.conv) svConvRewind(e, ev.target);
+      return;
+    }
+    if (ev.subtype === "said_as") {
+      if (e.conv) svConvSaidAs(e, ev.was, ev.uuid);
+      return;
+    }
+    if (ev.subtype === "edit_failed") {
+      if (live && e.conv) editFailed(e, svConvBubbleOf(e, ev.target), ev.error);
+      return;
+    }
     if (ev.subtype === "replayed") return void svLine(e, "sv-meta", phrase("replayed the last {n} of {total} messages — the model remembers all of it", { n: ev.count, total: ev.total }));
     if (ev.subtype === "windowed") return void svEarlier(e, ev);
     if (ev.subtype === "warning" || ev.subtype === "error") return void svLine(e, "sv-meta warn", ev.message || ev.error || ev.subtype);
@@ -3275,7 +3306,7 @@ function svShellBlock(e, ev) {
   return el;
 }
 
-const AGENT_NAMES = { claude: "claude", codex: "codex", kimi: "kimi", kiro: "kiro", cursor: "cursor", gemini: "gemini", opencode: "opencode" };
+const AGENT_NAMES = { claude: "claude", codex: "codex", kimi: "kimi", kiro: "kiro", cursor: "cursor", gemini: "gemini", antigravity: "antigravity", opencode: "opencode" };
 
 function seatAgent(e) {
   return AGENT_NAMES[e.agent] || "claude";
@@ -4383,6 +4414,7 @@ async function runNativeCommand(e, cmd, arg) {
     svLine(e, r?.ok ? "sv-meta" : "sv-meta warn", r?.ok ? said : r?.error || phrase("failed"));
     return;
   }
+  if (cmd === "fresh") return void startFresh(e);
   if (cmd === "compact") {
     const r = await svCmd(e, { type: "control", op: "compact", focus: arg || "" });
     if (r?.ok) {
@@ -4558,4 +4590,4 @@ function svUserThumb(e, bubble, path) {
   return svConvThumb(e, bubble, path);
 }
 
-export { REVIEW_ASK, dimYardsUnderScrims, referenceLine, anchorToPill, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_SETTLE, VIDEO_STEP, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, insideFocusStroke, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, prettyModelId, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };
+export { REVIEW_ASK, dimYardsUnderScrims, referenceLine, anchorToPill, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, insideFocusStroke, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, prettyModelId, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };

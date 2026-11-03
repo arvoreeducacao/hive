@@ -1,17 +1,18 @@
 import { transferText, transferResult, transferEvent } from "./transfer-context.mjs";
+import { randomUUID } from "node:crypto";
 import { appendFile, mkdir, readFile, readdir, writeFile, rm, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { connect } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { accountRanDry, compactRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail } from "./protocol.mjs";
+import { accountRanDry, compactRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail, transcriptFileOf, transcriptEntries, forkPoint, EDIT_NO_RECORD } from "./protocol.mjs";
 import { DEFAULT_ACCOUNT } from "./accounts.mjs";
 import { accountFailover } from "./failover.mjs";
 import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault } from "./agents.mjs";
 import { ensureGateway, hubFor } from "../gateway/mcp-gateway.mjs";
 import { claudeConfigPath, readClaudeConfig, hubServers, peerServerFor, routedThroughGateway } from "./mcp-routing.mjs";
 import { readsOnly, wakesTheSeat, answerWhileAsleep } from "./seat-memory.mjs";
-import { sleepVerdict, sleepAfterMs, rebornArgs, canBeReborn, childrenGone, REBIRTH_CHILD_GRACE_MS } from "../sleep.mjs";
+import { sleepVerdict, sleepAfterMs, rebornArgs, rebornScript, canBeReborn, childrenGone, REBIRTH_CHILD_GRACE_MS } from "../sleep.mjs";
 import { idleCompactSettings, idleCompactVerdict, noteForIdleCompact, idleTagged } from "../idle-compact.mjs";
 import { stateDir, sideOf, hiveRoot, seatSockPath } from "./paths.mjs";
 import { builtinClaudePath, chosenClaude, unmountable } from "./claude-binary.mjs";
@@ -56,7 +57,7 @@ const logins = accountFailover({
   emit: (event) => emit(event),
   persist: (patch) => persistSession(patch),
   apply: ({ dir }) => sessionTakesLogin(dir),
-  redo: () => { if (lastSaid) dispatchSay(lastSaid); return !!lastSaid; },
+  redo: () => { if (lastSaid) dispatchSay(underAFreshName(lastSaid)); return !!lastSaid; },
   busy: () => gate.busy || gate.queued || pendingQuestions.size > 0,
 });
 
@@ -227,19 +228,22 @@ async function imageBlock(path) {
   }
 }
 
-async function userMessage(text, images = []) {
+async function userMessage(text, images = [], uuid = "") {
   const blocks = [];
   for (const piece of weaveImageMarks(text, images.slice(0, 8))) {
     if (piece.image !== undefined) blocks.push(await imageBlock(piece.image));
     else blocks.push({ type: "text", text: piece.text });
   }
   if (!blocks.length && text) blocks.push({ type: "text", text });
-  return { type: "user", message: { role: "user", content: blocks }, parent_tool_use_id: null };
+  const message = { type: "user", message: { role: "user", content: blocks }, parent_tool_use_id: null };
+  if (uuid) message.uuid = uuid;
+  return message;
 }
 
 const gate = sayGate();
 let lastSaid = null;
 let compactRefused = null;
+let pendingEdit = null;
 
 function dispatchSay(item) {
   if (!item) return;
@@ -252,7 +256,7 @@ function dispatchSay(item) {
     gate.left(item.cid);
     emit({ type: "driver", subtype: "dispatched", cid: item.cid });
   }
-  userMessage(item.text, item.images).then((message) => input.push(message));
+  userMessage(item.text, item.images, item.uuid).then((message) => input.push(message));
 }
 
 const SILENCE_IS_A_WEDGE_MS = 180000;
@@ -285,7 +289,7 @@ function theSessionWentMute() {
     reopenedForIt = true;
     emit({ type: "driver", subtype: "warning", message: "this seat handed a message over and the session answered nothing at all — opening a fresh one on the same conversation and saying it again" });
     retire("mute session");
-    dispatchSay(item);
+    dispatchSay(underAFreshName(item));
     return;
   }
   awaited = null;
@@ -296,13 +300,21 @@ function theSessionWentMute() {
   dispatchSay(gate.turnEnded());
 }
 
+function underAFreshName(item) {
+  if (!item?.uuid) return item;
+  const uuid = randomUUID();
+  emit({ type: "driver", subtype: "said_as", was: item.uuid, uuid });
+  return { ...item, uuid };
+}
+
 async function deliverMission() {
   if (!promptFile || !existsSync(promptFile)) return;
   const mission = (await readFile(promptFile, "utf8")).trim();
   const images = missionShots(promptFile);
   if (!mission && !images.length) return;
-  emit(sayEvent(mission, images));
-  dispatchSay(gate.push({ text: mission, images }));
+  const said = sayEvent(mission, images);
+  emit(said);
+  dispatchSay(gate.push({ text: mission, images, uuid: said.uuid }));
 }
 
 if (!resumeId) await deliverMission();
@@ -486,10 +498,11 @@ function restoreEffort() {
     .catch((e) => emit({ type: "driver", subtype: "warning", message: `could not put this seat back on ${effortLevel} effort: ${String(e?.message || e)}` }));
 }
 
-function openSession(withFreshInput = false) {
+function openSession(withFreshInput = false, pickUpAt = "") {
   if (withFreshInput) input = channel();
   const fresh = { ...options };
   if (sessionId) fresh.resume = sessionId;
+  if (fresh.resume && pickUpAt) fresh.resumeSessionAt = pickUpAt;
   if (fresh.resume && fresh.extraArgs) {
     const { "session-id": discarded, ...rest } = fresh.extraArgs;
     fresh.extraArgs = rest;
@@ -591,10 +604,11 @@ function retire(why, idleMs = Date.now() - lastActivity) {
 async function rebornAsleep() {
   await childrenGone({ pid: process.pid, graceMs: REBIRTH_CHILD_GRACE_MS });
   if (!sleeping || leaving) return;
+  const script = rebornScript(process.argv[1], { home: base, shipped: process.env.HIVE_APP_SHIPPED || "" });
   await sessionStore.flush();
   await appendChain;
   server.close();
-  process.execve(process.execPath, [process.execPath, ...rebornArgs(process.argv.slice(1), sessionId)], options.env || process.env);
+  process.execve(process.execPath, [process.execPath, ...rebornArgs(process.argv.slice(1), sessionId, script)], options.env || process.env);
 }
 
 function ensureAwake() {
@@ -674,8 +688,51 @@ async function theTurnEnded(message) {
   compactRefused = null;
   if (await logins.turnEnded(spent)) return true;
   if (endedOnApiError(message)) suspect = true;
+  if (pendingEdit && await editNow()) return true;
   dispatchSay(gate.turnEnded());
   return false;
+}
+
+const transcriptHomes = () => [...new Set([logins.dir, process.env.CLAUDE_CONFIG_DIR, join(homedir(), ".claude")].filter(Boolean))];
+
+async function editNow(reply = () => {}) {
+  const edit = pendingEdit;
+  pendingEdit = null;
+  const refuse = (error) => {
+    emit({ type: "driver", subtype: "edit_failed", target: edit.target, error });
+    reply({ ok: false, error });
+    return false;
+  };
+  const file = await transcriptFileOf(sessionId, transcriptHomes()).catch(() => "");
+  if (!file) return refuse(EDIT_NO_RECORD);
+  const point = forkPoint(await transcriptEntries(file).catch(() => []), edit.target);
+  if (!point.found) return refuse(point.error);
+  pickUpAt(point.at);
+  const said = sayEvent(edit.text, edit.images, edit.cid);
+  emit({ type: "driver", subtype: "rewound", target: edit.target });
+  emit({ ...said, edited: true });
+  dispatchSay({ text: edit.text, images: edit.images, cid: edit.cid, uuid: said.uuid });
+  reply({ ok: true, uuid: said.uuid });
+  return true;
+}
+
+function pickUpAt(point) {
+  if (!point) startAfresh();
+  const stale = input;
+  openSession(true, point);
+  stale.close();
+  effortRestored = false;
+  runConsume();
+}
+
+function startAfresh() {
+  sessionId = "";
+  resumeId = "";
+  delete options.resume;
+  if (options.extraArgs?.["session-id"]) {
+    const { "session-id": discarded, ...rest } = options.extraArgs;
+    options.extraArgs = rest;
+  }
 }
 
 async function goHomeWhenTheDoorOpens() {
@@ -712,14 +769,33 @@ function handleCommand(cmd, reply) {
       emit(sayEvent(text, images, cmd.cid, from, true));
       return reply({ ok: true, consumed: true });
     }
-    emit(sayEvent(text, images, cmd.cid, from));
+    const said = sayEvent(text, images, cmd.cid, from);
     const dropped = dismissQuestions(text);
     const goes = !dropped.length || images.length > 0;
-    const item = goes ? gate.push({ text: from ? peerSayText(from, text, cmd.side) : text, images, cid: cmd.cid || null }) : null;
+    if (!goes) delete said.uuid;
+    emit(said);
+    const item = goes ? gate.push({ text: from ? peerSayText(from, text, cmd.side) : text, images, cid: cmd.cid || null, uuid: said.uuid }) : null;
     if (item) dispatchSay(item);
     const answer = { ok: true, dismissed: dropped.length };
     if (goes) answer.queued = !item;
+    if (said.uuid) answer.uuid = said.uuid;
     return reply(answer);
+  }
+  if (cmd.type === "edit") {
+    const images = Array.isArray(cmd.images) ? cmd.images.filter((p) => typeof p === "string") : [];
+    const text = String(cmd.text || "").trim() || (images.length ? "(image)" : "");
+    if (!text) return reply({ ok: false, error: "an edited message needs text" });
+    if (!cmd.target) return reply({ ok: false, error: "edit needs the message it replaces" });
+    if (anonymous) return reply({ ok: false, error: EDIT_NO_RECORD });
+    pendingEdit = { target: String(cmd.target), text, images, cid: cmd.cid || null };
+    if (!gate.busy) {
+      gate.push(pendingEdit);
+      editNow(reply).then((went) => { if (!went) dispatchSay(gate.turnEnded()); });
+      return;
+    }
+    dismissQuestions(text);
+    session.interrupt().catch((e) => emit({ type: "driver", subtype: "interrupt_failed", error: String(e?.message || e) }));
+    return reply({ ok: true, stopping: true });
   }
   if (cmd.type === "expect") {
     const from = String(cmd.from || "").trim();
@@ -923,7 +999,7 @@ function remember(op, data) {
 
 const server = createSeatServer({ sockFile, shellEnvFile: shellEnvFileFor(base, name), handleCommand, emit, leave, store: sessionStore, flush: () => sessionStore.flush() });
 
-emit({ type: "driver", subtype: "started", name, cwd, model: chosenModel || null, account: logins.name, base, resumed: resumeId || null, pid: process.pid, asleep: bornAsleep });
+emit({ type: "driver", subtype: "started", name, cwd, model: chosenModel || null, account: logins.name, base, engine: process.argv[1], resumed: resumeId || null, pid: process.pid, asleep: bornAsleep });
 
 async function replayTranscript(id) {
   const projects = join(homedir(), ".claude", "projects");

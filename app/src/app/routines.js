@@ -157,7 +157,7 @@ async function pullRoutines() {
   if (routinesOnScreen()) paintRoutines();
 }
 
-const ROUTINE_AGENTS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "opencode"];
+const ROUTINE_AGENTS = ["claude", "codex", "kimi", "kiro", "cursor", "gemini", "antigravity", "opencode"];
 
 const FIELD = (id, label, control) => `<label class="rt-field" for="${id}"><span>${label}</span>${control}</label>`;
 

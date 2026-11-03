@@ -7,6 +7,28 @@ import { refreshContext } from "./structured-seats.js";
 
 const TRANSFER_STEP = { preparing: "2/3", starting: "3/3" };
 
+const PROVIDER_WORDS = {
+  labels: {
+    waiting: "waiting for the current turn before changing providers…",
+    preparing: "preparing the conversation for {agent}…",
+    starting: "connecting to {agent}…",
+    recovering: "restoring the previous provider…"
+  },
+  failed: "could not change providers: {error}",
+  cancel: "cancel provider change"
+};
+
+const FRESH_WORDS = {
+  labels: {
+    waiting: "waiting for the current turn before starting fresh…",
+    preparing: "saving the conversation for the fresh start…",
+    starting: "starting a new session…",
+    recovering: "restoring the previous session…"
+  },
+  failed: "could not start fresh: {error}",
+  cancel: "cancel the fresh start"
+};
+
 export function providerTransferState(e, job) {
   e.providerTransfer = job && !["done", "failed"].includes(job.phase) ? job : null;
   const composer = e.host.querySelector(".sv-composer");
@@ -19,30 +41,27 @@ export function providerTransferState(e, job) {
     composer?.before(status);
   }
   if (!status) return;
-  const labels = {
-    waiting: "waiting for the current turn before changing providers…",
-    preparing: "preparing the conversation for {agent}…",
-    starting: "connecting to {agent}…",
-    recovering: "restoring the previous provider…"
-  };
-  if (raycastOn()) return paintTransferBar(e, job, status, composer, labels);
+  const words = job?.fresh ? FRESH_WORDS : PROVIDER_WORDS;
+  const labels = words.labels;
+  if (raycastOn()) return paintTransferBar(e, job, status, composer, words);
   if (status.classList.contains("failed")) status.classList.remove("failed");
-  status.textContent = job?.phase === "failed" ? phrase("could not change providers: {error}", { error: job.error })
+  status.textContent = job?.phase === "failed" ? phrase(words.failed, { error: job.error })
     : e.providerTransfer ? phrase(labels[job.phase] || labels.preparing, { agent: providerName(job.agent) }) : "";
   status.hidden = !status.textContent;
   if (job?.phase === "waiting") {
     const cancel = document.createElement("button");
     cancel.type = "button";
-    cancel.textContent = phrase("cancel provider change");
+    cancel.textContent = phrase(words.cancel);
     cancel.addEventListener("click", () => svCmd(e, { type: "control", op: "cancelTransfer" }));
     status.appendChild(cancel);
   }
   composer?.setAttribute("aria-busy", e.providerTransfer ? "true" : "false");
 }
 
-function paintTransferBar(e, job, status, composer, labels) {
+function paintTransferBar(e, job, status, composer, words) {
+  const labels = words.labels;
   const failed = job?.phase === "failed";
-  const said = failed ? phrase("could not change providers: {error}", { error: esc(job.error || "") })
+  const said = failed ? phrase(words.failed, { error: esc(job.error || "") })
     : e.providerTransfer ? phrase(labels[job.phase] || labels.preparing, { agent: `<b>${esc(providerName(job.agent))}</b>` }) : "";
   status.hidden = !said;
   status.classList.toggle("failed", failed);
@@ -56,15 +75,15 @@ function paintTransferBar(e, job, status, composer, labels) {
   if (job.phase === "waiting") {
     const cancel = document.createElement("button");
     cancel.type = "button";
-    cancel.innerHTML = `${phrase("cancel provider change")}<span class="rc-key">esc</span>`;
+    cancel.innerHTML = `${phrase(words.cancel)}<span class="rc-key">esc</span>`;
     cancel.addEventListener("click", () => svCmd(e, { type: "control", op: "cancelTransfer" }));
     status.appendChild(cancel);
   }
-  if (failed && job.agent && job.model) {
+  if (failed && (job.fresh || (job.agent && job.model))) {
     const again = document.createElement("button");
     again.type = "button";
     again.textContent = phrase("Try again");
-    again.addEventListener("click", () => switchSeatProvider(e, job.agent, job.model));
+    again.addEventListener("click", () => job.fresh ? startFresh(e) : switchSeatProvider(e, job.agent, job.model));
     status.appendChild(again);
   }
   composer?.setAttribute("aria-busy", e.providerTransfer ? "true" : "false");
@@ -87,15 +106,17 @@ export async function watchProviderTransfer(e) {
       providerTransferState(e, job);
       if (["done", "failed"].includes(job.phase)) {
         if (!wasChanging) return;
-        const selected = job.phase === "done" ? job : job.source;
-        if (selected) { e.agent = selected.agent; e.model = selected.model; }
-        e.catalog = null;
-        e.catalogPull = null;
-        e.catalogError = "";
-        e.effort = "";
-        e.account = undefined;
-        paintPills(e);
-        await refreshCatalog(e, true);
+        if (!job.fresh) {
+          const selected = job.phase === "done" ? job : job.source;
+          if (selected) { e.agent = selected.agent; e.model = selected.model; }
+          e.catalog = null;
+          e.catalogPull = null;
+          e.catalogError = "";
+          e.effort = "";
+          e.account = undefined;
+          paintPills(e);
+          await refreshCatalog(e, true);
+        }
         refreshContext(e);
         pull();
         return;
@@ -112,6 +133,18 @@ export async function switchSeatProvider(e, agent, model) {
   const result = await svCmd(e, { type: "control", op: "switchProvider", agent, model });
   if (!result?.ok && !result?.silent) {
     providerTransferState(e, { phase: "failed", error: result.error || phrase("the session did not answer") });
+    return;
+  }
+  void watchProviderTransfer(e);
+}
+
+export async function startFresh(e) {
+  closeSeatPicker(e);
+  if (e.providerTransfer) return;
+  providerTransferState(e, { agent: e.agent, fresh: true, phase: "preparing" });
+  const result = await svCmd(e, { type: "control", op: "startFresh" });
+  if (!result?.ok && !result?.silent) {
+    providerTransferState(e, { fresh: true, phase: "failed", error: result.error || phrase("the session did not answer") });
     return;
   }
   void watchProviderTransfer(e);

@@ -66,7 +66,7 @@ test("every call the tools make carries the seat's environment, never the proces
 
 test("the stdio server and the gateway route hand out the same tool list, cut to the seat's ceiling", () => {
   const stdio = readFileSync(join(HERE, "peer", "peer-mcp.mjs"), "utf8");
-  assert.match(stdio, /import \{ ceilingOf, peerCalls, toolsFor \} from "\.\/peer-tools\.mjs"/);
+  assert.match(stdio, /import \{ HIVE_INSTRUCTIONS, ceilingOf, peerCalls, toolsFor \} from "\.\/peer-tools\.mjs"/);
   assert.match(stdio, /const calls = peerCalls\(process\.env\);/);
   assert.match(stdio, /if \(method === "tools\/list"\) return \{ tools: toolsFor\(ceilingOf\(process\.env\)\) \};/);
   const gateway = readFileSync(join(HERE, "gateway", "gateway.mjs"), "utf8");

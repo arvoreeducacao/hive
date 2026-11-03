@@ -11,6 +11,7 @@ import {
   chooseSim, createIosDriver, helperArgs, helperNameOf, iosToolsOf, keyArgs, keyOf, lastLines, parsePngSize,
   parseSimList, swipeArgs, tapArgs, untarArgs
 } from "../lib/device-ios.mjs";
+import { PICTURE_END } from "../lib/device.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const panes = readFileSync(join(here, "..", "src", "app", "chat-and-panes.js"), "utf8");
@@ -358,7 +359,7 @@ test("what the helper writes is what the pane already knows how to read", () => 
   const units = [];
   const eat = h264Units((one) => units.push(one));
   eat(new Uint8Array(Buffer.concat([sps, pps, idr])));
-  eat.rest();
+  eat(PICTURE_END);
 
   assert.deepEqual(units.map(nalTypeOf), [7, 8, 5]);
   assert.equal(codecOfSps(units[0]), "avc1.420032");
