@@ -6,6 +6,11 @@ export function replyLine(reply, cid = null) {
   return JSON.stringify({ bridge_reply: reply, cid });
 }
 
+/* revive deletes the seat's diary and the new driver counts again from 1. A tile that
+   still holds the old cursor would drop every event of the new diary as already seen,
+   and keep painting the turn the old driver died in. */
+export const DIARY_RESET = { type: "driver", subtype: "diary_reset" };
+
 export function commandRoute(cmd) {
   if (!cmd || typeof cmd.type !== "string" || !cmd.type) return null;
   return { path: "/command", body: cmd };
@@ -29,8 +34,14 @@ export function attachSeat({
   let attempt = 0;
   let waking = null;
 
+  const startOver = () => {
+    seen = 0;
+    send(JSON.stringify(DIARY_RESET));
+  };
+
   const forward = (event) => {
     if (Number.isFinite(event?.seq)) {
+      if (event.seq === 1 && seen > 1) startOver();
       if (event.seq <= seen) return;
       seen = event.seq;
     }
@@ -59,6 +70,11 @@ export function attachSeat({
       return;
     }
     attempt = 0;
+    const last = Number(held.body?.seq);
+    if (seen > 0 && Number.isFinite(last) && last < seen) {
+      startOver();
+      return catchUp();
+    }
     for (const event of held.body?.events || []) forward(event);
   }
 

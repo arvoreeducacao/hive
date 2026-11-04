@@ -712,6 +712,7 @@ export const PT_BR = {
   "it finished its turn and is waiting for you": "ele terminou o turno e está esperando você",
   "waiting for your answer": "esperando sua resposta",
   "replayed the last {n} of {total} messages — the model remembers all of it": "reprisou as últimas {n} de {total} mensagens — o modelo lembra de tudo",
+  "this chat was reopened — what follows is its new driver": "este chat foi reaberto — daqui pra baixo é o driver novo",
   "the last {n} of {total} turns": "os últimos {n} de {total} turnos",
   "see what came before": "ver o que veio antes",
   "loading…": "carregando…",

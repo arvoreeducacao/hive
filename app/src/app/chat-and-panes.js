@@ -2,7 +2,7 @@ import { startFresh, switchSeatProvider } from "./provider-transfer.js";
 import { render } from "./arrange.js";
 import { markCopied } from "./avatars.js";
 import { forgetSeat } from "./blocks.js";
-import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svTrimTurns, svTypePath } from "./chat-stretches.js";
+import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svReset, svTrimTurns, svTypePath } from "./chat-stretches.js";
 import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
 import { paintSaidChips } from "./context-chips.js";
 import { svConvBubbleOf, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvShow, svConvStream, svConvThink, svConvThumb, svConvTurnDone, svConvUnsay } from "./conversation-model.js";
@@ -18,7 +18,7 @@ import { pullThreads } from "./prs.js";
 import { expandMentions, expandPeople, seatLabel, splitPeerHandle } from "./pure-helpers.js";
 import { chatOfThread, closeFinish, finishOn, goToPr } from "./seat-menu.js";
 import { paintPageChrome, pullShelf, shelfLinkTab, shelfOnScreen, shelfPickedProposal, shelfVersionsOf } from "./shelf.js";
-import { paintActivity, refreshContext, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine } from "./structured-seats.js";
+import { paintActivity, refreshContext, refreshDriverState, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine } from "./structured-seats.js";
 import { ART_WEBVIEW, artClock, artifactIndexAt, shelfPageOf, svSubCall, svSubEcho, svSubLanded, svSubTask, svSubUnpin, svSubsOfAnEndedProcess, svToolCard, svToolResult, tookLabel } from "./subagents-dock.js";
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, closeThreadPanel, exitReview, openThreadOf, prsOnScreen, pullPrs } from "./thread.js";
@@ -3102,6 +3102,16 @@ function svEvent(e, ev) {
     return;
   }
   if (ev.type === "driver") {
+    /* the seat was reopened under the same name and its diary started over at 1: what this
+       tile painted belongs to a driver that is gone, its open turn included */
+    if (ev.subtype === "diary_reset") {
+      svReset(e);
+      e.turnOpen = false;
+      svActivity(e, "");
+      svLine(e, "sv-meta", phrase("this chat was reopened — what follows is its new driver"));
+      void refreshDriverState(e);
+      return;
+    }
     if (ev.subtype === "shell") return void svShellBlock(e, ev);
     if (ev.subtype === "turn_started") {
       if (live) { e.turnOpen = true; svActivity(e, "working"); }

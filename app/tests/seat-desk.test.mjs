@@ -143,3 +143,56 @@ test("a driver that starts over under an open pane hears again that somebody is 
   assert.deepEqual(presence(), [["meu-assento", true], ["meu-assento", true]]);
   held.stop();
 });
+
+test("a tile holding the cursor of a diary that was deleted starts over on the new one", async () => {
+  const sessions = fakeSessions();
+  sessions.history = (name, from) => {
+    sessions.asked.push(["history", name, from]);
+    return from > 0 ? { events: [], seq: 3 } : { events: [{ seq: 1, type: "system" }, { seq: 2, type: "assistant" }, { seq: 3, type: "result" }], seq: 3 };
+  };
+  const desk = createDesk(sessions);
+  const sent = [];
+
+  const seat = attachSeat({ client: desk.client, stream: desk.stream, name: "meu-assento", from: 180694, send: (line) => sent.push(line) });
+  for (let round = 0; round < 40 && sent.length < 4; round += 1) await wait(10);
+
+  const got = sent.map((line) => JSON.parse(line));
+  assert.deepEqual(got[0], { type: "driver", subtype: "diary_reset" }, "the tile was not told its picture belongs to a driver that is gone");
+  assert.deepEqual(got.slice(1).map((event) => event.seq), [1, 2, 3], "the new diary's events were dropped as already seen");
+  assert.deepEqual(sessions.asked.filter(([what]) => what === "history").map(([, , from]) => from), [180694, 0]);
+
+  desk.deliver("meu-assento", { seq: 4, type: "assistant" });
+  assert.equal(JSON.parse(sent.at(-1)).seq, 4);
+  seat.stop();
+});
+
+test("a diary that starts over while the tile is open is followed from its first event", async () => {
+  const sessions = fakeSessions({ history: { events: [{ seq: 41, type: "result" }], seq: 41 } });
+  const desk = createDesk(sessions);
+  const sent = [];
+
+  const seat = attachSeat({ client: desk.client, stream: desk.stream, name: "meu-assento", from: 40, send: (line) => sent.push(line) });
+  for (let round = 0; round < 40 && !sent.length; round += 1) await wait(10);
+
+  desk.deliver("meu-assento", { seq: 1, type: "system", subtype: "init" });
+  desk.deliver("meu-assento", { seq: 2, type: "assistant" });
+
+  const got = sent.map((line) => JSON.parse(line));
+  assert.deepEqual(got.map((event) => event.subtype === "diary_reset" ? "reset" : event.seq), [41, "reset", 1, 2]);
+  seat.stop();
+});
+
+test("an event the tile already has does not look like a diary starting over", async () => {
+  const sessions = fakeSessions({ history: { events: [{ seq: 1, type: "system" }, { seq: 2, type: "result" }], seq: 2 } });
+  const desk = createDesk(sessions);
+  const sent = [];
+
+  const seat = attachSeat({ client: desk.client, stream: desk.stream, name: "meu-assento", from: 0, send: (line) => sent.push(line) });
+  for (let round = 0; round < 40 && sent.length < 2; round += 1) await wait(10);
+
+  desk.deliver("meu-assento", { seq: 2, type: "result" });
+  desk.deliver("meu-assento", { seq: 3, type: "assistant" });
+
+  assert.deepEqual(sent.map((line) => JSON.parse(line).seq), [1, 2, 3]);
+  seat.stop();
+});
