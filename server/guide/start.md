@@ -15,7 +15,7 @@ The Hive is a desktop app that runs many AI coding chats side by side. Each chat
 
 The app does not carry everything. Check these before the first run:
 
-- **Node.js** on the machine. The app starts its server with the `node` it finds. It looks on the PATH of your login shell, then in the mise, asdf, nvm and volta install folders (on Windows: `where node`, `NVM_SYMLINK`, `NVM_HOME`, `Program Files\nodejs`). The release builds are made and tested with Node 22. The path it found is saved in `node.json` in the app's own folder (see "The app's own folder").
+- **Node.js** on the machine. The app starts its server with the `node` it finds. It looks on the PATH of your login shell, then in the mise, asdf, nvm and Volta install folders. On Windows it reads no shell profile: it looks on the PATH that Windows keeps for the machine and the user, then in `NVM_SYMLINK`, `Program Files\nodejs`, and the version folders of fnm, mise, Volta, Scoop and nvm-windows. The folder of the `node` it found joins the PATH of the server and of every chat, so `node` and `npm` work in the chats too. The release builds are made and tested with Node 22. The path it found is saved in `node.json` in the app's own folder (see "The app's own folder").
 - **git** and the **GitHub CLI** (`gh`), signed in with `gh auth login`. The app uses `gh` for updates, the PR panel, reviews and merges.
 - **tmux** on macOS and Linux. Every local seat lives in a tmux window. Windows needs no tmux.
 - **Git for Windows** on Windows. Every shell script the app runs on Windows goes through its `bash.exe`. Set `HIVE_BASH` to a `bash.exe` path to choose another one.
@@ -62,7 +62,7 @@ An app run this way updates by `git pull --ff-only origin main` in the checkout,
 
 When the app opens, the boot screen shows three steps: "looking for node", "starting server" and "connecting to the pod". It then loads the main window.
 
-- "could not find node": install Node.js, or make it visible on your login shell PATH, then open the app again. The error box lists the PATH it used.
+- "could not find node": install Node.js, or make it visible on your login shell PATH, then open the app again. On Windows, the official installer from nodejs.org is the surest way. The error box lists the PATH it used.
 - "the server did not start" or "The server did not answer": the error box shows the last lines the server printed. The server has 12 seconds to answer.
 - If the server is killed from outside (a signal, or a clean exit), the app starts it again, up to 3 times in a row. A `pkill -f "node server.mjs"` run in a seat also kills the Hive's own server. Stop a dev server by its port instead.
 - If another Hive already answers on the same socket, the second one leaves.

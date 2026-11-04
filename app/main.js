@@ -1,6 +1,6 @@
 const { app, BrowserWindow, Menu, desktopCapturer, Notification, nativeImage, dialog, powerMonitor, screen, session, shell, ipcMain, systemPreferences, webContents, WebContentsView } = require("electron");
 const { spawn, execFile } = require("node:child_process");
-const { readFileSync, writeFileSync, existsSync, readdirSync, accessSync, constants } = require("node:fs");
+const { readFileSync, writeFileSync, existsSync, accessSync, constants } = require("node:fs");
 const { join } = require("node:path");
 const { homedir } = require("node:os");
 const boot = require("./main/boot.js");
@@ -12,6 +12,7 @@ const { linkOf, deliverLink, LINK_WAIT } = require("./main/deeplink.js");
 const passkey = require("./main/passkey.js");
 const zoom = require("./main/zoom.js");
 const { watchAway } = require("./main/away.js");
+const nodeLookup = require("./main/node-lookup.js");
 
 delete process.env.ARGV0;
 
@@ -146,7 +147,7 @@ async function inShell(flags, command, timeout = 20000) {
 }
 
 async function loginShellPath() {
-  if (IS_WINDOWS) return "";
+  if (IS_WINDOWS) return nodeLookup.windowsSavedPath();
   return (await inShell("-ilc", 'printf %s "$PATH"')) || (await inShell("-lc", 'printf %s "$PATH"'));
 }
 
@@ -155,30 +156,6 @@ async function loginShellGithubToken() {
   const asked = 'printf %s "${GH_TOKEN:-$GITHUB_TOKEN}"';
   const said = (await shellSaid("-ilc", asked)) || (await shellSaid("-lc", asked));
   return /^[A-Za-z0-9_]{20,255}$/.test(said) ? said : "";
-}
-
-async function versionManagerNodes() {
-  const roots = [
-    join(HOME, ".local/share/mise/installs/node"),
-    join(HOME, ".asdf/installs/nodejs"),
-    join(HOME, ".nvm/versions/node")
-  ];
-  const found = [];
-  for (const root of roots) {
-    try {
-      const versions = readdirSync(root).sort().reverse();
-      const numbered = versions.filter((v) => /^\d/.test(v));
-      for (const v of [...numbered, ...versions.filter((v) => !/^\d/.test(v))]) found.push(join(root, v, "bin", "node"));
-    } catch {}
-  }
-  if (IS_WINDOWS) {
-    for (const root of [process.env.NVM_SYMLINK, process.env.NVM_HOME, process.env.ProgramFiles && join(process.env.ProgramFiles, "nodejs")]) {
-      if (root) found.push(join(root, "node.exe"));
-    }
-    return found;
-  }
-  found.push(join(HOME, ".volta/bin/node"), "/opt/homebrew/bin/node", "/usr/local/bin/node");
-  return found;
 }
 
 function nodeFile() {
@@ -268,7 +245,7 @@ async function findNode() {
     await onPath("node"),
     await inShell("-ilc", "command -v node"),
     await inShell("-lc", "command -v node"),
-    ...(await versionManagerNodes())
+    ...nodeLookup.versionManagerNodes({ home: HOME })
   ];
   for (const t of tries) {
     if (t && runnable(t)) { saveNode(t); return t; }
@@ -382,9 +359,10 @@ async function startServer() {
 async function bootServer() {
   const node = await findNode();
   if (!node) {
-    dialog.showErrorBox("Hive", `Could not find node.\n\nLooked in the login shell PATH and in the mise, asdf, nvm and volta shims.\n\nPATH used:\n${path}`);
+    dialog.showErrorBox("Hive", nodeLookup.nodeMissingMessage(path));
     return false;
   }
+  path = nodeLookup.withNodeDir(path, node);
 
   setBootStep({ type: "step", step: "server" });
   jsRoot = jsRootNow();
@@ -1068,7 +1046,7 @@ app.whenReady().then(async () => {
 
   try {
     const [shellPath, shellGithubToken] = await Promise.all([loginShellPath(), loginShellGithubToken()]);
-    path = (shellPath || CANDIDATES.join(PATH_SEP)) + PATH_SEP + CANDIDATES.join(PATH_SEP);
+    path = nodeLookup.uniquePath([shellPath, CANDIDATES.join(PATH_SEP)]);
     githubToken = shellGithubToken;
     if (!(await startServer())) return setBootStep({ type: "failed" });
 
