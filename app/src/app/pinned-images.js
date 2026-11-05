@@ -41,7 +41,7 @@ function markIntoBox(box, mark) {
 function imageTray(tray, box, origin) {
   const marks = new Map();
   let seq = 0;
-  const paint = () => tray.classList.toggle("on", !!tray.querySelector(".att"));
+  const paint = () => tray.classList.toggle("on", !!tray.querySelector(".att, .sv-paste-peek:not([hidden])"));
   const changed = () => box.dispatchEvent(new Event("input"));
   const stamp = (path, n) => {
     const chip = document.createElement("div");

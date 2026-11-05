@@ -103,7 +103,7 @@ test("a draft key resolves through the block like a job does, and vanishes with 
 });
 
 test("tidy keeps a draft key only while the draft exists", () => {
-  const kept = slice(blocks, `} else if (c.startsWith("draft:")) {`, `} else if ((!alive.has(c)`);
+  const kept = slice(blocks, `} else if (c.startsWith("draft:")) {`, `} else if (leftForGood(c, alive)`);
   assert.match(kept, /drafts\.has\(c\.slice\(6\)\)/);
 });
 

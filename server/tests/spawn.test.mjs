@@ -122,6 +122,35 @@ test("the account stays behind when the seat runs on the server, because the ser
   assert.equal("account" in app.seen[0].body, false);
 });
 
+test("a seat can be told how hard to think, and the hive is told the level", async (t) => {
+  const base = await hive();
+  const app = await fakeApp(base);
+  t.after(async () => { await app.close(); await rm(base, { recursive: true, force: true }); });
+
+  await openSeat({ mission: "revisa o PR", agent: "codex", model: "gpt-6-luna", effort: " High ", env: envOf(base) });
+  assert.equal(app.seen[0].body.effort, "high");
+  assert.equal(app.seen[0].body.model, "gpt-6-luna");
+});
+
+test("no effort is no effort: the seat keeps its provider's default", async (t) => {
+  const base = await hive();
+  const app = await fakeApp(base);
+  t.after(async () => { await app.close(); await rm(base, { recursive: true, force: true }); });
+
+  await openSeat({ mission: "revisa o PR", agent: "codex", env: envOf(base) });
+  assert.equal("effort" in app.seen[0].body, false);
+});
+
+test("an effort that is not one word is refused before the hive sees it", async (t) => {
+  const base = await hive();
+  const app = await fakeApp(base);
+  t.after(async () => { await app.close(); await rm(base, { recursive: true, force: true }); });
+
+  const said = await openSeat({ mission: "revisa o PR", effort: "high; rm -rf ~", env: envOf(base) });
+  assert.match(said.error, /one word/);
+  assert.equal(app.seen.length, 0);
+});
+
 test("a chat program the hive does not talk to opens nothing, and says which ones it does", async (t) => {
   const base = await hive();
   const app = await fakeApp(base);

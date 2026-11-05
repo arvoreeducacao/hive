@@ -26,11 +26,20 @@ export function noteErrand(home, { seat, errand, asked = "", at = 0, race = 0, b
   if (parent && (!SEAT.test(parent) || parent === name)) return { error: "the chat that opened it is another seat, by name" };
   const all = readErrands(home);
   const of = Math.floor(Number(race?.of ?? race) || 0);
-  all[name] = { errand: label, asked: oneLine(asked, 400), at: at || 0, endedAt: 0, prs: [], ...(of > 1 ? { race: of } : {}), ...(parent ? { by: parent } : {}) };
+  all[name] = { errand: label, asked: oneLine(asked, 400), at: at || 0, endedAt: 0, prs: [], ...(of > 1 ? { race: of } : {}), ...(parent ? { by: parent, told: -1 } : {}) };
   try {
     mkdirSync(dirname(errandsFile(home)), { recursive: true });
     writeFileSync(errandsFile(home), `${JSON.stringify(all, null, 2)}\n`);
   } catch (wrong) { return { error: String(wrong?.message || wrong) }; }
+  return { errands: all };
+}
+
+export function markTold(home, seat, told) {
+  const name = String(seat || "").trim().toLowerCase();
+  const all = readErrands(home);
+  if (!all[name] || !Number.isFinite(told)) return { error: "no errand to mark" };
+  all[name] = { ...all[name], told };
+  try { writeFileSync(errandsFile(home), `${JSON.stringify(all, null, 2)}\n`); } catch (wrong) { return { error: String(wrong?.message || wrong) }; }
   return { errands: all };
 }
 

@@ -1223,6 +1223,24 @@
   .sv-user .sv-said-clip:not(.open) { max-height: 11rem; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent); }
   .sv-user .sv-said-more { display: block; margin: 6px 0 0 -4px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: var(--txt-3); font: inherit; font-size: 12px; line-height: 16px; white-space: nowrap; cursor: pointer; }
   .sv-user .sv-said-more:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 8%, transparent); }
+  .sv-user .sv-said-part + .sv-said-part, .sv-user .sv-paste + .sv-said-part, .sv-user .sv-said-part + .sv-paste, .sv-user .sv-paste + .sv-paste { margin-top: 7px; }
+  .sv-user .sv-paste { white-space: normal; border: 1px solid var(--mine-line); border-radius: 8px; background: color-mix(in srgb, var(--panel) 55%, transparent); }
+  .sv-user .sv-paste > summary { display: flex; align-items: center; gap: 6px; padding: 4px 9px; list-style: none; cursor: pointer; user-select: none; color: var(--txt-2); font-size: 12.5px; }
+  .sv-user .sv-paste > summary::-webkit-details-marker { display: none; }
+  .sv-user .sv-paste > summary::after { content: "▸"; margin-left: auto; color: var(--txt-3); font-size: 10px; }
+  .sv-user .sv-paste[open] > summary::after { content: "▾"; }
+  .sv-user .sv-paste > summary:hover { color: var(--txt); }
+  .sv-user .sv-paste > summary svg { width: 11px; height: 11px; flex: none; color: var(--txt-3); }
+  .sv-user .sv-paste > summary .pn { color: var(--txt-3); }
+  .sv-user .sv-paste-body { margin: 0; padding: 7px 9px 8px; max-height: 320px; overflow: auto; border-top: 1px solid var(--mine-line); white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.45 var(--mono, ui-monospace, monospace); color: var(--txt); user-select: text; }
+  .sv-paste-peek { order: -1; flex: 1 0 100%; min-width: 0; display: grid; margin: 0; border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); overflow: hidden; }
+  .sv-paste-peek[hidden] { display: none; }
+  .sv-paste-peek .pp-head { display: flex; align-items: center; gap: 6px; padding: 4px 9px; border: 0; background: none; color: var(--txt-2); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+  .sv-paste-peek .pp-head:hover { color: var(--txt); }
+  .sv-paste-peek .pp-head svg { width: 11px; height: 11px; flex: none; color: var(--txt-3); }
+  .sv-paste-peek .pp-head .pn { color: var(--txt-3); }
+  .sv-paste-peek .pp-head .pc { margin-left: auto; color: var(--txt-3); font-size: 10px; }
+  .sv-paste-peek .pp-body { max-height: min(40vh, 260px); min-height: 60px; margin: 0; padding: 7px 9px; border: 0; border-top: 1px solid var(--line-2); outline: none; background: none; color: var(--txt); font: 12px/1.45 var(--mono, ui-monospace, monospace); white-space: pre-wrap; overflow-wrap: anywhere; overflow: auto; }
   .sv-user .said-list { margin: 2px 0; padding-left: 1.4em; white-space: normal; }
   .sv-user .said-list > li { white-space: pre-wrap; padding-left: 2px; }
   .sv-edit { align-self: flex-end; width: min(80%, 560px); display: grid; gap: 8px; }

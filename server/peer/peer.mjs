@@ -727,8 +727,9 @@ export async function closeSeat({ seat = null, env = process.env, ask = askTheAp
 }
 
 const SEAT_NAME = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const EFFORT_WORD = /^[a-z][a-z0-9_-]{0,15}$/;
 
-export async function openSeat({ mission, name = "", title = "", errand = "", where = "", repo = "", model = "", agent = "", account = "", count = 1, ceiling = "", env = process.env, ask = askTheApp, pay = null } = {}) {
+export async function openSeat({ mission, name = "", title = "", errand = "", where = "", repo = "", model = "", effort = "", agent = "", account = "", count = 1, ceiling = "", env = process.env, ask = askTheApp, pay = null } = {}) {
   const self = await me(env);
   const asked = String(mission || "").trim();
   if (!asked) return { error: "a seat with no mission has nothing to do — say what it should get done" };
@@ -737,6 +738,8 @@ export async function openSeat({ mission, name = "", title = "", errand = "", wh
   const side = where === "cloud" || where === "local" ? where : (self.side || "local");
   const runs = String(agent || "").trim().toLowerCase();
   if (runs && !PROVIDER_IDS.includes(runs)) return { error: `the hive talks to ${PROVIDER_IDS.join(", ")} — "${runs}" is none of them` };
+  const thinks = String(effort || "").trim().toLowerCase();
+  if (thinks && !EFFORT_WORD.test(thinks)) return { error: "an effort is one word the model offers, like low, medium, high, xhigh or max" };
   const door = hiveDoor(self.base);
   if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open to open a seat" };
 
@@ -753,6 +756,7 @@ export async function openSeat({ mission, name = "", title = "", errand = "", wh
     ...(ceiling ? { ceiling } : {}),
     structured: self.name ? self.structured : true,
     ...(runs ? { agent: runs } : {}),
+    ...(thinks ? { effort: thinks } : {}),
     ...(side === "local" && account ? { account: String(account).trim() } : {})
   });
   if (!born.ok) return { error: born.error || "the hive would not open the seat" };

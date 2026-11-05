@@ -239,6 +239,46 @@ test("a chat the person closes leaves its place at once, without waiting the min
   assert.deepEqual(keysOf(), [["a", "c"]]);
 });
 
+const closedByTheServer = (alive, shut) => {
+  live(alive);
+  st.data.shut = shut;
+};
+
+test("a chat that closed itself leaves its place at once, like one the person closed", () => {
+  lay([{ keys: ["a", "b", "c"] }]);
+  live(["a", "b", "c"]);
+  tidy();
+  closedByTheServer(["a", "c"], ["b"]);
+  tidy();
+  assert.deepEqual(keysOf(), [["a", "c"]]);
+});
+
+test("the tab left with only chats that closed themselves goes at once, not a minute later as a tab with no name", () => {
+  lay([{ keys: ["a", "b", "c"], manual: true }, { keys: ["d", "e", "f"], manual: true }]);
+  live(["a", "b", "c", "d", "e", "f"]);
+  tidy();
+  closedByTheServer(["a", "b", "c", "d"], ["e", "f"]);
+  moveSeatToBlock("d", 0);
+  assert.deepEqual(keysOf(), [["a", "b", "c", "d"]]);
+});
+
+test("a chat closed on purpose and opened again under the same name keeps its place", () => {
+  lay([{ keys: ["a", "b"] }]);
+  closedByTheServer(["a", "b"], ["b"]);
+  tidy();
+  assert.deepEqual(keysOf(), [["a", "b"]]);
+});
+
+test("a hidden chat that closed itself leaves the hidden list at once", () => {
+  lay([{ keys: ["a"] }]);
+  live(["a", "b"]);
+  hidden.set("b", { armed: true });
+  tidy();
+  closedByTheServer(["a"], ["b"]);
+  tidy();
+  assert.ok(!hidden.has("b"), "a chat that closed itself stayed in the hidden list for the minute of grace");
+});
+
 test("a hidden chat missing for a moment stays hidden", () => {
   lay([{ keys: ["a"] }]);
   live(["a", "b"]);

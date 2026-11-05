@@ -45,8 +45,12 @@ export function readSessionMeta(text) {
   }
 }
 
-const AMBIENT_EVENTS = new Set(["stream_event", "system", "rate_limit_event", "memory"]);
-const TURNLESS_DRIVER_NOTES = new Set(["provider_changed", "started_fresh", "shell", "started", "presence", "mcp_gateway", "mcp_peer", "mcp_routed"]);
+const AMBIENT_EVENTS = new Set(["stream_event", "system", "rate_limit_event", "memory", "command_lifecycle"]);
+const TURNLESS_DRIVER_NOTES = new Set([
+  "provider_changed", "started_fresh", "shell", "started", "presence", "mcp_gateway", "mcp_peer", "mcp_routed",
+  "claude_binary", "woke", "warning", "model_changed", "effort_changed", "mode_changed", "title_changed",
+  "edit_failed", "interrupt_failed", "stale_interrupt_dropped", "unsaid", "windowed", "diary_reset"
+]);
 const RECONNECT_TIMEOUT = 20000;
 
 export const marksTurn = (event) => !AMBIENT_EVENTS.has(event.type) && !(event.type === "driver" && TURNLESS_DRIVER_NOTES.has(event.subtype));

@@ -39,6 +39,8 @@ body.experience-next .sv-user a.ctx-chip { color: color-mix(in oklab, var(--cc) 
 /* the box is a textarea with this layer drawn under it: padding or border here would shift the caret. */
 .sv-ink .ink-chip { --cc: var(--cc-path); color: color-mix(in oklab, var(--cc) 30%, var(--tx-fg, var(--txt))); background: color-mix(in oklab, var(--cc) 14%, transparent); border-radius: 4px; box-shadow: 0 0 0 1px color-mix(in oklab, var(--cc) 34%, transparent); }
 .sv-ink .ink-image { --cc: var(--cc-image); }
+.sv-ink .ink-paste { --cc: var(--cc-pr-draft); }
+.sv-ink .ink-paste.open { --cc: var(--cc-path); }
 .sv-ink .ink-chat { --cc: var(--cc-chat); }
 .sv-ink .ink-person { --cc: var(--cc-person); }
 .sv-ink .ink-pr-unknown { --cc: var(--cc-pr); }

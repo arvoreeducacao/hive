@@ -32,7 +32,8 @@ import { WEBP_DATA_URL, addComment, keepProposalThumb, labelError, proposalCommi
 import { pictureFromStore, proposalFromStore } from "./lib/screenbook-store.mjs";
 import { withPinShim } from "./lib/shelf-pins.mjs";
 import { rebuildWhenStale } from "./lib/fresh-bundle.mjs";
-import { byErrand, closedErrands, errandOf, forgetOldKin, goneKin, keepErrands, markSeen, noteErrand, readErrands, readSeen, renameErrand, withErrands, zonesOf } from "./lib/errands.mjs";
+import { byErrand, closedErrands, errandOf, forgetOldKin, goneKin, keepErrands, markSeen, markTold, noteErrand, readErrands, readSeen, renameErrand, withErrands, zonesOf } from "./lib/errands.mjs";
+import { OPENER_TICK_MS, childrenWaited, openerNotice, someoneWaits, talkOfTail } from "./lib/opener-notice.mjs";
 import { seatsOfStatus, takeoverMessages } from "./lib/canopy-watch.mjs";
 import { assertSpawnArgs } from "./lib/spawn-args.mjs";
 import { freeNameAmong, nameFromMission, namerCommand, namesThatLived, pastHandles, slug } from "./lib/naming.mjs";
@@ -1058,6 +1059,14 @@ function rememberStructuredModel(name, info) {
 }
 
 const structuredLive = new Map();
+const structuredTalk = new Map();
+const toldNow = new Set();
+
+function rememberStructuredTalk(key, info) {
+  if (!info) return;
+  if (info.talk) structuredTalk.set(key, info.talk);
+  delete info.talk;
+}
 
 function rememberStructuredLive(name, info) {
   if (!info) return;
@@ -1140,7 +1149,7 @@ function structuredModelOf(sessionJson) {
   } catch { return ""; }
 }
 
-async function readStructuredEvents(name) {
+async function readStructuredEvents(name, withTalk = false) {
   const file = join(HIVE_HOME, "events", `${name}.ndjson`);
   const [head, tail, session] = await Promise.all([
     headOfFile(file),
@@ -1148,6 +1157,7 @@ async function readStructuredEvents(name) {
     readFile(join(HIVE_HOME, "sessions", `${name}.json`), "utf8").catch(() => "")
   ]);
   const info = parseStructuredTail(head + "\n" + tail);
+  if (info && withTalk) info.talk = talkOfTail(tail);
   if (info && !info.model) info.model = structuredModelOf(session);
   if (info) info.title = structuredTitleOf(session);
   if (info) info.dirs = structuredDirsOf(session);
@@ -1432,6 +1442,7 @@ async function collect() {
   const local = windows.filter((w) => !w.dead);
   const missions = new Map();
   const statuses = new Map();
+  const waited = childrenWaited(readErrands(HIVE_HOME));
 
   const sessions = await Promise.all(local.map(async ({ name, account }) => {
     const [screen, st, mission] = await Promise.all([localScreen(name), localStatus(name), localMission(name)]);
@@ -1439,9 +1450,10 @@ async function collect() {
     statuses.set(seatKey("local", name), st);
     const seen = readScreen(screen, seatRecord("local", name)?.agent || "claude");
     const structured = structuredSeat("local", name) || existsSync(join(HIVE_HOME, "events", `${name}.ndjson`));
-    const structuredInfo = structured ? await readStructuredEvents(name) : null;
+    const structuredInfo = structured ? await readStructuredEvents(name, waited.has(name)) : null;
     rememberStructuredModel(name, structuredInfo);
     rememberStructuredLive(name, structuredInfo);
+    rememberStructuredTalk(seatKey("local", name), structuredInfo);
     rememberStructuredAccount(name, "local", structuredInfo);
     rememberStructuredSession(name, "local", structuredInfo);
     return build(name, "local", seen.lines, st, mission, seen.links, account, seen.running, structured, structuredInfo);
@@ -1451,10 +1463,12 @@ async function collect() {
     statuses.set(seatKey("cloud", name), d.status);
     const seen = readScreen(d.screen, seatRecord("cloud", name)?.agent || "claude");
     const structuredInfo = parseStructuredTail(d.driver);
+    if (structuredInfo && waited.has(name)) structuredInfo.talk = talkOfTail(d.driver);
     if (structuredInfo && !structuredInfo.model) structuredInfo.model = structuredModelOf(d.session);
     if (structuredInfo) structuredInfo.title = structuredTitleOf(d.session);
     rememberStructuredModel(name, structuredInfo);
     rememberStructuredLive(name, structuredInfo);
+    rememberStructuredTalk(seatKey("cloud", name), structuredInfo);
     rememberStructuredSession(name, "cloud", structuredInfo);
     sessions.push(build(name, "cloud", seen.lines, d.status, d.mission, seen.links, "", seen.running, structuredSeat("cloud", name) || !!structuredInfo, structuredInfo));
   }
@@ -1470,6 +1484,7 @@ async function collect() {
   const errands = keepErrands(HIVE_HOME, sessions, {
     prsOf: (name) => (sessions.find((s) => s.name === name)?.prs || [])
   }).errands;
+  tellOpeners(sessions, errands);
   const titled = extensions.title(withErrands(sessions, errands), {
     missionOf: (s) => missions.get(seatKey(s.where, s.name)) || "",
     statusOf: (s) => statuses.get(seatKey(s.where, s.name)) || ""
@@ -1490,6 +1505,7 @@ async function collect() {
     spawning: [...spawning.values()].map((j) => ({ id: j.id, name: j.name, where: j.where, step: j.step, mission: j.mission, error: j.error, model: j.model, repo: j.repo, by: j.by || "", at: j.at, naming: !!j.titleLater, settled: !!j.settled })),
     worktrees: worktreeBrief(),
     archived: archivedBrief(),
+    shut: shutBrief(),
     configAt: configStamp(),
     thumbs: shelfThumbs.next(),
     drafts: readDrafts(HIVE_HOME),
@@ -4418,6 +4434,19 @@ function saveArchivedSeats() {
 
 const closingSeats = new Set();
 
+const SHUT_KEPT = 120000;
+const shutSeats = new Map();
+
+function noteShutSeat(where, name) {
+  shutSeats.set(seatKey(where, name), { name, at: Date.now() });
+}
+
+function shutBrief() {
+  const now = Date.now();
+  for (const [key, one] of shutSeats) if (now - one.at > SHUT_KEPT) shutSeats.delete(key);
+  return [...new Set([...shutSeats.values()].map((one) => one.name))];
+}
+
 /* the DELETE used to be fire-and-forget: a pod that refused, timed out or was down
    still counted as closed, the tile came back on the next wall, and the fleet tick
    could even restore the seat mid-close. The answer travels back now, and the seat
@@ -4960,6 +4989,36 @@ async function deliverAnswer(seat, id, answers) {
   return reply && reply.ok ? { ok: true } : { ok: false, error: (reply && reply.error) || "the seat did not take the answer" };
 }
 
+function tellOpeners(sessions, errands) {
+  for (const seat of sessions) {
+    const record = errands[seat.name];
+    if (!record?.by || !seat.structured) continue;
+    const notice = openerNotice({ seat: seat.name, record, state: seat.state, finish: seat.finish, talk: structuredTalk.get(seatKey(seat.where, seat.name)) });
+    if (!notice) continue;
+    const once = `${seat.name}:${notice.told}`;
+    if (toldNow.has(once)) continue;
+    toldNow.add(once);
+    markTold(HIVE_HOME, seat.name, notice.told);
+    const opener = sessions.find((one) => one.name === notice.opener);
+    if (!notice.text || !opener) continue;
+    deliverNotice(opener, seat.name, notice.text)
+      .then((sent) => { if (!sent.ok) console.log(`hive: telling ${opener.name} that ${seat.name} finished failed: ${sent.error}`); })
+      .catch((wrong) => console.log(`hive: telling ${opener.name} that ${seat.name} finished failed: ${String(wrong?.message || wrong)}`));
+  }
+}
+
+async function deliverNotice(opener, from, text) {
+  const cmd = { type: "say", text, from };
+  if (opener.structured && opener.where === "cloud") return podCmd(opener.name, cmd);
+  if (opener.structured) {
+    if (!bridge) return { ok: false, error: "no bridge here to type with" };
+    const reply = await bridge.oneshot(join(HIVE_HOME, "sock", opener.name + ".sock"), cmd);
+    return reply && reply.ok ? { ok: true } : { ok: false, error: (reply && reply.error) || "the seat did not take it" };
+  }
+  await typeText(opener.name, opener.where, `[hive] from ${from}: ${text.replace(/\s+/g, " ").trim()}`, true);
+  return { ok: true };
+}
+
 async function deliverSay(seat, from, text, spoken = "") {
   const { sessions } = await collect();
   const found = sessions.find((x) => x.name === seat);
@@ -5191,6 +5250,7 @@ function rememberSeat(seat) {
   }
   fleet.set(seatKey(seat.where, seat.name), { openedAt: Date.now(), ...seat });
   newborn.delete(seatKey(seat.where, seat.name));
+  shutSeats.delete(seatKey(seat.where, seat.name));
   saveFleet();
 }
 
@@ -5201,6 +5261,7 @@ function forgetSeat(where, name) {
     eraseAnonymousSeat(anon).catch(() => {});
   }
   if (fleet.delete(seatKey(where, name))) saveFleet();
+  noteShutSeat(where, name);
   closingSeats.delete(seatKey(where, name));
 }
 
@@ -5224,6 +5285,7 @@ function applyPrune(prune) {
   for (const { seat, why } of prune) {
     fleet.delete(seatKey(seat.where, seat.name));
     archivedSeats.set(seatKey(seat.where, seat.name), archiveEntry(seat, at, why));
+    noteShutSeat(seat.where, seat.name);
     console.log(`fleet: ${seat.where} seat ${seat.name} went to the archive — ${why}`);
   }
   saveFleet();
@@ -7408,6 +7470,7 @@ setInterval(() => { drainOutHere().catch(() => {}); }, 2000);
 setInterval(() => { collectAnswers().catch(() => {}); }, 5000);
 fleetTick().catch(() => {});
 setInterval(() => { fleetTick().catch(() => {}); }, 20000);
+setInterval(() => { if (someoneWaits(readErrands(HIVE_HOME))) collect().catch(() => {}); }, OPENER_TICK_MS);
 setInterval(() => { routines.tick().catch(() => {}); }, 30000);
 setInterval(() => { meetingRoutes.sweep().catch(() => {}); }, 10000).unref();
 if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET) setInterval(() => { closeQuietSeats().catch(() => {}); }, QUIET_SWEEP_EVERY_MS);

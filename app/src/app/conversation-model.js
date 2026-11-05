@@ -11,6 +11,7 @@ import { saveEdit } from "./edit-message.js";
 import { resultText, shotOfInput, shotsOfSaid, shotsOfTool, withoutImageNotes } from "./session-images.js";
 import { fillSaid } from "/assets/said-lists.mjs";
 import { paintSaidCommand, splitLeadingQuotes, svQuoteCard, workSummary } from "./structured-seats.js";
+import { fillWithPastes, hasPasted } from "./pasted-text.js";
 import { AGENT_TOOL, ASYNC_LAUNCH, DIFF_HUNK, IMAGE_NOTE_ONLY, SUB_LOG_MAX, SUB_STALE, diffLines, openArtifact, paintSubs, svArtLanded, svSubAsync, svSubPin, svSubUnpin, tookLabel } from "./subagents-dock.js";
 import { SKILL_TOOL, artifactLink, oneLine, toolArg, toolFace, toolTitle, trimBody } from "./tool-face.js";
 
@@ -276,14 +277,15 @@ function svConvLine(e, cls, text) {
   if (!/(^|\s)sv-user(\s|$)/.test(cls)) return svConvPush(e, { key: svConvKey(e), kind: "meta", cls, text });
   const hold = document.createElement("div");
   const split = splitLeadingQuotes(text);
+  const said = (el, words) => (hasPasted(words) ? fillWithPastes(el, words, (part, piece) => paintSaidChips(fillSaid(part, piece, paintSaidCommand))) : paintSaidChips(fillSaid(el, words, paintSaidCommand)));
   if (!split) {
-    paintSaidChips(fillSaid(hold, text, paintSaidCommand));
+    said(hold, text);
   } else {
-    for (const said of split.quotes) hold.appendChild(svQuoteCard(said));
+    for (const quoted of split.quotes) hold.appendChild(svQuoteCard(quoted));
     if (split.rest) {
       const body = document.createElement("div");
       body.className = "sv-said-body";
-      paintSaidChips(fillSaid(body, split.rest, paintSaidCommand));
+      said(body, split.rest);
       hold.appendChild(body);
     }
   }
