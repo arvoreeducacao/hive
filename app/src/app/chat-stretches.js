@@ -12,6 +12,7 @@ import { releaseKeyboard } from "./focus-navigation.js";
 import { receiving, tiles } from "./leader-key.js";
 import { draftFromElsewhere, draftKept, keepDraft, keepDraftNow } from "./kept-drafts.js";
 import { IMAGE_MARK_RE, imageTray, inlineImageList, outboundImageMarks } from "./pinned-images.js";
+import { foldPastes, insertMark, isLongPaste, outboundPastes, pasteAt, pasteLines, pasteMark, pastePeek, pasteSpots, pasteStore } from "./pasted-text.js";
 import { shellLineOf, shellModeOf, splitPeerHandle } from "./pure-helpers.js";
 import { commandTray } from "./said-command.js";
 import { continueList, listMarks } from "/assets/said-lists.mjs";
@@ -24,7 +25,7 @@ import { HiveSocket, RETRY_AFTER, dropTerminal } from "./terminal-history.js";
 function quoteTray(tray, onChange) {
   const held = [];
   const paint = () => {
-    tray.classList.toggle("on", !!tray.querySelector(".att"));
+    tray.classList.toggle("on", !!tray.querySelector(".att, .sv-paste-peek:not([hidden])"));
     onChange();
   };
   return {
@@ -115,7 +116,7 @@ function loadingChips(tray, files) {
   tray.classList.add("on");
   return () => {
     for (const chip of chips) chip.remove();
-    tray.classList.toggle("on", !!tray.querySelector(".att"));
+    tray.classList.toggle("on", !!tray.querySelector(".att, .sv-paste-peek:not([hidden])"));
   };
 }
 
@@ -500,7 +501,8 @@ function getStructured(s) {
     composer.dataset.shellMode = shellMode === "quiet" ? phrase("!! for shell mode · not kept in the chat") : shellMode ? phrase("! for shell mode") : "";
     const name = e.command?.name() || "";
     const spot = name ? commandSpot(said, name) : null;
-    drawInk(composer, ink, textarea, [...(shellMode ? [{ start: 0, end: shellMode === "quiet" ? 2 : 1, cls: "ink-shell" }] : []), ...(spot ? [{ ...spot, cls: "ink-cmd" }] : []), ...listInkMarks(said)]);
+    const pasted = pasteSpots(said).filter((one) => e.pastes?.get(one.n) !== undefined).map((one) => ({ ...one, cls: `ink-chip ink-paste${e.peek?.open() === one.n ? " open" : ""}` }));
+    drawInk(composer, ink, textarea, [...(shellMode ? [{ start: 0, end: shellMode === "quiet" ? 2 : 1, cls: "ink-shell" }] : []), ...(spot ? [{ ...spot, cls: "ink-cmd" }] : []), ...pasted, ...listInkMarks(said)]);
   };
   /* typing a command by hand pins it, and editing that word away — backspace, paste, undo — gives
      it up, without any of those paths having to know the command exists. */
@@ -514,6 +516,24 @@ function getStructured(s) {
     e.command.set(found[0]?.name || "");
   };
   e.tray = imageTray(host.querySelector(".sv-attach"), textarea, () => ({ where: e.where, name: e.name }));
+  e.pastes = pasteStore(() => e.name);
+  e.peek = pastePeek(host.querySelector(".sv-composer"), textarea, e.pastes, () => paintInk());
+  /* a paste too long to read in the box becomes one mark in it; the words go out whole on enter. */
+  const foldIntoBox = (text) => foldPastes(text, (words) => pasteMark(e.pastes.add(words), words));
+  textarea.addEventListener("paste", (pev) => {
+    const data = pev.clipboardData;
+    if (!data || [...(data.items || [])].some((one) => one.type.startsWith("image/"))) return;
+    const words = data.getData("text/plain");
+    if (!isLongPaste(words)) return;
+    pev.preventDefault();
+    insertMark(textarea, pasteMark(e.pastes.add(words), words));
+    textarea.dispatchEvent(new Event("input"));
+  });
+  textarea.addEventListener("click", () => {
+    if (textarea.selectionStart !== textarea.selectionEnd) return;
+    const spot = pasteAt(textarea.value, textarea.selectionStart ?? 0);
+    if (spot) e.peek.show(spot.n);
+  });
   const paintReady = () => paintComposerReady(host, !!textarea.value.trim() || !!e.tray.count() || !!e.quotes?.count() || !!e.command?.count());
   e.quotes = quoteTray(host.querySelector(".sv-attach"), paintReady);
   e.command = commandTray(() => { paintReady(); paintInk(); });
@@ -532,14 +552,14 @@ function getStructured(s) {
     if (shellLine) {
       rememberSent(e, text);
       runShellInChat(e, shellLine);
-      if (fromDraft) { textarea.value = ""; e.tray.clear(); e.command.clear(); paintReady(); paintInk(); autosize(); keepDraftNow(e.name, ""); }
+      if (fromDraft) { textarea.value = ""; e.tray.clear(); e.pastes.clear(); e.peek.close(false); e.command.clear(); paintReady(); paintInk(); autosize(); keepDraftNow(e.name, ""); }
       return;
     }
     /* a mirrored seat has no socket into it: what is typed here travels as a file to the other
        machine, and the panel that owns the seat is the one that types it in. the bubble is painted
        on the spot because the answer comes back on the next read of the file, seconds later. */
     if (e.mirror) {
-      if (fromDraft) { e.tray.clear(); e.quotes.clear(); e.command.clear(); paintComposerReady(host, false); }
+      if (fromDraft) { e.tray.clear(); e.pastes.clear(); e.peek.close(false); e.quotes.clear(); e.command.clear(); paintComposerReady(host, false); }
       const said = sending.length ? inlineImageList(text, sending) : text;
       if (!said) return;
       rememberSent(e, said);
@@ -554,7 +574,7 @@ function getStructured(s) {
       runNativeCommand(e, native[1], native[2]);
       /* the command the app answers itself is spent too: leaving it pinned would keep its mark
          painted over an empty box, and the next enter would ask for it again. */
-      if (fromDraft) { textarea.value = ""; e.command.clear(); paintReady(); paintInk(); autosize(); keepDraftNow(e.name, ""); }
+      if (fromDraft) { textarea.value = ""; e.pastes.clear(); e.peek.close(false); e.command.clear(); paintReady(); paintInk(); autosize(); keepDraftNow(e.name, ""); }
       return;
     }
     svCmd(e, sending.length ? { type: "say", text, images: sending } : { type: "say", text }).then((r) => {
@@ -564,6 +584,8 @@ function getStructured(s) {
       if (!r?.ok) return void svLine(e, "sv-meta warn", r?.error || phrase("the message did not reach this chat — it is still in the box"));
       if (fromDraft) {
         e.tray.clear();
+        e.pastes.clear();
+        e.peek.close(false);
         e.quotes.clear();
         e.command.clear();
         paintComposerReady(e.host, false);
@@ -592,7 +614,7 @@ function getStructured(s) {
         item.querySelector(".qmarks").innerHTML =
           (sending.length ? `<svg aria-hidden="true"><use href="#i-image"/></svg><b>${sending.length}</b>` : "")
           + (pinned.length ? `<svg aria-hidden="true"><use href="#i-quote"/></svg><b>${pinned.length}</b>` : "");
-        item.querySelector(".qtxt").textContent = splitPeerHandle(shown).body;
+        item.querySelector(".qtxt").textContent = foldPastes(splitPeerHandle(shown).body, (words) => `[Pasted text +${pasteLines(words)} lines]`);
         paintSaidCommand(item.querySelector(".qtxt"));
         item.querySelector(".qnow").addEventListener("click", () => sendNow(item));
         item.querySelector(".qdrop").addEventListener("click", () => takeBack(item));
@@ -647,7 +669,8 @@ function getStructured(s) {
         e.tray.restore(path, fresh);
         return `[Image #${fresh}]`;
       });
-      if (back) textarea.value = textarea.value.trim() ? `${textarea.value}\n${back}` : back;
+      const folded = foldIntoBox(back);
+      if (folded) textarea.value = textarea.value.trim() ? `${textarea.value}\n${folded}` : folded;
       keepDraft(e.name, textarea.value);
       for (const path of imgs.filter((_, i) => !kept.has(i))) svAttachImage(e, path);
       for (const one of quoted) e.quotes.add(one.said, one.kind);
@@ -661,6 +684,7 @@ function getStructured(s) {
   const say = (cutIn = false) => {
     const out = outboundImageMarks(textarea.value.trim(), e.tray.marks);
     const woven = weaveHandles(out.text, st.data.sessions, e.name);
+    if (!woven.error) woven.text = outboundPastes(woven.text, e.pastes.held);
     /* a handle the box cannot resolve used to swallow the whole message: enter pressed, nothing
        sent, nothing said. the box keeps the words and the reason goes into the conversation. */
     if (woven.error) return void svLine(e, "sv-meta warn", woven.error);
@@ -692,6 +716,15 @@ function getStructured(s) {
     light(block && scroll.contains(block) ? svRunTail(block) : null);
   });
   scroll.addEventListener("mouseleave", () => light(null));
+  /* the folded paste in the chat closes on esc too, once its head has been clicked. */
+  scroll.addEventListener("keydown", (kev) => {
+    const card = kev.key === "Escape" && kev.target.closest?.("details.sv-paste[open]");
+    if (!card) return;
+    kev.preventDefault();
+    kev.stopPropagation();
+    card.open = false;
+    card.querySelector("summary")?.focus();
+  });
   const quotePop = document.createElement("button");
   quotePop.type = "button";
   quotePop.className = "sv-quote-pop";
@@ -777,6 +810,7 @@ function getStructured(s) {
   });
 
   const recall = (text) => {
+    text = foldIntoBox(text);
     textarea.value = text;
     textarea.setSelectionRange(text.length, text.length);
     keepDraft(e.name, text);
@@ -804,6 +838,16 @@ function getStructured(s) {
         return;
       }
     }
+    if (kev.key === "Backspace" && !kev.metaKey && !kev.ctrlKey && !kev.altKey && !kev.shiftKey && textarea.selectionStart === textarea.selectionEnd) {
+      const at = textarea.selectionStart ?? 0;
+      const spot = pasteSpots(textarea.value).find((one) => at > one.start && at <= one.end);
+      if (spot) {
+        kev.preventDefault();
+        textarea.setSelectionRange(spot.start, spot.end);
+        return;
+      }
+    }
+    if (kev.key === "Escape" && e.peek.open() !== null) { kev.preventDefault(); e.peek.close(); return; }
     if (menu.key(kev)) return;
     if (kev.key === "Enter" && kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && e.queuedEls?.length) {
       kev.preventDefault();

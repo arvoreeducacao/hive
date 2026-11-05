@@ -171,13 +171,14 @@ These are tools of the `hive` MCP server. A seat is named whole or by an unambig
 
 How the answer hold works: while an `ask` waits, the asking chat holds the target's next message. The tool collects it within 30 seconds. If nobody collects it, it goes into the chat as a normal message.
 
-## Opening chats from a chat: spawn, births, errand, ceiling
+## Opening chats from a chat: spawn, births, errand, ceiling, finish notice
 
-The `spawn` tool opens a chat with a mission. The new chat starts cold, so the mission must stand on its own. Its fields are `mission` (required), `name`, `title`, `errand`, `where` (`local` or `cloud`, default the caller's side), `repo` (for cloud chats), `model`, `agent`, `account` (local only), `ceiling` and `count`. Without `agent`, the child runs on the caller's provider.
+The `spawn` tool opens a chat with a mission. The new chat starts cold, so the mission must stand on its own. Its fields are `mission` (required), `name`, `title`, `errand`, `where` (`local` or `cloud`, default the caller's side), `repo` (for cloud chats), `model`, `effort`, `agent`, `account` (local only), `ceiling` and `count`. Without `agent`, the child runs on the caller's provider. `effort` is one word the model offers (`low`, `medium`, `high`, `xhigh`, `max`). Claude, Codex and Kimi take it at birth, and the others ignore it (on Antigravity the level is part of the model id). Without it, the child uses its provider's default.
 
 - **Births**: a chat opens at most 3 chats per round. The budget comes back with the person's next message. A chat opened by a chat can open its own the same way. When it is spent: "this chat has opened 3 of 3 chats this round, and nothing was opened now".
 - **Errand**: the person's request in their words, the same line on every chat opened for it. Without one, the child takes the errand of the chat that opened it. Errands live in `~/.hive/errands.json`, with the opener in `by`.
 - **Ceiling**: what the child may do through the Hive's tools. `read` only looks (peers, peek, guide, screenshots). `operate` also messages, asks, browses and closes. `full` also spawns and publishes. The child gets the caller's ceiling or a narrower one, never a wider one. Ceilings live in `~/.hive/ceilings.json` (default `full`). A blocked tool says `this chat runs with a "read" ceiling, and spawn needs "full"`.
+- **Finish notice**: the opener is owed an answer after the mission and after each message it sends the child. When a native child ends a turn that is owed, the app sends the child's last reply to the opener as a message from the child: "(the hive, for <child>: it finished the turn you were waiting on and sent you nothing itself, so here is its last reply)". A pending `ask` takes it as the answer. The notice waits 3 seconds after the turn ends, and it waits while the child is working or has a question open for the person. If the child already used `message` to the opener, the turn is marked told and nothing is sent. Turns the person starts by typing in the child do not ping the opener. The reply is cut at 12,000 characters. The last turn told is kept as `told` in `~/.hive/errands.json`. A terminal (TUI) child sends no notice. The app checks every 5 seconds while a chat opened by a chat is still open, with or without the window on screen, so the app must be running.
 
 ## Compaction and the context window
 
@@ -322,6 +323,7 @@ To watch a chat's events live, run `tail -f ~/.hive/events/<name>.ndjson`.
 - `app/lib/quiet-seats.mjs`
 - `app/lib/diary-prune.mjs`
 - `app/lib/turn-checkpoints.mjs`
+- `app/lib/opener-notice.mjs`
 - `app/lib/fleet.mjs`
 - `app/lib/race.mjs`
 - `app/lib/errands.mjs`

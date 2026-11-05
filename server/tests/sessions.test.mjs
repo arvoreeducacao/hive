@@ -1,15 +1,16 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import { appendFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { WebSocket } from "ws";
 
 import { createBroker, doorOf, listenOn } from "../server.mjs";
 import { createBrokerClient, attachStream } from "../client.mjs";
-import { createSessions, driverArgs, glanceAt, seatsToReconnect, stateOfSeat } from "../sessions.mjs";
+import { createSessions, driverArgs, glanceAt, marksTurn, seatsToReconnect, stateOfSeat } from "../sessions.mjs";
 import { fleetOf } from "../fleet.mjs";
 import { newIdentity } from "../identity.mjs";
 import { seatSockPath } from "../engine/paths.mjs";
@@ -25,7 +26,6 @@ test("a session's state comes off its last event, not a guess", () => {
   assert.equal(stateOfSeat({ alive: true, lastEvent: { type: "driver", subtype: "todo" } }), "working", "a checklist another agent published is not a chat waiting on the person");
   assert.equal(stateOfSeat({ alive: true, lastEvent: { type: "assistant" } }), "working");
   assert.equal(stateOfSeat({ alive: true, lastEvent: { type: "driver", subtype: "slept" } }), "idle");
-  assert.equal(stateOfSeat({ alive: true, lastEvent: { type: "driver", subtype: "woke" } }), "working");
 });
 
 test("a hook, a command list refresh or a rate limit note after the result does not wake an idle seat", () => {
@@ -595,4 +595,82 @@ test("a chat that fell asleep stays idle through the notes its driver writes on 
   const glanced = glanceAt(chunk);
   assert.equal(glanced.seq, 16);
   assert.equal(stateOfSeat({ alive: true, lastEvent: glanced.last }), "idle");
+});
+
+test("a chat reopened by an app restart stays idle through the notes its driver writes while it boots", () => {
+  const chunk = [
+    { type: "result", is_error: false, seq: 20 },
+    { type: "driver", subtype: "presence", watched: false, seq: 21 },
+    { type: "driver", subtype: "mcp_gateway", ok: true, seq: 22 },
+    { type: "driver", subtype: "mcp_peer", via: "gateway", seq: 23 },
+    { type: "driver", subtype: "claude_binary", path: "/usr/local/bin/claude", from: "machine", seq: 24 },
+    { type: "driver", subtype: "started", name: "um", seq: 25 },
+    { type: "driver", subtype: "warning", message: "the bundle may be replaced", seq: 26 },
+    { type: "system", subtype: "hook_response", seq: 27 },
+    { type: "system", subtype: "session_title_changed", seq: 28 },
+    { type: "driver", subtype: "presence", watched: true, seq: 29 }
+  ].map((e) => JSON.stringify(e)).join("\n");
+  const glanced = glanceAt(chunk);
+  assert.equal(glanced.seq, 29);
+  assert.equal(stateOfSeat({ alive: true, lastEvent: glanced.last }), "idle");
+});
+
+test("changing an idle chat's model, effort, mode or title leaves it idle, on any agent", () => {
+  const settled = [
+    { type: "result", is_error: false, seq: 30 },
+    { type: "driver", subtype: "slept", reason: "idle", seq: 31 },
+    { type: "driver", subtype: "woke", slept_ms: 1000, seq: 32 },
+    { type: "driver", subtype: "model_changed", model: "sonnet", seq: 33 },
+    { type: "driver", subtype: "effort_changed", effort: "high", seq: 34 },
+    { type: "driver", subtype: "mode_changed", mode: "plan", seq: 35 },
+    { type: "driver", subtype: "title_changed", title: "um", seq: 36 },
+    { type: "driver", subtype: "stale_interrupt_dropped", waited_ms: 9000, seq: 37 }
+  ];
+  const idle = glanceAt(settled.map((e) => JSON.stringify(e)).join("\n"));
+  assert.equal(stateOfSeat({ alive: true, lastEvent: idle.last }), "idle");
+  const asked = [...settled, { type: "driver", subtype: "dispatched", cid: "c1", seq: 38 }, { type: "driver", subtype: "warning", message: "slow", seq: 39 }];
+  const busy = glanceAt(asked.map((e) => JSON.stringify(e)).join("\n"));
+  assert.equal(stateOfSeat({ alive: true, lastEvent: busy.last }), "working", "a message that went in still opens the turn");
+});
+
+test("the sdk closing a queued message after the result does not reopen the turn", () => {
+  const chunk = [
+    { type: "driver", subtype: "dispatched", cid: "c1", seq: 40 },
+    { type: "command_lifecycle", command_uuid: "u1", state: "queued", seq: 41 },
+    { type: "command_lifecycle", command_uuid: "u1", state: "started", seq: 42 },
+    { type: "assistant", seq: 43 },
+    { type: "result", is_error: false, seq: 44 },
+    { type: "command_lifecycle", command_uuid: "u1", state: "completed", seq: 45 }
+  ].map((e) => JSON.stringify(e)).join("\n");
+  const glanced = glanceAt(chunk);
+  assert.equal(glanced.seq, 45);
+  assert.equal(stateOfSeat({ alive: true, lastEvent: glanced.last }), "idle");
+});
+
+const NOTES_THAT_MARK_A_TURN = new Set([
+  "turn_started", "dispatched", "said_now", "said_as", "rewound", "replayed", "todo", "compact_asked",
+  "question", "question_answered", "question_dismissed", "question_failed", "plan", "plan_approved", "plan_dismissed",
+  "interrupted", "error", "exit", "slept",
+  "account_changed", "account_took_over", "account_came_home", "account_handoff_stopped", "every_account_spent",
+  "login_reread", "resume_planned", "resumed_after_limit"
+]);
+
+function sourcesUnder(dir) {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name === "node_modules" || entry.name === "tests") return [];
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) return sourcesUnder(path);
+    return /\.(mjs|js)$/.test(entry.name) ? [path] : [];
+  });
+}
+
+test("every note a driver writes is told apart as turn or no turn, so a new one cannot paint a chat as working", () => {
+  const roots = [fileURLToPath(new URL("..", import.meta.url)), fileURLToPath(new URL("../../app/lib", import.meta.url))];
+  const notes = new Set();
+  for (const file of roots.flatMap(sourcesUnder)) {
+    for (const [, subtype] of readFileSync(file, "utf8").matchAll(/type:\s*"driver",\s*subtype:\s*"([a-z_]+)"/g)) notes.add(subtype);
+  }
+  assert.ok(notes.has("claude_binary") && notes.has("dispatched"), "the scan reaches the drivers");
+  const unsorted = [...notes].filter((subtype) => marksTurn({ type: "driver", subtype }) && !NOTES_THAT_MARK_A_TURN.has(subtype));
+  assert.deepEqual(unsorted, [], "put each one in TURNLESS_DRIVER_NOTES in sessions.mjs, or here when it really opens or closes a turn");
 });

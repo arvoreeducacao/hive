@@ -65,6 +65,10 @@ function seatGrace() {
 
 const awayBriefly = seatGrace();
 
+const closedOnPurpose = (key) => (st.data.shut || []).includes(key);
+
+const leftForGood = (key, alive) => !alive.has(key) && (closedOnPurpose(key) || !awayBriefly(key, alive));
+
 function readHidden() {
   try {
     const raw = JSON.parse(localStorage.getItem("hive.hidden") || "{}");
@@ -114,7 +118,7 @@ function wakeHidden() {
   for (const [key, one] of hidden) {
     const s = alive.get(key);
     if (!s) {
-      if (awayBriefly(key, alive)) continue;
+      if (!closedOnPurpose(key) && awayBriefly(key, alive)) continue;
       hidden.delete(key);
       changed = true;
       continue;
@@ -363,7 +367,7 @@ function tidy() {
   settleSpaces();
   const alive = new Set(st.data.sessions.map((s) => s.name));
   let shed = false;
-  for (const key of [...detached]) if (!alive.has(key) && !awayBriefly(key, alive)) { detached.delete(key); shed = true; }
+  for (const key of [...detached]) if (leftForGood(key, alive)) { detached.delete(key); shed = true; }
   if (shed) saveDetached();
   wakeHidden();
   const jobs = new Map((st.data.spawning || []).map((j) => [j.id, j]));
@@ -392,7 +396,7 @@ function tidy() {
         if (!editors.has(c.slice(5))) continue;
       } else if (c.startsWith("draft:")) {
         if (!drafts.has(c.slice(6))) continue;
-      } else if ((!alive.has(c) && !awayBriefly(c, alive)) || detached.has(c) || hidden.has(c)) continue;
+      } else if (leftForGood(c, alive) || detached.has(c) || hidden.has(c)) continue;
       if (seen.has(key)) continue;
       seen.add(key);
       kept.push(key);

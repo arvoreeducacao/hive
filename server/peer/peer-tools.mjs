@@ -255,7 +255,7 @@ export const PEER_TOOLS = [
   },
   {
     name: "spawn",
-    description: "Open another chat in the hive and hand it a mission. Use it to split work you cannot do in one place — a second front, a long investigation, a repo you are not in. The new seat starts cold: it has none of your context, so write the mission as you would to a person joining today. You can open 3 chats per round, and the budget comes back with the person's next message, and a chat opened by another chat can open its own the same way. Each one costs a worktree and a model, so open what the work needs and no more.",
+    description: "Open another chat in the hive and hand it a mission. Use it to split work you cannot do in one place — a second front, a long investigation, a repo you are not in. The new seat starts cold: it has none of your context, so write the mission as you would to a person joining today. You can open 3 chats per round, and the budget comes back with the person's next message, and a chat opened by another chat can open its own the same way. Each one costs a worktree and a model, so open what the work needs and no more. When a native chat you opened finishes a turn you are waiting on — the mission, or a message you sent it — its last reply comes to you as a message from it, unless it already messaged you itself. So end your turn instead of polling or peeking.",
     inputSchema: {
       type: "object",
       properties: {
@@ -267,6 +267,7 @@ export const PEER_TOOLS = [
         repo: { type: "string", description: "optional repo the seat should start in" },
         model: { type: "string", description: "which model it runs on — the id the person's agent knows, like opus or sonnet. Leave it out for the one that seat would pick by itself" },
         agent: { type: "string", description: "which chat program runs it — claude, codex, kimi, kiro, cursor, gemini, antigravity or opencode. Leave it out to open it on the same one you are on. Only what the person has a login for opens; anything else comes back refused" },
+        effort: { type: "string", description: "how hard it thinks — a level the model offers, like low, medium, high, xhigh or max. Claude, Codex and Kimi take it at birth and the others ignore it (on Antigravity the level is part of the model id). Leave it out for the provider's own default" },
         account: { type: "string", description: "which login of that program to use, when the person has more than one. Only for a seat on this machine: on the server the account is the server's" },
         ceiling: { type: "string", enum: ["read", "operate", "full"], description: "how much the new chat may do through these tools: read only looks, operate also messages, browses and asks, full also opens chats and publishes. It can only be the same as yours or narrower — leave it out to give it yours" },
         count: { type: "integer", minimum: 1, maximum: 3, description: "open the SAME mission in 2 to 3 chats at once — a race: each works in its own worktree, the person compares the results and keeps one. Only when the person asked for a race, or when the task is small and the approaches genuinely differ; each extra chat costs a model. Default 1" },
@@ -651,13 +652,13 @@ function rawCalls(env) {
       const asked = Math.min(BIRTHS_MAX, Math.max(1, Math.floor(Number(args.count) || 1)));
       const born = await openSeat({
         mission: args.mission, name: args.name || "", title: args.title || "", errand: args.errand || "",
-        where: args.where || "", repo: args.repo || "", model: args.model || "", agent: args.agent || "", account: args.account || "",
+        where: args.where || "", repo: args.repo || "", model: args.model || "", effort: args.effort || "", agent: args.agent || "", account: args.account || "",
         count: args.count || 1, ceiling: args.ceiling || "", pay: (self) => spendBirths(self, asked), env
       });
       if (born.error) return failure(born.error);
       if (born.race) return text(`opening a race of ${born.race} chats on ${born.where}: ${born.names.map((one) => `"${one}"`).join(", ")}. Each got the same mission and its place in the race, and each works in a worktree of its own. When they are done, the person compares the PRs in the day view and keeps one — the rest go to the archive.`);
       const called = born.name ? `"${born.name}"` : "a name it is still picking";
-      return text(`opening a seat with ${called} on ${born.where}. It boots in a few seconds — call peers to see it, then message or ask it like any other chat.\n\nIt starts with nothing but the mission you wrote. If it comes back confused, that is the mission, not the seat.`);
+      return text(`opening a seat with ${called} on ${born.where}. It boots in a few seconds — call peers to see it, then message or ask it like any other chat. Its last reply comes to you as a message when it finishes the mission, so end your turn rather than wait on it.\n\nIt starts with nothing but the mission you wrote. If it comes back confused, that is the mission, not the seat.`);
     },
 
     async close(args) {

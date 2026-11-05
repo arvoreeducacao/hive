@@ -784,7 +784,7 @@ function raycastTab(b, i, at) {
   const n = blockNumber(i);
   const hint = blockKey(n);
   return {
-    key: `b${i}`, i, n, hint, at: 3 + at, name: labelOf(b, items).txt || "unnamed",
+    key: `b${i}`, i, n, hint, at: 3 + at, name: labelOf(b, items).txt || phrase("unnamed"),
     calls: items.some((x) => x.state === "needs"), pressed: i === st.block ? "true" : "false",
     title: [blockTitle(b, items) || phrase("unnamed"), hint].join(" · ")
   };
@@ -819,7 +819,7 @@ function defaultBlocks() {
       const r = labelOf(b, items);
       const n = blockNumber(i);
       return [{
-        key: `b${i}`, i, n, name: r.txt || "unnamed", tally: `${items.length}/${st.LIMIT}`,
+        key: `b${i}`, i, n, name: r.txt || phrase("unnamed"), tally: `${items.length}/${st.LIMIT}`,
         calls: items.some((x) => x.state === "needs"), pressed: i === st.block ? "true" : "false",
         title: `block ${n}: ${r.txt}`
       }];
