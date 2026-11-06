@@ -656,6 +656,18 @@ let teamRailSolid = null;
 
 const CREW_FOLDED = 5;
 
+const TEAM_OPEN_KEY = "hive.teamOpen";
+
+st.teamOpen = true;
+
+try { st.teamOpen = localStorage.getItem(TEAM_OPEN_KEY) !== "0"; } catch {}
+
+function setTeamOpen(on) {
+  st.teamOpen = !!on;
+  try { localStorage.setItem(TEAM_OPEN_KEY, st.teamOpen ? "1" : "0"); } catch {}
+  paintTeamRail();
+}
+
 function teamHits(devs, q, nameOf) {
   return devs.flatMap((d) => {
     const who = nameOf(d);
@@ -712,7 +724,7 @@ function raycastTeamRailViewModel() {
     again: phrase("try again")
   } : null;
   return {
-    key: "team", raycast: true, groups, hits, trouble,
+    key: "team", raycast: true, groups, hits, trouble, open: st.teamOpen || !!q,
     shown: !!trouble || (q ? hits.length > 0 : everyone.length > 0),
     label: phrase("team"),
     tally: q ? String(hits.length) : trouble && !everyone.length ? "—" : phrase("{n} of {m}", { n: everyone.filter((d) => d.seats.length).length, m: everyone.length }),
@@ -755,6 +767,7 @@ solidMounts.push((hive) => {
     actions: {
       go: (key) => goToTeam(key),
       again: () => pullTeam(true),
+      fold: () => setTeamOpen(!st.teamOpen),
       menu: (dev, ev) => {
         if (!st.team.poke) return;
         ev.preventDefault();

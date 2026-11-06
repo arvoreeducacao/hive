@@ -1596,6 +1596,15 @@ async function kiroMcpLogin(name, mcpServer, job) {
   if (job.state === "running") { job.state = "failed"; job.error = "the login did not finish in five minutes"; }
 }
 
+function loginEnv(engine, account) {
+  const env = { ...process.env, AWS_PROFILE, TERM: "xterm-256color" };
+  if (engine !== "claude") return env;
+  const dir = accountDir(HIVE_HOME, "claude", account);
+  if (dir) env.CLAUDE_CONFIG_DIR = dir;
+  else delete env.CLAUDE_CONFIG_DIR;
+  return env;
+}
+
 function startMcpLogin(name, mcpServer, where = "local") {
   const key = `${name}|${mcpServer}`;
   const running = mcpLogins.get(key);
@@ -1611,10 +1620,12 @@ function startMcpLogin(name, mcpServer, where = "local") {
     {
       let cwd = HUB;
       let engine = "claude";
+      let account = "";
       try {
         const meta = JSON.parse(await readFile(join(HIVE_HOME, "sessions", `${name}.json`), "utf8"));
         if (meta.cwd && existsSync(meta.cwd)) cwd = meta.cwd;
         if (OTHER_AGENTS.has(meta.agent)) engine = meta.agent;
+        account = meta.account || "";
       } catch {}
       if (engine === "kiro") {
         await kiroMcpLogin(name, mcpServer, job);
@@ -1650,7 +1661,7 @@ function startMcpLogin(name, mcpServer, where = "local") {
         cols: 400,
         rows: 50,
         cwd,
-        env: { ...process.env, AWS_PROFILE, TERM: "xterm-256color" }
+        env: loginEnv(engine, account)
       });
     }
     job.child = child;
