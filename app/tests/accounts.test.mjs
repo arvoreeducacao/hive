@@ -44,6 +44,7 @@ test("the list opens with the account you already use, and each one is asked on 
   assert.deepEqual(asked, ["", join(accountsDir(home), "second")]);
   assert.equal(list[0].email, "one@x");
   assert.equal(list[1].loggedIn, true);
+  assert.equal(list[0].tier, "ultra", "the CLI still says max, but the plan is called Ultra now");
 });
 
 test("an account nobody could ask is not called signed out", async () => {

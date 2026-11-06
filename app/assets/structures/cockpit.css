@@ -13,7 +13,7 @@ body.experience-raycast[data-structure="cockpit"] #foot,
 body.experience-raycast[data-structure="cockpit"] #which,
 body.experience-raycast[data-structure="cockpit"] #canvas { display: none; }
 body.experience-raycast[data-structure="cockpit"] #shell { grid-template-columns: minmax(0, 1fr); }
-body.experience-raycast[data-structure="cockpit"] #stage { grid-template-rows: minmax(0, 1fr) auto auto; }
+body.experience-raycast[data-structure="cockpit"] #stage { grid-template-rows: minmax(0, 1fr); }
 
 body.experience-raycast[data-structure="cockpit"] #structure-root.ck { display: grid; grid-template-rows: minmax(0, 1fr) 24px; min-height: 0; overflow: hidden; background: var(--bg); font-family: var(--mono); font-size: 12px; line-height: 18px; letter-spacing: .01em; color: var(--txt-2); }
 body.experience-raycast[data-structure="cockpit"] .ck svg { width: 12px; height: 12px; flex: none; }

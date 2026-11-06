@@ -171,7 +171,7 @@ test("escape drops the cursor, and nothing is taken while typing in a field", ()
   assert.ok(root.querySelector(".em-card.picked"));
   assert.equal(press({ key: "Escape", code: "Escape" }).defaultPrevented, true);
   assert.equal(root.querySelector(".em-card.picked"), null);
-  const box = $("cmp-in");
+  const box = $("in-machine");
   box.focus();
   assert.equal(press({ key: "ArrowDown", code: "ArrowDown", ...mod }).defaultPrevented, false);
   box.blur();

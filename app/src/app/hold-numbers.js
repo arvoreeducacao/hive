@@ -3,7 +3,7 @@ import { welcomeKeys } from "./avatars.js";
 import { activeItems, blocksOf } from "./blocks.js";
 import { codeOf, hasMod, isLeader, keyLabel, modsMatch, silenced, whichAction } from "./brand-face.js";
 import { closeBrowser, closeCockpit, closeDevice, closeEveryPicker, structuredCtrlC } from "./chat-and-panes.js";
-import { attachFilesToSeat, loadingChips, seatReceiving } from "./chat-stretches.js";
+import { attachFilesToSeat, seatReceiving } from "./chat-stretches.js";
 import { ROOM_KEYS } from "./composer-head.js";
 import { $, CHAT_SCROLLS, DIGIT_ACTIONS, FOCUS_MOVES, IS_MAC, MOVE_DIRS, experienceNext, isImageName, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { closeDay, dayOnScreen } from "./day.js";
@@ -23,7 +23,7 @@ import { panelKeys } from "./panel-window.js";
 import { closeShot, openShot, shotOnScreen, stepShotZoom, toggleShotZoom } from "./picture-preview.js";
 import { closeConfirm, closePortaria, closeWorkspace, portariaOnScreen, wsOnScreen } from "./pod.js";
 import { roomTakesKey } from "./pure-helpers.js";
-import { answerWithDigit, growComposer, stepQuestionCard } from "./seat-layout.js";
+import { answerWithDigit, stepQuestionCard } from "./seat-layout.js";
 import { closeFinish, closePrPop, closeSeatMenu, finishOn, prPopOpen, seatMenuOn } from "./seat-menu.js";
 import { aloneOn, setAlone } from "./canvas-alone.js";
 import { closeShelf, shelfBack, shelfOnScreen, shelfWideOn, toggleShelfWide } from "./shelf.js";
@@ -525,26 +525,6 @@ function readFile(file) {
   }).then((data) => (typeof data === "string" ? shrinkShot(data) : data));
 }
 
-async function attachToMission(files) {
-  const undo = loadingChips($("cmp-attach"), files);
-  const res = await fetch("/api/attach", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ files })
-  });
-  const d = await res.json();
-  undo();
-  if (!d.ok) return;
-  const t = $("cmp-in");
-  for (const path of d.paths) {
-    if (isImageName(path)) { st.cmpTray.add(path); continue; }
-    const at = t.selectionStart ?? t.value.length;
-    const sep = at > 0 && !/\s$/.test(t.value.slice(0, at)) ? "\n" : "";
-    t.setRangeText(`${sep}${path}\n`, at, t.selectionEnd ?? at, "end");
-  }
-  growComposer();
-  t.focus();
-}
-
 async function sendFiles(target, files, marked) {
   const done = marked ? () => {} : seatReceiving(target, files);
   const res = await fetch("/api/screenshot", {
@@ -595,12 +575,6 @@ document.addEventListener("paste", async (e) => {
     .filter(Boolean);
   if (!files.length) return;
 
-  if (st.missionMode) {
-    e.preventDefault();
-    const shots = (await Promise.all(files.map(readFile))).filter(Boolean);
-    return attachToMission(shots.map((data) => ({ data })));
-  }
-
   const under = (e.target instanceof Element ? e.target : document.activeElement)?.closest?.(".tile");
   const draft = under ? draftFrom(under) : draftInFocus();
   if (draft) {
@@ -620,4 +594,4 @@ document.addEventListener("paste", async (e) => {
   return sendFiles(target, shots);
 });
 
-export { HOLD_WAIT, HOLD_WORD, MOD_KEYS, SHOT_EDGE, attachToMission, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayPaint };
+export { HOLD_WAIT, HOLD_WORD, MOD_KEYS, SHOT_EDGE, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayPaint };

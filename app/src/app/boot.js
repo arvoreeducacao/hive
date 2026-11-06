@@ -7,16 +7,15 @@ import { goTo, pull } from "./focus-navigation.js";
 import { pullHistory } from "./history.js";
 import { disarmLeader, paintKeys } from "./leader-key.js";
 import { LIMIT_BEAT, pullLimits } from "./limit-chip.js";
-import { imageTray } from "./pinned-images.js";
 import { bootPlane } from "./plane.js";
 import { bootBrandFace, bootGaze, bootLanguage, bootPet } from "./preferences.js";
 import { pullThreads } from "./prs.js";
-import { BAR_KEY, CALM_KEY, DIM_KEY, paintCalm, paintPrefs } from "./pure-helpers.js";
+import { CALM_KEY, DIM_KEY, paintCalm, paintPrefs } from "./pure-helpers.js";
 import { bootLayout } from "./seat-layout.js";
 import { bootStructure } from "./structure.js";
 import { bootSolid } from "./shared.js";
 import { bootSttPrefs } from "./stt-prefs.js";
-import { DICTATION_BEAT, pullDictation, wireTalkButton } from "./stt.js";
+import { DICTATION_BEAT, pullDictation } from "./stt.js";
 import { structPool } from "./structured-seats.js";
 import { ART_WEBVIEW } from "./subagents-dock.js";
 import { KNOCKS_TICK, paceTeam, pullKnocks, pullTeam } from "./team.js";
@@ -28,11 +27,8 @@ window.__hiveSeats = () => structPool;
 
 if (ART_WEBVIEW) window.seatBrowser?.onPopup?.((wcId, url) => openPopupTab(wcId, url));
 
-st.cmpTray = imageTray($("cmp-attach"), $("cmp-in"), () => ({ where: "local", name: "" }));
-
 try {
   const d = localStorage.getItem(DIM_KEY); if (d !== null) st.dimOn = !!d;
-  const b2 = localStorage.getItem(BAR_KEY); if (b2 !== null) st.barOn = !!b2;
   const c = localStorage.getItem(CALM_KEY); if (c !== null) st.calmOn = c !== "full";
 } catch {}
 
@@ -123,8 +119,6 @@ pullLimits();
 every("limits", LIMIT_BEAT, () => pullLimits());
 
 bootSttPrefs();
-
-wireTalkButton($("cmp-talk"), () => $("cmp-in"));
 
 pullDictation();
 

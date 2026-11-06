@@ -53,9 +53,8 @@ function fresh() {
   st.mem = { tab: "memories", active: null, archived: null, stats: null, folder: "all", origin: "all", query: "", pick: "", detail: {}, asked: false, login: null, edit: null, confirm: "", busy: "", actError: null };
 }
 
-test("the shortcut is option shift M, free of the composer's option M, with a chord and a palette line", () => {
+test("the shortcut is option shift M, with a chord and a palette line", () => {
   assert.deepEqual(MAC_KEYS.memories, { alt: true, shift: true, code: "KeyM" });
-  assert.deepEqual(MAC_KEYS.compose, { alt: true, code: "KeyM" }, "option M stays the composer's");
   assert.deepEqual(CTRL_KEYS.memories, { ctrl: true, alt: true, code: "KeyM" });
   const taken = (keys) => Object.entries(keys).filter(([name, one]) => name !== "memories" && one && one.code === "KeyM" && !!one.alt === true && !!one.shift === true && !one.ctrl && !one.meta);
   assert.deepEqual(taken(MAC_KEYS), []);

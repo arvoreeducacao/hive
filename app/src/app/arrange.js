@@ -14,7 +14,7 @@ import { palOn, palPaint } from "./palette.js";
 import { paintPlane, planeShown, planeSlot } from "./plane.js";
 import { pullThreads } from "./prs.js";
 import { calmly } from "./pure-helpers.js";
-import { born, flipEnd, flipStart, inARow, inAStrip, inFocusMode, paintComposer, vanish, watchFocusClicks } from "./seat-layout.js";
+import { born, flipEnd, flipStart, inARow, inAStrip, inFocusMode, vanish, watchFocusClicks } from "./seat-layout.js";
 import { closeSeatMenu, createJobTile, createOpeningTile, createTile, openSpaceMenu, update, updateJob, updateOpening } from "./seat-menu.js";
 import { followInStrip, forgetFollow, paintStripEdges, watchStripScroll } from "./strip.js";
 import { paintStructure } from "./structure.js";
@@ -847,7 +847,6 @@ function paintEverything({ animate = true } = {}) {
 
   const flights = flipEnd(moved);
   healStructuredScroll();
-  paintComposer();
   const calls = st.data.sessions.filter((s) => s.state === "needs").length;
   $("n-calls").textContent = calls;
   if (raycastOn()) paintCalls();

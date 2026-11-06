@@ -2,7 +2,6 @@ body.experience-raycast[data-structure="island"] { grid-template-rows: minmax(0,
 body.experience-raycast[data-structure="island"] #top, body.experience-raycast[data-structure="island"] #rail, body.experience-raycast[data-structure="island"] #foot, body.experience-raycast[data-structure="island"] #status-strip, body.experience-raycast[data-structure="island"] #canvas { display: none; }
 body.experience-raycast[data-structure="island"] #shell { grid-row: 1; grid-template-columns: minmax(0, 1fr); }
 body.experience-raycast[data-structure="island"] #stage { background: radial-gradient(1100px 520px at 50% -12%, color-mix(in srgb, var(--txt) 3.5%, transparent), transparent 62%), var(--bg); }
-body.experience-raycast[data-structure="island"] #composer { width: min(712px, calc(100% - 32px)); margin-left: auto; margin-right: auto; }
 
 body.experience-raycast[data-structure="island"] #structure-root { --il-col: 712px; display: flex; flex-direction: column; overflow: hidden; }
 body.experience-raycast[data-structure="island"] #structure-root.il-plane { display: none; }

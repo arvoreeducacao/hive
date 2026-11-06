@@ -14,7 +14,6 @@ const { POLL_STILL, pollKey, pull } = nav;
 const { layoutKey } = await app("arrange");
 const { saveBlocks } = await app("blocks");
 const { paintName } = await app("chat-name");
-const { paintAim } = await app("seat-layout");
 const { prsOfChat, tileThreadsModel } = await app("seat-menu");
 const { planeWireEls, wireOn } = await app("plane");
 const { pullKnocks } = await app("team");
@@ -68,7 +67,6 @@ function hive({ seats = ["a"], keys = null } = {}) {
   st.planeOn = false;
   st.mirrorDev = "";
   st.renaming = "";
-  st.composing = false;
   st.threadChat = null;
   st.reviewChat = null;
   st.webChat = null;
@@ -305,51 +303,6 @@ test("the browser follows its stage when the pane or the window changes size wit
   assert.match(pane, /followStageSize\(pane\.querySelector\("\.art-stage"\)\);/);
   assert.match(panes, /new ResizeObserver\(paintYardsSoon\)\.observe\(stage\);/);
   assert.match(panes, /addEventListener\("resize", paintYardsSoon\);/);
-});
-
-/* ── the aim is written only when it moved ── */
-
-test("the same aim twice touches the tiles once", () => {
-  hive({ seats: ["a", "b"] });
-  st.composing = true;
-  st.open = "a";
-  let touched = 0;
-  tiles.set("probe", { classList: { toggle: () => { touched++; }, contains: () => false } });
-  try {
-    paintAim();
-    assert.ok(tiles.get("a").classList.contains("aiming"));
-    assert.equal(touched, 1, "every tile was told once");
-    paintAim();
-    assert.equal(touched, 1, "the aim did not move, so nothing was written again");
-  } finally {
-    tiles.delete("probe");
-  }
-});
-
-test("a moved aim, and a dropped one, touch the tiles again", () => {
-  hive({ seats: ["a", "b"] });
-  st.composing = true;
-  st.open = "a";
-  paintAim();
-  st.open = "b";
-  paintAim();
-  assert.ok(tiles.get("b").classList.contains("aiming"));
-  assert.ok(!tiles.get("a").classList.contains("aiming"));
-  st.composing = false;
-  paintAim();
-  assert.ok(!tiles.get("b").classList.contains("aiming"));
-});
-
-test("a tile born after the aim was set still gets the mark", () => {
-  hive({ seats: ["a", "b"] });
-  st.composing = true;
-  st.open = "c";
-  paintAim();
-  st.data.sessions.push(seat("c"));
-  st.blocks[0].keys.push("c");
-  render();
-  paintAim();
-  assert.ok(tiles.get("c").classList.contains("aiming"));
 });
 
 /* ── the slack cards of a seat are only what its threads say ── */

@@ -111,7 +111,7 @@ test("lean paints every blurred surface on a solid panel, so nothing shows throu
 test("lean darkens the scrims behind modals, palettes and the arrange view", () => {
   const alpha = (background) => Number(background?.match(/,\s*(\.\d+)\)/)?.[1]);
   const base = (selector) => page.match(new RegExp(`^\\s*${selector.replace(/[.#]/g, "\\$&")} \\{[^}]*background: (rgba\\([^)]+\\))`, "m"))?.[1];
-  for (const scrim of [".modal", ".pal-scrim", "#mission-scrim", "#nudge-scrim", "#arrange"]) {
+  for (const scrim of [".modal", ".pal-scrim", "#nudge-scrim", "#arrange"]) {
     const before = alpha(base(scrim));
     const after = alpha(leanBackground(scrim));
     assert.ok(after > before, `${scrim} is not darker under lean (${before} → ${after})`);

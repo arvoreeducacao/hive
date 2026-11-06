@@ -17,7 +17,7 @@ const TOUR = [
     }
   },
   { el: "#blocks", title: "Blocks", text: "The screen holds at most {limit} chats at once — you pick how many in the settings, and 4 is the ceiling of what one person follows. The next one opens a new block; {prev} and {next} move between them, {seat} picks a seat." },
-  { el: "#composer", title: "New chat", text: "{new}, or the /new chip in this bar. Write the mission, pick local or cloud and a model. The seat appears at once while the session boots, and the AI names it from the mission." },
+  { el: "#stage", title: "New chat", text: "{new} opens a new chat on the canvas. Write the mission, pick local or cloud and a model. The seat appears at once while the session boots, and the AI names it from the mission." },
   { el: "#btn-calls", title: "Next one that needs you", text: "{calls} jumps to the next session waiting on an answer. With the chime on ({sound}), it also beeps once when a tile turns orange, and {answered} adds a desktop notice when a seat finishes answering." },
   { el: "#mode", title: "Who owns the keyboard", text: "By default, hive does. Click inside a terminal (or press Enter on the focused tile) to hand it to that Claude Code — the tile turns blue. {release} takes it back." },
   { el: "#btn-prs", title: "PRs without leaving", text: "{prs}. The app notices when a session opens a PR, and lets you review file by file and merge when CI is green — right here." },

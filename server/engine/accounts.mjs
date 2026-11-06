@@ -11,6 +11,13 @@ export const ACCOUNT_NAME = /^[a-z0-9][a-z0-9-]{0,30}$/;
 
 const NAME_OK = ACCOUNT_NAME;
 
+const PLAN_NAMES = { max: "ultra" };
+
+export function planName(subscription) {
+  const said = String(subscription || "");
+  return PLAN_NAMES[said] || said;
+}
+
 export function providerHome(base, provider = CLAUDE) {
   return provider === CLAUDE ? join(base, "accounts") : join(base, "providers", provider);
 }

@@ -6,7 +6,6 @@ const st = await state();
 await views();
 await app("arrange");
 const { drafts, openDraft } = await app("draft-seat");
-const { openChatFromBar } = await app("seat-layout");
 
 globalThis.fetch = async () => ({ ok: true, json: async () => ({ ok: true, models: [] }) });
 
@@ -47,19 +46,6 @@ test("nothing fills the screen, so a new chat leaves the mosaic as it is", () =>
   assert.equal(st.open, null);
   assert.equal(st.blocks[0].keys[st.focus], d.key);
   shut(d);
-});
-
-test("a chat opened from the mission bar brings the mosaic back too", async () => {
-  hive(["worker"]);
-  st.open = "worker";
-  globalThis.fetch = async (url) => ({
-    ok: true,
-    json: async () => (String(url).startsWith("/api/spawn") ? { ok: true, id: "n1", name: "novo" } : { ok: true, sessions: [], spawning: [] })
-  });
-  st.cmpTray = st.cmpTray || { marks: new Map(), clear() {} };
-  document.getElementById("cmp-in").value = "conserta o login";
-  await openChatFromBar();
-  assert.equal(st.open, null, "the chat that filled the screen is still hiding the one that just opened");
 });
 
 test("a draft already alone on the screen keeps the screen when the command comes again", () => {

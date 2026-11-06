@@ -80,3 +80,14 @@ test("a login on a kimi seat says plainly there is no command to drive, here and
   assert.ok(local.indexOf('engine === "cursor"') < local.indexOf("theClaude(), [\"mcp\", \"login\""), "cursor reached claude's login");
   assert.match(cloud, /claude\|""\) claude mcp login/, "an unknown agent on the box still fell through to claude's login");
 });
+
+test("a claude login writes the token where the seat reads it: the seat's account, never the machine's own ~/.claude", () => {
+  const server = readFileSync(new globalThis.URL("../server.mjs", import.meta.url), "utf8");
+  const env = server.slice(server.indexOf("function loginEnv("), server.indexOf("function startMcpLogin("));
+  assert.match(env, /accountDir\(HIVE_HOME, "claude", account\)/, "the login did not look up the seat's account folder");
+  assert.match(env, /env\.CLAUDE_CONFIG_DIR = dir/);
+  assert.match(env, /delete env\.CLAUDE_CONFIG_DIR/, "a default-account seat inherited another account's folder");
+  const local = server.slice(server.indexOf("function startMcpLogin("), server.indexOf("function loginUrlIn") > 0 ? server.indexOf("function loginUrlIn") : server.indexOf("function startMcpLogin(") + 4000);
+  assert.match(local, /account = meta\.account \|\| "";/);
+  assert.match(local, /env: loginEnv\(engine, account\)/, "the login still ran with the hive's own environment");
+});

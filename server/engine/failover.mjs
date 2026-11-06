@@ -66,11 +66,16 @@ export function accountFailover({
     if (wanted && !ACCOUNT_NAME.test(wanted)) throw new Error("no account goes by that name");
     const dir = accountDir(base, provider, wanted);
     if (dir && !existsSync(dir)) throw new Error(`this machine holds no account called ${wanted}`);
-    if (wanted === accountName) return accountName;
+    const chosenByHand = why === "asked";
+    if (chosenByHand) homeAccount = wanted || DEFAULT_ACCOUNT;
+    if (wanted === accountName) {
+      if (chosenByHand) persist({ home: homeAccount });
+      return accountName;
+    }
     accountName = wanted;
     accountDirNow = dir;
     apply({ name: accountName, dir, why });
-    persist({ account: accountName });
+    persist(chosenByHand ? { account: accountName, home: homeAccount } : { account: accountName });
     emit({ type: "driver", subtype: "account_changed", account: accountName, why });
     return accountName;
   }

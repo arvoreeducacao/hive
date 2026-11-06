@@ -1,7 +1,7 @@
 import { attachFilesToSeat, seatReceiving, svLoadingChips } from "./chat-stretches.js";
-import { $, refuseDrop, st } from "./core.js";
+import { refuseDrop, st } from "./core.js";
 import { attachFilesToDraft, draftFrom, draftLoadingChips } from "./draft-seat.js";
-import { attachToMission, readFile, sendFiles } from "./hold-numbers.js";
+import { readFile, sendFiles } from "./hold-numbers.js";
 import { pool } from "./leader-key.js";
 import { structPool } from "./structured-seats.js";
 import { refit } from "./terminal-history.js";
@@ -13,7 +13,6 @@ function zoneOf(ev) {
   const tile = node?.closest?.(".tile");
   const draft = tile ? draftFrom(tile) : null;
   if (draft) return { el: tile, draft };
-  if (st.missionMode) return { el: $("composer"), mission: true };
   if (!tile) return null;
   const name = tile.dataset.name;
   if (!name) return null;
@@ -54,7 +53,7 @@ window.addEventListener("drop", async (ev) => {
   if (folders) return;
   const refused = refuseDrop(files);
   if (refused) return;
-  const seat = zone.mission || zone.draft ? null : zone.session;
+  const seat = zone.draft ? null : zone.session;
   const entry = seat && seat.structured && structPool.get(seat.name);
   const stop = zone.draft ? draftLoadingChips(zone.draft, files)
     : entry ? svLoadingChips(entry, files) : seat ? seatReceiving(seat, files) : () => {};
@@ -62,7 +61,6 @@ window.addEventListener("drop", async (ev) => {
     const loaded = (await Promise.all(files.map(async (f) => ({ name: f.name, data: await readFile(f) })))).filter((f) => f.data);
     if (!loaded.length) return;
     if (zone.draft) return await attachFilesToDraft(zone.draft, loaded, true);
-    if (zone.mission) return await attachToMission(loaded);
     if (entry) return await attachFilesToSeat(entry, loaded, true);
     return await sendFiles(seat, loaded, true);
   } finally { stop(); }

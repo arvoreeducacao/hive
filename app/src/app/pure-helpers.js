@@ -303,11 +303,7 @@ function adoptCalm(r) {
 
 st.dimOn = true;
 
-st.barOn = true;
-
 const DIM_KEY = "hive.dim";
-
-const BAR_KEY = "hive.bar";
 
 function paintShare() {
   const b = $("btn-share");
@@ -333,24 +329,22 @@ function paintMachines() {
 
 function paintPrefs() {
   document.body.classList.toggle("no-dim", !st.dimOn);
-  document.body.classList.toggle("no-bar", !st.barOn);
-  const d = $("btn-dim"), b = $("btn-bar");
+  const d = $("btn-dim");
   if (d) d.setAttribute("aria-pressed", String(st.dimOn));
-  if (b) b.setAttribute("aria-pressed", String(st.barOn));
 }
 
 function setPref(which, on, quiet) {
-  if (which === "dim") { st.dimOn = on; try { localStorage.setItem(DIM_KEY, on ? "1" : ""); } catch {} }
-  else { st.barOn = on; try { localStorage.setItem(BAR_KEY, on ? "1" : ""); } catch {} }
+  if (which !== "dim") return;
+  st.dimOn = on;
+  try { localStorage.setItem(DIM_KEY, on ? "1" : ""); } catch {}
   paintPrefs();
   render();
   if (quiet) return;
-  saveConfig(which === "dim" ? { dim: on } : { composer: on }).catch(() => {});
+  saveConfig({ dim: on }).catch(() => {});
 }
 
 function adoptPrefs(r) {
   if (r.has?.dim && r.config.dim !== st.dimOn) setPref("dim", r.config.dim, true);
-  if (r.has?.composer && r.config.composer !== st.barOn) setPref("bar", r.config.composer, true);
 }
 
 const AUTOCOMPACT_AUTO = "auto";
@@ -462,4 +456,4 @@ function setDiaryDays(raw) {
   saveConfig({ pruneDiariesAfterDays: diaryDays(raw) }).then((r) => adoptDiaryDays(r)).catch(() => {});
 }
 
-export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, BAR_KEY, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };
+export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };

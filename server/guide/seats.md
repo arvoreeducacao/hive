@@ -24,8 +24,6 @@ On macOS and Linux, local chats run in the tmux session `hive-local` (env `HIVE_
 
 The box remembers the provider, model, place and kind for the next new chat. While the chat starts, its tile says "opening the chat" or "naming the mission…". If it fails, the tile says "did not start" with the reason.
 
-In the Classic layout, type `/new <mission>` in the composer: "the rest of the line becomes the mission, and the chat opens right away". That box also has a "name" field ("leave it empty and the AI names it from the mission"), a count for races, and repo and branch fields for cloud chats.
-
 A chat can also open chats with the `spawn` tool (see "Opening chats from a chat").
 
 On macOS and Linux a local chat needs tmux. Without it the Hive says "this machine has no tmux, and a local worker lives inside it — create it on the pod (cloud) or install tmux".
@@ -48,7 +46,7 @@ In a running native chat, click the pills or type `/model <name>`, `/effort <lev
 
 ## Races: one mission in several chats
 
-A race opens the same mission in 2 to 4 chats. In the Classic `/new` box, set the count to "race · 2 chats", "race · 3 chats" or "race · 4 chats". A race needs a mission. The `spawn` tool takes `count` from 1 to 3.
+A race opens the same mission in 2 or 3 chats, through the `spawn` tool, which takes `count` from 1 to 3. A race needs a mission.
 
 Each chat gets this line before the mission: "[hive] race: you are chat i of n on the same mission. Work in a git worktree of your own (EnterWorktree), never on the shared checkout, and open a PR when you are done". With a name, the chats are `<name>-1`, `<name>-2`, and so on. All of them share one errand label. The person compares the results and keeps one.
 

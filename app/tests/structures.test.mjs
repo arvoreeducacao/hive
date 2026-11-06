@@ -382,7 +382,7 @@ test("settings, the palette and the ··· menu all offer the structures", () =>
 
 test("changing the structure keeps the focus where it was", () => {
   const spy = spyOn("inbox");
-  const box = $("cmp-in");
+  const box = $("in-machine");
   box.value = "half a sentence";
   box.focus();
   setStructure("inbox", { quiet: true });

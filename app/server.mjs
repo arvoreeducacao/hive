@@ -330,7 +330,6 @@ async function readConfig() {
     themes: cleanThemes(raw.themes, tilde(CONFIG_FILE), problems),
     dim: cleanFlag(raw.dim, "dim", tilde(CONFIG_FILE), problems),
     visual: cleanVisual(raw.visual, tilde(CONFIG_FILE), problems),
-    composer: cleanFlag(raw.composer, "composer", tilde(CONFIG_FILE), problems),
     share: cleanFlag(raw.share, "share", tilde(CONFIG_FILE), problems),
     knocks: cleanFlag(raw.knocks, "knocks", tilde(CONFIG_FILE), problems),
     phone: cleanFlag(raw.phone, "phone", tilde(CONFIG_FILE), problems, false),
@@ -348,7 +347,7 @@ async function readConfig() {
     keys: fromLegacy ? cleanKeys(legacy.value, tilde(LEGACY_KEYS_FILE), problems) : cleanKeys(raw.keys, tilde(CONFIG_FILE), problems)
   };
   if (!config.avatar) config.avatar = avatarKey(avatarFor(DEV || ""));
-  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, composer: raw.composer !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, keys: raw.keys !== undefined || fromLegacy };
+  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, keys: raw.keys !== undefined || fromLegacy };
   return { config, defaults: { font: FONT_DEFAULTS }, file: tilde(CONFIG_FILE), has, fromLegacy, error: unreadable.join(" · "), ignored: problems.join(" · ") };
 }
 
@@ -1596,6 +1595,15 @@ async function kiroMcpLogin(name, mcpServer, job) {
   if (job.state === "running") { job.state = "failed"; job.error = "the login did not finish in five minutes"; }
 }
 
+function loginEnv(engine, account) {
+  const env = { ...process.env, AWS_PROFILE, TERM: "xterm-256color" };
+  if (engine !== "claude") return env;
+  const dir = accountDir(HIVE_HOME, "claude", account);
+  if (dir) env.CLAUDE_CONFIG_DIR = dir;
+  else delete env.CLAUDE_CONFIG_DIR;
+  return env;
+}
+
 function startMcpLogin(name, mcpServer, where = "local") {
   const key = `${name}|${mcpServer}`;
   const running = mcpLogins.get(key);
@@ -1611,10 +1619,12 @@ function startMcpLogin(name, mcpServer, where = "local") {
     {
       let cwd = HUB;
       let engine = "claude";
+      let account = "";
       try {
         const meta = JSON.parse(await readFile(join(HIVE_HOME, "sessions", `${name}.json`), "utf8"));
         if (meta.cwd && existsSync(meta.cwd)) cwd = meta.cwd;
         if (OTHER_AGENTS.has(meta.agent)) engine = meta.agent;
+        account = meta.account || "";
       } catch {}
       if (engine === "kiro") {
         await kiroMcpLogin(name, mcpServer, job);
@@ -1650,7 +1660,7 @@ function startMcpLogin(name, mcpServer, where = "local") {
         cols: 400,
         rows: 50,
         cwd,
-        env: { ...process.env, AWS_PROFILE, TERM: "xterm-256color" }
+        env: loginEnv(engine, account)
       });
     }
     job.child = child;

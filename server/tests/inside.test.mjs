@@ -22,7 +22,7 @@ test("the credential is read for its plan and its age, and a missing one is not 
     const file = join(dir, "creds.json");
     await writeFile(file, JSON.stringify({ claudeAiOauth: { subscriptionType: "max", expiresAt: 99 } }));
     const read = await credentialOf(file);
-    assert.equal(read.plan, "max");
+    assert.equal(read.plan, "ultra");
     assert.equal(read.expires, 99);
     assert.ok(read.at > 0);
 

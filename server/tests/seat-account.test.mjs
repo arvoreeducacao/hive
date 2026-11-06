@@ -83,6 +83,15 @@ test("picking the account the seat already runs on costs it nothing", () => {
   assert.deepEqual(changed(b.emitted), []);
 });
 
+test("a login picked by hand becomes the seat's home, so the walk home does not undo it", async () => {
+  const b = bench();
+  b.logins.moveTo("work");
+  assert.equal(b.logins.home, "work");
+  assert.equal(b.persisted.at(-1).home, "work");
+  assert.equal(await b.logins.goHome(), false);
+  assert.equal(b.logins.name, "work");
+});
+
 test("a seat mid-turn keeps its login until the turn lets go", () => {
   assert.match(driver, /setAccount: async \(\) => \{\s*if \(gate\.busy\) throw new Error\("this chat is mid-turn/);
 });

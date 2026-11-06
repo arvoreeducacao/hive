@@ -17,7 +17,6 @@ import { paintPalPreview } from "./palette.js";
 import { paintPlaneMap } from "./plane.js";
 import { paintPortaria, paintWorkspace } from "./pod.js";
 import { paintChoices } from "./preferences.js";
-import { paintComposerTo } from "./seat-layout.js";
 import { paintPrButton, paintPrPop } from "./seat-menu.js";
 import { paintShelf } from "./shelf.js";
 import { structPool } from "./structured-seats.js";
@@ -37,7 +36,7 @@ function bootSolid() {
 
 const REACTIVE_PAINTERS = () => [
   paintGate, paintKeys, paintChoices, paintThemes, paintSettingsFace, paintFaceSheet, paintTour, paintRelnotes,
-  paintRail, paintNextRail, paintTeamRail, paintWorktreeRail, paintRailToggle, paintKnocks, paintBlocks, paintHold, paintComposerTo,
+  paintRail, paintNextRail, paintTeamRail, paintWorktreeRail, paintRailToggle, paintKnocks, paintBlocks, paintHold,
   paintPrButton, paintPrPop, paintLimitChip, paintLimPop, paintPlaneMap, paintPalPreview,
   renderMirror, paintWorktrees, paintWorkspace, paintPortaria, renderHistory, paintPrList, paintPrMid, paintProviders, paintShelf
 ];

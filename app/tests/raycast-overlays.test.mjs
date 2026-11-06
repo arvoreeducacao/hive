@@ -57,20 +57,17 @@ const ONE = [{ header: "conserto", question: "por onde o áudio volta?", options
   { label: "CORS no bucket", description: "mexe em produção" }
 ] }];
 
-const SHAPES = ["confirm", "nudge", "composer", "pal"];
+const SHAPES = ["confirm", "nudge", "pal"];
 
 test("turning the flag on and off again leaves every overlay's markup byte for byte as it was", () => {
   const before = SHAPES.map((id) => document.getElementById(id).outerHTML);
   turn(true);
   assert.ok(document.getElementById("c-x"), "the confirm has no close button with the flag on");
   assert.ok(document.getElementById("nudge-kind"), "the request does not say which kind it is");
-  assert.ok(document.getElementById("n-agent"), "the new-chat form has no agent dropdown");
-  assert.ok(document.getElementById("mission-where"), "the new-chat head does not say where it opens");
-  assert.equal(document.querySelectorAll("#cmp-controls .nf-row").length, 6);
   assert.equal(document.querySelector("#pal-scope").getAttribute("role"), "button");
   turn(false);
   assert.deepEqual(SHAPES.map((id) => document.getElementById(id).outerHTML), before);
-  for (const id of ["c-x", "nudge-kind", "n-agent", "mission-where", "mission-cancel", "nf-hint", "pal-acts"]) assert.equal(document.getElementById(id), null, `${id} outlived the flag`);
+  for (const id of ["c-x", "nudge-kind", "pal-acts"]) assert.equal(document.getElementById(id), null, `${id} outlived the flag`);
 });
 
 test("a key label is cut into the caps the eye reads", () => {

@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { HELD_BY_EVERY_ACCOUNT } from "../../server/engine/seat-command.mjs";
+import { planName } from "../../server/engine/accounts.mjs";
 
 export const DEFAULT_ACCOUNT = "default";
 
@@ -43,6 +44,6 @@ export async function readAccounts(home, status) {
     let said = null;
     try { said = JSON.parse((await status(dir)) || ""); } catch { said = null; }
     if (!said || typeof said !== "object") return { name, email: "", tier: "", loggedIn: false, blind: true };
-    return { name, email: said.email || "", tier: said.subscriptionType || "", loggedIn: !!said.loggedIn, blind: false };
+    return { name, email: said.email || "", tier: planName(said.subscriptionType), loggedIn: !!said.loggedIn, blind: false };
   }));
 }

@@ -88,8 +88,6 @@ async function pullProviders(force = false) {
   st.accountsAsked = true;
   if (!st.providerOpen || !providerOf(st.providerOpen)) st.providerOpen = st.providers[0]?.id || "";
   for (const seat of structPool.values()) paintPills(seat);
-  paintNewChatKinds();
-  paintNewChatAccounts();
   if (providersOnScreen()) paintProviders();
   document.dispatchEvent(new CustomEvent("hive:providers"));
   return true;
@@ -644,40 +642,6 @@ async function closeProviders() {
   teardownLoginTerminal();
 }
 
-function paintNewChatKinds() {
-  const sel = $("n-kind");
-  if (!sel) return;
-  const ready = new Set(readyAgents());
-  let kept = sel.value;
-  for (const opt of sel.options) {
-    const agent = /^opencode/.test(opt.value) ? "opencode" : /^codex/.test(opt.value) ? "codex" : /^kimi/.test(opt.value) ? "kimi" : /^kiro/.test(opt.value) ? "kiro" : /^cursor/.test(opt.value) ? "cursor" : /^gemini/.test(opt.value) ? "gemini" : /^antigravity/.test(opt.value) ? "antigravity" : "claude";
-    const ok = ready.has(agent);
-    opt.disabled = !ok;
-    opt.hidden = !ok;
-    if (!ok) opt.title = providerWhyNot(agent);
-  }
-  if (sel.selectedOptions[0]?.disabled) {
-    const first = [...sel.options].find((opt) => !opt.disabled);
-    if (first) { sel.value = first.value; kept = first.value; sel.dispatchEvent(new Event("change")); }
-  }
-  return kept;
-}
-
-function paintNewChatAccounts() {
-  const sel = $("n-account");
-  if (!sel) return;
-  const agent = /^opencode/.test($("n-kind")?.value || "") ? "opencode" : /^codex/.test($("n-kind")?.value || "") ? "codex" : /^kimi/.test($("n-kind")?.value || "") ? "kimi" : /^kiro/.test($("n-kind")?.value || "") ? "kiro" : /^cursor/.test($("n-kind")?.value || "") ? "cursor" : /^gemini/.test($("n-kind")?.value || "") ? "gemini" : /^antigravity/.test($("n-kind")?.value || "") ? "antigravity" : "claude";
-  const accounts = providerAccounts(agent);
-  sel.hidden = accounts.length < 2;
-  if (sel.hidden) return;
-  const chosen = sel.value;
-  sel.innerHTML = accounts.map((a) => {
-    const who = a.loggedIn ? whoSay(a) : phrase("signed out");
-    return `<option value="${a.name === "default" ? "" : esc(a.name)}">${esc(a.name)} — ${esc(who)}</option>`;
-  }).join("");
-  sel.value = [...sel.options].some((o) => o.value === chosen) ? chosen : "";
-}
-
 solidMounts.push((hive) => {
   providersSolid = hive.mountProviders($("providers"), {
     actions: {
@@ -728,4 +692,4 @@ $("providers").addEventListener("input", (ev) => {
 });
 
 
-export { agentsBehind, updateAgentNow, versionSay, LOOKS_LIKE_EMAIL, NICKNAME_OK, PV_BEAT, accountRoomSay, accountSaid, checkedSay, closeLogin, closeProviders, configFormHtml, nicknameTrouble, openProviders, paintNewChatAccounts, paintNewChatKinds, paintProviders, providerAccounts, providerColor, providerName, providerOf, providerReady, providerWhyNot, providersOnScreen, providersViewModel, pullAccounts, pullProviders, readyAgents, statusOf, whoSay };
+export { agentsBehind, updateAgentNow, versionSay, LOOKS_LIKE_EMAIL, NICKNAME_OK, PV_BEAT, accountRoomSay, accountSaid, checkedSay, closeLogin, closeProviders, configFormHtml, nicknameTrouble, openProviders, paintProviders, providerAccounts, providerColor, providerName, providerOf, providerReady, providerWhyNot, providersOnScreen, providersViewModel, pullAccounts, pullProviders, readyAgents, statusOf, whoSay };

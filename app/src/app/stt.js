@@ -2,7 +2,7 @@ import { apiBinary, apiGet } from "/assets/api.mjs";
 import { STT_SAMPLE_RATE, joinSound, wasAnythingSaid, whereTheWordsGo } from "/assets/stt-sound.mjs";
 import { activeItems } from "./blocks.js";
 import { showNotice } from "./chimes-and-notices.js";
-import { $, experienceNext, phrase, st } from "./core.js";
+import { experienceNext, phrase, st } from "./core.js";
 import { drafts } from "./draft-seat.js";
 import { structPool } from "./structured-seats.js";
 
@@ -58,12 +58,12 @@ export function composerInFocus() {
     const box = drafts.get(item.name)?.e?.host?.querySelector(".sv-composer textarea");
     if (box) return box;
   }
-  return $("cmp-in");
+  return null;
 }
 
 export function talkButtonFor(box) {
   if (!box) return null;
-  return box.closest?.(".sv-composer")?.querySelector(".sv-talk") || (box.id === "cmp-in" ? $("cmp-talk") : null);
+  return box.closest?.(".sv-composer")?.querySelector(".sv-talk") || null;
 }
 
 export function putWords(text, box = composerInFocus()) {
@@ -144,9 +144,11 @@ export async function startTalking({ into, owner = null } = {}) {
   if (st.stt.unsupported) return refuse(phrase("dictation does not run on this machine"), st.stt.unsupported);
   if (!st.stt.enabled) return refuse(phrase("dictation is off"), phrase("turn it on in preferences, under Dictation."));
   if (!st.stt.ready) return refuse(phrase("dictation is not set up on this machine yet"), phrase("preferences has the button that finishes it, under Dictation."));
+  const box = into || composerInFocus();
+  if (!box) return refuse(phrase("no message box to write into"), phrase("focus a chat that has a message box, then talk."));
   clearTimeout(settling);
   heard = [];
-  caught = into || composerInFocus();
+  caught = box;
   st.stt = { ...st.stt, owner: owner || talkButtonFor(caught) };
   tell("hearing");
   opening = true;

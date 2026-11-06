@@ -135,12 +135,6 @@ html > body:where(.experience-raycast.look-dimension) kbd.rc-key { border: 0; bo
 :where(body.experience-raycast) .pal-row .tag { border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 8%, var(--panel)); }
 :where(body.experience-raycast) .pal-row .rn mark { background: color-mix(in srgb, var(--accent) 22%, transparent); }
 :where(body.experience-raycast) .pv-line.on { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-:where(body.experience-raycast) #composer:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 18%, transparent), 0 0 22px color-mix(in srgb, var(--blue) 14%, transparent), var(--e2), var(--hair); }
-:where(body.experience-raycast) #composer:focus-within .to { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 7%, transparent); }
-:where(body.experience-raycast) #composer.mission:focus-within { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 12%, transparent), var(--e2), var(--hair); }
-:where(body.experience-raycast) .tile.aiming { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 20%, transparent), 0 0 24px color-mix(in srgb, var(--blue) 13%, transparent), var(--e2), var(--hair); }
-:where(body.experience-raycast) #cmp-controls.cloud #n-where, :where(body.experience-raycast) #cmp-controls.cloud #n-repo, :where(body.experience-raycast) #cmp-controls.cloud #n-branch { background-color: color-mix(in srgb, var(--accent) 8%, transparent); }
-:where(body.experience-raycast) #cmp-suggest { scrollbar-width: auto; }
 :where(body.experience-raycast) .t-chips .c.cloud, :where(body.experience-raycast) .t-where .c.cloud { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 8%, var(--panel)); }
 :where(body.experience-raycast) #rail .item[data-state="needs"] { background: color-mix(in srgb, var(--signal) 10%, transparent); }
 :where(body.experience-raycast) [data-state="needs"] .t-pill { background: var(--signal); color: var(--bg); box-shadow: 0 0 14px color-mix(in srgb, var(--signal) 40%, transparent); }

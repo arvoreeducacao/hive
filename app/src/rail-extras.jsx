@@ -29,7 +29,19 @@ function Mate(props) {
 function RaycastTeamRail(props) {
   return (
     <Show when={props.model.shown}>
-      <div class="group-title"><span>{props.model.label}</span><b>{props.model.tally}</b></div>
+      <div
+        class="group-title parked"
+        data-team-toggle
+        tabindex="-1"
+        role="button"
+        aria-expanded={props.model.open ? "true" : "false"}
+        onClick={() => props.actions.fold()}
+        onKeyDown={(ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); props.actions.fold(); } }}
+      >
+        <svg classList={{ caret: true, shut: !props.model.open }} aria-hidden="true"><use href="#i-chev" /></svg>
+        <span>{props.model.label}</span><b>{props.model.tally}</b>
+      </div>
+      <Show when={props.model.open}>
       <Show when={props.model.trouble}>{(trouble) => (
         <div class="rail-err">
           <span class="why"><svg aria-hidden="true"><use href="#i-warn" /></svg>{trouble().said}</span>
@@ -54,6 +66,7 @@ function RaycastTeamRail(props) {
           </div>
         )}</For>
       )}</Show>
+      </Show>
     </Show>
   );
 }

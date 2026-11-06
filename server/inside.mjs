@@ -3,6 +3,7 @@ import { statfs } from "node:fs";
 import { execFile } from "node:child_process";
 import { join } from "node:path";
 import { workspaceRoot } from "./engine/paths.mjs";
+import { planName } from "./engine/accounts.mjs";
 
 export const WORKSPACE = workspaceRoot();
 export const CREDENTIAL = join(WORKSPACE, "home", ".claude", ".credentials.json");
@@ -23,7 +24,7 @@ export async function credentialOf(file = CREDENTIAL) {
   try {
     const [stats, text] = await Promise.all([stat(file), readFile(file, "utf8")]);
     const held = JSON.parse(text).claudeAiOauth || {};
-    return { at: stats.mtimeMs, plan: held.subscriptionType || "", expires: held.expiresAt || 0 };
+    return { at: stats.mtimeMs, plan: planName(held.subscriptionType), expires: held.expiresAt || 0 };
   } catch {
     return { at: 0, plan: "", expires: 0 };
   }
