@@ -148,7 +148,7 @@
   body.alone #mode { display: none !important; }
   body.alone { grid-template-rows: auto minmax(0, 1fr); }
   html.solo #shell, body.alone #shell { grid-template-columns: minmax(0, 1fr); }
-  html.solo #stage, body.alone #stage { grid-template-rows: minmax(0, 1fr) auto auto; }
+  html.solo #stage, body.alone #stage { grid-template-rows: minmax(0, 1fr); }
   html.solo #top { min-height: 40px; }
   html.solo #canvas { grid-template-columns: minmax(0, 1fr) !important; grid-template-rows: minmax(0, 1fr) !important; }
   html.solo .tile .t-head { cursor: grab; }
@@ -507,7 +507,7 @@
   .keys .fixed { opacity: 0.55; }
 
   #shell { --rail-w: 232px; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); min-height: 0; min-width: 0; position: relative; }
-  #stage { display: grid; grid-template-rows: auto minmax(0, 1fr) auto auto; min-height: 0; min-width: 0; }
+  #stage { display: grid; grid-template-rows: auto minmax(0, 1fr); min-height: 0; min-width: 0; }
 
   @media (max-width: 1120px) { #shell { --rail-w: 188px; } }
   @media (max-width: 1030px) { #clock { display: none; } }
@@ -1561,7 +1561,6 @@
   .sv-attach .att.command { padding: 4px 6px 4px 8px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line-2)); background: color-mix(in srgb, var(--accent) 10%, var(--well)); }
   .sv-attach .att.command .cm { font-family: var(--mono); font-size: 11.5px; color: var(--accent); }
   .sv-attach .att.command .cn { font-family: var(--mono); font-size: 11.5px; color: var(--txt); white-space: nowrap; max-width: 24ch; min-width: 0; flex: 0 4 auto; overflow: hidden; text-overflow: ellipsis; }
-  #composer .sv-attach { padding: 0 2px; }
   .sv-attach .att.loading { border-style: dashed; }
   .sv-attach .att.loading .an { color: var(--txt-2); }
   .sv-attach .att .spin { width: 42px; height: 42px; border-radius: 3px; display: grid; place-items: center; background: var(--panel-2); flex: none; }
@@ -1714,12 +1713,12 @@
   .sv-talk { color: var(--txt-3); border: 1px solid var(--line-2); }
   .sv-talk[hidden] { display: none; }
   .sv-talk:hover { color: var(--accent); border-color: var(--accent-d); }
-  .sv-talk.dead, .cmp-talk.dead { opacity: .45; }
-  .sv-talk.dead:hover, .cmp-talk.dead:hover { color: var(--txt-3); border-color: var(--line-2); }
-  .sv-talk.hot, .cmp-talk.hot { background: var(--accent); border-color: var(--accent); color: #17110E; opacity: 1; }
-  body:not(.no-motion) .sv-talk.hot, body:not(.no-motion) .cmp-talk.hot { animation: talk-pulse 1.4s var(--ease) infinite; }
-  .sv-talk.think, .cmp-talk.think { color: var(--accent); border-color: var(--accent-d); cursor: default; opacity: 1; }
-  body:not(.no-motion) .sv-talk.think svg, body:not(.no-motion) .cmp-talk.think svg { animation: talk-breathe 1s var(--ease) infinite; }
+  .sv-talk.dead { opacity: .45; }
+  .sv-talk.dead:hover { color: var(--txt-3); border-color: var(--line-2); }
+  .sv-talk.hot { background: var(--accent); border-color: var(--accent); color: #17110E; opacity: 1; }
+  body:not(.no-motion) .sv-talk.hot { animation: talk-pulse 1.4s var(--ease) infinite; }
+  .sv-talk.think { color: var(--accent); border-color: var(--accent-d); cursor: default; opacity: 1; }
+  body:not(.no-motion) .sv-talk.think svg { animation: talk-breathe 1s var(--ease) infinite; }
   @keyframes talk-pulse { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-d); } 50% { box-shadow: 0 0 0 4px transparent; } }
   @keyframes talk-breathe { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
   .sv-composer.ready .sv-send { background: var(--accent); color: #17110E; }
@@ -3141,22 +3140,8 @@
   .tile.x-resizing[data-resizing="y"] { cursor: row-resize; }
   .tile.x-resizing :is(.art, .pr-window, .thread, .well) { pointer-events: none; }
 
-  body.no-bar #composer { display: none; }
-  #mission-scrim { position: fixed; inset: 0; z-index: 88; background: rgba(6, 6, 6, .72); backdrop-filter: blur(2px); animation: scrimIn 140ms var(--ease); }
-  #mission-scrim[hidden] { display: none; }
   @keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
-  body.mission-open #stage { grid-template-rows: auto minmax(0, 1fr); }
-  body.mission-open #composer, body.no-bar.mission-open #composer { display: flex; position: fixed; z-index: 89; top: 12vh; left: 50%; transform: translateX(-50%); width: min(44rem, calc(100vw - 32px)); margin: 0; box-shadow: 0 24px 60px rgba(0, 0, 0, .6); animation: missionIn 160ms var(--ease); }
   @keyframes missionIn { from { opacity: 0; transform: translate(-50%, -6px) scale(.99); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
-  @media (prefers-reduced-motion: reduce) { #mission-scrim, body.mission-open #composer { animation: none; } }
-  #mission-head { display: none; align-items: center; gap: 8px; padding: 2px 2px 9px; margin-bottom: 2px; border-bottom: 1px solid var(--line); font-size: 11px; color: var(--txt-3); }
-  #mission-head b { color: var(--txt); font-size: 12px; }
-  #mission-head #mission-esc { margin-left: auto; font: inherit; color: var(--txt-3); background: none; border: 1px solid var(--line-2); border-radius: 4px; padding: 1px 6px; cursor: pointer; }
-  #mission-head #mission-esc:hover { color: var(--txt); border-color: var(--line-3); }
-  #mission-go { font-family: var(--mono); font-size: 11px; font-weight: 600; color: #17110E; background: var(--accent); border: none; border-radius: 6px; padding: 4px 11px; margin-left: auto; cursor: pointer; transition: filter 120ms var(--ease); }
-  #mission-go:hover, #mission-go:focus-visible { filter: brightness(1.12); outline: none; }
-  body.mission-open #mission-head { display: flex; }
-  body.mission-open #composer .caret, body.mission-open #cmp-pill, body.mission-open #cmp-hint, body.mission-open #cmp-keys { display: none; }
 
   @keyframes nudgeShake {
     10%, 90% { transform: translate3d(-7px, 3px, 0); }
@@ -3194,7 +3179,6 @@
   #nudge .nd-next span { color: var(--txt-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #nudge .nd-next[hidden] { display: none; }
   @media (prefers-reduced-motion: reduce) { body.nudged, #nudge, #nudge-scrim { animation: none; } }
-  body.no-bar #stage { grid-template-rows: auto minmax(0, 1fr); }
 
   .keys div i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--txt-2); min-width: 30px; }
   .keys div b.muted { color: var(--txt-3); text-decoration: line-through; }
@@ -3668,77 +3652,14 @@
   .ed-at { margin-left: auto; display: flex; align-items: center; gap: 9px; flex: none; }
   .ed-said { color: var(--green); flex: none; }
 
-  /* ── the universal composer ───────────────────────── */
-
   #btn-pal { display: flex; }
   #btn-pal svg { display: block; }
-  #composer { display: flex; flex-direction: column; gap: 10px; margin: 0 12px 10px; padding: 10px 14px; border-radius: var(--r2); background: var(--panel-2); border: 1px solid var(--line-2); box-shadow: var(--e2), var(--hair); min-width: 0; transition: border-color 140ms var(--ease); }
-  #composer .line { display: flex; align-items: center; gap: 10px; min-width: 0; }
-  #composer.mission .line { align-items: flex-start; }
-  #composer:focus-within { border-color: var(--blue); box-shadow: 0 0 0 1px rgba(125,207,255,.18), 0 0 22px rgba(125,207,255,.14), var(--e2), var(--hair); }
-  #composer.dropping { border-color: var(--blue); }
-  #composer:focus-within .caret { color: var(--blue); }
-  #composer:focus-within #cmp-in { caret-color: var(--blue); }
-  #composer:focus-within .to { color: var(--blue); border-color: #2E4A5C; background: rgba(125,207,255,.07); }
-  #composer.mission { border-color: var(--accent-d); }
-  #composer.shell, #composer.shell:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(205,105,74,.18), 0 0 22px rgba(205,105,74,.14), var(--e2), var(--hair); }
-  #composer.shell.quiet { border-style: dashed; }
-  #composer.shell:focus-within .caret, #composer.shell:focus-within .to { color: var(--accent); border-color: var(--accent-d); background: rgba(205,105,74,.07); }
-  #composer.shell:focus-within #cmp-in { caret-color: var(--accent); }
-  #composer.mission:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(205,105,74,.20), 0 0 22px rgba(205,105,74,.12), var(--e2), var(--hair); }
-  #composer.mission:focus-within .caret { color: var(--accent); }
-  #composer.mission:focus-within #cmp-in { caret-color: var(--accent); }
-  .tile.aiming { border-color: #2E4A5C; box-shadow: 0 0 0 1px rgba(125,207,255,.2), 0 0 24px rgba(125,207,255,.13), var(--e2), var(--hair); }
-  #composer .caret { font-family: var(--mono); font-size: 13px; color: var(--accent); flex: none; }
-  #composer.mission .caret { line-height: 1.6; }
-  #cmp-in { flex: 1; min-width: 0; display: block; font: inherit; font-size: 12.5px; line-height: 1.6; color: var(--txt); caret-color: var(--accent); background: none; border: 0; outline: none; padding: 0; margin: 0; resize: none; height: 20px; max-height: 132px; overflow-y: auto; }
-  #cmp-in::placeholder { color: var(--txt-3); }
-  #cmp-pill { font-family: var(--mono); font-size: 10px; color: var(--accent-hi); background: var(--accent-bg); border: 1px solid var(--accent-d); border-radius: var(--r1); padding: 2px 7px; flex: none; margin-top: 1px; }
-  #cmp-controls { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-width: 0; }
-  #cmp-controls[hidden] { display: none; }
-  #cmp-controls select, #cmp-controls input { font-family: var(--mono); font-size: 10px; line-height: 1.5; color: var(--txt-2); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 7px; margin: 0; appearance: none; -webkit-appearance: none; outline: none; transition: color 120ms var(--ease), border-color 120ms var(--ease); }
-  #cmp-controls select { cursor: pointer; padding-right: 19px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23948E85' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 6px center; background-size: 7px; }
-  #cmp-controls input { width: 11ch; }
-  #cmp-controls input::placeholder { color: var(--txt-3); }
-  #cmp-controls select:hover, #cmp-controls input:hover { color: var(--txt); border-color: var(--line-3); }
-  #cmp-controls select:focus-visible, #cmp-controls input:focus-visible { color: var(--txt); border-color: var(--accent); }
-  #cmp-controls select[disabled] { opacity: .4; cursor: default; }
-  #cmp-controls.cloud #n-where, #cmp-controls.cloud #n-repo, #cmp-controls.cloud #n-branch { color: var(--accent-hi); border-color: var(--accent-d); background-color: rgba(205,105,74,.08); }
-  #cmp-keys { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--txt-3); white-space: nowrap; }
-  #n-cloud-account { font-family: var(--mono); font-size: 10px; color: var(--txt-3); white-space: nowrap; align-self: center; }
-  #cmp-hint { font-family: var(--mono); font-size: 10.5px; line-height: 1.5; color: var(--txt-3); margin: -2px 16px 10px; padding: 0 1px; }
-  #composer .to { font-family: var(--mono); font-size: 10px; color: var(--txt-2); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; flex: none; max-width: 26ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #composer .to.none { color: var(--txt-3); }
-  #composer.mission .to { color: var(--accent-hi); border-color: var(--accent-d); background: var(--accent-bg); }
 
-  #cmp-suggest { margin: -2px -6px 2px; padding: 3px; border-bottom: 1px solid var(--line); max-height: 216px; overflow-y: auto; scrollbar-width: thin; }
-  #cmp-suggest[hidden] { display: none; }
-  .sgp { display: grid; grid-template-columns: 13px minmax(0, 1fr); gap: 9px; align-items: baseline; padding: 5px 8px; border-radius: var(--r1); cursor: pointer; }
-  .sgp.sel { background: var(--panel); outline: 1px solid var(--line-2); }
-  .sgp .mark { font-family: var(--mono); font-size: 12px; color: var(--accent); }
-  .sgp .val { min-width: 0; display: grid; gap: 2px; }
-  .sgp .val b { font-family: var(--mono); font-size: 12.5px; font-weight: 400; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .sgp .val .meta { display: flex; gap: 7px; flex-wrap: wrap; font-family: var(--mono); font-size: 10px; color: var(--txt-3); }
-  .sgp .val .meta .st { color: var(--accent); }
-  .sgp .val .said { font-size: 11.5px; color: var(--txt-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #cmp-suggest .none { padding: 6px 9px; font-size: 12px; color: var(--txt-3); }
-
-  #cmp-suggest .sgp.quiet { opacity: .5; }
   .sv-user.peer { border-left-color: var(--violet); border-color: rgba(138, 124, 176, .5); background: color-mix(in srgb, var(--violet) 8%, var(--panel-2)); }
   .sv-peer-from { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--violet); margin-bottom: -4px; }
   .sv-peer-from b { font-weight: 400; color: var(--violet); cursor: pointer; }
   .sv-peer-from b:hover { color: var(--txt); }
   .sv-peer-from .kind { color: var(--txt-3); }
-  #composer .slash { all: unset; cursor: pointer; font-family: var(--mono); font-size: 10px; color: var(--txt-3); border: 1px solid var(--line); border-radius: 5px; padding: 2px 7px; flex: none; transition: color 120ms var(--ease), border-color 120ms var(--ease); }
-  #composer .slash[hidden] { display: none; }
-  .cmp-talk { all: unset; cursor: pointer; width: 24px; height: 24px; flex: none; border-radius: 50%; display: grid; place-items: center; color: var(--txt-3); border: 1px solid var(--line); transition: color 120ms var(--ease), border-color 120ms var(--ease), background 120ms var(--ease); }
-  .cmp-talk svg { width: 13px; height: 13px; }
-  .cmp-talk[hidden] { display: none; }
-  .cmp-talk:hover { color: var(--txt-2); border-color: var(--line-2); }
-  .cmp-talk:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  #composer .slash:hover { color: var(--txt-2); border-color: var(--line-2); }
-  #composer .slash:focus-visible { color: var(--txt-2); outline: 2px solid var(--blue); outline-offset: 1px; }
-
 
   .t-chips { gap: 5px; padding: 7px 13px 0; flex-wrap: wrap; order: 3; display: flex; }
   .t-where { display: inline-flex; order: 3; }
@@ -4002,21 +3923,17 @@
     .tile.open > :is(.x-split, .x-split-thread) { display: none !important; }
     body.x-info-sized .tile.open:not(.threading) .side { max-height: var(--x-info-height); }
     body:not([data-experience-off~="resizeInfo"]) .tile.open:not(.threading) > .y-split { display: block; position: absolute; grid-area: 2 / 1 / 3 / 2; left: 0; right: 0; top: -4px; height: 8px; cursor: row-resize; touch-action: none; z-index: 12; outline: none; }
-    #composer { margin: 0 8px 8px; padding: 9px 11px; }
-    #composer .slash { display: none; }
-    #cmp-keys { display: none; }
-    #cmp-hint { margin: -2px 12px 8px; }
     #strip { padding: 8px 10px 4px; }
   }
 
   @media (prefers-reduced-motion: reduce) { * { transition-duration: 1ms !important; } }
   body.no-motion * { transition-duration: 1ms !important; animation: none !important; }
-  body.lean .menu, body.lean #btrade, body.lean #arrange, body.lean #plane-hud, body.lean .plink-menu, body.lean .pbar, body.lean #plane-said, body.lean #plane-map, body.lean .sv-suggest::before, body.lean .sv-jump, body.lean .sv-queue, body.lean .sv-subs, body.lean .sv-menu, body.lean .modal, body.lean .box, body.lean #mission-scrim, body.lean #nudge-scrim, body.lean .w-bar, body.lean .pal-scrim, body.lean .pal-sheet, body.lean .relpop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  body.lean .menu, body.lean #btrade, body.lean #arrange, body.lean #plane-hud, body.lean .plink-menu, body.lean .pbar, body.lean #plane-said, body.lean #plane-map, body.lean .sv-suggest::before, body.lean .sv-jump, body.lean .sv-queue, body.lean .sv-subs, body.lean .sv-menu, body.lean .modal, body.lean .box, body.lean #nudge-scrim, body.lean .w-bar, body.lean .pal-scrim, body.lean .pal-sheet, body.lean .relpop { backdrop-filter: none; -webkit-backdrop-filter: none; }
   body.lean .menu, body.lean #btrade, body.lean .sv-menu, body.lean .box, body.lean .pal-sheet, body.lean .relpop, body.lean #plane-hud, body.lean .plink-menu, body.lean .pbar, body.lean #plane-said, body.lean #plane-map, body.lean .sv-queue, body.lean .sv-subs, body.lean .sv-suggest::before { background: var(--panel-2); }
   body.lean .sv-jump, body.lean .w-bar { background: var(--panel); }
   body.lean .wn-list { background: var(--well); }
   body.lean .modal, body.lean #confirm.at, body.lean .pal-scrim { background: rgba(8,8,8,.82); }
-  body.lean #mission-scrim, body.lean #nudge-scrim { background: rgba(6,6,6,.86); }
+  body.lean #nudge-scrim { background: rgba(6,6,6,.86); }
   body.lean #arrange { background: rgba(6,6,6,.96); }
   @media (prefers-reduced-motion: reduce) {
     .tile, .tile.born, .tile.gone, .tile[data-state="needs"], .tile[data-state="needs"].just-needs, .t-pill svg, .spawn .bar i, .pal-sheet, .spawn .step .blink { animation: none; }
@@ -4365,8 +4282,6 @@
   body.look-dimension .thm-color input[type="color"]::-webkit-color-swatch { border-radius: var(--r-row); }
   body.look-dimension .peek { border-radius: var(--r-card); }
   body.look-dimension .peek img { border-radius: var(--r-card); }
-  body.look-dimension #mission-head #mission-esc { border-radius: var(--r-card); }
-  body.look-dimension #mission-go { font-weight: 500; border-radius: var(--r-card); }
   body.look-dimension #nudge .nd-where select { border-radius: var(--r-row); }
   body.look-dimension #nudge-who .team-av { border-radius: var(--r-card); }
   body.look-dimension #nudge .nd-acts button { border-radius: var(--r-card); }
@@ -4412,9 +4327,6 @@
   body.look-dimension .pal-row { border-radius: var(--r-card); }
   body.look-dimension .pal-row .rn em { border-radius: var(--r-row); }
   body.look-dimension .pal-row .rn mark { border-radius: var(--r-row); }
-  body.look-dimension #cmp-controls select, body.look-dimension #cmp-controls input { border-radius: var(--r-row); }
-  body.look-dimension #composer .to { border-radius: var(--r-card); }
-  body.look-dimension #composer .slash { border-radius: var(--r-card); }
   body.look-dimension .sv-stamp .st-copy, body.look-dimension .sv-stamp .st-edit { border-radius: var(--r-card); }
   body.look-dimension .sv-quote-pop { border-radius: var(--r-card); }
   body.look-dimension #btn-lim .track { border-radius: 4px; }
@@ -4574,14 +4486,6 @@
   body.look-dimension .sv-send, body.look-dimension .sv-composer.ready .sv-send { background: var(--txt); color: var(--bg); box-shadow: none; }
   body.look-dimension .sv-btns .sv-stop { color: var(--txt-2); border-color: var(--ln-2); }
 
-  body.look-dimension #composer { gap: 6px; margin: 0 16px 14px; padding: 6px 8px 6px 14px; border: 1px solid var(--ln-2); border-radius: var(--r-pill); background: var(--panel); box-shadow: var(--nav-shadow); }
-  body.look-dimension #composer:focus-within { border-color: var(--ln-2); }
-  body.look-dimension #composer:has(#mission-head:not([hidden])), body.look-dimension #composer:has(#cmp-suggest:not([hidden])) { border-radius: var(--r-card); padding: 12px 14px; }
-  body.look-dimension #composer .line { gap: 8px; }
-  body.look-dimension #composer .to, body.look-dimension #composer .slash, body.look-dimension #cmp-keys .ghost, body.look-dimension #composer .ghost { font-family: var(--mono); font-size: 11px; color: var(--txt-2); border: 1px solid var(--ln); border-radius: var(--r-pill); padding: 4px 10px; background: transparent; }
-  body.look-dimension #composer .slash:hover, body.look-dimension #cmp-keys .ghost:hover, body.look-dimension #composer .ghost:hover { color: var(--txt); border-color: var(--ln-2); background: var(--frost); }
-  body.look-dimension #cmp-in, body.look-dimension #composer textarea, body.look-dimension #composer input { font-size: 13px; }
-
   body.look-dimension .menu { border: 1px solid var(--ln-2); border-radius: var(--r-card); padding: 8px; background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: var(--nav-shadow); }
   body.look-dimension #top .right .menu .ghost, body.look-dimension .menu .ghost { padding: 7px 12px; height: auto; gap: 10px; border: 0; border-radius: var(--r-row); font-size: 13px; color: var(--txt-2); background: transparent; box-shadow: none; }
   body.look-dimension #top .right .menu .ghost:hover, body.look-dimension #top .right .menu .ghost:focus-visible, body.look-dimension .menu .ghost:hover, body.look-dimension .menu .ghost:focus-visible { background: var(--frost); color: var(--txt); }
@@ -4715,8 +4619,6 @@
   body.look-dimension .tile .well:not(.structured) .host { padding: 8px 10px 6px; }
   body.look-dimension .tile.open .well:not(.structured) { margin: 0 12px 12px 0; }
   body.look-dimension .tile .well:not(.structured) .xterm, body.look-dimension .tile .well:not(.structured) .xterm-viewport, body.look-dimension .tile .well:not(.structured) .xterm-screen { background: transparent !important; }
-  body.look-dimension #cmp-in { font-size: 13px; line-height: 20px; height: 20px; padding: 0; }
-  body.look-dimension #composer .line { min-height: 24px; align-items: center; }
   body.look-dimension #blocks button.drop, body.look-dimension #blocks .ws-one.drop { color: var(--txt); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); transform: scale(1.04); transition: transform 120ms var(--ease), box-shadow 120ms var(--ease), background 120ms var(--ease); }
   body.look-dimension.seat-dragging #blocks button:not([aria-pressed="true"]), body.look-dimension.seat-dragging #blocks .ws-one:not(.on) { border-style: dashed; border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--txt); }
   body.look-dimension.seat-dragging #blocks button.drop, body.look-dimension.seat-dragging #blocks .ws-one.drop { border-style: solid; border-color: var(--accent); }
@@ -4858,7 +4760,6 @@ try {
     <button class="ghost" id="btn-more" title="everything else" aria-label="everything else" aria-haspopup="true" aria-expanded="false">⋯</button><span id="win-btns" hidden><button type="button" class="ghost wb" data-act="min" title="minimize" aria-label="minimize"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5h8"/></svg></button><button type="button" class="ghost wb" data-act="max" title="maximize" aria-label="maximize"><svg viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="1.5" width="7" height="7"/></svg></button><button type="button" class="ghost wb" data-act="close" title="close the window" aria-label="close the window"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg></button></span>
     <div class="menu" id="more">
       <button class="ghost sw" id="btn-dim" aria-pressed="true" title="while the keyboard is inside a seat, the other cards fade — this turns that off"><span class="lbl">dim the others</span><span class="sw-r" data-no-t><kbd id="k-dim"></kbd><i class="tog" aria-hidden="true"></i></span></button>
-      <button class="ghost sw" id="btn-bar" aria-pressed="true" title="the message bar docked at the bottom of the canvas"><span class="lbl">message bar</span><span class="sw-r" data-no-t><kbd id="k-bar"></kbd><i class="tog" aria-hidden="true"></i></span></button>
       <button class="ghost sw" id="btn-share" aria-pressed="true" title="whether the team sees the cards of your fleet — titles and state, never the conversation"><span class="lbl">share my fleet</span><span class="sw-r" data-no-t><i class="tog" aria-hidden="true"></i></span></button>
       <button class="ghost sw" id="btn-phone" aria-pressed="false" title="whether your own paired phone can read and drive the seats of this machine — the team does not come along"><span class="lbl">my phone</span><span class="sw-r" data-no-t><i class="tog" aria-hidden="true"></i></span></button>
       <button class="ghost sw" id="btn-machines" aria-pressed="false" title="whether your other computers can read and drive the seats of this machine — seeing them in the rail does not depend on this"><span class="lbl">my other machines</span><span class="sw-r" data-no-t><i class="tog" aria-hidden="true"></i></span></button>
@@ -4946,70 +4847,7 @@ try {
       <div id="plane-said" data-no-t hidden></div>
     </div>
     <div id="mirror" data-no-t hidden aria-label="Another hive, read-only"></div>
-    <div id="mission-scrim" hidden></div>
     <button class="alone-exit" id="btn-narrow" hidden>leave <kbd>esc</kbd></button>
-    <form id="composer" data-t autocomplete="off">
-      <div id="mission-head" hidden>
-        <b>new chat</b>
-        <span>the mission gives it a name</span>
-        <button type="button" id="mission-esc" title="close the box">esc</button>
-      </div>
-      <div id="cmp-attach" class="sv-attach"></div>
-      <div id="cmp-suggest" hidden></div>
-      <div class="line">
-        <span class="caret" aria-hidden="true">&rsaquo;</span>
-        <span id="cmp-pill" hidden>/new</span>
-        <textarea id="cmp-in" rows="1" spellcheck="false" autocomplete="off" aria-label="message the focused seat" placeholder="message the focused seat — /new opens one on the spot"></textarea>
-        <span class="to none" id="cmp-to">no seat in focus</span>
-        <button type="button" id="cmp-talk" class="cmp-talk" hidden aria-pressed="false" aria-label="talk instead of typing"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#i-mic"/></svg></button>
-        <button type="button" class="slash" data-ins="/new " title="write /new here — the rest of the line becomes the mission, and the chat opens right away">/new</button>
-        <button type="button" class="slash" data-ins="@" title="write @ here — then the name of the seat">@seat</button>
-        <button type="button" class="slash" data-ins="#" title="write # here — then the name of another chat, to hand it over to the one you are writing to">#mention</button>
-        <button type="button" class="slash" data-ins="~" title="write ~ here — then someone's name, to hand their hive over. They see any question before it lands">~person</button>
-        <button type="button" class="slash" data-ins="!" title="write ! here — then a shell line. It runs in the chat's folder and the output lands in the chat, without going through the model. !! runs it without keeping it in the chat's history">!run</button>
-      </div>
-      <div id="cmp-controls" hidden>
-        <select id="n-where" aria-label="where it runs" title="where the chat runs">
-          <option value="local">local · your machine</option>
-          <option value="cloud">cloud · server</option>
-        </select>
-        <input id="n-repo" autocomplete="off" spellcheck="false" aria-label="repo" title="the repo the cloud seat clones" placeholder="repo" hidden />
-        <input id="n-branch" autocomplete="off" spellcheck="false" aria-label="branch" title="the branch it starts from" placeholder="branch" hidden />
-        <select id="n-model" aria-label="model" title="the model the chat starts on">
-          <option value="">the account default</option>
-        </select>
-        <select id="n-kind" aria-label="seat" title="what kind of seat it opens">
-          <option value="structured" title="markdown, cards, instant commands, questions as buttons">claude · native chat</option>
-          <option value="terminal" title="the terminal exactly as you know it">claude · classic TUI</option>
-          <option value="codex" title="markdown, cards, instant commands">codex · native chat</option>
-          <option value="codex-tui" title="the terminal">codex · the TUI</option>
-          <option value="kimi" title="markdown, cards, instant commands">kimi · native chat</option>
-          <option value="kimi-tui" title="the terminal">kimi · the TUI</option>
-          <option value="kiro" title="markdown, cards, instant commands">kiro · native chat</option>
-          <option value="kiro-tui" title="the terminal">kiro · the TUI</option>
-          <option value="cursor" title="markdown, cards, instant commands">cursor · native chat</option>
-          <option value="cursor-tui" title="the terminal">cursor · the TUI</option>
-          <option value="gemini" title="markdown, cards, instant commands">gemini · native chat</option>
-          <option value="gemini-tui" title="the terminal">gemini · the TUI</option>
-          <option value="antigravity" title="markdown, cards, instant commands">antigravity · native chat</option>
-          <option value="antigravity-tui" title="the terminal">antigravity · the TUI</option>
-          <option value="opencode" title="markdown, cards, instant commands">opencode · native chat</option>
-          <option value="opencode-tui" title="the terminal">opencode · the TUI</option>
-        </select>
-        <select id="n-count" aria-label="how many chats" title="one chat, or a race: the same mission in several chats, each in its own worktree — you compare and keep one">
-          <option value="1">one chat</option>
-          <option value="2">race · 2 chats</option>
-          <option value="3">race · 3 chats</option>
-          <option value="4">race · 4 chats</option>
-        </select>
-        <select id="n-account" aria-label="account" title="which account it logs in with" hidden></select>
-        <span id="n-cloud-account" hidden>cloud seats use the server's sign-in</span>
-        <input id="n-name" autocomplete="off" spellcheck="false" aria-label="name" title="leave it empty and the AI names it from the mission" placeholder="name" />
-        <button type="submit" id="mission-go" hidden>open chat ⏎</button>
-        <span id="cmp-keys">enter opens · shift+enter breaks the line · esc cancels</span>
-      </div>
-    </form>
-    <p id="cmp-hint" hidden></p>
   </main>
 </div>
 

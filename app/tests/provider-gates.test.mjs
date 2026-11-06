@@ -11,7 +11,7 @@ const page = readFileSync(join(HERE, "app.html"), "utf8");
 
 const st = await state();
 await views();
-const { paintNewChatKinds, providerReady, providerWhyNot, readyAgents, statusOf } = await app("providers");
+const { providerReady, providerWhyNot, readyAgents, statusOf } = await app("providers");
 
 const provider = (id, over = {}) => ({ id, label: id, name: id, color: "#000000", version: "1", enabled: true, installed: true, ready: true, why: "", accounts: [{ name: "default", loggedIn: true }], order: ["default"], ...over });
 
@@ -28,17 +28,6 @@ test("an agent that is off, missing or signed out leaves the pickers, and the ch
   assert.equal(providerWhyNot("kiro"), "Kiro is not installed on this machine");
 });
 
-test("the new-chat kinds hide the agents the pickers hide, and a hidden choice falls to the first one left", () => {
-  st.providers = [provider("claude", { ready: false, why: "nobody is signed in to Claude" }), provider("codex"), provider("kimi", { ready: false, why: "off" }), provider("kiro"), provider("cursor", { ready: false, why: "off" }), provider("gemini"), provider("antigravity"), provider("opencode")];
-  const sel = document.getElementById("n-kind");
-  sel.value = "structured";
-  paintNewChatKinds();
-  const hidden = [...sel.options].filter((o) => o.disabled).map((o) => o.value);
-  assert.deepEqual(hidden, ["structured", "terminal", "kimi", "kimi-tui", "cursor", "cursor-tui"]);
-  assert.equal(sel.value, "codex", "the claude kinds are gone, so the first agent with room is picked");
-  assert.equal([...sel.options].find((o) => o.value === "structured").title, "nobody is signed in to Claude");
-});
-
 test("the status of a provider is one word the list can colour", () => {
   assert.deepEqual(statusOf(provider("codex", { accounts: [{ name: "default", loggedIn: true, tier: "team" }] })), { status: "authenticated · team", tone: "ok" });
   assert.deepEqual(statusOf(provider("codex", { accounts: [{ name: "default", loggedIn: true }, { name: "work", loggedIn: true }] })), { status: "2 logins", tone: "ok" });
@@ -52,7 +41,6 @@ test("the seat picker's rail, the draft catalogue and the routine editor all ask
   assert.doesNotMatch(panes, /does not sign in with a Claude account/, "the login pill no longer refuses every other agent");
   assert.match(source("draft-seat"), /AGENT_NAMES\[kept\?\.agent\] && providerReady\(kept\.agent\) \? kept\.agent : \(readyAgents\(\)\[0\] \|\| "claude"\)/);
   assert.match(source("routines"), /ROUTINE_AGENTS\.filter\(\(a\) => readyAgents\(r\.agent\)\.includes\(a\)\)/);
-  assert.match(source("new-chat"), /if \(!providerReady\(agent\)\) \{[\s\S]*?box\.disabled = true;/);
 });
 
 test("the screen is a section of the page, opened by the key the accounts modal had", () => {

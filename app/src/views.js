@@ -1,7 +1,7 @@
 export { mountView } from "./view.jsx";
 export { mountRail } from "./rail.jsx";
 export { mountNextRail, mountNextRailFoot, mountNextRailHud } from "./next-rail.jsx";
-export { mountBlocks, mountStrip, mountLimitChip, mountLimitResets, mountLimPop, mountPrButton, mountPrPop, mountComposerTo, mountHold } from "./top.jsx";
+export { mountBlocks, mountStrip, mountLimitChip, mountLimitResets, mountLimPop, mountPrButton, mountPrPop, mountHold } from "./top.jsx";
 export { mountTeamRail, mountKnocks, mountWorktreeRail, mountRailToggle, mountNudge } from "./rail-extras.jsx";
 export { mountTileSide, mountJobSide, mountFileSide, mountBlank } from "./tile.jsx";
 export { mountDiffWindow, mountInfoColumn } from "./changes.jsx";

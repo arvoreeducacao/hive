@@ -9,12 +9,13 @@ const HERE = fileURLToPath(new URL("..", import.meta.url));
 
 const st = await state();
 await views();
-const { $ } = await app("core");
 const { composerInFocus, pullDictation, putWords, talkSaid, wireTalkButton } = await app("stt");
 
 const answer = (said) => {
   globalThis.fetch = async () => ({ ok: true, json: async () => said, text: async () => JSON.stringify(said) });
 };
+
+const textBox = () => dom.document.body.appendChild(dom.document.createElement("textarea"));
 
 const fresh = () => {
   const button = dom.document.createElement("button");
@@ -27,7 +28,6 @@ const fresh = () => {
 test("the composers carry a microphone button, and the sprite has the microphone", () => {
   const page = readFileSync(join(HERE, "app.html"), "utf8");
   assert.match(page, /<symbol id="i-mic"/);
-  assert.ok($("cmp-talk"), "the mission composer needs its own microphone");
   for (const file of ["src/app/chat-stretches.js", "src/app/draft-seat.js"]) {
     const source = readFileSync(join(HERE, file), "utf8");
     assert.match(source, /class="sv-talk"/, `${file} has no microphone button`);
@@ -37,7 +37,7 @@ test("the composers carry a microphone button, and the sprite has the microphone
 
 test("the button hides itself until dictation is switched on", async () => {
   const button = fresh();
-  wireTalkButton(button, () => null);
+  wireTalkButton(button, textBox);
   assert.equal(button.hidden, true);
   answer({ enabled: false, engine: "none", model: { state: "none" } });
   await pullDictation();
@@ -49,7 +49,7 @@ test("the button hides itself until dictation is switched on", async () => {
 
 test("a machine without the model shows the button worn out, not gone", async () => {
   const button = fresh();
-  wireTalkButton(button, () => null);
+  wireTalkButton(button, textBox);
   answer({ enabled: true, engine: "ready", model: { state: "none" } });
   await pullDictation();
   assert.equal(button.hidden, false);
@@ -71,8 +71,8 @@ test("what the button says changes with what dictation is doing", () => {
 test("only the composer that started dictation lights up", async () => {
   const mine = fresh();
   const other = fresh();
-  wireTalkButton(mine, () => null);
-  wireTalkButton(other, () => null);
+  wireTalkButton(mine, textBox);
+  wireTalkButton(other, textBox);
   answer({ enabled: true, engine: "ready", model: { state: "ready" } });
   await pullDictation();
 
@@ -89,7 +89,7 @@ test("only the composer that started dictation lights up", async () => {
 
 test("one click starts, and the click that follows is the one that stops", async () => {
   const button = fresh();
-  wireTalkButton(button, () => null);
+  wireTalkButton(button, textBox);
   answer({ enabled: true, engine: "ready", model: { state: "ready" } });
   await pullDictation();
 
@@ -120,15 +120,15 @@ test("the words land at the cursor of the box the microphone belongs to", () => 
   assert.equal(box.value, "comeco no meio fim");
 });
 
-test("with no seat in focus the words go to the mission composer", () => {
+test("with no seat in focus there is no box to write into", () => {
   st.open = null;
   st.focus = -1;
-  assert.equal(composerInFocus(), $("cmp-in"));
+  assert.equal(composerInFocus(), null);
 });
 
 test("a click while dictation is off says so instead of opening the microphone", async () => {
   const button = fresh();
-  wireTalkButton(button, () => null);
+  wireTalkButton(button, textBox);
   answer({ enabled: false, engine: "none", model: { state: "none" } });
   await pullDictation();
   let reached = false;
@@ -163,8 +163,8 @@ test("in the new Hive a folded chat opens while it listens, as it does with word
   try {
     const { composer, button } = inComposer();
     const other = inComposer();
-    wireTalkButton(button, () => null);
-    wireTalkButton(other.button, () => null);
+    wireTalkButton(button, textBox);
+    wireTalkButton(other.button, textBox);
     answer({ enabled: true, engine: "ready", model: { state: "ready" } });
     await pullDictation();
     const stop = await listenUntilStopped(button);
@@ -178,7 +178,7 @@ test("in the new Hive a folded chat opens while it listens, as it does with word
 
 test("in the current Hive the composer never takes the talking mark", async () => {
   const { composer, button } = inComposer();
-  wireTalkButton(button, () => null);
+  wireTalkButton(button, textBox);
   answer({ enabled: true, engine: "ready", model: { state: "ready" } });
   await pullDictation();
   const stop = await listenUntilStopped(button);
@@ -197,7 +197,7 @@ test("a folded chat hides the microphone like the send button and stays open whi
 
 test("a new take keeps its button lit when the last one finishes settling behind it", async () => {
   const button = fresh();
-  wireTalkButton(button, () => null);
+  wireTalkButton(button, textBox);
   answer({ enabled: true, engine: "ready", model: { state: "ready" } });
   await pullDictation();
   dom.navigator.mediaDevices = { getUserMedia: async () => { throw Object.assign(new Error("no mic here"), { name: "NotFoundError" }); } };

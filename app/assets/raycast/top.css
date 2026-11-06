@@ -72,9 +72,7 @@ body:where(.experience-raycast).seat-dragging #blocks button[data-i]:not(.drop) 
 :where(body.experience-raycast) #blocks .mirror-btn em { font: normal 400 11px var(--mono); color: var(--txt-3); opacity: 1; }
 :where(body.experience-raycast) #blocks .mirror-btn .team-av.face { width: 16px; height: 16px; }
 
-:where(body.experience-raycast) #stage { grid-template-rows: minmax(0, 1fr) auto auto; }
-body:where(.experience-raycast).mission-open #stage { grid-template-rows: minmax(0, 1fr); }
-body:where(.experience-raycast).no-bar #stage { grid-template-rows: minmax(0, 1fr); }
+:where(body.experience-raycast) #stage { grid-template-rows: minmax(0, 1fr); }
 :where(body.experience-raycast) #strip { order: var(--at, 2); display: flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; height: 32px; margin: 0 2px 0 4px; padding: 0 4px 0 6px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 4%, transparent); }
 :where(body.experience-raycast) #strip:focus-within { box-shadow: inset 0 0 0 1px var(--line-3), 0 0 0 3px color-mix(in srgb, var(--txt) 4%, transparent); }
 :where(body.experience-raycast) #strip .num { flex: none; }

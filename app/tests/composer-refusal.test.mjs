@@ -1,8 +1,5 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { app, views } from "./dom.mjs";
 
 const { svConvFlushAll } = await app("conversation-model");
@@ -11,9 +8,6 @@ await views();
 
 const { getStructured } = await app("chat-stretches");
 const { st } = await app("core");
-
-const HERE = fileURLToPath(new URL("../src/app", import.meta.url));
-const layout = readFileSync(join(HERE, "seat-layout.js"), "utf8");
 
 let seq = 0;
 
@@ -64,10 +58,3 @@ test("a handle that fits two chats says so in the conversation, and the words st
   assert.equal(box.value, "confere com #api antes");
 });
 
-test("the bar tells which of its refusals it was, instead of dropping the message", () => {
-  assert.match(layout, /if \(bare\) return void composerRefused\(/);
-  assert.match(layout, /if \(found\.error\) return void composerRefused\(found\.error\);/);
-  assert.match(layout, /if \(!target\) return void composerRefused\(/);
-  assert.match(layout, /if \(woven\.error\) return void composerRefused\(woven\.error\);/);
-  assert.match(layout, /if \(!sendToSeat\([\s\S]{0,120}\{\n\s+return void composerRefused\(/);
-});

@@ -144,61 +144,6 @@
 :where(body.experience-raycast) .c-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 :where(body.experience-raycast) #confirm.at { background: rgba(4,5,6,.64); }
 :where(body.experience-raycast) #confirm.at .box { box-shadow: var(--e2), var(--float-e); }
-body:where(.experience-raycast).mission-open #composer, body:where(.experience-raycast).no-bar.mission-open #composer { top: min(9vh, 72px); width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; padding: 0; gap: 0; border: 0; border-radius: var(--r3); background: var(--panel); box-shadow: var(--e1), var(--float-e); }
-:where(body.experience-raycast) #mission-head { gap: 12px; height: 56px; padding: 0 12px 0 16px; flex: none; margin-bottom: unset; font-size: unset; color: unset; }
-:where(body.experience-raycast) #mission-head .nf-ic { width: 28px; height: 28px; border-radius: 50%; background: var(--panel-3); color: var(--txt); display: grid; place-items: center; flex: none; }
-:where(body.experience-raycast) #mission-head .nf-ic svg { width: 14px; height: 14px; }
-:where(body.experience-raycast) #mission-head b { font-size: 14px; font-weight: 500; }
-:where(body.experience-raycast) #mission-head b::first-letter { text-transform: uppercase; }
-:where(body.experience-raycast) #mission-head .nf-at { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-:where(body.experience-raycast) #mission-head #mission-esc { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r2); color: var(--txt-3); cursor: pointer; flex: none; }
-:where(body.experience-raycast) #mission-head #mission-esc svg { width: 12px; height: 12px; }
-:where(body.experience-raycast) #mission-head #mission-esc:hover, :where(body.experience-raycast) #mission-head #mission-esc:focus-visible { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
-:where(body.experience-raycast) #mission-go, :where(body.experience-raycast) #mission-cancel { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px 0 12px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt-2); white-space: nowrap; cursor: pointer; }
-:where(body.experience-raycast) #mission-go[hidden] { display: none; }
-:where(body.experience-raycast) #mission-go::first-letter, :where(body.experience-raycast) #mission-cancel::first-letter { text-transform: uppercase; }
-:where(body.experience-raycast) #mission-go { background: var(--accent); color: var(--accent-d); box-shadow: 0 7px 3px rgba(0,0,0,.03), 0 4px 4px rgba(0,0,0,.25); }
-:where(body.experience-raycast) #mission-go .rc-key { background: rgba(0,0,0,.08); box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); color: var(--accent-d); }
-:where(body.experience-raycast) #mission-go .rc-key, :where(body.experience-raycast) #mission-cancel .rc-key { height: 18px; min-width: 18px; font-size: 10px; }
-:where(body.experience-raycast) #mission-cancel:hover { color: var(--txt); }
-:where(body.experience-raycast) #mission-go:focus-visible, :where(body.experience-raycast) #mission-cancel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-body:where(.experience-raycast).mission-open #composer .caret, body:where(.experience-raycast).mission-open #cmp-pill, body:where(.experience-raycast).mission-open #cmp-hint, body:where(.experience-raycast).mission-open #cmp-keys, body:where(.experience-raycast).mission-open #cmp-to { display: none; }
-body:where(.experience-raycast).mission-open #cmp-attach:not(:empty) { margin: 12px 32px 0 152px; }
-body:where(.experience-raycast).mission-open #composer .line { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto; gap: 16px; align-items: start; padding: 20px 32px 0 24px; }
-body:where(.experience-raycast).mission-open #composer .nf-mission { display: block; padding-top: 10px; }
-body:where(.experience-raycast).mission-open #composer #cmp-in { box-sizing: border-box; min-height: 92px; padding: 10px 12px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); font-size: 14px; line-height: 1.5; }
-body:where(.experience-raycast).mission-open #composer #cmp-in:focus { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 22%, transparent); }
-body:where(.experience-raycast).mission-open #composer .slash { display: none; }
-:where(body.experience-raycast) #composer .nf-l { font-size: 13px; color: var(--txt-2); text-align: right; white-space: nowrap; }
-:where(body.experience-raycast) #composer .nf-l::first-letter { text-transform: uppercase; }
-:where(body.experience-raycast) #composer .nf-mission, :where(body.experience-raycast) #cmp-controls .nf-l, :where(body.experience-raycast) #cmp-controls .nf-hint, :where(body.experience-raycast) #cmp-controls .nf-seg, :where(body.experience-raycast) #cmp-controls .nf-note, :where(body.experience-raycast) #cmp-controls #n-agent, :where(body.experience-raycast) #cmp-controls #mission-cancel { display: none; }
-:where(body.experience-raycast) #cmp-controls .nf-row, :where(body.experience-raycast) #cmp-controls .nf-c, :where(body.experience-raycast) #cmp-controls .nf-foot { display: contents; }
-:where(body.experience-raycast) #cmp-controls:not(.cloud) .nf-cloud, body:where(.experience-raycast).mission-open #cmp-controls:not(.cloud) .nf-cloud { display: none; }
-body:where(.experience-raycast).mission-open #cmp-controls { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px 16px; align-items: center; padding: 6px 32px 0 24px; }
-body:where(.experience-raycast).mission-open #cmp-controls[hidden] { display: none; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-hint { grid-column: 2; display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 12px; color: var(--txt-3); }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-hint .rc-key { height: 16px; min-width: 16px; font-size: 10px; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-row { display: contents; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-l { display: block; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-c { display: flex; align-items: center; gap: 8px; min-width: 0; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); flex: none; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-seg button { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: var(--r1); font-size: 13px; color: var(--txt-2); white-space: nowrap; cursor: pointer; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-seg button:hover { color: var(--txt); }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-seg button[aria-pressed="true"] { background: color-mix(in srgb, var(--txt) 9%, transparent); color: var(--txt); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--txt) 10%, transparent); }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-seg button:disabled { opacity: .4; cursor: default; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-note { display: block; min-width: 0; font-size: 12px; color: var(--txt-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-body:where(.experience-raycast).mission-open #cmp-controls #n-where, body:where(.experience-raycast).mission-open #cmp-controls #n-count, body:where(.experience-raycast).mission-open #cmp-controls #n-kind { display: none; }
-body:where(.experience-raycast).mission-open #cmp-controls #n-agent { display: block; }
-body:where(.experience-raycast).mission-open #cmp-controls select, body:where(.experience-raycast).mission-open #cmp-controls input { box-sizing: border-box; flex: 1; min-width: 0; height: 32px; padding: 0 30px 0 12px; border: 0; border-radius: var(--r2); background-color: color-mix(in srgb, var(--txt) 5%, transparent); background-position: right 12px center; font-family: var(--sans); font-size: 13px; line-height: normal; color: var(--txt); }
-body:where(.experience-raycast).mission-open #cmp-controls input { padding: 0 12px; }
-body:where(.experience-raycast).mission-open #cmp-controls input[hidden], body:where(.experience-raycast).mission-open #cmp-controls select[hidden] { display: none; }
-body:where(.experience-raycast).mission-open #cmp-controls select:focus-visible, body:where(.experience-raycast).mission-open #cmp-controls input:focus-visible { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--txt) 22%, transparent); }
-body:where(.experience-raycast).mission-open #cmp-controls.cloud #n-where, body:where(.experience-raycast).mission-open #cmp-controls.cloud #n-repo, body:where(.experience-raycast).mission-open #cmp-controls.cloud #n-branch { color: var(--txt); background-color: color-mix(in srgb, var(--txt) 5%, transparent); }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-foot { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; height: 52px; margin: 12px -32px 0 -24px; padding: 0 12px 0 16px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--txt) 2%, transparent); }
-body:where(.experience-raycast).mission-open #cmp-controls .nf-grow { flex: 1; }
-body:where(.experience-raycast).mission-open #cmp-controls #mission-cancel { display: inline-flex; }
-body:where(.experience-raycast).mission-open #n-cloud-account { font-family: var(--mono); font-size: 12px; color: var(--txt-3); }
 :where(body.experience-raycast) #nudge-scrim { background: rgba(4, 5, 6, .64); }
 :where(body.experience-raycast) #nudge { width: min(528px, calc(100vw - 32px)); border-radius: var(--r3); background: var(--panel); box-shadow: var(--e2), var(--float-e); overflow: hidden; border: unset; }
 :where(body.experience-raycast) #nudge .nd-head { height: 44px; padding: 0 16px; }
@@ -314,17 +259,9 @@ body:where(.experience-raycast).mission-open #n-cloud-account { font-family: var
 :where(body.experience-raycast) .pal-acts { position: absolute; top: auto; right: 8px; bottom: 52px; z-index: 3; width: 312px; max-height: calc(100% - 72px); overflow-y: auto; }
 :where(body.experience-raycast) #pal-acts[hidden] { display: none; }
 :where(body.experience-raycast) .pv-n { color: var(--txt-3); }
-:where(body.experience-raycast) #composer.mission { border-color: var(--line-3); }
-:where(body.experience-raycast) #composer.mission:focus-within { border-color: var(--line-3); box-shadow: var(--e2); }
-:where(body.experience-raycast) #composer.mission:focus-within .caret { color: var(--txt); }
-:where(body.experience-raycast) #composer.mission:focus-within #cmp-in { caret-color: var(--txt); }
-:where(body.experience-raycast) #cmp-controls.cloud #n-where, :where(body.experience-raycast) #cmp-controls.cloud #n-repo, :where(body.experience-raycast) #cmp-controls.cloud #n-branch { color: var(--txt); border-color: var(--line-3); background-color: var(--panel-3); }
-body:where(.experience-raycast).lean .menu, body:where(.experience-raycast).lean #btrade, body:where(.experience-raycast).lean #arrange, body:where(.experience-raycast).lean #plane-hud, body:where(.experience-raycast).lean .plink-menu, body:where(.experience-raycast).lean .pbar, body:where(.experience-raycast).lean #plane-said, body:where(.experience-raycast).lean #plane-map, body:where(.experience-raycast).lean .sv-suggest::before, body:where(.experience-raycast).lean .sv-jump, body:where(.experience-raycast).lean .sv-queue, body:where(.experience-raycast).lean .sv-subs, body:where(.experience-raycast).lean .sv-menu, body:where(.experience-raycast).lean .modal, body:where(.experience-raycast).lean .box, body:where(.experience-raycast).lean #mission-scrim, body:where(.experience-raycast).lean #nudge-scrim, body:where(.experience-raycast).lean .w-bar, body:where(.experience-raycast).lean .pal-scrim, body:where(.experience-raycast).lean .pal-sheet, body:where(.experience-raycast).lean .relpop, body:where(.experience-raycast).lean #confirm, body:where(.experience-raycast).lean .which { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body:where(.experience-raycast).lean .menu, body:where(.experience-raycast).lean #btrade, body:where(.experience-raycast).lean #arrange, body:where(.experience-raycast).lean #plane-hud, body:where(.experience-raycast).lean .plink-menu, body:where(.experience-raycast).lean .pbar, body:where(.experience-raycast).lean #plane-said, body:where(.experience-raycast).lean #plane-map, body:where(.experience-raycast).lean .sv-suggest::before, body:where(.experience-raycast).lean .sv-jump, body:where(.experience-raycast).lean .sv-queue, body:where(.experience-raycast).lean .sv-subs, body:where(.experience-raycast).lean .sv-menu, body:where(.experience-raycast).lean .modal, body:where(.experience-raycast).lean .box, body:where(.experience-raycast).lean #nudge-scrim, body:where(.experience-raycast).lean .w-bar, body:where(.experience-raycast).lean .pal-scrim, body:where(.experience-raycast).lean .pal-sheet, body:where(.experience-raycast).lean .relpop, body:where(.experience-raycast).lean #confirm, body:where(.experience-raycast).lean .which { backdrop-filter: none; -webkit-backdrop-filter: none; }
 body:where(.experience-raycast).look-dimension .sv-cmd .qfree input { border-radius: var(--r-row); }
 body:where(.experience-raycast).look-dimension .sv-cmd .qgo { border-radius: var(--r-card); }
-body:where(.experience-raycast).look-dimension #composer:has(#cmp-suggest:not([hidden])) { border-radius: var(--r-card); padding: 12px 14px; }
-body:where(.experience-raycast).look-dimension.mission-open #composer { gap: 0; margin: 0; padding: 0; border: 0; border-radius: var(--r3); background: var(--panel); box-shadow: var(--e1), var(--float-e); }
-body:where(.experience-raycast).look-dimension.mission-open #composer .line { gap: 16px; align-items: center; }
 
 :where(body.experience-raycast) #seatmenu .cap { all: unset; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :where(body.experience-raycast) #seatmenu .sep { margin: 5px 9px; background: var(--line-2); opacity: .55; }
@@ -335,7 +272,6 @@ body:where(.experience-raycast).look-dimension.mission-open #composer .line { ga
 :where(body.experience-raycast) .sv-q .qo .qn { display: inline-grid; place-items: center; box-sizing: border-box; min-width: 20px; height: 20px; padding: 0 5px; border: 0; border-radius: 5px; background: var(--panel-3); box-shadow: var(--keycap); font: 400 11px/1 var(--mono); color: var(--txt-2); opacity: 1; }
 :where(body.experience-raycast) .sv-q .qo.sel { color: inherit; }
 :where(body.experience-raycast) .sv-q .qnext:not([disabled]) { color: var(--accent-d); }
-:where(body.experience-raycast) #mission-go:hover, :where(body.experience-raycast) #mission-go:focus-visible { filter: none; }
 :where(body.experience-raycast) .pal-in > svg { display: none; }
 :where(body.experience-raycast) .pal-sec { font-family: inherit; text-transform: none; }
 :where(body.experience-raycast) .pal-row { margin: 0; }
@@ -354,9 +290,6 @@ body:where(.experience-raycast).look-dimension .sv-q .qo .qn { border-radius: 5p
 body:where(.experience-raycast).look-dimension .sv-q .qo { border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension .sv-q .qfree input { border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension .sv-q .qback, body:where(.experience-raycast).look-dimension .sv-q .qnext { border-radius: var(--r2); }
-body:where(.experience-raycast).look-dimension #mission-head #mission-esc { border-radius: var(--r2); }
-body:where(.experience-raycast).look-dimension #mission-go { border-radius: var(--r2); }
-body:where(.experience-raycast).look-dimension #composer:has(#mission-head:not([hidden])) { border-radius: var(--r3); padding: 0; }
 body:where(.experience-raycast).look-dimension #nudge .nd-where select { border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension #nudge-who .team-av { border-radius: 50%; }
 body:where(.experience-raycast).look-dimension #nudge .nd-acts button { border-radius: var(--r2); }

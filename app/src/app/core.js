@@ -32,7 +32,7 @@ watchLongTasks(perf);
 const solidMounts = [];
 
 const renderKey = () => JSON.stringify([
-  st.data, st.blocks, st.block, st.space, st.spaces, st.open, st.focus, st.typing, st.composing, st.mirrorDev,
+  st.data, st.blocks, st.block, st.space, st.spaces, st.open, st.focus, st.typing, st.mirrorDev,
   st.seatLayout, ...(raycastOn() ? [st.structure] : []), st.planeOn, st.holding, st.renaming, st.threadChat, st.reviewChat, st.webChat, st.deviceChat, st.cockChat, st.fieldPane, st.LIMIT
 ]);
 
@@ -226,8 +226,6 @@ st.open = null;
 
 st.typing = null;
 
-st.composing = false;
-
 st.sound = false;
 
 st.answeredAlert = false;
@@ -276,10 +274,8 @@ const MAC_KEYS = {
   palette: { meta: true, code: "KeyK" },
   openFile: { meta: true, code: "KeyP" },
   searchCode: { meta: true, shift: true, code: "KeyF" },
-  compose: { alt: true, code: "KeyM" },
   talk: { meta: true, code: "KeyD" },
   dim: { alt: true, code: "KeyQ" },
-  bar: { meta: true, code: "KeyB" },
   plane: { alt: true, code: "KeyL" }
 };
 
@@ -317,16 +313,14 @@ const CTRL_KEYS = {
   palette: { ctrl: true, shift: true, code: "KeyK" },
   openFile: { ctrl: true, shift: true, code: "KeyP" },
   searchCode: { ctrl: true, shift: true, code: "KeyF" },
-  compose: { ctrl: true, shift: true, code: "KeyM" },
   talk: { ctrl: true, shift: true, code: "Space" },
   dim: { ctrl: true, shift: true, code: "KeyD" },
-  bar: { ctrl: true, shift: true, code: "KeyB" },
   plane: { ctrl: true, shift: true, code: "KeyL" }
 };
 
 const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusMode: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null, scrollUp: null, scrollDown: null };
 
-const RETIRED_ACTIONS = ["pod", "asked"];
+const RETIRED_ACTIONS = ["pod", "asked", "compose", "bar"];
 
 const DEFAULT_KEYS = { ...(IS_MAC ? MAC_KEYS : CTRL_KEYS), ...UNBOUND_KEYS };
 
@@ -342,7 +336,7 @@ const DEFAULT_CHORDS = {
   seat: "digit", focusLeft: "left", focusRight: "right", focusUp: "up", focusDown: "down",
   prevBlock: "[", nextBlock: "]", sendPrevBlock: "shift+[", sendNextBlock: "shift+]", sendBlock: "alt+digit", fullscreen: "f", detach: "o", type: "enter", release: "esc",
   reconnect: "r", sound: "v", answered: "j", copy: "c", help: ",",
-  palette: "space", compose: "m", dim: "q", bar: "b", arrange: "l", plane: "y"
+  palette: "space", dim: "q", arrange: "l", plane: "y"
 };
 
 const DIRECT_MODES = ["keep", "off"];
@@ -359,7 +353,7 @@ const MOVE_MODES = ["navigate", "type"];
 
 const ACTION_GROUPS = [
   ["chats", "chats and seats", ["new", "term", "calls", "fullscreen", "detach", "rename", "reconnect", "type", "release", "copy", "scrollUp", "scrollDown", "archive", "kill"]],
-  ["screens", "screens and panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "compose", "bar", "dim"]],
+  ["screens", "screens and panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "dim"]],
   ["talking", "talking instead of typing", ["talk"]],
   ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusMode", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
   ["notices", "notices", ["sound", "answered"]]
@@ -401,8 +395,6 @@ const ACTION_SAID = {
   help: "open the shortcuts and the settings",
   doctor: "check the environment again — runs the doctor and reports what moved",
   alerts: "show / hide the environment alerts",
-  compose: "write in the composer under the canvas",
-  bar: "the message bar at the bottom",
   dim: "dim the other seats while you type",
   seat: "seat in the block (1…{limit})",
   block: "block in the workspace (1…9)",

@@ -178,7 +178,6 @@ body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .
 body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns button { width: 24px; height: 24px; }
 :where(body.experience-raycast) .t-tags { display: none; flex: none; gap: normal; }
 :where(body.experience-raycast) .tile.spawning .t-state, :where(body.experience-raycast) .tile.spawning .t-chips { display: flex; }
-:where(body.experience-raycast) .tile.aiming { --rc-edge: color-mix(in srgb, var(--blue) 30%, var(--panel)); --rc-shadow: 0 0 0 1px color-mix(in srgb, var(--blue) 20%, transparent), 0 0 24px color-mix(in srgb, var(--blue) 13%, transparent), var(--e2), var(--hair); border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
 :where(body.experience-raycast) .tile.draft { --rc-edge: var(--accent-d); --rc-shadow: var(--e1); }
 :where(body.experience-raycast) .tile.draft.focused { --rc-edge: var(--accent); }
 :where(body.experience-raycast) .tile.spawning .t-pill .gl, :where(body.experience-raycast) .tile.spawning.bad .t-pill .gl { animation: none; }

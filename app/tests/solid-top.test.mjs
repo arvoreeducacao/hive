@@ -15,7 +15,6 @@ const { paintStrip, stripViewModel } = await app("arrange");
 const { knocksViewModel, paintNudge } = await app("team");
 const { limPopViewModel, limitChipViewModel, paintLimitChip } = await app("limit-chip");
 const { prButtonViewModel, prPopViewModel } = await app("seat-menu");
-const { paintComposerTo } = await app("seat-layout");
 const { paintHold } = await app("hold-numbers");
 await app("worktrees");
 await app("new-chat");
@@ -315,8 +314,7 @@ test("each host of the bar is handed to the solid view that owns it", () => {
   for (const [mount, host] of [
     ["mountBlocks", "blocks"], ["mountStrip", "strip"], ["mountTeamRail", "rail-team"], ["mountKnocks", "knock-dock"],
     ["mountNudge", "nudge"], ["mountWorktreeRail", "rail-wt"], ["mountLimitChip", "btn-lim"], ["mountLimPop", "limpop"],
-    ["mountPrButton", "btn-prs"], ["mountPrPop", "prpop"], ["mountRailToggle", "rail-toggle"], ["mountHold", "mode"],
-    ["mountComposerTo", "cmp-to"]
+    ["mountPrButton", "btn-prs"], ["mountPrPop", "prpop"], ["mountRailToggle", "rail-toggle"], ["mountHold", "mode"]
   ]) {
     assert.equal(where.get(mount), host, `${mount} must be given #${host}`);
   }
@@ -356,11 +354,6 @@ test("what the bar does besides handing the model over is still done", () => {
   world({ spaces: [{ id: "w1", tint: "#2e7d32", name: "one" }] });
   paintBlocks();
   assert.equal(document.documentElement.style.getPropertyValue("--tint"), "#2e7d32");
-
-  st.missionMode = true;
-  paintComposerTo();
-  assert.equal($("cmp-in").getAttribute("aria-label"), phrase("enter opens a new chat"));
-  st.missionMode = false;
 
   st.holding = "seat";
   paintHold();
@@ -410,7 +403,7 @@ test("the bar builds into the one bundle, with every mount it owns", { skip: !ca
     const { errors } = await buildApp({ outdir, minify: false });
     assert.deepEqual(errors, []);
     const built = await readFile(join(outdir, "hive.mjs"), "utf8");
-    for (const mount of ["mountBlocks", "mountStrip", "mountLimitChip", "mountLimPop", "mountPrButton", "mountPrPop", "mountComposerTo", "mountHold", "mountTeamRail", "mountKnocks", "mountWorktreeRail", "mountRailToggle", "mountNudge"]) {
+    for (const mount of ["mountBlocks", "mountStrip", "mountLimitChip", "mountLimPop", "mountPrButton", "mountPrPop", "mountHold", "mountTeamRail", "mountKnocks", "mountWorktreeRail", "mountRailToggle", "mountNudge"]) {
       assert.match(built, new RegExp(`\\b${mount}: \\(\\) => ${mount}\\b`), `the bundle lost ${mount}`);
     }
     for (const piece of ["ws-one", "ws-btn", "mirror-btn", "item team", "kn-acts", "wt-track", "pp-sec", "t-act", "nd-seat"]) {

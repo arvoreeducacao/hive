@@ -1,4 +1,4 @@
-import { openMission, setFocusMode } from "./seat-layout.js";
+import { setFocusMode } from "./seat-layout.js";
 import { closeSpace, hideUntilItWorks, menuKeys, menuShow, menuStop, prOfChat, renameSpace, seatMenuRows, spaceCloseNote, threadsOfChat } from "./seat-menu.js";
 import { blockNumber, blocksOf, labelOf, ofBlock, openSpace, seatsOf, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel, saveConfig, whichAction } from "./brand-face.js";
@@ -108,7 +108,7 @@ function palLinearRows(q) {
     name: `${i.identifier} · ${i.title}`,
     ctx: [i.state, i.project, LINEAR_PRIORITY[i.priority] ? phrase(LINEAR_PRIORITY[i.priority]) : "", i.branch].filter(Boolean).join(" · "),
     tag: i.images?.length ? phrase("images") : "",
-    go: () => (experienceNext() ? openDraft(`${i.identifier} `) : openMission(`${i.identifier} `))
+    go: () => openDraft(`${i.identifier} `)
   }));
   const head = st.palLinear.me ? `linear · ${phrase("assigned to {me}", { me: st.palLinear.me })}${st.palLinear.loading ? ` · ${phrase("looking…")}` : ""}` : "linear";
   if (rows.length) return [{ sec: head }, ...rows];
@@ -456,8 +456,6 @@ function palActions() {
     { icon: "i-grid", name: st.focusMode ? phrase("leave focus mode") : phrase("focus mode"),
       ctx: phrase("the chat in focus in the middle of the screen, the others of the block beside it"),
       search: "focus mode modo foco focado zen center centro roleta carousel", key: keyHint("focusMode"), go: () => setFocusMode(!st.focusMode) },
-    ...(experienceNext() ? [] : [{ icon: "i-term", name: st.barOn ? phrase("hide the message bar") : phrase("show the message bar"),
-      ctx: phrase("the bar docked at the bottom of the canvas"), key: keyHint("bar"), go: () => setPref("bar", !st.barOn) }]),
     {
       icon: "i-bolt",
       name: phrase("check the environment again"),
@@ -848,7 +846,5 @@ $("btn-machines").addEventListener("click", (e) => {
   paintMachines();
   saveConfig({ machines: on }).catch(() => {});
 });
-
-$("btn-bar").addEventListener("click", (e) => { e.stopPropagation(); setPref("bar", !st.barOn); });
 
 export { PAL_PLACEHOLDER, agentIcon, closePal, closePalActs, middleCut, openPalActs, palDetailModel, palRowHtml, rowDetailModel, seatDetailModel, stateSay, envLine, openPal, paintPalPreview, palActions, palAsk, palCodeRows, palFileRows, palGrep, palKeys, palList, palMark, palMarkAll, palModeRows, palModel, palMove, palOn, palPaint, palPrevSeq, palPrevTimer, palPreviewAsk, palPreviewSolid, palPreviewViewModel, palRun, palSeq, palSides, palTimer, setPalMode };

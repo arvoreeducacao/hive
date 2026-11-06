@@ -270,17 +270,6 @@ export function mountPrPop(host, extras = {}) {
   };
 }
 
-function ComposerTo(props) {
-  createEffect(() => { props.host.hidden = false; });
-  createEffect(() => { props.host.title = props.model.title; });
-  createEffect(() => { props.host.classList.toggle("none", props.model.none); });
-  return <>{props.model.text}</>;
-}
-
-export function mountComposerTo(host) {
-  return mountView(host, ComposerTo, { key: "cmpto", text: "", title: "", none: false }, { host });
-}
-
 function Mode(props) {
   let said;
   createEffect(() => { props.host.hidden = !props.model.holding; });

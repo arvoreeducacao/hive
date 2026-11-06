@@ -214,7 +214,7 @@ test("a key typed in a field of the app is left alone while the island is open",
   lay([["a", "b"]]);
   setStructure("island", { quiet: true });
   press("KeyJ", mod);
-  const box = $("cmp-in");
+  const box = $("in-machine");
   box.focus();
   assert.equal(press("ArrowRight", {}, box, "ArrowRight").defaultPrevented, false);
   box.blur();

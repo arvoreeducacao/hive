@@ -1,7 +1,6 @@
-import { $, paintStatic, phrase, raycastOn } from "./core.js";
+import { $, paintStatic, raycastOn } from "./core.js";
 import { closePalActs } from "./palette.js";
 import { forgetPalActs } from "./seat-menu.js";
-import { paintNewChatForm } from "./new-chat.js";
 
 const undo = [];
 
@@ -108,55 +107,6 @@ function dressNotices() {
   undo.push(() => { for (const card of document.querySelectorAll("#canopyNotices .cn-seat-card")) card.remove(); });
 }
 
-const FORM_ROWS = [
-  { label: "where it runs", body: ["n-where", '<span class="nf-seg" data-seg="n-where" role="group" aria-label="where it runs"></span>'] },
-  { label: "repo and branch", cloud: true, body: ["n-repo", "n-branch"] },
-  { label: "agent", body: ['<select id="n-agent" aria-label="agent" title="the agent that sits in the chat"></select>', '<span class="nf-seg" data-seg="n-face" role="group" aria-label="chat or terminal"></span>', "n-kind"] },
-  { label: "model", body: ["n-model", "n-account"] },
-  { label: "how many", body: ["n-count", '<span class="nf-seg" data-seg="n-count" role="group" aria-label="how many chats"></span>', '<span class="nf-note">race: the same mission in separate worktrees</span>'] },
-  { label: "name", body: ["n-name"] }
-];
-
-function dressComposer() {
-  const controls = $("cmp-controls");
-  const head = $("mission-head");
-  if (!controls || !head) return;
-  put(make('<span class="nf-ic" aria-hidden="true"><svg><use href="#i-bolt"/></svg></span>'), "first", head);
-  const said = head.querySelector(":scope > span:not(.nf-ic)");
-  if (said) stash(said);
-  put(make('<span class="nf-at" id="mission-where" data-no-t></span>'), "before", $("mission-esc"));
-  const esc = $("mission-esc");
-  stash(textOf(esc));
-  attr(esc, "aria-label", "close the box");
-  put(make('<svg aria-hidden="true"><use href="#i-x"/></svg>'), "into", esc);
-  put(make('<span class="nf-l nf-mission">mission</span>'), "first", $("composer").querySelector(".line"));
-  const kept = [...controls.childNodes];
-  undo.push(() => {
-    for (const node of [...controls.childNodes]) node.remove();
-    for (const node of kept) controls.appendChild(node);
-  });
-  const fresh = [make('<p class="nf-hint" id="nf-hint"><span>the mission names the chat</span><span class="rc-key">⇧</span><span class="rc-key">↵</span><span>breaks the line</span></p>')];
-  for (const row of FORM_ROWS) {
-    const box = make(`<div class="nf-row${row.cloud ? " nf-cloud" : ""}"><span class="nf-l">${row.label}</span><div class="nf-c"></div></div>`);
-    const cell = box.querySelector(".nf-c");
-    for (const one of row.body) cell.appendChild(one.startsWith("<") ? make(one) : $(one));
-    fresh.push(box);
-  }
-  const foot = make('<div class="nf-foot"></div>');
-  foot.append($("n-cloud-account"), make('<span class="nf-grow"></span>'), $("mission-go"), make('<button type="button" id="mission-cancel"><span>cancel</span> <span class="rc-key">esc</span></button>'), $("cmp-keys"));
-  fresh.push(foot);
-  for (const node of [...controls.childNodes]) node.remove();
-  controls.append(...fresh);
-  for (const value of ["3", "4"]) {
-    const option = $("n-count").querySelector(`option[value="${value}"]`);
-    attr(option, "data-short", value);
-  }
-  const go = $("mission-go");
-  stash(textOf(go));
-  put(make("<span>open chat</span>"), "into", go);
-  put(make('<span class="rc-key">↵</span>'), "into", go);
-}
-
 function dress() {
   if (dressed) return;
   dressed = true;
@@ -164,10 +114,7 @@ function dress() {
   dressNudge();
   dressPalette();
   dressNotices();
-  dressComposer();
   paintStatic(document);
-  attr($("n-name"), "placeholder", phrase("leave it empty and the AI names it from the mission"));
-  paintNewChatForm();
 }
 
 function undress() {

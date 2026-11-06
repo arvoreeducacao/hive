@@ -7,7 +7,7 @@ Where things are on the Hive screen, every default key and how to rebind it, dic
 The Hive has two looks, set by the `experience` setting.
 
 - **Default look** (`"experience": "raycast"`, the default). It has the Settings window with a search field, the structures (see "Structures"), seat notice cards, rail search with `/`, and the "Raycast" palette as the default theme.
-- **New Hive** (`"experience": "experimental"`). An experiment: charcoal surfaces, orange selection, square controls, sage message bubbles and pixel icons. It has its own rail (see "The rail"), no message bar, no structures, and Esc closes an open chat. Its Settings window has no search field, and themes open in their own window.
+- **New Hive** (`"experience": "experimental"`). An experiment: charcoal surfaces, orange selection, square controls, sage message bubbles and pixel icons. It has its own rail (see "The rail"), no structures, and Esc closes an open chat. Its Settings window has no search field, and themes open in their own window.
 
 To switch, open Settings, go to the "Experiments" pane, and press "Try new Hive" or "Leave New Hive". The choice is saved for this installation and all its windows. It does not change anyone else's settings.
 
@@ -18,11 +18,10 @@ If New Hive fails, open the Hive with `?experience=raycast` in its address, or r
 ## The screen at a glance
 
 - **Top bar**: your face (click it to change it), the leader/hold indicator, the block chips, "waiting on you" (seats that need you; click goes to one), tasks, "plane", pull requests, the environment warning, "update ready", the search button (opens the palette), a clock and `⋯` ("everything else").
-- **The `⋯` menu**: "dim the others", "message bar", "share my fleet", "my phone", "my other machines", "this machine", then "your day", "shelf", "memories", "tasks", "history", "usage", "routines", "who gets in", "workspace", "new terminal", "new terminal on the server", "providers and accounts", "themes" and "shortcuts and settings". In the default look a "structure" button sits just before "shortcuts and settings".
+- **The `⋯` menu**: "dim the others", "share my fleet", "my phone", "my other machines", "this machine", then "your day", "shelf", "memories", "tasks", "history", "usage", "routines", "who gets in", "workspace", "new terminal", "new terminal on the server", "providers and accounts", "themes" and "shortcuts and settings". In the default look a "structure" button sits just before "shortcuts and settings".
 - **The status strip**: one environment line under the top bar. Toggle it with the `alerts` key or the palette row "hide the environment line".
 - **The strip**: the block number, the block label ("what this block is about", click to rewrite), the seats, "plane", and the full-screen button. In the default look the strip sits inside the top bar.
 - **The canvas**: the seats of the block you are on.
-- **The message bar**: docked under the canvas. It messages the focused seat (see the "seats" topic). Toggle it with "message bar" in `⋯`. New Hive has none.
 - **The footer**: the plan-limits chip (see the "providers" topic).
 - **Settings**: open it with ⌘, (macOS) or Ctrl+, (Linux/Windows), or `⋯`, "shortcuts and settings". Its panes are "Keyboard", "Appearance" ("Look" in New Hive), "Performance", "Experiments", "Dictation", "Your character", "Notices", "The screen", "The conversation" and "Slack". In the default look, type in "Search a setting — theme, font, shortcut, sound…" to filter the panes, and ⌘K / Ctrl+K lists the pane's actions.
 
@@ -103,7 +102,7 @@ The plane puts every seat on one field that you arrange yourself. Toggle it with
 
 ## The command palette
 
-Open it with the `palette` key (⌘K on macOS, Ctrl+Shift+K on Linux/Windows; leader Space) or the search button. It searches sessions ("go to"), blocks, workspaces, pull requests, archived chats and actions. The actions include new chat, terminals, dim, focus mode, the message bar, every panel, notices, rename, reconnect, themes, structures, language and the little you.
+Open it with the `palette` key (⌘K on macOS, Ctrl+Shift+K on Linux/Windows; leader Space) or the search button. It searches sessions ("go to"), blocks, workspaces, pull requests, archived chats and actions. The actions include new chat, terminals, dim, focus mode, every panel, notices, rename, reconnect, themes, structures, language and the little you.
 
 - ↑ ↓ move, Enter runs, Shift+Enter opens beside, Esc closes.
 - The `openFile` key (⌘P / Ctrl+Shift+P) opens it in file mode, and `searchCode` (⌘⇧F / Ctrl+Shift+F) in code search. Tab switches between the two; Esc goes back.
@@ -170,10 +169,8 @@ On macOS ⌘ is Command, ⌥ Option, ⌃ Control. "Leader" is the key after the 
 | palette (`palette`) | ⌘K | Ctrl+Shift+K | space |
 | open a file (`openFile`) | ⌘P | Ctrl+Shift+P | — |
 | search code (`searchCode`) | ⌘⇧F | Ctrl+Shift+F | — |
-| write in the message bar (`compose`) | ⌥M | Ctrl+Shift+M | m |
 | talk (`talk`) | ⌘D | Ctrl+Shift+Space | — |
 | dim the others (`dim`) | ⌥Q | Ctrl+Shift+D | q |
-| message bar (`bar`) | ⌘B | Ctrl+Shift+B | b |
 | the plane (`plane`) | ⌥L | Ctrl+Shift+L | y |
 
 No direct key by default, leader chord in brackets: `detach` (o), `rename` (shift+r), `worktrees` (k), `themes` (shift+t), `doctor` (shift+d), `extensions` (shift+e), `focusLeft`/`focusRight`/`focusUp`/`focusDown` (arrows), `sendPrevBlock` (shift+[), `sendNextBlock` (shift+]), `sendBlock` (alt+1…9). With neither: `archive`, `focusMode`, `moveLeft`/`moveRight`/`moveUp`/`moveDown`, `scrollUp`, `scrollDown`.
@@ -307,7 +304,6 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 | `language` | `en`, `pt-BR` (`en`) | Appearance, "language" |
 | `visual` | `lean`, `full` (`lean`) | Performance |
 | `dim` | true/false (true) | `⋯`, "dim the others" |
-| `composer` | true/false (true) | `⋯`, "message bar" |
 | `terminal` | `ghostty`, `xterm` (`ghostty`) | none; the engine that draws terminal seats |
 | `infoWidth` | 240–1200 px (380) | drag the open chat's side handle |
 | `infoHeight` | `null` or 60–2000 px (`null`) | drag the height handle |

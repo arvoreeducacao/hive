@@ -524,7 +524,6 @@ export function cleanPatch(patch) {
   if (patch.themes !== undefined) clean.themes = cleanThemes(patch.themes, "patch", problems);
   if (patch.dim !== undefined) clean.dim = cleanFlag(patch.dim, "dim", "patch", problems);
   if (patch.visual !== undefined) clean.visual = cleanVisual(patch.visual, "patch", problems);
-  if (patch.composer !== undefined) clean.composer = cleanFlag(patch.composer, "composer", "patch", problems);
   if (patch.autocompact !== undefined) clean.autocompact = cleanAutocompact(patch.autocompact, "patch", problems);
   if (patch.contextUsage !== undefined) clean.contextUsage = cleanFlag(patch.contextUsage, "contextUsage", "patch", problems, false);
   if (patch.closeQuietAfterDays !== undefined) clean.closeQuietAfterDays = cleanQuietDays(patch.closeQuietAfterDays, "patch", problems);

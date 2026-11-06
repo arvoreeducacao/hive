@@ -4,7 +4,7 @@ import { activeItems, itemOf } from "./blocks.js";
 import { keyLabel, saveConfig } from "./brand-face.js";
 import { startRename } from "./chat-name.js";
 import { DEFAULT_SOUNDS, ensureAudio, openNewestSeatNotice, paintNotices, playSound, setAnswered, setSound, setVolume } from "./chimes-and-notices.js";
-import { $, BUILTIN_THEMES, CHAT_SCROLLS, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, experienceNext, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
+import { $, BUILTIN_THEMES, CHAT_SCROLLS, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { closeTasks, openTasks, tasksOn } from "./tasks.js";
 import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, scrollFocusedChat, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
@@ -21,7 +21,7 @@ import { ask } from "./pod.js";
 import { setLanguage, setPet } from "./preferences.js";
 import { paintAutocompactReach, paintContextUsage, setAutocompact, setCalm, setContextUsage, setDiaryDays, setPref, setQuietDays } from "./pure-helpers.js";
 import { discardDraft, draftInFocus, openDraft } from "./draft-seat.js";
-import { openComposer, setBlockSize, setFocusMode, setLayout } from "./seat-layout.js";
+import { setBlockSize, setFocusMode, setLayout } from "./seat-layout.js";
 import { closePrPop, placePrPop, prOfChat, prPopOpen, togglePrPop } from "./seat-menu.js";
 import { applyFonts, applyTheme } from "./shared.js";
 import { closeShelf, openShelf, shelfOnScreen } from "./shelf.js";
@@ -715,7 +715,6 @@ function run(action, digit) {
     case "new": return openDraft();
     case "term": return openShell("local");
     case "dim": return setPref("dim", !st.dimOn);
-    case "bar": return experienceNext() ? undefined : setPref("bar", !st.barOn);
     case "sound": return setSound(!st.sound);
     case "answered": return setAnswered(!st.answeredAlert);
     case "prs": {
@@ -792,7 +791,6 @@ function run(action, digit) {
     case "palette": return palOn() ? closePal() : openPal();
     case "openFile": return openPal("file");
     case "searchCode": return openPal("code");
-    case "compose": return experienceNext() ? undefined : openComposer();
     case "accounts": return providersOnScreen() ? closeProviders() : openProviders();
     case "extensions": return extensionsOnScreen() ? closeExtensions() : openExtensions();
     case "history": return $("history").classList.contains("on") ? closeHistory() : openHistory();
