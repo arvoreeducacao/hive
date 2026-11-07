@@ -75,6 +75,28 @@ test("eval runs in the page and returns a json-safe value", async () => {
   assert.deepEqual(posts[0].body, { id: "op1", value: "7" });
 });
 
+test("a page whose security policy forbids eval still runs the code, straight in the page", async () => {
+  const restore = catchFetch();
+  ran.length = 0;
+  const refused = JSON.stringify({ __evalError: "Evaluating a string as JavaScript violates the following Content Security Policy directive because 'unsafe-eval' is not an allowed source of script" });
+  seatOnAPage("slack-seat", (code) => (code.includes("__evalError") ? refused : { title: "Slack" }));
+  await runBrowserEval("slack-seat", "op5", "({ title: document.title })");
+  restore();
+  assert.equal(ran.length, 2);
+  assert.equal(ran[1], "({ title: document.title })", "the second run carries no eval of its own");
+  assert.deepEqual(posts[0].body, { id: "op5", value: JSON.stringify({ title: "Slack" }) });
+});
+
+test("an error that is not the security policy comes back as it was, with no second run", async () => {
+  const restore = catchFetch();
+  ran.length = 0;
+  seatOnAPage("typo-seat", () => JSON.stringify({ __evalError: "documnt is not defined" }));
+  await runBrowserEval("typo-seat", "op6", "documnt.title");
+  restore();
+  assert.equal(ran.length, 1);
+  assert.deepEqual(posts[0].body, { id: "op6", value: JSON.stringify({ __evalError: "documnt is not defined" }) });
+});
+
 test("eval with no page open says so instead of hanging on a guess", async () => {
   const restore = catchFetch();
   webOfSeat.delete("blind-seat");

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sayPage, MAP_CEILING } from "../assets/page-map.mjs";
-import { registerBrowserRoutes } from "../routes/browser.mjs";
+import { registerBrowserRoutes, browserState } from "../routes/browser.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const server = readFileSync(join(here, "..", "server.mjs"), "utf8");
@@ -60,6 +60,7 @@ test("the seat acts through a real mouse and a real keyboard, never a javascript
   const input = cut(main, 'ipcMain.handle("seat-browser:input"', "\n  });\n", "main.js");
   assert.match(input, /Input\.dispatchMouseEvent/);
   assert.match(input, /wc\.sendInputEvent\(\{ type: "char", keyCode: letter \}\)/);
+  assert.match(input, /if \(pressed\) wc\.sendInputEvent\(\{ type: "keyDown", keyCode: pressed \}\);\n\s+wc\.sendInputEvent\(\{ type: "char", keyCode: letter \}\);\n\s+if \(pressed\) wc\.sendInputEvent\(\{ type: "keyUp", keyCode: pressed \}\);/, "a search field that listens to the keyboard only opens its list on a key press, not on a bare letter");
   assert.match(input, /wc\.sendInputEvent\(\{ type: "keyDown", keyCode: stroke\.keyCode \}\)/);
   assert.match(input, /if \(!wc\) return \{ error: "not a seat browser tab" \}/, "input only ever reaches a seat tab");
   assert.match(preload, /input: \(wcId, act\) => ipcRenderer\.invoke\("seat-browser:input", wcId, act\)/);
@@ -79,7 +80,7 @@ test("a seat's click gives the focus back to what the person was typing in", () 
 });
 
 test("a seat looking at the page never pulls the person out of the field they are typing in", () => {
-  assert.match(panes, /const SEAT_HAND_OPS = new Set\(\["click", "type", "key", "step", "choose", "upload"\]\);/, "a shot, an eval or a navigation is not the seat's hands on the page");
+  assert.match(panes, /const SEAT_HAND_OPS = new Set\(\["click", "hover", "type", "key", "step", "choose", "upload"\]\);/, "a shot, an eval or a navigation is not the seat's hands on the page");
   const drive = cut(panes, "function driveBrowsers() {", "\n}\n", "chat-and-panes.js");
   assert.match(drive, /if \(SEAT_HAND_OPS\.has\(job\.op\)\) \{\n\s+handJobs\.add\(job\.id\);\n\s+markSeatHands\(s\.name, 1\);/);
   assert.match(panes, /if \(name && handJobs\.delete\(id\)\) markSeatHands\(name, -1\);/);
@@ -99,6 +100,76 @@ test("only the keys the browser knows how to send are sent, and it says which", 
     assert.ok(keys.includes(`${key}:`), `${key} is missing`);
   }
   assert.match(main, /is not a key this browser sends — \$\{Object\.keys\(TYPED_KEYS\)\.join\(", "\)\}/);
+});
+
+test("each typed letter is a press, the letter and a release, and a letter with no key of its own still arrives", () => {
+  const letters = cut(main, "const KEY_OF_LETTER = (letter) => {", "\n  };", "main.js");
+  assert.match(letters, /if \(letter === " "\) return "Space";/);
+  const keyOf = new Function(`${letters}\n  }; return KEY_OF_LETTER;`)();
+  assert.equal(keyOf("a"), "a");
+  assert.equal(keyOf("Z"), "Z");
+  assert.equal(keyOf("7"), "7");
+  assert.equal(keyOf(" "), "Space");
+  assert.equal(keyOf("á"), "", "an accented letter goes as the letter alone");
+  assert.equal(keyOf("@"), "", "a shifted symbol goes as the letter alone");
+});
+
+test("typing waits for the click to land the focus before the first letter", () => {
+  const fn = cut(panes, "async function runBrowserType(name, id, job) {", "\n}\n", "chat-and-panes.js");
+  const click = fn.indexOf('kind: "click"');
+  const settle = fn.indexOf("setTimeout(settle, FOCUS_SETTLE)");
+  const typed = fn.indexOf('kind: "text"');
+  assert.ok(click > 0 && settle > click && typed > settle, "the first letter of a name went nowhere");
+});
+
+test("a point off the screenshot is clicked where the screenshot shows it, at the page's own scale", () => {
+  assert.match(panes, /shotWidthOf\.set\(name, img\.getSize\(\)\.width\);/, "every screenshot remembers how wide it was");
+  const point = cut(panes, "async function pointOnThePage(frame, name, job) {", "\n}\n", "chat-and-panes.js");
+  assert.match(point, /const scale = shot && wide \? wide \/ shot : 1;/);
+  const click = cut(panes, "async function runBrowserClick(name, id, job) {", "\n}\n", "chat-and-panes.js");
+  assert.match(click, /reachOrPoint\(name, frame, job\)/);
+  const hover = cut(panes, "async function runBrowserHover(name, id, job) {", "\n}\n", "chat-and-panes.js");
+  assert.match(hover, /kind: "hover", x: found\.at\.x, y: found\.at\.y/);
+  const input = cut(main, 'ipcMain.handle("seat-browser:input"', "\n  });\n", "main.js");
+  assert.match(input, /if \(act\.kind === "hover"\) \{\n\s+await wc\.debugger\.sendCommand\("Input\.dispatchMouseEvent", \{ type: "mouseMoved"/);
+  const drive = cut(panes, "function driveBrowsers() {", "\n}\n", "chat-and-panes.js");
+  assert.match(drive, /else if \(job\.op === "hover"\) runBrowserHover\(s\.name, job\.id, job\);/);
+});
+
+test("a download from a seat's page lands in Downloads without a dialog, never over another file", () => {
+  const saved = cut(main, 'seatBrowser.on("will-download"', "\n  });", "main.js");
+  assert.match(saved, /app\.getPath\("downloads"\)/);
+  assert.match(saved, /for \(let n = 2; existsSync\(path\); n \+= 1\)/);
+  assert.match(saved, /item\.setSavePath\(path\)/);
+});
+
+test("click and hover take a ref or a point, and turn away anything else", async () => {
+  const routes = new Map();
+  registerBrowserRoutes((method, path, handler) => routes.set(path, handler), {
+    isSeatName: () => true,
+    bodyOf: async (req) => req.body,
+    fleet: new Map(),
+    saveFiles: async () => ({ files: [] }),
+    onTheServer: async () => {},
+    cloudReach: {},
+    typeText: async () => {}
+  });
+  const url = new URL("http://hive/api/browser/click");
+  const turnedAway = [];
+  const realSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = () => 1;
+  try {
+    routes.get("/api/browser/click")({ body: { name: "point-seat", x: 1155.4, y: 404 } }, {}, url, () => {});
+    routes.get("/api/browser/hover")({ body: { name: "point-seat", ref: "e12" } }, {}, url, () => {});
+    await routes.get("/api/browser/hover")({ body: { name: "point-seat", x: -3, y: 10 } }, {}, url, (out, code) => turnedAway.push({ out, code }));
+    await new Promise((settle) => setImmediate(settle));
+  } finally {
+    globalThis.setTimeout = realSetTimeout;
+  }
+  const ops = browserState("point-seat").ops.map(({ id, ...op }) => op);
+  assert.deepEqual(ops, [{ op: "click", x: 1155, y: 404 }, { op: "hover", ref: "e12" }]);
+  assert.equal(turnedAway[0].code, 400);
+  assert.match(turnedAway[0].out.error, /a ref looks like e12 .* or give x and y from browser_screenshot/);
 });
 
 test("the routes check the ref before it reaches the page, and hold the job like the others", () => {

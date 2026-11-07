@@ -38,3 +38,17 @@ test("what is really hidden stays out of the map", async () => {
   assert.doesNotMatch(said, /Escondido|Sumido/);
   assert.match(said, /button "Visível"/);
 });
+
+test("a clickable card shows the buttons inside it, without saying its own text twice", async () => {
+  const said = await read(pageOf(`<main><div tabindex="0">2. Enviar uma mensagem para o canal <span>geral</span><div role="toolbar"><button aria-label="Editar etapa"></button><button aria-label="Excluir etapa"></button></div></div></main>`));
+  assert.match(said, /clickable "2\. Enviar uma mensagem para o canal geral" \[ref=e\d+\]/);
+  assert.match(said, /button "Editar etapa" \[ref=e\d+\]/);
+  assert.match(said, /button "Excluir etapa" \[ref=e\d+\]/);
+  assert.doesNotMatch(said, /text: "geral"/, "the card's words are already in its name");
+});
+
+test("a clickable card with nothing to press inside stays one line", async () => {
+  const said = await read(pageOf(`<main><div tabindex="0">Notas para <b>Revisão</b> Final</div></main>`));
+  assert.match(said, /clickable "Notas para Revisão Final"/);
+  assert.doesNotMatch(said, /text: "Revisão"/);
+});

@@ -236,6 +236,22 @@ function Workspace(props) {
           <Chips items={props.model.mcps} more={props.model.mcpsMore} kind="mcps" empty={props.model.noneDeclared} />
           <p class="sub" innerHTML={props.model.legend} /></div>
         </div>
+        <Show when={props.model.creds}>
+          <div class="card ws-creds"><h3>{props.model.creds.title} <span class="tag">{props.model.creds.rows.length}</span>
+              <button class="ghost ws-plus" data-cred-setup="1">{props.model.creds.setupSay}</button></h3>
+            <div class="line">{props.model.creds.line}</div>
+            <For each={props.model.creds.setup}>{(one) => <div class={one.ok ? "line ws-said" : "line field-err"}>{one.text}</div>}</For>
+            <For each={props.model.creds.rows}>{(row) => (
+              <div class="line ws-cred">
+                <code>{row.key}</code> <span class={`tag ws-cred-${row.kind}`}>{row.kindSay}</span> <span class="sub">{row.servers}</span>
+                <Show when={row.hint}> <span class="sub">{row.hint}</span></Show>
+                <Show when={row.checkable}> <button class="ghost" data-cred-check={row.key}>{row.checkSay}</button></Show>
+                <Show when={row.movable}> <button class="ghost" data-cred-move={row.key}>{row.moveSay}</button></Show>
+                <Show when={row.said}> <span class={row.ok ? "ws-said" : "field-err"}>{row.said}</span></Show>
+              </div>
+            )}</For>
+            <p class="sub">{props.model.creds.legend}</p></div>
+        </Show>
       </Show>
     </Show>
   );

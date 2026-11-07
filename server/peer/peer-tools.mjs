@@ -1,4 +1,4 @@
-import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
+import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserHover, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
 import { BIRTHS_MAX } from "../engine/protocol.mjs";
 import { allows, readCeiling } from "./ceilings.mjs";
 import { stateDir } from "../engine/paths.mjs";
@@ -141,8 +141,13 @@ export const PEER_TOOLS = [
   },
   {
     name: "browser_click",
-    description: "Click one element on the page this seat has open, by the ref browser_snapshot gave it. It is a real mouse click at the element's place on the screen, not a JavaScript call, so the page reacts the way it would for a person. Think before clicking something that ships, deletes, merges or pays — a click is not a look.",
-    inputSchema: { type: "object", properties: { ref: { type: "string", description: "the ref from browser_snapshot, like e12" } }, required: ["ref"], additionalProperties: false },
+    description: "Click one element on the page this seat has open, by the ref browser_snapshot gave it — or, when the thing is on the screen but not in the snapshot (an icon that only shows on hover, a canvas), by x and y read off browser_screenshot. It is a real mouse click at that place on the screen, not a JavaScript call, so the page reacts the way it would for a person. Think before clicking something that ships, deletes, merges or pays — a click is not a look.",
+    inputSchema: { type: "object", properties: { ref: { type: "string", description: "the ref from browser_snapshot, like e12" }, x: { type: "number", description: "without a ref: pixels from the left of the last browser_screenshot" }, y: { type: "number", description: "without a ref: pixels from the top of the last browser_screenshot" } }, additionalProperties: false },
+  },
+  {
+    name: "browser_hover",
+    description: "Rest the mouse over an element of the page this seat has open, by its ref or by x and y off browser_screenshot, without clicking. For the buttons and menus a page only shows under the mouse: hover, then browser_snapshot or browser_screenshot again to see them.",
+    inputSchema: { type: "object", properties: { ref: { type: "string", description: "the ref from browser_snapshot, like e12" }, x: { type: "number", description: "without a ref: pixels from the left of the last browser_screenshot" }, y: { type: "number", description: "without a ref: pixels from the top of the last browser_screenshot" } }, additionalProperties: false },
   },
   {
     name: "browser_type",
@@ -375,7 +380,7 @@ export const TOOL_ACCESS = {
   device_screenshot: READ, device_tree: READ, device_logs: READ,
   message: OPERATE, ask: OPERATE, reply_on_page: OPERATE, rename: OPERATE, task: OPERATE, buzz: OPERATE,
   reply_on_slack: OPERATE, ask_person: OPERATE, request_secret: OPERATE,
-  browser_navigate: OPERATE, browser_profile: OPERATE, browser_resize: OPERATE, browser_eval: OPERATE, browser_click: OPERATE,
+  browser_navigate: OPERATE, browser_profile: OPERATE, browser_resize: OPERATE, browser_eval: OPERATE, browser_click: OPERATE, browser_hover: OPERATE,
   browser_type: OPERATE, browser_select_option: OPERATE, browser_press_key: OPERATE, browser_wait_for: OPERATE, browser_tabs: OPERATE,
   browser_back: OPERATE, browser_forward: OPERATE, browser_reload: OPERATE, browser_upload: OPERATE,
   device_open: OPERATE, device_tap: OPERATE, device_swipe: OPERATE, device_type: OPERATE, device_key: OPERATE, device_close: OPERATE,
@@ -496,9 +501,14 @@ function rawCalls(env) {
       return text(done.value || "the page is empty");
     },
     async browser_click(args) {
-      const done = await browserClick({ ref: args.ref, env });
+      const done = await browserClick({ ref: args.ref, x: args.x, y: args.y, env });
       if (done.error) return failure(done.error);
-      return text(done.value || `clicked ${args.ref}`);
+      return text(done.value || `clicked ${args.ref || `${args.x},${args.y}`}`);
+    },
+    async browser_hover(args) {
+      const done = await browserHover({ ref: args.ref, x: args.x, y: args.y, env });
+      if (done.error) return failure(done.error);
+      return text(done.value || `the mouse is over ${args.ref || `${args.x},${args.y}`}`);
     },
     async browser_type(args) {
       const done = await browserType({ ref: args.ref, text: args.text, submit: args.submit === true, env });

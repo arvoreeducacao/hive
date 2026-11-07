@@ -107,6 +107,21 @@ To fill in a value without showing it in a chat:
 
 `request_secret` works only in a chat on this machine.
 
+### Keep the value in 1Password instead
+
+A value in `.env` can be a 1Password secret reference instead of the secret, for example `CONTEXT7_API_KEY=op://Private/context7/credential`. Then the file holds no secret.
+
+- When the gateway starts a server, it runs `op read` for each reference in that server's `env` and `headers`. The server gets the value. The value is never written to disk.
+- Only the variables that the server names in `env` or `headers` are read. A variable that the server reads only from the inherited environment gets the reference text, not the value.
+- The gateway keeps each value in memory until `.env` changes. After you change a secret in 1Password, reload the gateway.
+- The `op` command must be installed, and the 1Password app must allow it (Settings, Developer, "Integrate with 1Password CLI"). The first read can open an approval prompt in the app. If nobody approves it in 2 minutes, the server does not start, and the call fails with `nao consegui ler <reference> do 1Password: ...`.
+- The server (cloud) has no person to approve the prompt. Keep plain values there.
+- A reference works inside a longer value too, for example a header `Bearer ${TRACKER_TOKEN}`.
+- A remote server in `<hub>/.mcp.json` does not go through the gateway: the chat gets the variable as it is in `.env`, so a reference reaches the server as text and fails. Give that server a `url` and `headers` entry in `servers.json` instead, and the gateway reads the reference.
+- In a terminal, run a command that needs these values with `op run --env-file=<hub>/.env -- <command>`.
+
+The workspace screen has a `credentials` card. It lists every credential that the hub's servers name, with where it lives: `in a file`, `in 1Password`, `SSO, no secret` or `not set`. `check the setup` says whether `op` is installed, connected to the app and signed in, and whether each SSO profile in `.env` is signed in. On a row `in a file`, `move to 1Password` saves the value in the item `hub-env` of the person's vault (`Employee`, `Private` or `Personal`), writes the reference in `.env` and reloads the gateway. The value never reaches the screen.
+
 ## What each provider receives
 
 Every chat gets `hive`, the gateway's `hub` when the gateway is up (a Claude chat only when `.mcp.json` has the `hub` entry), and the remote servers of `<hub>/.mcp.json`. The way they arrive differs:
@@ -242,7 +257,7 @@ Each tool and its ceiling (the "tools" topic describes each one):
 - **Other chats:** `peers` and `peek` (read); `message` and `ask` (operate).
 - **Opening and closing chats:** `spawn` (full), `close` (operate; only chats you opened, or this chat), `rename` (operate).
 - **Pages on the team's shelf:** `publish` (full), `reply_on_page` (operate).
-- **Browser pane:** `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network` (read); `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload` (operate); `browser_set_cookie` (full).
+- **Browser pane:** `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network` (read); `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload` (operate); `browser_set_cookie` (full).
 - **Device pane:** `device_screenshot`, `device_tree`, `device_logs` (read); `device_open`, `device_tap`, `device_swipe`, `device_type`, `device_key`, `device_close` (operate).
 - **The person:** `task`, `buzz`, `reply_on_slack`, `request_secret`, `ask_person` (operate).
 - **This guide:** `guide` (read). No argument lists the topics, `topic` reads one, and `search` returns the sections that match a few words.

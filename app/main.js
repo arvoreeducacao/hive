@@ -584,6 +584,16 @@ function createWindow() {
 
   const seatBrowser = session.fromPartition("persist:seat-browser");
   seatBrowser.setPermissionRequestHandler((_wc, _permission, grant) => grant(false));
+  seatBrowser.on("will-download", (_event, item) => {
+    const folder = app.getPath("downloads");
+    const named = String(item.getFilename() || "download").replace(/[\\/]/g, "_");
+    const dot = named.lastIndexOf(".");
+    const stem = dot > 0 ? named.slice(0, dot) : named;
+    const tail = dot > 0 ? named.slice(dot) : "";
+    let path = join(folder, named);
+    for (let n = 2; existsSync(path); n += 1) path = join(folder, `${stem} (${n})${tail}`);
+    item.setSavePath(path);
+  });
   relay.serveShelfPages(seatBrowser, SOCK);
   const shelfThumbs = session.fromPartition("shelf-thumbs");
   shelfThumbs.setPermissionRequestHandler((_wc, _permission, grant) => grant(false));
@@ -724,6 +734,10 @@ function createWindow() {
     Home: { keyCode: "Home" },
     End: { keyCode: "End" }
   };
+  const KEY_OF_LETTER = (letter) => {
+    if (letter === " ") return "Space";
+    return /^[A-Za-z0-9`\-=[\];',./\\]$/.test(letter) ? letter : "";
+  };
   const NET_KEEP = 300;
   const seatNet = new Map();
   const netOf = (wcId) => {
@@ -801,8 +815,17 @@ function createWindow() {
         await wc.debugger.sendCommand("Input.dispatchMouseEvent", { type: "mouseReleased", ...at, clickCount: 1 });
         return { ok: true };
       }
+      if (act.kind === "hover") {
+        await wc.debugger.sendCommand("Input.dispatchMouseEvent", { type: "mouseMoved", x: Math.round(act.x), y: Math.round(act.y), button: "none", clickCount: 0 });
+        return { ok: true };
+      }
       if (act.kind === "text") {
-        for (const letter of String(act.text || "")) wc.sendInputEvent({ type: "char", keyCode: letter });
+        for (const letter of String(act.text || "")) {
+          const pressed = KEY_OF_LETTER(letter);
+          if (pressed) wc.sendInputEvent({ type: "keyDown", keyCode: pressed });
+          wc.sendInputEvent({ type: "char", keyCode: letter });
+          if (pressed) wc.sendInputEvent({ type: "keyUp", keyCode: pressed });
+        }
         return { ok: true };
       }
       if (act.kind === "key") {

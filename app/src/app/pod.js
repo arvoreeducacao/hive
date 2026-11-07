@@ -207,6 +207,96 @@ function wsAddModel() {
 st.wsFix = null;
 
 st.wsShowAll = {};
+st.wsCredChecks = {};
+st.wsCredSetup = null;
+
+const WS_CRED_KIND = { file: "in a file", empty: "not set", vault: "in 1Password", sso: "SSO, no secret" };
+
+function wsCredSaid(got) {
+  if (!got) return "";
+  if (got.busy) return "…";
+  if (got.moved) return phrase("moved to 1Password: {ref}", { ref: got.ref });
+  if (got.ok) return got.kind === "sso" ? phrase("SSO signed in ({profile})", { profile: got.profile }) : phrase("1Password answered");
+  if (got.reason === "no-op") return phrase("the op command is not installed");
+  if (got.reason === "sso-expired") return phrase("the SSO session expired: run aws sso login --profile {profile}", { profile: got.profile });
+  if (got.reason === "in-file") return phrase("the value is in the .env file");
+  if (got.reason === "empty") return phrase("not set in .env");
+  return got.detail || got.error || "?";
+}
+
+function wsCredSetupLines(setup) {
+  if (!setup) return [];
+  if (setup.busy) return [{ ok: true, text: "…" }];
+  const v = setup.vault || {};
+  const lines = [];
+  if (!v.installed) lines.push({ ok: false, text: phrase("the op command of 1Password is not installed; run sudo apt install 1password-cli") });
+  else if (!v.integration) lines.push({ ok: false, text: phrase("in the 1Password app, turn on Settings, Developer, Integrate with 1Password CLI") });
+  else if (!v.signedIn) lines.push({ ok: false, text: phrase("approve the prompt in the 1Password app, then check again") });
+  else lines.push({ ok: true, text: phrase("connected to 1Password as {account}, vault {vault}", { account: v.account, vault: v.vault }) });
+  for (const one of setup.sso || []) {
+    lines.push(one.ok
+      ? { ok: true, text: phrase("SSO {profile}: signed in", { profile: one.profile }) }
+      : { ok: false, text: phrase("SSO {profile}: run aws sso login --profile {profile}", { profile: one.profile }) });
+  }
+  return lines;
+}
+
+function wsCredsModel(c) {
+  if (!c?.items?.length) return null;
+  return {
+    title: phrase("credentials"),
+    setupSay: phrase("check the setup"),
+    setup: wsCredSetupLines(st.wsCredSetup),
+    line: phrase("{file} of {total} still in a file", { file: c.counts.file, total: c.counts.total }),
+    legend: phrase("the values never leave the hive server; this card only shows where each one lives"),
+    rows: c.items.map((item) => ({
+      key: item.key,
+      servers: item.servers.join(", "),
+      kind: item.kind,
+      kindSay: phrase(WS_CRED_KIND[item.kind] || item.kind),
+      hint: item.unused ? phrase("no longer used: delete it from .env") : "",
+      checkable: item.kind === "vault" || item.kind === "sso",
+      checkSay: phrase("check"),
+      movable: item.kind === "file",
+      moveSay: phrase("move to 1Password"),
+      said: wsCredSaid(st.wsCredChecks[item.key]),
+      ok: st.wsCredChecks[item.key]?.ok === true
+    }))
+  };
+}
+
+async function wsCredPost(path, body) {
+  try {
+    return await (await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) })).json();
+  } catch {
+    return { ok: false, detail: phrase("the hive could not reach the hub") };
+  }
+}
+
+async function wsCredMove(key) {
+  st.wsCredChecks[key] = { busy: true };
+  paintWorkspace();
+  st.wsCredChecks[key] = await wsCredPost("/api/workspace/credential/move", { key });
+  await pullWorkspace(true);
+}
+
+async function wsCredSetupCheck() {
+  st.wsCredSetup = { busy: true };
+  paintWorkspace();
+  st.wsCredSetup = await wsCredPost("/api/workspace/credential/setup", {});
+  paintWorkspace();
+}
+
+async function wsCredCheck(key) {
+  st.wsCredChecks[key] = { busy: true };
+  paintWorkspace();
+  try {
+    st.wsCredChecks[key] = await (await fetch("/api/workspace/credential", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ key }) })).json();
+  } catch {
+    st.wsCredChecks[key] = { ok: false, detail: phrase("the hive could not reach the hub") };
+  }
+  paintWorkspace();
+}
 
 const WS_FOLD = 12;
 
@@ -368,6 +458,7 @@ function workspaceViewModel() {
     mcpsCount: (w.mcps || []).length,
     mcpsLine: `${phrase("{n} through the gateway", { n: mc.gateway || 0 })} · ${phrase("{n} remote", { n: remote })}`,
     mcps: mcps.items, mcpsMore: mcps.more,
+    creds: wsCredsModel(w.credentials),
     legend: `${svgIcon("i-swap")} ${phrase("through the gateway")} · ${svgIcon("i-cloud")} ${phrase("a remote server")} · ${phrase("dashed: only in some repositories")}`
   };
 }
@@ -830,6 +921,11 @@ $("ws-scroll").addEventListener("click", (e) => {
   if (choice) return wsChoose(choice.dataset.file, choice.dataset.block);
   const retry = e.target.closest("[data-retry]");
   if (retry) return wsRetry(retry.dataset.retry);
+  const cred = e.target.closest("[data-cred-check]");
+  if (cred) return wsCredCheck(cred.dataset.credCheck);
+  const mover = e.target.closest("[data-cred-move]");
+  if (mover) return wsCredMove(mover.dataset.credMove);
+  if (e.target.closest("[data-cred-setup]")) return wsCredSetupCheck();
 });
 
 $("ws-scroll").addEventListener("input", (e) => {
@@ -842,4 +938,4 @@ $("ws-scroll").addEventListener("keydown", (e) => {
   if (e.key === "Enter" && (e.target?.id === "ws-repo-in" || e.target?.dataset?.field)) { e.preventDefault(); wsPlan(); }
 });
 
-export { BYTES_PER_SESSION, DAYS, KIND_GLYPH, ago, ask, button, bytes, closeConfirm, closePortaria, closeWorkspace, openPortaria, openWorkspace, paintPortaria, paintWorkspace, placeConfirm, portariaDo, portariaOnScreen, portariaSolid, portariaViewModel, ptAgo, ptCount, ptDeviceActModels, ptDeviceLine, ptIn, ptLeft, ptPillModel, pullPortaria, pullWorkspace, workspaceSolid, workspaceViewModel, wsAddModel, wsAttentionModel, wsAttentionRows, wsChipModel, wsFixPlanModel, wsItemModel, wsOnScreen, wsPlanModel, wsRepoModel };
+export { BYTES_PER_SESSION, DAYS, KIND_GLYPH, ago, ask, button, bytes, closeConfirm, closePortaria, closeWorkspace, openPortaria, openWorkspace, paintPortaria, paintWorkspace, placeConfirm, portariaDo, portariaOnScreen, portariaSolid, portariaViewModel, ptAgo, ptCount, ptDeviceActModels, ptDeviceLine, ptIn, ptLeft, ptPillModel, pullPortaria, pullWorkspace, workspaceSolid, workspaceViewModel, wsAddModel, wsCredsModel, wsAttentionModel, wsAttentionRows, wsChipModel, wsFixPlanModel, wsItemModel, wsOnScreen, wsPlanModel, wsRepoModel };
