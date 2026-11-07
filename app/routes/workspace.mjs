@@ -3,7 +3,8 @@ import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import { stackOf } from "../manifest/scan.mjs";
 import { repoName } from "../manifest/resolve.mjs";
-import { DEFAULT_GATEWAY_PORT, MANAGED_FILES, MANIFEST_FILE, SKILL_TO_WRITE, linePlanOf, mcpEntryOf, mcpPlanOf, repoEntryOf, repoPlanOf, skillDescriptionOf, skillEntryOf, skillPlanOf, withRepoLine } from "../lib/hub-workspace.mjs";
+import { envWithValue, moveToVault, runOp, vaultSetupOf } from "../lib/hub-vault.mjs";
+import { DEFAULT_GATEWAY_PORT, MANAGED_FILES, MANIFEST_FILE, SKILL_TO_WRITE, credentialAnswerOf, credentialCheckOf, credentialsOf, envValuesOf, linePlanOf, mcpEntryOf, mcpPlanOf, repoEntryOf, repoPlanOf, skillDescriptionOf, skillEntryOf, skillPlanOf, withRepoLine } from "../lib/hub-workspace.mjs";
 
 const SYNC_WALK = [
   'for root in "$1" "$1/.worktrees"; do',
@@ -63,6 +64,7 @@ export function createWorkspaceDomain({
   readdirImpl = readdir,
   stackOfImpl = stackOf,
   gatewayPort = DEFAULT_GATEWAY_PORT,
+  opImpl = runOp,
   cloneTimeout = 600000,
   now = Date.now
 }) {
@@ -123,14 +125,14 @@ export function createWorkspaceDomain({
       hubCache.running = (async () => {
         const manifestText = await textOf(MANIFEST_FILE);
         const read = manifestText === null ? { state: "none" } : { ...readManifest(manifestText), path: MANIFEST_FILE };
-        const [mcpJson, servers, skillDirs] = await Promise.all([jsonOf(".mcp.json"), jsonOf(".mcp-servers", "servers.json"), skillFolders()]);
+        const [mcpJson, servers, skillDirs, envText] = await Promise.all([jsonOf(".mcp.json"), jsonOf(".mcp-servers", "servers.json"), skillFolders(), textOf(".env")]);
         const gateway = servers?.servers && typeof servers.servers === "object" ? Object.keys(servers.servers) : [];
-        const data = { read, mcpJson, gateway, skillDirs };
+        const data = { read, mcpJson, gateway, skillDirs, credentials: credentialsOf({ envText, servers, mcpJson }) };
         hubCache = { at: now(), data, running: null };
         return data;
       })().catch(() => {
         hubCache.running = null;
-        return hubCache.data || { read: { state: "unreadable", said: "the hive could not read the hub" }, mcpJson: null, gateway: [], skillDirs: [] };
+        return hubCache.data || { read: { state: "unreadable", said: "the hive could not read the hub" }, mcpJson: null, gateway: [], skillDirs: [], credentials: credentialsOf({}) };
       });
     }
     return hubCache.data || hubCache.running;
@@ -162,10 +164,45 @@ export function createWorkspaceDomain({
   }
 
   async function readWorkspace(force) {
-    const [{ read, mcpJson, gateway, skillDirs }, sync] = await Promise.all([readHub(force), readSync(force)]);
+    const [{ read, mcpJson, gateway, skillDirs, credentials }, sync] = await Promise.all([readHub(force), readSync(force)]);
     const onDisk = sync?.here?.every ?? [];
     const shaped = workspaceOf(read, onDisk, { name: basename(hub), stacks: stacksOf(onDisk), mcpJson, gateway, skillDirs, gatewayPort });
-    return { ...shaped, repos: withJobs(shaped.repos), hub, at: new Date(now()).toISOString() };
+    return { ...shaped, repos: withJobs(shaped.repos), credentials, hub, at: new Date(now()).toISOString() };
+  }
+
+  async function checkCredential(asked) {
+    const key = String(asked?.key ?? "").trim();
+    const { credentials } = await readHub(true);
+    if (!credentials.items.some((item) => item.key === key)) return { error: `${key || "?"} is not a credential of the hub` };
+    const check = credentialCheckOf(key, envValuesOf(await textOf(".env")));
+    const got = check.command ? await shr(check.command, check.args, { timeout: 130000 }) : null;
+    return { key, ...credentialAnswerOf(check, got) };
+  }
+
+  async function moveCredential(asked) {
+    const key = String(asked?.key ?? "").trim();
+    const { credentials } = await readHub(true);
+    const item = credentials.items.find((one) => one.key === key);
+    if (!item) return { error: `${key || "?"} is not a credential of the hub` };
+    if (item.kind !== "file") return { error: `${key} is not in the .env file` };
+    const envText = await textOf(".env");
+    const moved = await moveToVault({ key, value: envValuesOf(envText)[key], op: opImpl });
+    if (!moved.ok) return { key, ok: false, reason: moved.reason || "vault-failed", detail: moved.error };
+    await writeFileImpl(join(hub, ".env"), envWithValue(envText, key, moved.ref));
+    invalidateSync();
+    const reload = await gatewayReload();
+    return { key, ok: true, moved: true, ref: moved.ref, vault: moved.vault, reloaded: reload.reached };
+  }
+
+  async function credentialSetup() {
+    const vault = await vaultSetupOf({ op: opImpl });
+    const values = envValuesOf(await textOf(".env"));
+    const profiles = [...new Set(Object.entries(values).filter(([name]) => name === "AWS_PROFILE" || name.endsWith("_AWS_PROFILE")).map(([, value]) => value).filter(Boolean))];
+    const sso = await Promise.all(profiles.map(async (profile) => {
+      const got = await shr("aws", ["sts", "get-caller-identity", "--profile", profile, "--query", "Arn", "--output", "text"], { timeout: 30000 });
+      return { profile, ok: !!got?.ok };
+    }));
+    return { vault, sso };
   }
 
   function invalidateSync() {
@@ -437,13 +474,22 @@ export function createWorkspaceDomain({
     on("POST", "/api/workspace/repo", writeRoute(planRepo, addRepo));
     on("POST", "/api/workspace/mcp", writeRoute(planMcp, addMcp));
     on("POST", "/api/workspace/skill", writeRoute(planSkill, addSkill));
+    on("POST", "/api/workspace/credential", async (req, res, url, json) => {
+      const answer = await checkCredential(await bodyOf(req));
+      return json(answer, answer.error ? 400 : 200);
+    });
+    on("POST", "/api/workspace/credential/move", async (req, res, url, json) => {
+      const answer = await moveCredential(await bodyOf(req));
+      return json(answer, answer.error ? 400 : 200);
+    });
+    on("POST", "/api/workspace/credential/setup", async (req, res, url, json) => json(await credentialSetup()));
     on("POST", "/api/workspace/fix", async (req, res, url, json) => {
       const answer = await fix(await bodyOf(req));
       return json(answer, answer.error ? 400 : 200);
     });
   }
 
-  return { register, readSync, readWorkspace, invalidateSync, planRepo, addRepo, planMcp, addMcp, planSkill, addSkill, fix, queueClones, stopClones, jobs };
+  return { register, readSync, readWorkspace, checkCredential, moveCredential, credentialSetup, invalidateSync, planRepo, addRepo, planMcp, addMcp, planSkill, addSkill, fix, queueClones, stopClones, jobs };
 }
 
 export function registerWorkspaceRoutes(on, context) {

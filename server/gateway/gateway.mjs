@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { execFile } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readlinkSync, chmodSync, statSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
@@ -65,6 +66,35 @@ export function envRefs(spec) {
     for (const [, name] of String(value).matchAll(ENV_REF)) names.add(name);
   }
   return [...names];
+}
+
+const VAULT_REF = /^op:\/\//;
+const VAULT_TIMEOUT_MS = 120 * 1000;
+
+export const isVaultRef = (value) => VAULT_REF.test(String(value ?? "").trim());
+
+export function readVaultRef(ref, run = execFile) {
+  return new Promise((done, fail) => {
+    run("op", ["read", "--no-newline", ref], { timeout: VAULT_TIMEOUT_MS, encoding: "utf8" }, (error, stdout, stderr) => {
+      if (!error) return done(stdout);
+      const why = error.code === "ENOENT" ? "o op nao esta instalado" : String(stderr || error.message).trim().split("\n")[0];
+      fail(new Error(`nao consegui ler ${ref} do 1Password: ${why}`));
+    });
+  });
+}
+
+export async function resolveVaultRefs(values, read = readVaultRef, cache = new Map()) {
+  const out = {};
+  for (const [key, value] of Object.entries(values || {})) {
+    if (!isVaultRef(value)) {
+      out[key] = value;
+      continue;
+    }
+    const ref = String(value).trim();
+    if (!cache.has(ref)) cache.set(ref, read(ref).catch((error) => { cache.delete(ref); throw error; }));
+    out[key] = await cache.get(ref);
+  }
+  return out;
 }
 
 export function missingEnvKeys(definition, source) {
@@ -140,6 +170,8 @@ export function createGateway(options = {}) {
   const baseEnv = { ...process.env, ...(options.env || {}) };
   let envStamp = "";
   let env = baseEnv;
+  const vaultRead = options.vaultRead || readVaultRef;
+  const vaultCache = new Map();
 
   function envFileStamp() {
     try {
@@ -155,6 +187,7 @@ export function createGateway(options = {}) {
     if (stamp === envStamp) return false;
     envStamp = stamp;
     env = loadDotEnv(envFile, { ...baseEnv }, { override: true });
+    vaultCache.clear();
     return true;
   }
 
@@ -213,16 +246,16 @@ export function createGateway(options = {}) {
     writeFileSync(manifestPath(name), JSON.stringify(manifest, null, 2) + "\n");
   }
 
-  function transportFor(definition) {
+  function transportFor(definition, resolved) {
     if (definition.url) {
       return new StreamableHTTPClientTransport(new URL(definition.url), {
-        requestInit: { headers: expandEnv(definition.headers, env) },
+        requestInit: { headers: resolved.headers },
       });
     }
     return new StdioClientTransport({
       command: definition.command,
       args: definition.args || [],
-      env: { ...env, ...expandEnv(definition.env, env) },
+      env: { ...env, ...resolved.env },
       cwd: hub,
       stderr: "ignore",
     });
@@ -247,8 +280,11 @@ export function createGateway(options = {}) {
       if (definition.url) throw new Error(aviso);
       log(aviso);
     }
+    const named = [...envRefs(definition.env), ...envRefs(definition.headers)];
+    const source = { ...env, ...(await resolveVaultRefs(Object.fromEntries(named.map((key) => [key, env[key]])), vaultRead, vaultCache)) };
+    const resolved = { env: expandEnv(definition.env, source), headers: expandEnv(definition.headers, source) };
     const client = new Client({ name: "hive-gateway", version: "1.0.0" }, { capabilities: {} });
-    await client.connect(transportFor(definition));
+    await client.connect(transportFor(definition, resolved));
     return client;
   }
 

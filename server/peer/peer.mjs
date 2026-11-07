@@ -455,13 +455,22 @@ export async function browserMap({ env = process.env, ask = askTheApp } = {}) {
   return done && done.ok ? (done.said || {}) : { error: (done && done.error) || "the page did not answer with its shape" };
 }
 
-export async function browserClick({ ref, env = process.env, ask = askTheApp } = {}) {
+export async function browserClick({ ref, x, y, env = process.env, ask = askTheApp } = {}) {
   const self = await me(env);
   if (!self.name) return { error: "this session has no seat — drive the browser from a chat in the hive" };
   const door = hiveDoor(self.base);
   if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the pane is" };
-  const done = await ask(door, "POST", "/api/browser/click", { name: self.name, where: self.side, ref });
+  const done = await ask(door, "POST", "/api/browser/click", { name: self.name, where: self.side, ref, x, y });
   return done && done.ok ? (done.said || {}) : { error: (done && done.error) || "the click did not come back" };
+}
+
+export async function browserHover({ ref, x, y, env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this session has no seat — drive the browser from a chat in the hive" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the pane is" };
+  const done = await ask(door, "POST", "/api/browser/hover", { name: self.name, where: self.side, ref, x, y });
+  return done && done.ok ? (done.said || {}) : { error: (done && done.error) || "the hover did not come back" };
 }
 
 export async function browserType({ ref, text, submit = false, env = process.env, ask = askTheApp } = {}) {

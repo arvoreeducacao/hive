@@ -424,6 +424,79 @@ export function envKeysOf(envText) {
   return keys;
 }
 
+const SECRET_NAME = /(PASSWORD|TOKEN|SECRET|_KEY|_AUTH)$/;
+const VAULT_REF = /^op:\/\//;
+const ENV_REF_IN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+const CREDENTIAL_ORDER = { file: 0, empty: 1, vault: 2, sso: 3 };
+
+export function envValuesOf(envText) {
+  const values = {};
+  for (const line of String(envText ?? "").split("\n")) {
+    const hit = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/);
+    if (hit) values[hit[1]] = hit[2].trim().replace(/^["']|["']$/g, "").trim();
+  }
+  return values;
+}
+
+function envRefsIn(spec) {
+  const names = [];
+  for (const value of Object.values(spec || {})) for (const [, name] of String(value).matchAll(ENV_REF_IN)) names.push(name);
+  return names;
+}
+
+const signsInWithSso = (key, values) => String(values[`${key.split("_")[0]}_AUTH`] ?? "").toLowerCase() === "iam";
+
+export function credentialKindOf(key, values) {
+  const value = values[key] ?? "";
+  if (VAULT_REF.test(value)) return "vault";
+  if (signsInWithSso(key, values) && !value) return "sso";
+  return value ? "file" : "empty";
+}
+
+export function credentialsOf({ envText, servers, mcpJson }) {
+  const values = envValuesOf(envText);
+  const users = new Map();
+  const note = (key, server) => {
+    if (!SECRET_NAME.test(key) || key.startsWith("HIVE_")) return;
+    if (!users.has(key)) users.set(key, new Set());
+    users.get(key).add(server);
+  };
+  for (const [name, definition] of Object.entries(servers?.servers || {})) {
+    for (const key of [...envRefsIn(definition?.env), ...envRefsIn(definition?.headers)]) note(key, name);
+  }
+  for (const [name, definition] of Object.entries(mcpJson?.mcpServers || {})) {
+    for (const key of envRefsIn(definition?.headers)) note(key, name);
+  }
+  const items = [...users.entries()]
+    .map(([key, by]) => {
+      const kind = credentialKindOf(key, values);
+      return { key, servers: [...by].sort(), kind, unused: kind === "file" && signsInWithSso(key, values) };
+    })
+    .sort((left, right) => CREDENTIAL_ORDER[left.kind] - CREDENTIAL_ORDER[right.kind] || left.key.localeCompare(right.key));
+  const count = (kind) => items.filter((item) => item.kind === kind).length;
+  return { items, counts: { total: items.length, file: count("file"), empty: count("empty"), vault: count("vault"), sso: count("sso") } };
+}
+
+export function credentialCheckOf(key, values) {
+  const kind = credentialKindOf(key, values);
+  if (kind === "vault") return { kind, command: "bash", args: ["-c", 'op read --no-newline "$1" >/dev/null', "op-check", values[key]] };
+  if (kind === "sso") {
+    const profile = values[`${key.split("_")[0]}_AWS_PROFILE`] || values.AWS_PROFILE || "default";
+    return { kind, profile, command: "aws", args: ["sts", "get-caller-identity", "--profile", profile, "--query", "Arn", "--output", "text"] };
+  }
+  return { kind };
+}
+
+export function credentialAnswerOf(check, got) {
+  const base = { kind: check.kind, profile: check.profile || "" };
+  if (!check.command) return { ...base, ok: false, reason: check.kind === "empty" ? "empty" : "in-file" };
+  if (got?.ok) return { ...base, ok: true, reason: "ok" };
+  const error = String(got?.error || "");
+  const detail = error.trim().split("\n").filter(Boolean).pop() || "?";
+  if (check.kind === "vault") return { ...base, ok: false, reason: /command not found|ENOENT|\b127\b/.test(error) ? "no-op" : "vault-failed", detail };
+  return { ...base, ok: false, reason: /expired|sso|token/i.test(error) ? "sso-expired" : "aws-failed", detail };
+}
+
 export function mcpEntryOf(asked, { declared = [], gatewayPort = DEFAULT_GATEWAY_PORT } = {}) {
   const name = String(asked?.name ?? "").trim();
   if (name === HUB_SERVER) return { error: "the hub MCP name is reserved for the gateway" };
