@@ -136,9 +136,12 @@ export function readPage(within = "", ceiling = 4000) {
   const rows = [];
   const keep = (row) => { rows.push(row); return row; };
 
-  const walk = (node, depth, doc, host) => {
+  const HANDS = 'a[href], button, input, select, textarea, [contenteditable=""], [contenteditable="true"], [role="button"], [role="link"], [role="menuitem"], [role="checkbox"], [role="tab"], [role="textbox"], [role="combobox"]';
+
+  const walk = (node, depth, doc, host, quiet = false) => {
     if (count >= ceiling) { cut = true; return; }
     if (node.nodeType === 3) {
+      if (quiet) return;
       const said = trim(node.textContent, TEXT);
       if (said && said.length > 1) keep({ role: "text", depth, text: said });
       return;
@@ -149,14 +152,15 @@ export function readPage(within = "", ceiling = 4000) {
     const out = hidden(el);
     if (out === "gone") return;
     if (out === "flat") {
-      if (el.shadowRoot) for (const kid of el.shadowRoot.childNodes) walk(kid, depth, doc, host);
-      for (const kid of el.childNodes) walk(kid, depth, doc, host);
+      if (el.shadowRoot) for (const kid of el.shadowRoot.childNodes) walk(kid, depth, doc, host, quiet);
+      for (const kid of el.childNodes) walk(kid, depth, doc, host, quiet);
       return;
     }
 
     const role = roleOf(el);
     const shown = role && !(BORING[role] && !el.getAttribute("aria-label"));
     let deeper = depth;
+    let hush = quiet;
     if (shown) {
       const ref = `e${++count}`;
       seen.set(ref, { el, host: host || null });
@@ -169,11 +173,14 @@ export function readPage(within = "", ceiling = 4000) {
         url: el.tagName === "A" ? trim(el.getAttribute("href") || "", TEXT) : ""
       });
       deeper = depth + 1;
-      if (name && NAMED_BY_TEXT[role] && trim(spoken(el), NAME) === name) return;
+      if (name && NAMED_BY_TEXT[role] && trim(spoken(el), NAME) === name) {
+        if (!el.querySelector?.(HANDS)) return;
+        hush = true;
+      }
     }
 
     if (el.shadowRoot) {
-      for (const kid of el.shadowRoot.childNodes) walk(kid, deeper, doc, host);
+      for (const kid of el.shadowRoot.childNodes) walk(kid, deeper, doc, host, hush);
     }
     if (el.tagName === "IFRAME") {
       let inside = null;
@@ -182,7 +189,7 @@ export function readPage(within = "", ceiling = 4000) {
       walk(inside.body, deeper, inside, el);
       return;
     }
-    for (const kid of el.childNodes) walk(kid, deeper, doc, host);
+    for (const kid of el.childNodes) walk(kid, deeper, doc, host, hush);
   };
 
   const root = within ? document.querySelector(within) : document.body;

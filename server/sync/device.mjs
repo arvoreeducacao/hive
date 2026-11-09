@@ -19,6 +19,9 @@ export function retryDelay(attempt, random = Math.random()) {
 }
 export const TITLE_CEILING = 160;
 export const DRAFT_CEILING = 20000;
+export const EVENTS_KEPT = 200;
+export const LEAN_REPLICA_KEY = "replica";
+export const RECENT_REPLICA_KEY = "recent";
 
 export const memoryStore = () => {
   const held = new Map();
@@ -26,6 +29,30 @@ export const memoryStore = () => {
 };
 
 const emptyReplica = () => ({ title: "", draft: "", draftAt: 0, draftBy: "", events: [], intents: [], lastSeq: 0, lastIntent: 0, myIntent: 0, gapBefore: 0, locked: 0, bornAt: 0 });
+
+const withoutCiphertext = ({ nonce, ct, sig, ...light }) => light;
+
+const LASTING_NOTES = new Set(["model_changed", "effort_changed", "account_changed"]);
+const lastingKindOf = (value) => (value?.type === "system" || value?.type === "commands" ? value.type : value?.type === "note" && LASTING_NOTES.has(value.subtype) ? value.subtype : "");
+
+function carryLasting(kept, dropped) {
+  const stillThere = new Set(kept.events.map((one) => lastingKindOf(one.value)));
+  const carried = new Map();
+  for (const one of dropped) {
+    const kind = lastingKindOf(one.value);
+    if (kind && !stillThere.has(kind)) carried.set(kind, one);
+  }
+  kept.events.unshift(...[...carried.values()].sort((a, b) => a.seq - b.seq));
+}
+
+function keepRecent(kept) {
+  if (kept.events.length <= EVENTS_KEPT) return;
+  const dropped = kept.events.splice(0, kept.events.length - EVENTS_KEPT);
+  kept.gapBefore = kept.events[0].seq;
+  carryLasting(kept, dropped);
+}
+
+const highest = (list, field, floor) => list.reduce((top, one) => Math.max(top, Number(one[field]) || 0), floor || 0);
 
 export class Device {
   constructor({ name, signer, agreer, store, fetchImpl = globalThis.fetch, lean = false, stallMs = STALL_MS }) {
@@ -110,16 +137,16 @@ export class Device {
     this.kind = held.kind || "";
     const keys = (await this.store.get("seatKeys")) || {};
     for (const [seat, byId] of Object.entries(keys)) this.seatKeys.set(seat, new Map(Object.entries(byId).map(([id, b64]) => [id, fromB64(b64)])));
-    const replica = (await this.store.get("replica")) || {};
+    const replica = (await this.store.get(this.replicaKey)) || {};
+    if (!this.lean) await this.store.set(LEAN_REPLICA_KEY, null);
     for (const [seat, kept] of Object.entries(replica)) this.replica.set(seat, { ...emptyReplica(), ...kept });
     this.cursors = {};
     for (const [seat, kept] of this.replica) {
-      this.cursors[seat] = {
-        events: Math.max(kept.lastSeq || 0, ...kept.events.map((one) => Number(one.seq) || 0)),
-        intents: Math.max(kept.lastIntent || 0, ...kept.intents.map((one) => Number(one.n) || 0))
-      };
+      this.cursors[seat] = { events: highest(kept.events, "seq", kept.lastSeq), intents: highest(kept.intents, "n", kept.lastIntent) };
     }
   }
+
+  get replicaKey() { return this.lean ? LEAN_REPLICA_KEY : RECENT_REPLICA_KEY; }
 
   async keysForKeeping() {
     if (this.kept) return this.kept;
@@ -138,7 +165,7 @@ export class Device {
     await this.store.set("seatKeys", keys);
     const replica = {};
     for (const [seat, kept] of this.replica) replica[seat] = this.lean ? { title: kept.title, draft: kept.draft, draftAt: kept.draftAt, lastSeq: kept.lastSeq, lastIntent: kept.lastIntent, myIntent: kept.myIntent, bornAt: kept.bornAt } : kept;
-    await this.store.set("replica", replica);
+    await this.store.set(this.replicaKey, replica);
   }
 
   get paired() { return !!(this.host && this.audience); }
@@ -578,9 +605,13 @@ export class Device {
 
   takeEvent(seatId, entry, value, extra = {}) {
     const kept = this.held(seatId);
-    if (entry.seq <= (kept.lastSeq || 0) && !this.lean && kept.events.some((one) => one.seq === entry.seq)) return false;
-    if (this.lean && entry.seq <= (kept.lastSeq || 0)) return false;
-    if (!this.lean) kept.events.push({ ...entry, value, ...extra });
+    const old = entry.seq <= (kept.lastSeq || 0);
+    if (old && this.lean) return false;
+    if (old && (entry.seq < (kept.gapBefore || 0) || kept.events.some((one) => one.seq === entry.seq))) return false;
+    if (!this.lean) {
+      kept.events.push({ ...withoutCiphertext(entry), value, ...extra });
+      keepRecent(kept);
+    }
     kept.lastSeq = Math.max(kept.lastSeq || 0, entry.seq);
     if (extra.locked) kept.locked += 1;
     this.cursors[seatId] = { ...(this.cursors[seatId] || { intents: 0 }), events: Math.max(this.cursors[seatId]?.events || 0, entry.seq) };
@@ -618,8 +649,10 @@ export class Device {
 
   async sync() {
     const said = await this.refreshPeople();
-    for (const id of [...this.seats.keys()]) {
-      if (!said.seats.some((view) => view.id === id)) await this.takeSeat({ id, gone: true });
+    const listed = new Set(said.seats.map((view) => view.id));
+    const known = this.lean ? [...this.seats.keys()] : [...new Set([...this.seats.keys(), ...this.replica.keys()])];
+    for (const id of known) {
+      if (!listed.has(id)) await this.takeSeat({ id, gone: true });
     }
     for (const view of said.seats) await this.takeSeat(view);
     for (const view of said.seats) await this.catchUp(view);
@@ -635,10 +668,15 @@ export class Device {
     const kept = this.held(view.id);
     if (view.lastSeq > cursor.events) {
       let from = cursor.events;
-      if (view.firstSeq > from + 1) {
-        if (!this.lean) kept.events = [];
-        kept.gapBefore = view.firstSeq;
-        from = view.firstSeq - 1;
+      const start = Math.max(from, (Number(view.firstSeq) || 1) - 1, this.lean ? 0 : view.lastSeq - EVENTS_KEPT);
+      if (start > from) {
+        if (!this.lean) {
+          const dropped = kept.events;
+          kept.events = [];
+          carryLasting(kept, dropped);
+        }
+        kept.gapBefore = start + 1;
+        from = start;
       }
       const page = await this.call("GET", `/seats/${view.id}/events?from=${from}`);
       for (const entry of page.events) await this.absorb(view.id, entry);

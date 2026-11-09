@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createGateway, expandEnv, loadDotEnv, missingEnvKeys, authorize, manifestKey, seatEnvFrom } from "../gateway/gateway.mjs";
+import { createGateway, expandEnv, loadDotEnv, missingEnvKeys, authorize, manifestKey, seatEnvFrom, isVaultRef, readVaultRef, resolveVaultRefs } from "../gateway/gateway.mjs";
 
 const FAKE_SERVER = `
 let buf = "";
@@ -603,3 +603,100 @@ test("the peer route serves whichever seat the header names, in process, with no
   const semToken = await rpcAs(base, "token-errado", "asker", { jsonrpc: "2.0", id: 5, method: "tools/list", params: {} });
   assert.equal(semToken.status, 401);
 });
+
+test("isVaultRef reconhece so referencia do 1Password", () => {
+  assert.equal(isVaultRef("op://Privado/context7/credencial"), true);
+  assert.equal(isVaultRef("  op://Privado/x/y "), true);
+  assert.equal(isVaultRef("valor-cru"), false);
+  assert.equal(isVaultRef(""), false);
+  assert.equal(isVaultRef(undefined), false);
+});
+
+test("resolveVaultRefs troca so as referencias e le cada uma uma vez", async () => {
+  const lidas = [];
+  const read = async (ref) => { lidas.push(ref); return `valor de ${ref}`; };
+  const cache = new Map();
+  const out = await resolveVaultRefs({ A: "op://cofre/a/campo", B: "cru", C: "op://cofre/a/campo" }, read, cache);
+  assert.deepEqual(out, { A: "valor de op://cofre/a/campo", B: "cru", C: "valor de op://cofre/a/campo" });
+  await resolveVaultRefs({ D: "op://cofre/a/campo" }, read, cache);
+  assert.deepEqual(lidas, ["op://cofre/a/campo"]);
+});
+
+test("resolveVaultRefs nao guarda a falha e tenta de novo na proxima vez", async () => {
+  let vez = 0;
+  const read = async () => { vez += 1; if (vez === 1) throw new Error("travado"); return "ok"; };
+  const cache = new Map();
+  await assert.rejects(resolveVaultRefs({ A: "op://cofre/a/campo" }, read, cache), /travado/);
+  assert.deepEqual(await resolveVaultRefs({ A: "op://cofre/a/campo" }, read, cache), { A: "ok" });
+});
+
+test("readVaultRef chama op read e explica quando o op nao esta instalado", async () => {
+  const chamadas = [];
+  const run = (cmd, args, _opts, cb) => { chamadas.push([cmd, ...args]); cb(null, "o-valor", ""); };
+  assert.equal(await readVaultRef("op://cofre/item/campo", run), "o-valor");
+  assert.deepEqual(chamadas, [["op", "read", "--no-newline", "op://cofre/item/campo"]]);
+
+  const semOp = (_cmd, _args, _opts, cb) => cb(Object.assign(new Error("spawn op ENOENT"), { code: "ENOENT" }), "", "");
+  await assert.rejects(readVaultRef("op://cofre/item/campo", semOp), /nao consegui ler op:\/\/cofre\/item\/campo do 1Password: o op nao esta instalado/);
+});
+
+test("o servidor recebe o valor do 1Password no lugar da referencia do .env", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-op-"));
+  const fake = join(dir, "falso-mcp.mjs");
+  writeFileSync(fake, FAKE_SERVER);
+  const lidas = [];
+  const gateway = createGateway({
+    hub: dir,
+    definitions: { falso: { command: process.execPath, args: [fake], env: { SEGREDO: "${VALOR_SECRETO}" } } },
+    manifestDir: join(dir, ".manifest"),
+    token: "token-de-teste",
+    env: { VALOR_SECRETO: "op://Privado/falso/credencial" },
+    vaultRead: async (ref) => { lidas.push(ref); return "do-cofre"; },
+    idleMs: 50,
+    log: () => {},
+  });
+  t.after(async () => {
+    await gateway.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const { port } = await gateway.listen(0);
+
+  const chamada = await rpc(`http://127.0.0.1:${port}`, "token-de-teste", {
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name: "eco", arguments: { texto: "oi" } },
+  });
+  assert.equal(chamada.payload.result.content[0].text, "eco:oi:do-cofre");
+  assert.deepEqual(lidas, ["op://Privado/falso/credencial"]);
+});
+
+test("a referencia do 1Password vale dentro de um valor maior, como Bearer ${VAR}", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-op-bearer-"));
+  const fake = join(dir, "falso-mcp.mjs");
+  writeFileSync(fake, FAKE_SERVER);
+  const gateway = createGateway({
+    hub: dir,
+    definitions: { falso: { command: process.execPath, args: [fake], env: { SEGREDO: "Bearer ${VALOR_SECRETO}" } } },
+    manifestDir: join(dir, ".manifest"),
+    token: "token-de-teste",
+    env: { VALOR_SECRETO: "op://Privado/falso/credencial" },
+    vaultRead: async () => "do-cofre",
+    idleMs: 50,
+    log: () => {},
+  });
+  t.after(async () => {
+    await gateway.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const { port } = await gateway.listen(0);
+
+  const chamada = await rpc(`http://127.0.0.1:${port}`, "token-de-teste", {
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name: "eco", arguments: { texto: "oi" } },
+  });
+  assert.equal(chamada.payload.result.content[0].text, "eco:oi:Bearer do-cofre");
+});
+

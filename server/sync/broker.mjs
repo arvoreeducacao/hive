@@ -14,6 +14,7 @@ export const EVENTS_CEILING = 4000;
 export const EVENTS_FLOOR = 2000;
 export const INTENTS_CEILING = 800;
 export const INTENTS_FLOOR = 400;
+export const CLOSED_SHOWN_MS = 7 * 24 * 60 * 60 * 1000;
 export const NAME_CEILING = 40;
 export const SEAT_ID = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
 export const BLOB_ID = /^[a-f0-9]{16,64}$/;
@@ -213,7 +214,8 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
   const asJson = (payload, status = 200) => ({ status, headers: { "content-type": "application/json", "cache-control": "no-store", "x-hive-min-client": String(MIN_CLIENT) }, body: JSON.stringify(payload) });
   const refuse = (error, status = 400, extra = {}) => asJson({ error, ...extra }, status);
 
-  const readable = (device) => Object.values(state.seats).filter((seat) => mayRead(seat, device));
+  const stillShown = (seat) => !seat.closedAt || now() - seat.closedAt < CLOSED_SHOWN_MS;
+  const readable = (device) => Object.values(state.seats).filter((seat) => mayRead(seat, device) && stillShown(seat));
 
   function checkSignature({ method, path, headers, body }) {
     const fingerprint = String(headers["x-hive-key"] || "");

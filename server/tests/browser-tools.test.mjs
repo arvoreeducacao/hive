@@ -163,6 +163,21 @@ test("click and type name what they touched, and carry the ref the seat chose", 
   });
 });
 
+test("a click by point and a hover carry the point or the ref to the app", async () => {
+  await drive({
+    "/api/browser/click": { ok: true, value: "clicked the point 1155,404" },
+    "/api/browser/hover": { ok: true, value: 'the mouse is over div "5. Responder a uma mensagem"' },
+  }, async (client, app) => {
+    assert.match(spoken(await client.call("tools/call", { name: "browser_click", arguments: { x: 1155, y: 404 } })), /clicked the point 1155,404/);
+    assert.match(spoken(await client.call("tools/call", { name: "browser_hover", arguments: { ref: "e112" } })), /the mouse is over/);
+    const clicked = app.seen.find((r) => r.path === "/api/browser/click");
+    assert.equal(clicked.body.x, 1155);
+    assert.equal(clicked.body.y, 404);
+    const hovered = app.seen.find((r) => r.path === "/api/browser/hover");
+    assert.equal(hovered.body.ref, "e112");
+  });
+});
+
 test("a key press and a wait carry their own words back", async () => {
   await drive({
     "/api/browser/key": { ok: true, value: "pressed Escape" },

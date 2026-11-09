@@ -44,7 +44,14 @@ function providerOf(id) {
 }
 
 function providerAccounts(id) {
-  return providerOf(id)?.accounts || [];
+  const one = providerOf(id);
+  const accounts = one?.accounts || [];
+  if (!one?.order?.length) return accounts;
+  const rank = (name) => {
+    const at = one.order.indexOf(name);
+    return at < 0 ? one.order.length : at;
+  };
+  return accounts.slice().sort((a, b) => rank(a.name) - rank(b.name));
 }
 
 /* the pickers ask one thing: may a chat open on this agent right now. Before the

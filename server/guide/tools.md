@@ -7,7 +7,7 @@ The seat's browser and phone, tasks, routines, secrets, PRs and the other workin
 Every tool in this topic is a tool of the `hive` MCP server that each seat gets. Each tool needs a ceiling, and a chat only sees the tools its ceiling allows (see the "seats" topic for how a ceiling is set).
 
 - `read`: `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`.
-- `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`.
+- `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`.
 - `full`: `browser_set_cookie` (plus `spawn` and `publish`).
 
 A call above the ceiling fails with "this chat runs with a "<ceiling>" ceiling". The browser, device, task, secret, buzz and Slack tools also need a chat with a seat name; an agent outside the Hive (a plain terminal) gets an error that it has no seat. They talk to the Hive app on the same machine, so the app must be open there: otherwise the error is "no hive answering on this machine".
@@ -24,6 +24,7 @@ Each seat has its own browser inside the Hive app, shown in the browser pane of 
 
 How it differs from the person's own browser:
 
+- A file the page downloads is saved in the person's Downloads folder, with " (2)" added when the name is taken.
 - It has its own persistent cookie and storage area, shared by the tabs of every seat in this app and kept across restarts. It never carries the person's personal logins from their normal browser.
 - Page requests for camera, microphone, location, notifications and other permissions are refused.
 - A popup that opens a new window (a sign-in popup, for example) shows as an overlay over the Hive window; Escape closes it. A link that opens a new tab opens a new tab in the pane.
@@ -35,15 +36,16 @@ All of these act on the tab the seat drives. Navigate first: with no page, the e
 
 - `browser_navigate(url)`: open a page in the seat's own tab.
 - `browser_screenshot()`: an image of the page. The pane does not have to be open.
-- `browser_snapshot()`: the page as a list of elements (role, name, value, state), each with a ref like `e12`. Use it to find fields and buttons. Refs go stale when the page redraws; take a new snapshot.
-- `browser_click(ref)`: a real mouse click at the element's place, not a JavaScript call.
-- `browser_type(ref, text, submit?)`: click the field, replace its content and type; `submit:true` presses Enter. Up to 4000 characters.
+- `browser_snapshot()`: the page as a list of elements (role, name, value, state), each with a ref like `e12`. Use it to find fields and buttons. Refs go stale when the page redraws; take a new snapshot. A clickable card or row also shows the buttons and fields inside it, without repeating its text.
+- `browser_click(ref)` or `browser_click(x, y)`: a real mouse click at the element's place, not a JavaScript call. x and y are pixels of the last `browser_screenshot`, for what is on the screen but not in the snapshot.
+- `browser_hover(ref)` or `browser_hover(x, y)`: rest the mouse there without clicking, for buttons a page only shows under the mouse. Take the snapshot again after.
+- `browser_type(ref, text, submit?)`: click the field, replace its content and type, with a key press, the letter and the key release for each character, so search fields that react to the keyboard open their list; `submit:true` presses Enter. Up to 4000 characters.
 - `browser_select_option(ref, option)`: pick a dropdown option by its visible text; the error lists the options there are.
 - `browser_press_key(key)`: Enter, Tab, Escape, Backspace, Delete, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, PageUp, PageDown, Home, End.
 - `browser_wait_for(text, gone?, seconds?)`: wait for a text to show (or to go with `gone:true`), 1 to 60 seconds, default 10.
 - `browser_back`, `browser_forward`, `browser_reload`: step in the tab's history or reload.
 - `browser_tabs(act, url?, index?)`: `list` marks "← yours" and "← the person is looking at this one"; `open` adds a tab; `select` moves the tools to another tab without moving what the person sees; `close` ends one. If the person closes the seat's tab, the next tool says so.
-- `browser_eval(code)`: run JavaScript in the page; the last expression comes back JSON-encoded. It can replay an API call with the page's cookies.
+- `browser_eval(code)`: run JavaScript in the page; the last expression comes back JSON-encoded. It can replay an API call with the page's cookies. On a page whose security policy forbids `eval` (Slack, for example), the code still runs, and the value must be plain data such as text, numbers or objects of them.
 - `browser_resize(width, height, mobile?, reset?)`: emulate a viewport, 200 to 3840 CSS pixels each way (for example 390 phone, 834 tablet, 1440 desktop). `mobile:true` adds touch and a mobile layout; `reset:true` goes back to the window size.
 - `browser_network(about?, failed_only?)`: the calls the page made, newest last: status or failure, method, URL, kind, time, size. It keeps the last 300 calls of the tab and starts again on each new page load.
 - `browser_console()`: the last 200 console messages (level, text, source and line) of the tab in front in the pane. The list clears when a page starts loading.

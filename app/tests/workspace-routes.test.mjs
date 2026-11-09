@@ -53,6 +53,7 @@ function workspaceHarness(over = {}) {
     readManifest: over.readManifest || ((text) => ({ state: "read", manifest: JSON.parse(text), issues: [] })),
     bodyOf: async () => body,
     shr: over.shr ? over.shr(shr) : shr,
+    opImpl: over.opImpl,
     gitSaid: (error) => String(error).split("\n").pop(),
     readFileImpl: async (path) => {
       if (!files.has(path)) throw new Error("ENOENT");
@@ -103,7 +104,7 @@ function workspaceHarness(over = {}) {
   };
 }
 
-test("the workspace room registers two reads, the three writes that add something, and the one that adjusts", () => {
+test("the workspace room registers two reads, the three writes that add something, the credential check, move and setup, and the one that adjusts", () => {
   const { routes } = workspaceHarness();
   assert.deepEqual([...routes].map(([path, route]) => [path, route.method]), [
     ["/api/sync", null],
@@ -111,8 +112,36 @@ test("the workspace room registers two reads, the three writes that add somethin
     ["/api/workspace/repo", "POST"],
     ["/api/workspace/mcp", "POST"],
     ["/api/workspace/skill", "POST"],
+    ["/api/workspace/credential", "POST"],
+    ["/api/workspace/credential/move", "POST"],
+    ["/api/workspace/credential/setup", "POST"],
     ["/api/workspace/fix", "POST"]
   ]);
+});
+
+test("the credential check runs op read into /dev/null and never answers with the value", async () => {
+  const ran = [];
+  const hive = workspaceHarness({ shr: () => async (command, args) => { ran.push([command, ...args]); return { ok: true, out: "", error: "" }; } });
+  hive.files.set("/workspace/hub/.mcp-servers/servers.json", JSON.stringify({ servers: { context7: { command: "npx", env: { CONTEXT7_API_KEY: "${CONTEXT7_API_KEY}" } } } }));
+  hive.files.set("/workspace/hub/.env", "CONTEXT7_API_KEY=op://Privado/context7/credencial\nOUTRA=solta\n");
+
+  const [answer] = await hive.post("/api/workspace/credential", { key: "CONTEXT7_API_KEY" });
+  assert.equal(answer.status, 200);
+  assert.deepEqual(answer.value, { key: "CONTEXT7_API_KEY", kind: "vault", profile: "", ok: true, reason: "ok" });
+  assert.deepEqual(ran, [["bash", "-c", 'op read --no-newline "$1" >/dev/null', "op-check", "op://Privado/context7/credencial"]]);
+
+  const [refused] = await hive.post("/api/workspace/credential", { key: "OUTRA" });
+  assert.equal(refused.status, 400);
+  assert.equal(ran.length, 1);
+});
+
+test("the workspace read carries the credentials without any value", async () => {
+  const hive = workspaceHarness();
+  hive.files.set("/workspace/hub/.mcp-servers/servers.json", JSON.stringify({ servers: { sentry: { command: "npx", env: { SENTRY_ACCESS_TOKEN: "${SENTRY_ACCESS_TOKEN}" } } } }));
+  hive.files.set("/workspace/hub/.env", "SENTRY_ACCESS_TOKEN=valor-que-nao-pode-sair\n");
+  const workspace = await hive.domain.readWorkspace(true);
+  assert.deepEqual(workspace.credentials.items, [{ key: "SENTRY_ACCESS_TOKEN", servers: ["sentry"], kind: "file", unused: false }]);
+  assert.doesNotMatch(JSON.stringify(workspace), /valor-que-nao-pode-sair/);
 });
 
 test("sync shapes both machines and keeps the walk cached until force or invalidation", async () => {
@@ -401,3 +430,30 @@ test("adjust everything walks every divergence in one call, keeps going past the
   assert.match(hive.files.get("/workspace/hub/AGENTS.md"), /- \*\*thermos\*\* — Guarda o café\./);
   assert.deepEqual([...hive.domain.jobs].map(([name, job]) => [name, job.state]), [["gamma", "cloning"]]);
 });
+
+test("mover pro 1Password troca a linha do .env pela referência e recarrega o gateway", async () => {
+  const opCalls = [];
+  const hive = workspaceHarness({ opImpl: async (args, extra = {}) => {
+    opCalls.push({ args, ...extra });
+    const key = args.slice(0, 2).join(" ");
+    if (key === "vault list") return { ok: true, out: JSON.stringify([{ name: "Employee" }]) };
+    if (key === "item get") return { ok: false, out: "", error: "nao existe" };
+    if (key === "item create") return { ok: true, out: "{}" };
+    if (key === "read --no-newline") return { ok: true, out: "valor-cru" };
+    return { ok: false, out: "", error: key };
+  } });
+  hive.files.set("/workspace/hub/.mcp-servers/servers.json", JSON.stringify({ servers: { posthog: { command: "npx", env: { POSTHOG_API_KEY: "${POSTHOG_API_KEY}" } } } }));
+  hive.files.set("/workspace/hub/.mcp-servers/.token", "tok");
+  hive.files.set("/workspace/hub/.env", "POSTHOG_BASE_URL=https://exemplo\nPOSTHOG_API_KEY=valor-cru\n");
+
+  const [answer] = await hive.post("/api/workspace/credential/move", { key: "POSTHOG_API_KEY" });
+  assert.equal(answer.status, 200);
+  assert.deepEqual(answer.value, { key: "POSTHOG_API_KEY", ok: true, moved: true, ref: "op://Employee/hub-env/POSTHOG_API_KEY", vault: "Employee", reloaded: true });
+  assert.equal(hive.written.get("/workspace/hub/.env"), "POSTHOG_BASE_URL=https://exemplo\nPOSTHOG_API_KEY=op://Employee/hub-env/POSTHOG_API_KEY\n");
+  assert.equal(hive.reloads.length, 1);
+  assert.doesNotMatch(JSON.stringify(answer.value), /valor-cru/);
+
+  const [again] = await hive.post("/api/workspace/credential/move", { key: "POSTHOG_API_KEY" });
+  assert.equal(again.status, 400);
+});
+

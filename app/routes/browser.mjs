@@ -48,7 +48,15 @@ export const browserState = (name) => {
 const clean = (v, n) => String(v || "").replace(/[\u0000-\u001f\u007f]+/g, " ").replace(/\s+/g, " ").trim().slice(0, n);
 
 const REF_SHAPE = /^e\d{1,4}$/;
-const REF_HINT = "a ref looks like e12 and comes from browser_snapshot";
+const REF_HINT = "a ref looks like e12 and comes from browser_snapshot — or give x and y from browser_screenshot";
+const POINT_CEILING = 10000;
+const pointOf = (asked) => {
+  if (asked.ref) return null;
+  const x = Number(asked.x);
+  const y = Number(asked.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > POINT_CEILING || y > POINT_CEILING) return null;
+  return { x: Math.round(x), y: Math.round(y) };
+};
 
 export function registerBrowserRoutes(on, ctx) {
   const { isSeatName, bodyOf, fleet, saveFiles, onTheServer, cloudReach, typeText } = ctx;
@@ -170,9 +178,19 @@ export function registerBrowserRoutes(on, ctx) {
   on("POST", "/api/browser/map", waiting(() => ({ op: "map" })));
 
   on("POST", "/api/browser/click", waiting((asked) => {
+    const point = pointOf(asked);
+    if (point) return { op: "click", ...point };
     const ref = String(asked.ref || "").trim();
     if (!REF_SHAPE.test(ref)) return { error: REF_HINT };
     return { op: "click", ref };
+  }));
+
+  on("POST", "/api/browser/hover", waiting((asked) => {
+    const point = pointOf(asked);
+    if (point) return { op: "hover", ...point };
+    const ref = String(asked.ref || "").trim();
+    if (!REF_SHAPE.test(ref)) return { error: REF_HINT };
+    return { op: "hover", ref };
   }));
 
   on("POST", "/api/browser/type", waiting((asked) => {

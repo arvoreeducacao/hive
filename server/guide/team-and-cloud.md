@@ -206,6 +206,7 @@ The phone needs a server that the phone can reach over `https`.
 ## What the phone can do
 
 - List every chat on your machines and open one, with answers in full, tools folded and questions as cards you answer with a tap.
+- The phone keeps the newest 200 events of each chat. A chat closed more than a week ago leaves the phone; it comes back if it opens again.
 - Type into a chat, send up to six pictures in one message, and stop the turn.
 - In the composer, `/` offers the chat's commands, `#` your other chats, `@` files in the chat's folder and `~` people on the team.
 - Pills above the box change the model, the effort and, for a chat on the computer, the login.
