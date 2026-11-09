@@ -167,3 +167,10 @@ export function agentsToSignIn(providers) {
       return { id: one.id, name: one.name || one.label || one.id, ready: !!one.ready, who: signed?.email || "", why: one.why || "" };
     });
 }
+
+export function machineNeeds(dep, { platform = process.platform, wantsCluster = false, anotherAgentHere = false, agentSignedIn = false } = {}) {
+  if (dep.posixOnly && platform === "win32") return false;
+  if (dep.forCluster) return wantsCluster;
+  if (dep.forSeats) return !anotherAgentHere && !agentSignedIn;
+  return true;
+}
