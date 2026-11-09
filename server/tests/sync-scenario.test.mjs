@@ -5,7 +5,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSyncBroker, EVENTS_CEILING, EVENTS_FLOOR } from "../sync/broker.mjs";
-import { Device, memoryStore } from "../sync/device.mjs";
+import { Device, EVENTS_KEPT, memoryStore } from "../sync/device.mjs";
 import { localFetch, serveSync, isSyncPath } from "../sync/mount.mjs";
 import { bytesOf, rawOfSsh, toB64 } from "../sync/crypto.mjs";
 import { newIdentity } from "../identity.mjs";
@@ -211,9 +211,9 @@ test("a seat's log is trimmed past the ceiling and a phone far behind learns whe
 
   await phone.sync();
   const kept = phone.replica.get("longo");
-  assert.equal(kept.gapBefore, view.firstSeq);
-  assert.equal(kept.events.length, EVENTS_FLOOR + 5);
-  assert.equal(kept.events[0].seq, view.firstSeq);
+  assert.equal(kept.gapBefore, view.lastSeq - EVENTS_KEPT + 1, "the phone asks only for the newest part it keeps");
+  assert.equal(kept.events.length, EVENTS_KEPT);
+  assert.equal(kept.events[0].seq, kept.gapBefore);
   assert.equal(kept.events.at(-1).seq, view.lastSeq);
   broker.close();
   rmSync(dataDir, { recursive: true, force: true });
