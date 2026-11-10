@@ -184,6 +184,21 @@ test("revoking cuts access and drops whoever was connected", async () => {
   }
 });
 
+test("revoking a Mac on the server also shuts it out of the sync, where it had come in as admin", async () => {
+  const boss = await pair("mac", "dono");
+  const doomed = await pair("mac", "mac roubado");
+  const { Device } = await import("../sync/device.mjs");
+  const device = await Device.fromIdentity({ name: "mac roubado", secret: doomed.me.secret, publicSsh: doomed.me.publicSsh });
+  await device.enroll(`${url}/sync`);
+  assert.equal((await device.call("GET", "/me")).admin, true);
+
+  const gone = await boss.client.post("/api/devices/revoke", { fingerprint: doomed.me.fingerprint });
+  assert.equal(gone.ok, true, gone.error);
+
+  await assert.rejects(() => device.call("GET", "/me"), /revoked/);
+  await assert.rejects(() => device.call("GET", "/roster"), /revoked/);
+});
+
 test("the same signature does not work twice", async () => {
   const { me, audience } = await pair("mac", "repeteco");
   const { signedHeaders } = await import("../client.mjs");

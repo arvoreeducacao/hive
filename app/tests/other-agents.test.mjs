@@ -16,7 +16,8 @@ const cut = (text, from, to) => {
 test("the doctor calls a machine ready with any agent signed in, codex, kimi, kiro, cursor or opencode as much as claude", () => {
   const look = cut(server, "async function machineLook()", "function serverAddressOf");
   assert.match(look, /const \[agents, providers\] = await Promise\.all\(\[otherAgentsOnThisMachine\(\), readProviders\(true\)/);
-  assert.match(look, /needed: d\.posixOnly && process\.platform === "win32" \? false : d\.forCluster \? wantsCluster : d\.forSeats \? !anotherAgentHere : true/, "the claude binary is still demanded of a machine that only runs other agents");
+  assert.match(look, /needed: machineNeeds\(d, \{ wantsCluster, anotherAgentHere, agentSignedIn \}\)/, "the claude binary is still demanded of a machine that only runs other agents");
+  assert.match(look, /const agentSignedIn = claude\.loggedIn;/);
   assert.match(look, /machine\.providers\.some\(\(one\) => one\.ready\)/, "a machine with an agent installed but nobody signed in is called ready");
   const deps = cut(server, "const DEPS = [", "];");
   assert.match(deps, /name: "claude".*forSeats: true/);

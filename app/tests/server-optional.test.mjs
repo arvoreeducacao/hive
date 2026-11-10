@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { clusterIsWanted, serverIsWanted } from "../lib/env.mjs";
+import { machineNeeds } from "../lib/providers.mjs";
 import { app } from "./dom.mjs";
 
 const APP = fileURLToPath(new URL("..", import.meta.url));
@@ -57,7 +58,8 @@ test("the cluster is only asked about when the server sits on one", () => {
 
 test("a machine whose server is not on a cluster is not held back by cluster tools", () => {
   const look = server.slice(server.indexOf("async function machineLook"), server.indexOf("let onboardingCache"));
-  assert.match(look, /needed: d\.posixOnly && process\.platform === "win32" \? false : d\.forCluster \? wantsCluster : d\.forSeats \? !anotherAgentHere : true/);
+  assert.match(look, /needed: machineNeeds\(d, \{ wantsCluster, anotherAgentHere, agentSignedIn \}\)/);
+  assert.equal(machineNeeds({ name: "kubectl", forCluster: true }, { wantsCluster: false }), false);
   assert.match(look, /machine\.deps\.every\(\(d\) => d\.ok \|\| !d\.needed\)/);
   assert.match(look, /!wantsCluster \|\| \(machine\.aws\.ok && machine\.cluster\.ok\)/);
 });

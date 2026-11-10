@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createGateway, expandEnv, loadDotEnv, missingEnvKeys, authorize, manifestKey, seatEnvFrom, isVaultRef, readVaultRef, resolveVaultRefs } from "../gateway/gateway.mjs";
+import { createGateway, expandEnv, loadDotEnv, missingEnvKeys, authorize, manifestKey, seatEnvFrom, isVaultRef, readVaultRef, resolveVaultRefs, vaultRefsOf } from "../gateway/gateway.mjs";
 
 const FAKE_SERVER = `
 let buf = "";
@@ -698,5 +698,95 @@ test("a referencia do 1Password vale dentro de um valor maior, como Bearer ${VAR
     params: { name: "eco", arguments: { texto: "oi" } },
   });
   assert.equal(chamada.payload.result.content[0].text, "eco:oi:Bearer do-cofre");
+});
+
+test("vaultRefsOf junta as referencias que os servidores usam, sem repetir", () => {
+  const definitions = {
+    a: { env: { A: "${VAR_A}", B: "${VAR_B}" } },
+    b: { url: "https://x", headers: { Authorization: "Bearer ${VAR_A}" } },
+    c: { env: { C: "${VAR_C}" } },
+  };
+  const source = { VAR_A: "op://cofre/item/A", VAR_B: "valor-cru", VAR_C: " op://cofre/item/C ", SOLTA: "op://cofre/item/SOLTA" };
+  assert.deepEqual(vaultRefsOf(definitions, source).sort(), ["op://cofre/item/A", "op://cofre/item/C"]);
+});
+
+test("o primeiro servidor com cofre le de uma vez as referencias de todos, e o segundo nao le de novo", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-op-tudo-"));
+  const fake = join(dir, "falso-mcp.mjs");
+  writeFileSync(fake, FAKE_SERVER);
+  const lidas = [];
+  const gateway = createGateway({
+    hub: dir,
+    definitions: {
+      falso: { command: process.execPath, args: [fake], env: { SEGREDO: "${VALOR_SECRETO}" } },
+      outro: { command: process.execPath, args: [fake], env: { SEGREDO: "${OUTRO_SEGREDO}" } },
+    },
+    manifestDir: join(dir, ".manifest"),
+    token: "token-de-teste",
+    env: { VALOR_SECRETO: "op://Privado/falso/credencial", OUTRO_SEGREDO: "op://Privado/outro/credencial" },
+    vaultRead: async (ref) => { lidas.push(ref); return `valor:${ref.split("/")[3]}`; },
+    idleMs: 50,
+    log: () => {},
+  });
+  t.after(async () => {
+    await gateway.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const { port } = await gateway.listen(0);
+  const base = `http://127.0.0.1:${port}`;
+  const chamar = (rota) => rpc(base, "token-de-teste", { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "eco", arguments: { texto: "oi" } } }, rota);
+
+  assert.equal((await chamar("/mcp/falso")).payload.result.content[0].text, "eco:oi:valor:falso");
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual([...lidas].sort(), ["op://Privado/falso/credencial", "op://Privado/outro/credencial"]);
+
+  assert.equal((await chamar("/mcp/outro")).payload.result.content[0].text, "eco:oi:valor:outro");
+  assert.equal(lidas.length, 2, "o segundo servidor usa o valor que ja foi lido");
+});
+
+test("uma referencia que falha na leitura em lote nao trava as outras e e tentada de novo no uso", async () => {
+  const definitions = { a: { env: { A: "${VAR_A}" } }, b: { env: { B: "${VAR_B}" } } };
+  const source = { VAR_A: "op://cofre/item/A", VAR_B: "op://cofre/item/B" };
+  let falhou = false;
+  const cache = new Map();
+  const read = async (ref) => {
+    if (ref.endsWith("/B") && !falhou) { falhou = true; throw new Error("janela fechada"); }
+    return `v:${ref}`;
+  };
+  await Promise.allSettled(vaultRefsOf(definitions, source).map((ref) => resolveVaultRefs({ ref }, read, cache)));
+  assert.equal(cache.has("op://cofre/item/A"), true);
+  assert.equal(cache.has("op://cofre/item/B"), false);
+  assert.deepEqual(await resolveVaultRefs({ B: "op://cofre/item/B" }, read, cache), { B: "v:op://cofre/item/B" });
+});
+
+test("o reload esquece os valores do 1Password e o servidor sobe de novo com o valor trocado", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "gw-op-reload-"));
+  const fake = join(dir, "falso-mcp.mjs");
+  writeFileSync(fake, FAKE_SERVER);
+  let versao = "velho";
+  const gateway = createGateway({
+    hub: dir,
+    definitions: { falso: { command: process.execPath, args: [fake], env: { SEGREDO: "${VALOR_SECRETO}" } } },
+    manifestDir: join(dir, ".manifest"),
+    token: "token-de-teste",
+    env: { VALOR_SECRETO: "op://Privado/falso/credencial" },
+    vaultRead: async () => versao,
+    idleMs: 60000,
+    log: () => {},
+  });
+  t.after(async () => {
+    await gateway.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const { port } = await gateway.listen(0);
+  const base = `http://127.0.0.1:${port}`;
+  const chamar = () => rpc(base, "token-de-teste", { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "eco", arguments: { texto: "oi" } } });
+
+  assert.equal((await chamar()).payload.result.content[0].text, "eco:oi:velho");
+  versao = "novo";
+  assert.equal((await chamar()).payload.result.content[0].text, "eco:oi:velho", "sem reload o valor fica em memoria");
+  const reload = await fetch(`${base}/reload`, { method: "POST", headers: { authorization: "Bearer token-de-teste" } });
+  assert.equal((await reload.json()).cofre, true);
+  assert.equal((await chamar()).payload.result.content[0].text, "eco:oi:novo");
 });
 
