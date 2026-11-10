@@ -134,7 +134,7 @@ import { basename, dirname, join } from "node:path";
 import { homedir, hostname, tmpdir, userInfo } from "node:os";
 import { WebSocket, WebSocketServer } from "ws";
 import pty from "node-pty";
-import { KEY_BYTES, createNativeRoom, whereExe, pickWhere } from "./lib/native-room.mjs";
+import { KEY_BYTES, createNativeRoom, whereExe, pickWhere, throughCmd } from "./lib/native-room.mjs";
 import { bashOnWindows } from "./doctor/fix-shell.mjs";
 import { installCommand } from "./doctor/installer.mjs";
 import { HighlightJS as hljs } from "highlight.js/lib/core";
@@ -463,14 +463,19 @@ function shOwned(cmd, args, opts) {
 function shr(cmd, args, opts = {}) {
   const argv = args;
   if (opts.own) return shOwned(cmd, argv, opts);
+  const run = IS_WINDOWS ? throughCmd(cmd, argv) : { file: cmd, args: argv, verbatim: false };
   return new Promise((resolve) => {
-    const child = execFile(cmd, argv, { timeout: opts.timeout || 8000, maxBuffer: opts.maxBuffer || 4 << 20, cwd: opts.cwd, env: { ...process.env, AWS_PROFILE, ...(opts.env || {}) } },
-      (err, stdout, stderr) => resolve({
-        ok: !err,
-        out: stdout || "",
-        error: err ? String(stderr || err.message || "").trim() : ""
-      }));
-    if (opts.input !== undefined) { try { child.stdin.end(opts.input); } catch {} }
+    try {
+      const child = execFile(run.file, run.args, { timeout: opts.timeout || 8000, maxBuffer: opts.maxBuffer || 4 << 20, cwd: opts.cwd, windowsVerbatimArguments: run.verbatim, env: { ...process.env, AWS_PROFILE, ...(opts.env || {}) } },
+        (err, stdout, stderr) => resolve({
+          ok: !err,
+          out: stdout || "",
+          error: err ? String(stderr || err.message || "").trim() : ""
+        }));
+      if (opts.input !== undefined) { try { child.stdin.end(opts.input); } catch {} }
+    } catch (wrong) {
+      resolve({ ok: false, out: "", error: String(wrong?.message || wrong) });
+    }
   });
 }
 
