@@ -1,8 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { execFile } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
-  KEY_BYTES, createNativeRoom, headlessScreen, pickWhere, programOnWindows, shellArgsFor, shellOnWindows, shimTarget
+  KEY_BYTES, createNativeRoom, headlessScreen, pickWhere, programOnWindows, shellArgsFor, shellOnWindows, shimTarget, throughCmd
 } from "../lib/native-room.mjs";
 
 function fakePty() {
@@ -77,6 +82,58 @@ test("a shim nobody can read through still runs, through cmd, and a missing prog
   assert.deepEqual(found, { file: "D:\\Win\\System32\\cmd.exe", args: ["/d", "/s", "/c", "C:\\npm\\codex.cmd"] });
   assert.equal(await programOnWindows("nothing", { where: async () => [], env: {} }), null);
   assert.deepEqual(await programOnWindows("node", { where: async () => [], node: "C:\\n.exe", env: {} }), { file: "C:\\n.exe", args: [] });
+});
+
+test("a script shim is handed to cmd as one escaped line, and a real executable is run as it is", () => {
+  assert.deepEqual(throughCmd("C:\\bin\\claude.exe", ["--version"], {}), { file: "C:\\bin\\claude.exe", args: ["--version"], verbatim: false });
+  assert.deepEqual(throughCmd("/usr/local/bin/codex", ["--version"], {}), { file: "/usr/local/bin/codex", args: ["--version"], verbatim: false });
+  assert.deepEqual(throughCmd("C:\\Users\\Jo Doe\\npm\\codex.cmd", ["--version"], { SystemRoot: "D:\\Win" }), {
+    file: "D:\\Win\\System32\\cmd.exe",
+    args: ["/d", "/s", "/c", '"C:\\Users\\Jo^ Doe\\npm\\codex.cmd ^^^"--version^^^""'],
+    verbatim: true
+  });
+  assert.equal(throughCmd("C:\\npm\\gemini.BAT", [], {}).verbatim, true);
+});
+
+test("an argument with a cmd metacharacter is escaped twice on the line, so the shim's own expansion cannot run it either", () => {
+  const line = (arg) => throughCmd("C:\\npm\\codex.cmd", [arg], {}).args[3];
+  assert.equal(line("x&calc"), '"C:\\npm\\codex.cmd ^^^"x^^^&calc^^^""');
+  assert.equal(line("a|b"), '"C:\\npm\\codex.cmd ^^^"a^^^|b^^^""');
+  assert.equal(line("50%PATH%"), '"C:\\npm\\codex.cmd ^^^"50^^^%PATH^^^%^^^""');
+  assert.equal(line('say "hi"'), '"C:\\npm\\codex.cmd ^^^"say^^^ \\^^^"hi\\^^^"^^^""');
+  assert.equal(line("end\\"), '"C:\\npm\\codex.cmd ^^^"end\\\\^^^""');
+  for (const meta of "()[]%!^\"`<>&|;, *?") assert.ok(line(`a${meta}b`).includes(`^^^${meta}`), `${meta} reaches cmd bare`);
+});
+
+test("node refuses to spawn a script shim on Windows, and through cmd it runs from a folder with a space, gets every argument whole and runs none of them as a command", { skip: process.platform !== "win32" }, async () => {
+  const at = join(mkdtempSync(join(tmpdir(), "hive-shim-")), "Jo Doe");
+  mkdirSync(at);
+  const shim = join(at, "agent.cmd");
+  const ran = join(at, "ran.txt");
+  const hit = `echo x>"${ran}"`;
+  writeFileSync(join(at, "echo.js"), "console.log(JSON.stringify(process.argv.slice(2)));\n");
+  writeFileSync(shim, '@ECHO off\r\nnode "%~dp0echo.js" %*\r\n');
+  try {
+    assert.throws(() => execFile(shim, ["--version"], () => {}), /EINVAL/);
+    const asked = ["--version", "a b", "", `x&${hit}`, `x|${hit}`, `"&${hit}&"`, `a"b&${hit}`, `\\"&${hit}`, `^&${hit}`, `x>${ran}`, "50%PATH%", "!COMSPEC!", 'say "hi"', "(paren)", "end\\"];
+    const how = throughCmd(shim, asked);
+    const said = await new Promise((done, fail) => {
+      execFile(how.file, how.args, { windowsVerbatimArguments: how.verbatim, timeout: 20000 }, (wrong, out) => (wrong ? fail(wrong) : done(out)));
+    });
+    assert.deepEqual(JSON.parse(said), asked);
+    assert.equal(existsSync(ran), false, "an argument was run as a command");
+  } finally {
+    rmSync(join(at, ".."), { recursive: true, force: true });
+  }
+});
+
+test("a probe the system refuses to spawn answers not ok instead of rejecting, so one agent cannot take the providers list down", () => {
+  const server = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
+  const from = server.indexOf("function shr(cmd, args, opts = {}) {");
+  const probe = server.slice(from, server.indexOf("async function sh(", from));
+  assert.match(probe, /const run = IS_WINDOWS \? throughCmd\(cmd, argv\) : \{ file: cmd, args: argv, verbatim: false \};/);
+  assert.match(probe, /try \{\s+const child = execFile\(run\.file, run\.args, \{[^\n]*windowsVerbatimArguments: run\.verbatim/);
+  assert.match(probe, /\} catch \(wrong\) \{\s+resolve\(\{ ok: false, out: "", error: String\(wrong\?\.message \|\| wrong\) \}\);/);
 });
 
 test("claude is the copy the hive already keeps when there is one, and where.exe otherwise", async () => {

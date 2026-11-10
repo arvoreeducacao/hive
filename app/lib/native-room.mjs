@@ -53,6 +53,19 @@ function systemRoot(env) {
   return env.SystemRoot || env.windir || "C:\\Windows";
 }
 
+const CMD_META = /([()\][%!^"`<>&|;, *?])/g;
+
+function cmdWord(word) {
+  const quoted = `"${String(word).replace(/(\\*)"/g, '$1$1\\"').replace(/(\\*)$/, "$1$1")}"`;
+  return quoted.replace(CMD_META, "^$1").replace(CMD_META, "^$1");
+}
+
+export function throughCmd(file, args = [], env = process.env) {
+  if (!SCRIPT_SHIM.test(file)) return { file, args, verbatim: false };
+  const line = [String(file).replace(CMD_META, "^$1"), ...args.map(cmdWord)].join(" ");
+  return { file: join(systemRoot(env), "System32", "cmd.exe"), args: ["/d", "/s", "/c", `"${line}"`], verbatim: true };
+}
+
 export function whereExe(env = process.env) {
   const where = join(systemRoot(env), "System32", "where.exe");
   return (program) => new Promise((done) => {
