@@ -520,3 +520,51 @@ test("a phone with hundreds of chats keeps its stream: what it already has trave
   broker.close();
   rmSync(dataDir, { recursive: true, force: true });
 });
+
+test("a Mac the server stops vouching for loses the sync, admin rights included, even after it enrolled", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "hive-sync-"));
+  const pod = newIdentity("pod");
+  const macIdentity = newIdentity("mac");
+  let vouched = true;
+  const trusted = (fingerprint) => {
+    if (fingerprint === pod.fingerprint) return { signer: rawOfSsh(pod.publicSsh), name: "pod", kind: "pod" };
+    if (vouched && fingerprint === macIdentity.fingerprint) return { signer: rawOfSsh(macIdentity.publicSsh), name: "mac do jonas", kind: "mac" };
+    return null;
+  };
+  const broker = createSyncBroker({ dataDir, audience: pod.fingerprint, owner: "jonas", trusted });
+  const mac = await Device.fromIdentity({ name: "mac", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, fetchImpl: localFetch(broker), lean: true });
+  await mac.enroll("http://sync/sync");
+  assert.equal((await mac.call("GET", "/me")).admin, true);
+
+  vouched = false;
+  await assert.rejects(() => mac.call("GET", "/me"), /revoked/);
+  await assert.rejects(() => mac.call("GET", "/roster"), /revoked/);
+
+  vouched = true;
+  assert.equal((await mac.call("GET", "/me")).admin, true);
+  broker.close();
+  rmSync(dataDir, { recursive: true, force: true });
+});
+
+test("revoking a Mac from the server cuts its sync stream and drops it from every seat", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "hive-sync-"));
+  const pod = newIdentity("pod");
+  const macIdentity = newIdentity("mac");
+  const broker = brokerIn(dataDir, pod, macIdentity);
+  const mac = await Device.fromIdentity({ name: "mac", secret: macIdentity.secret, publicSsh: macIdentity.publicSsh, fetchImpl: localFetch(broker), lean: true });
+  await mac.enroll("http://sync/sync");
+  await mac.openSeat({ id: "um", title: "um" });
+  await mac.sync();
+  const heard = [];
+  mac.listen((note) => heard.push(note));
+  await waitFor(() => broker.online.includes(mac.fingerprint));
+
+  assert.deepEqual(broker.revoke(mac.fingerprint), { revoked: true });
+  await waitFor(() => heard.some((one) => one.kind === "revoked"));
+  assert.equal(broker.online.includes(mac.fingerprint), false);
+  await assert.rejects(() => mac.call("GET", "/me"), /revoked/);
+  assert.equal(broker.state.seats.um.readers.includes(mac.fingerprint), false);
+  assert.deepEqual(broker.revoke(mac.fingerprint), { revoked: false });
+  broker.close();
+  rmSync(dataDir, { recursive: true, force: true });
+});

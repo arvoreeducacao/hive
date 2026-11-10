@@ -97,6 +97,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
 
   function deviceOf(fingerprint) {
     const held = onRoster(fingerprint);
+    if (held?.admin && !held.revokedAt && !trusted(fingerprint)?.signer) return { ...held, revokedAt: now() };
     if (held) return held;
     const vouched = trusted(fingerprint);
     if (!vouched?.signer) return null;
@@ -282,6 +283,28 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
     return asJson({ paired: true, fingerprint: audience, device: fingerprint, person: device.person, kind: device.kind });
   }
 
+  function cutOff(target) {
+    target.revokedAt = now();
+    for (const seat of Object.values(state.seats)) {
+      seat.readers = seat.readers.filter((fp) => fp !== target.fingerprint);
+      seat.writers = seat.writers.filter((fp) => fp !== target.fingerprint);
+    }
+    state.births = state.births.filter((one) => one.from !== target.fingerprint && one.to !== target.fingerprint);
+    for (const [id, one] of asks) if (one.from === target.fingerprint || one.to === target.fingerprint) { asks.delete(id); wipeAsk(id); }
+    save();
+    for (const sink of streams.get(target.fingerprint) || []) { try { sink.write(`event: revoked\ndata: {}\n\n`); sink.end(); } catch {} }
+    streams.delete(target.fingerprint);
+    log(`sync: revoked ${target.name} (${target.fingerprint})`);
+    broadcast("roster", { fingerprint: target.fingerprint, revoked: true });
+  }
+
+  function revoke(fingerprint) {
+    const target = onRoster(String(fingerprint || ""));
+    if (!target || target.revokedAt) return { revoked: false };
+    cutOff(target);
+    return { revoked: true };
+  }
+
   function enroll(device, asked) {
     const agreerRaw = fromB64(String(asked.agreer || ""));
     if (agreerRaw.length !== 32) return refuse("a device brings a 32-byte agreement key", 400);
@@ -420,18 +443,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
       const target = onRoster(String(asked.fingerprint || ""));
       if (!target || target.revokedAt) return refuse("no live device with that key", 404);
       if (target.person !== device.person && !isAdmin(device)) return refuse("only that person, or an admin, revokes it", 403);
-      target.revokedAt = now();
-      for (const seat of Object.values(state.seats)) {
-        seat.readers = seat.readers.filter((fp) => fp !== target.fingerprint);
-        seat.writers = seat.writers.filter((fp) => fp !== target.fingerprint);
-      }
-      state.births = state.births.filter((one) => one.from !== target.fingerprint && one.to !== target.fingerprint);
-      for (const [id, one] of asks) if (one.from === target.fingerprint || one.to === target.fingerprint) { asks.delete(id); wipeAsk(id); }
-      save();
-      for (const sink of streams.get(target.fingerprint) || []) { try { sink.write(`event: revoked\ndata: {}\n\n`); sink.end(); } catch {} }
-      streams.delete(target.fingerprint);
-      log(`sync: revoked ${target.name} (${target.fingerprint})`);
-      broadcast("roster", { fingerprint: target.fingerprint, revoked: true });
+      cutOff(target);
       return asJson({ revoked: true });
     }
 
@@ -815,6 +827,7 @@ export function createSyncBroker({ dataDir, audience, owner = "owner", trusted =
     answer,
     stream,
     openCode,
+    revoke,
     audience,
     owner,
     get state() { return state; },

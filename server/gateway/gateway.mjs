@@ -97,6 +97,44 @@ export async function resolveVaultRefs(values, read = readVaultRef, cache = new 
   return out;
 }
 
+const VAULT_WARM_PARALLEL = 4;
+
+async function eachLimited(items, limit, work) {
+  const queue = [...items];
+  const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+    while (queue.length) await work(queue.shift()).catch(() => {});
+  });
+  await Promise.all(workers);
+}
+
+export function vaultRefsOf(definitions, source) {
+  const refs = new Set();
+  for (const definition of Object.values(definitions || {})) {
+    for (const key of [...envRefs(definition?.env), ...envRefs(definition?.headers)]) {
+      if (isVaultRef(source[key])) refs.add(String(source[key]).trim());
+    }
+  }
+  return [...refs];
+}
+
+export function envVaultRefs(source) {
+  const refs = new Set();
+  for (const value of Object.values(source || {})) {
+    if (isVaultRef(value)) refs.add(String(value).trim());
+  }
+  return refs;
+}
+
+export function vaultRequestOf(body, source) {
+  const asked = Array.isArray(body?.refs) ? body.refs : null;
+  if (!asked || !asked.length) return { error: "mande { refs: [\"op://...\"] }" };
+  const refs = [...new Set(asked.map((ref) => String(ref ?? "").trim()))];
+  const known = envVaultRefs(source);
+  const unknown = refs.filter((ref) => !known.has(ref));
+  if (unknown.length) return { error: "o gateway so le referencias que estao no .env do hub", unknown };
+  return { refs };
+}
+
 export function missingEnvKeys(definition, source) {
   const refs = new Set([...envRefs(definition.env), ...envRefs(definition.headers)]);
   const optional = new Set(definition.optionalEnv || []);
@@ -172,6 +210,7 @@ export function createGateway(options = {}) {
   let env = baseEnv;
   const vaultRead = options.vaultRead || readVaultRef;
   const vaultCache = new Map();
+  let vaultWarm = null;
 
   function envFileStamp() {
     try {
@@ -188,6 +227,7 @@ export function createGateway(options = {}) {
     envStamp = stamp;
     env = loadDotEnv(envFile, { ...baseEnv }, { override: true });
     vaultCache.clear();
+    vaultWarm = null;
     return true;
   }
 
@@ -271,6 +311,20 @@ export function createGateway(options = {}) {
     return out;
   }
 
+  function forgetVault() {
+    if (!vaultCache.size) return [];
+    vaultCache.clear();
+    vaultWarm = null;
+    return Object.entries(definitions)
+      .filter(([, definition]) => [...envRefs(definition.env), ...envRefs(definition.headers)].some((key) => isVaultRef(env[key])))
+      .map(([name]) => name);
+  }
+
+  function warmVault() {
+    if (!vaultWarm) vaultWarm = eachLimited(vaultRefsOf(definitions, env), VAULT_WARM_PARALLEL, (ref) => resolveVaultRefs({ ref }, vaultRead, vaultCache));
+    return vaultWarm;
+  }
+
   async function connectUpstream(name) {
     refreshEnv();
     const definition = definitions[name];
@@ -281,7 +335,9 @@ export function createGateway(options = {}) {
       log(aviso);
     }
     const named = [...envRefs(definition.env), ...envRefs(definition.headers)];
-    const source = { ...env, ...(await resolveVaultRefs(Object.fromEntries(named.map((key) => [key, env[key]])), vaultRead, vaultCache)) };
+    const own = Object.fromEntries(named.map((key) => [key, env[key]]));
+    const source = { ...env, ...(await resolveVaultRefs(own, vaultRead, vaultCache)) };
+    if (Object.values(own).some(isVaultRef)) warmVault();
     const resolved = { env: expandEnv(definition.env, source), headers: expandEnv(definition.headers, source) };
     const client = new Client({ name: "hive-gateway", version: "1.0.0" }, { capabilities: {} });
     await client.connect(transportFor(definition, resolved));
@@ -423,9 +479,28 @@ export function createGateway(options = {}) {
     if (url.pathname === "/reload") {
       const trocou = refreshEnv();
       const servidores = reloadDefinitions();
-      const dormem = trocou ? [...upstreams.keys()] : [...servidores.removidos, ...servidores.mudados].filter((name) => upstreams.has(name));
+      const doCofre = forgetVault();
+      const dormem = trocou ? [...upstreams.keys()] : [...new Set([...servidores.removidos, ...servidores.mudados, ...doCofre])].filter((name) => upstreams.has(name));
       await Promise.all(dormem.map(closeUpstream));
-      return reply(res, 200, { ok: true, recarregado: trocou, servidores, envFile, faltando: missingByServer() });
+      return reply(res, 200, { ok: true, recarregado: trocou, cofre: doCofre.length > 0, servidores, envFile, faltando: missingByServer() });
+    }
+    if (url.pathname === "/vault/read") {
+      if (req.method !== "POST") return reply(res, 405, { error: "use POST" });
+      refreshEnv();
+      let body;
+      try {
+        body = await readBody(req);
+      } catch {
+        return reply(res, 400, { error: "corpo nao e JSON" });
+      }
+      const request = vaultRequestOf(body, env);
+      if (request.error) return reply(res, request.unknown ? 403 : 400, request);
+      try {
+        const values = await resolveVaultRefs(Object.fromEntries(request.refs.map((ref) => [ref, ref])), vaultRead, vaultCache);
+        return reply(res, 200, { values });
+      } catch (error) {
+        return reply(res, 502, { error: String(error?.message || error) });
+      }
     }
     const match = /^\/mcp\/([A-Za-z0-9_.-]+)$/.exec(url.pathname);
     if (!match) return reply(res, 404, { error: "rota desconhecida" });

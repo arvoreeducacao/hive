@@ -370,6 +370,7 @@ export function createBroker({ home, stateDir, now = () => Date.now(), log = () 
       const done = roster.revoke(String(asked.fingerprint || ""));
       if (done.error) return asJson({ error: done.error }, 404);
       hub.forget(done.device.fingerprint);
+      sync.revoke(done.device.fingerprint);
       log(`server: revoked ${done.device.name} (${done.device.fingerprint})`);
       return asJson({ revoked: true });
     }
@@ -581,6 +582,7 @@ export function createBroker({ home, stateDir, now = () => Date.now(), log = () 
       for (const key of [...peerWatchers.keys()]) if (key.startsWith(`${fingerprint}/`)) peerWatchers.delete(key);
       roster.revoke(fingerprint);
       hub.forget(fingerprint);
+      sync.revoke(fingerprint);
       log(`peer ${asked.fingerprint} forgotten`);
       return asJson({ forgotten: true });
     }
