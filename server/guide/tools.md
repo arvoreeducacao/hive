@@ -275,7 +275,7 @@ The doctor checks this machine's setup and suggests fixes.
 
 ## Other panels: memories, inbox marks, files, terminals
 
-- Memories (⋯ menu, "memories", ⌥⇧M by default) shows the team's shared memory. It needs a memory server (`HIVE_MEMORY_URL`) and a read token (`MEMORY_MCP_READ_TOKEN` in the hub `.env`); editing asks for a sign-in. See the "team-and-cloud" topic.
+- Memories (⋯ menu, "memories", ⌥⇧M by default) shows your Claude Code memories, the open proposals to the team memory and what the team memory holds on `main`. Proposing and approving go through `gh`. See the "team-and-cloud" topic.
 - Inbox marks: in the inbox layout a chat can be "Pinned", "Snoozed", "Settled" or marked unread. The marks are kept in `~/.hive/inbox-marks.json` (see the "interface" topic).
 - The files editor opens a file of the seat's worktree and saves it where it lives (see the "seats" topic).
 - Terminals: ⋯ menu, "new terminal" (⌥T by default) or "new terminal on the server" (see the "seats" topic).

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { randomBytes, createHash } from "node:crypto";
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readlinkSync, chmodSync, statSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readlinkSync, chmodSync, statSync, realpathSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -581,7 +581,15 @@ export function createGateway(options = {}) {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+export function invokedAsScript(entry = process.argv[1], self = SELF) {
+  try {
+    return Boolean(entry) && realpathSync(entry) === realpathSync(self);
+  } catch {
+    return false;
+  }
+}
+
+if (invokedAsScript()) {
   const port = Number(process.env.HIVE_MCP_GATEWAY_PORT || DEFAULT_PORT);
   const gateway = createGateway();
   const address = await gateway.listen(port);

@@ -437,7 +437,7 @@ test("mover pro 1Password troca a linha do .env pela referência e recarrega o g
     opCalls.push({ args, ...extra });
     const key = args.slice(0, 2).join(" ");
     if (key === "vault list") return { ok: true, out: JSON.stringify([{ name: "Employee" }]) };
-    if (key === "item get") return { ok: false, out: "", error: "nao existe" };
+    if (key === "item list") return { ok: true, out: "[]" };
     if (key === "item create") return { ok: true, out: "{}" };
     if (key === "read --no-newline") return { ok: true, out: "valor-cru" };
     return { ok: false, out: "", error: key };
@@ -455,5 +455,36 @@ test("mover pro 1Password troca a linha do .env pela referência e recarrega o g
 
   const [again] = await hive.post("/api/workspace/credential/move", { key: "POSTHOG_API_KEY" });
   assert.equal(again.status, 400);
+});
+
+test("credential moves clicked together share one hub-env item and keep every reference in .env", async () => {
+  const fields = new Map();
+  let items = [];
+  const settle = () => new Promise((done) => setImmediate(done));
+  const hive = workspaceHarness({ opImpl: async (args, extra = {}) => {
+    await settle();
+    const key = args.slice(0, 2).join(" ");
+    if (key === "vault list") return { ok: true, out: JSON.stringify([{ name: "Employee" }]) };
+    if (key === "item list") return { ok: true, out: JSON.stringify(items) };
+    if (key === "item get") return { ok: true, out: JSON.stringify({ id: args[2], title: "hub-env", fields: [...fields].map(([label, value]) => ({ label, type: "CONCEALED", value })) }) };
+    if (key === "item create" || key === "item edit") {
+      for (const field of JSON.parse(extra.template).fields) fields.set(field.label, field.value);
+      if (key === "item create") items = [...items, { id: `item-${items.length + 1}`, title: "hub-env" }];
+      return { ok: true, out: "{}" };
+    }
+    if (key === "read --no-newline") return items.length === 1 ? { ok: true, out: fields.get(args[2].split("/").pop()) } : { ok: false, out: "", error: "more than one item matches" };
+    return { ok: false, out: "", error: key };
+  } });
+  hive.files.set("/workspace/hub/.mcp-servers/servers.json", JSON.stringify({ servers: { posthog: { command: "npx", env: { POSTHOG_API_KEY: "${POSTHOG_API_KEY}", SENTRY_ACCESS_TOKEN: "${SENTRY_ACCESS_TOKEN}" } } } }));
+  hive.files.set("/workspace/hub/.mcp-servers/.token", "tok");
+  hive.files.set("/workspace/hub/.env", "POSTHOG_API_KEY=posthog-cru\nSENTRY_ACCESS_TOKEN=sentry-cru\n");
+
+  const answers = await Promise.all([
+    hive.post("/api/workspace/credential/move", { key: "POSTHOG_API_KEY" }),
+    hive.post("/api/workspace/credential/move", { key: "SENTRY_ACCESS_TOKEN" })
+  ]);
+  assert.deepEqual(answers.map(([answer]) => [answer.status, answer.value.ok]), [[200, true], [200, true]]);
+  assert.equal(items.length, 1);
+  assert.equal(hive.files.get("/workspace/hub/.env"), "POSTHOG_API_KEY=op://Employee/hub-env/POSTHOG_API_KEY\nSENTRY_ACCESS_TOKEN=op://Employee/hub-env/SENTRY_ACCESS_TOKEN\n");
 });
 

@@ -432,7 +432,6 @@ export function compactLine(event) {
     if (typeof event.message?.content === "string") parts.push(`user: ${clip(event.message.content)}`);
     return parts.length ? parts.join("  ") : null;
   }
-  if (event.type === "memory") return `memory ${event.kind}${event.state ? " " + event.state : ""}${event.items ? ` items=${event.items.length}` : ""}`;
   if (event.type === "result") return `result ${event.subtype} cost=$${(event.total_cost_usd ?? 0).toFixed(4)} turns=${event.num_turns ?? "?"}`;
   return `${event.type}${event.subtype ? "/" + event.subtype : ""}`;
 }
@@ -523,56 +522,13 @@ export function compactRanDry(message, now = Date.now()) {
 
 const HOOK_NOTES = new Set(["hook_started", "hook_progress", "hook_response"]);
 const HOOKS_ALWAYS_SHOWN = new Set(["SessionStart", "Setup"]);
-const MEMORY_MARK = "hive-memory:";
-const MEMORY_LINE_CEILING = 16384;
-const MEMORY_ITEMS_MAX = 6;
-const MEMORY_SOURCES = new Set(["shared", "curated", "conversation"]);
-const MEMORY_USED_STATES = new Set(["on", "limited"]);
-const MEMORY_STATES = new Set(["login", "incognito"]);
 
 export const isHookNote = (message) => message?.type === "system" && HOOK_NOTES.has(message.subtype);
 
 export const hookNoteShown = (message) => HOOKS_ALWAYS_SHOWN.has(String(message?.hook_event || ""));
 
-const memoryText = (value, room) => String(typeof value === "string" ? value : "").replace(/\s+/g, " ").trim().slice(0, room);
-
-function memoryItem(raw) {
-  if (!raw || typeof raw !== "object") return null;
-  const title = memoryText(raw.title, 120);
-  if (!title) return null;
-  const relevance = Number(raw.relevance);
-  const date = /^\d{4}-\d{2}-\d{2}/.exec(String(raw.date || ""));
-  return {
-    id: memoryText(raw.id, 120),
-    title,
-    source: MEMORY_SOURCES.has(raw.source) ? raw.source : "conversation",
-    relevance: typeof raw.relevance === "number" && Number.isFinite(relevance) ? Math.min(1, Math.max(0, relevance)) : null,
-    author: memoryText(raw.author, 60),
-    date: date ? date[0] : ""
-  };
-}
-
-export function memoryNote(stderr) {
-  const line = String(stderr || "").split("\n").find((one) => one.startsWith(MEMORY_MARK));
-  if (!line || line.length > MEMORY_LINE_CEILING) return null;
-  let said = null;
-  try { said = JSON.parse(line.slice(MEMORY_MARK.length)); } catch { return null; }
-  if (!said || typeof said !== "object" || said.v !== 1) return null;
-  if (said.kind === "used") {
-    const items = (Array.isArray(said.items) ? said.items : []).map(memoryItem).filter(Boolean).slice(0, MEMORY_ITEMS_MAX);
-    return { type: "memory", kind: "used", state: MEMORY_USED_STATES.has(said.state) ? said.state : "on", items };
-  }
-  if (said.kind === "state") return MEMORY_STATES.has(said.state) ? { type: "memory", kind: "state", state: said.state } : null;
-  if (said.kind === "sent") {
-    const at = Number(said.at);
-    return { type: "memory", kind: "sent", at: Number.isFinite(at) && at > 0 ? at : Date.now() };
-  }
-  return null;
-}
-
 export function hookFate(message) {
-  if (!isHookNote(message)) return { shown: true, memory: null };
-  return { shown: hookNoteShown(message), memory: message.subtype === "hook_response" ? memoryNote(message.stderr) : null };
+  return { shown: !isHookNote(message) || hookNoteShown(message) };
 }
 
 export async function* fileLines(path) {

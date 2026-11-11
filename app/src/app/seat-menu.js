@@ -10,7 +10,6 @@ import { $, GLYPH, LABEL, PILL_LABEL, esc, experienceNext, markFinishSeen, paint
 import { behaviorOn } from "./experience.js";
 import { closeTile, focusSeat, goToBlock, goToSpace, openTile, pull, takeKeyboard } from "./focus-navigation.js";
 import { keyHint, keyParts, liveBadge, liveOf, liveTitle, pool, receiving, tiles } from "./leader-key.js";
-import { memoryChip, memoryChipClick } from "./memory-signal.js";
 import { archiveSeatNow } from "./mirror.js";
 import { paneOnField, planeShown } from "./plane.js";
 import { ago, ask } from "./pod.js";
@@ -832,8 +831,6 @@ function tileChipsModel(s) {
     if (!(s.trees || []).some((tree) => tree.repo === repo)) chips.push({ key: "repo", cls: "repo", title: repo, text: repo });
     chips.push({ key: "pr", cls: "pr", title: `pr #${pr.number}`, icon: "#i-pr", text: `pr #${pr.number}` });
   }
-  const memory = memoryChip(s);
-  if (memory) chips.push(memory);
   return chips;
 }
 
@@ -858,8 +855,6 @@ function tileHeadChips(s) {
   if (s.where !== "local") heads.push({ key: s.where, cls: s.where, title: s.where, icon: WHERE_ICON[s.where] || "#i-cloud", text: s.where });
   const pr = prsOnCard(s.name).find((one) => !prIsGone(one));
   if (pr) heads.push({ key: "pr", cls: pr.ci === "failed" ? "pr bad" : "pr", title: `${pr.repo.split("/").pop()} #${pr.number}`, icon: "#i-pr", text: `#${pr.number}` });
-  const memory = memoryChip(s);
-  if (memory) heads.push(memory);
   return heads;
 }
 
@@ -1050,7 +1045,6 @@ function tileActions(s) {
     back: () => closeTile(),
     reconnect: () => reconnect(s.name),
     takeBack: (seat) => takeKeyboardBack(seat),
-    memory: (state, chip) => memoryChipClick(s.name, state, chip),
     copy: (text, chip) => {
       void toClipboard(text).then((ok) => {
         if (!ok) return;

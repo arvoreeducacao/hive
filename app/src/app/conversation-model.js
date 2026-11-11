@@ -6,7 +6,7 @@ import { focusSeat } from "./focus-navigation.js";
 import { openShot, wireMdShots } from "./picture-preview.js";
 import { keepPrintOnPage } from "./keep-print.js";
 import { openMemoryAt } from "./memories.js";
-import { svMemorySaveLanded } from "./memory-signal.js";
+import { memoryTurnDrop, memoryTurnScope, memoryTurnUndo } from "./memory-turn.js";
 import { saveEdit } from "./edit-message.js";
 import { resultText, shotOfInput, shotsOfSaid, shotsOfTool, withoutImageNotes } from "./session-images.js";
 import { fillSaid } from "/assets/said-lists.mjs";
@@ -134,6 +134,7 @@ function svConvPush(e, block) {
     svConvDrain(e, false);
   } else {
     svConvFold(e);
+    if (block.kind === "bubble") for (let at = e.conv.blocks.length - 1; at >= 0; at--) if (e.conv.blocks[at].kind === "memturn") e.conv.blocks.splice(at, 1);
     e.conv.blocks.push(block);
   }
   if (block.kind === "bubble" || (block.kind === "said" && !block.streaming)) svConvStamp(e, block);
@@ -464,7 +465,6 @@ function svConvToolLink(card, text) {
 function svConvToolLanded(e, block, live) {
   const card = e.tools.get(block.tool_use_id);
   if (!card) return;
-  if (card.kind === "memsave") return svMemorySaveLanded(e, card, block);
   if (card.kind !== "tool") return svArtLanded(e, card, block, live);
   card.running = false;
   card.stat = block.is_error ? "bad" : "ok";
@@ -671,6 +671,9 @@ function svConvActions(e) {
     editSave: (shown, text) => saveEdit(e, e.conv.blocks.find((one) => one.key === shown.key), text),
     art: (row) => openArtifact(e, row),
     memory: (id) => openMemoryAt(id),
+    memoryScope: (shown, item) => memoryTurnScope(e, shown, item),
+    memoryDrop: (shown, item) => memoryTurnDrop(e, shown, item),
+    memoryUndo: (shown, item) => memoryTurnUndo(e, shown, item),
     seat: (name) => { if (focusSeat(name)) render(); },
     turn: (key) => svConvTurnToggle(e, key)
   };

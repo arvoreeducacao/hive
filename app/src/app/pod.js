@@ -221,6 +221,7 @@ function wsCredSaid(got) {
   if (got.reason === "sso-expired") return phrase("the SSO session expired: run aws sso login --profile {profile}", { profile: got.profile });
   if (got.reason === "in-file") return phrase("the value is in the .env file");
   if (got.reason === "empty") return phrase("not set in .env");
+  if (got.reason === "vault-duplicate") return phrase("1Password has more than one hub-env item: keep one and archive the others");
   return got.detail || got.error || "?";
 }
 

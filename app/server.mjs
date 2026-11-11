@@ -97,10 +97,10 @@ import { registerUpdateRoutes } from "./routes/updates.mjs";
 import { registerUsageRoutes } from "./routes/usage.mjs";
 import { registerWorktreeRoutes } from "./routes/worktrees.mjs";
 import { registerMemoryRoutes } from "./routes/memories.mjs";
-import { createMemorySource, MEMORY_TOKEN_KEY } from "./lib/memories.mjs";
-import { createDemoLogin, createMemoryLogin, fileClientStore, memoryOrigin } from "./lib/memory-login.mjs";
-import { vaultAccount, vaultFollowing } from "./lib/memory-vault.mjs";
-import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, SCREENBOOK_STORE, MEMORY_SERVER_URL, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
+import { createLocalMemories } from "./lib/local-memories.mjs";
+import { createScopeJudge, JUDGE_TIMEOUT_MS } from "./lib/memory-judge.mjs";
+import { createTeamMemoryHub, isRepo, repoOfRemote } from "./lib/team-memory.mjs";
+import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, SCREENBOOK_STORE, TEAM_MEMORY_REPO, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
 import { measureShots, shotsDaysOf, sweepShots } from "./lib/shots-sweep.mjs";
 import { withinRoots } from "./lib/bounds.mjs";
 import { SLACK_LINK, threadKey, threadCache, storeSessionThreads, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut, facesOnSlack, nameFromEmail } from "./lib/slack.mjs";
@@ -6907,27 +6907,27 @@ registerSttRoutes(on, {
 });
 registerWorktreeRoutes(on, { bodyOf: body, worktreeReport, removeWorktree, sweepWorktrees, idleHours: WT_IDLE_HOURS });
 registerUsageRoutes(on, { invalidateUsage: () => { usageCache = { ...usageCache, at: 0 }; }, readUsage, readClaudeLimits, tightestAccount });
-const MEMORY_DEMO = process.env.HIVE_MEMORY_DEMO === "1";
-const memoryAddress = () => MEMORY_SERVER_URL;
-const memoryVaultHere = vaultFollowing(() => vaultAccount(HIVE_HOME, memoryOrigin(memoryAddress())));
-const memoryLogin = MEMORY_DEMO
-  ? createDemoLogin()
-  : createMemoryLogin({ baseUrl: memoryAddress, vault: memoryVaultHere, clients: fileClientStore(join(HIVE_HOME, "memory-client.json")) });
+let teamMemoryRepo = "";
+async function teamMemoryRepoNow() {
+  if (isRepo(TEAM_MEMORY_REPO)) return TEAM_MEMORY_REPO;
+  if (teamMemoryRepo || !HUB) return teamMemoryRepo;
+  const remote = await shr("git", ["-C", HUB, "remote", "get-url", "origin"], { timeout: 5000 });
+  teamMemoryRepo = remote.ok ? repoOfRemote(remote.out) : "";
+  return teamMemoryRepo;
+}
+async function judgeScopes(args, input) {
+  const dir = await mkdtemp(join(tmpdir(), "hive-memory-judge-"));
+  try {
+    return await shr(...viaBash(theClaude(), args), { timeout: JUDGE_TIMEOUT_MS, maxBuffer: 16 << 20, cwd: dir, own: true, input });
+  } finally {
+    await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+}
 registerMemoryRoutes(on, {
   bodyOf: body,
-  login: memoryLogin,
-  vault: memoryVaultHere,
-  memories: createMemorySource({
-    baseUrl: memoryAddress,
-    demo: MEMORY_DEMO,
-    login: memoryLogin,
-    readToken: async () => {
-      if (process.env[MEMORY_TOKEN_KEY]) return process.env[MEMORY_TOKEN_KEY];
-      let token = "";
-      if (ENV_FILE) try { token = readEnvFile(await readFile(ENV_FILE, "utf8"))[MEMORY_TOKEN_KEY] || ""; } catch {}
-      return token || (MEMORY_DEMO ? "" : await memoryLogin.access());
-    }
-  })
+  local: createLocalMemories({ projectsRoot: join(HOME, ".claude", "projects"), dataDir: join(HIVE_HOME, "memories"), home: HOME }),
+  hub: createTeamMemoryHub({ gh: (args, opts = {}) => shr("gh", args, { timeout: 45000, maxBuffer: 16 << 20, ...opts }), repo: teamMemoryRepoNow }),
+  judge: createScopeJudge({ run: judgeScopes })
 });
 registerHistoryRoutes(on, { isSeatName, paneHistory, readImage });
 registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });

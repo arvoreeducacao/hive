@@ -65,7 +65,6 @@ over this file.
 | `HIVE_EXPECTED_REPOS` | the repositories the doctor expects to find in the hub, comma separated |
 | `HIVE_EXTENSIONS_REPO` | the repository of the extension catalog |
 | `HIVE_POKERS` | the people who may poke a teammate's chat, comma separated |
-| `HIVE_MEMORY_URL`, `HIVE_MEMORY_PLUGIN` | a shared memory server, and the agent plugin that reads it |
 | `HIVE_AVEIA_URL` | an Aveia for meeting captions ([meetings.md](/guides/meetings/)) |
 | `HIVE_SCREENBOOK_STORE` | where the shelf reads [Screenbook](https://github.com/arvoreeducacao/screenbook) proposals from, as `owner/repo` or an `https://` server; off when empty |
 | `HIVE_INTERNAL_DOMAINS` | your domains, so a secret that names them is caught before it leaves a chat |

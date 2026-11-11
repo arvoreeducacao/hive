@@ -4,6 +4,7 @@ import { basename, dirname, join } from "node:path";
 import { stackOf } from "../manifest/scan.mjs";
 import { repoName } from "../manifest/resolve.mjs";
 import { envWithValue, moveToVault, runOp, vaultSetupOf } from "../lib/hub-vault.mjs";
+import { oneAtATime } from "../lib/shelf.mjs";
 import { DEFAULT_GATEWAY_PORT, MANAGED_FILES, MANIFEST_FILE, SKILL_TO_WRITE, credentialAnswerOf, credentialCheckOf, credentialsOf, envValuesOf, linePlanOf, mcpEntryOf, mcpPlanOf, repoEntryOf, repoPlanOf, skillDescriptionOf, skillEntryOf, skillPlanOf, withRepoLine } from "../lib/hub-workspace.mjs";
 
 const SYNC_WALK = [
@@ -71,6 +72,7 @@ export function createWorkspaceDomain({
   let syncCache = { at: 0, data: null, running: null };
   let hubCache = { at: 0, data: null, running: null };
   const jobs = new Map();
+  const credentialTurn = oneAtATime();
 
   async function readSync(force) {
     if (!force && syncCache.data && now() - syncCache.at < 45000) return syncCache.data;
@@ -179,7 +181,11 @@ export function createWorkspaceDomain({
     return { key, ...credentialAnswerOf(check, got) };
   }
 
-  async function moveCredential(asked) {
+  function moveCredential(asked) {
+    return credentialTurn(() => moveCredentialNow(asked));
+  }
+
+  async function moveCredentialNow(asked) {
     const key = String(asked?.key ?? "").trim();
     const { credentials } = await readHub(true);
     const item = credentials.items.find((one) => one.key === key);

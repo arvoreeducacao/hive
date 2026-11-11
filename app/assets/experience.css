@@ -86,37 +86,9 @@ body.experience-next .sv-attach .att.quote .qt { font-size: 12px; color: var(--t
 body.experience-next .sv-attach .att button.ax { position: relative; display: grid; place-items: center; width: 20px; height: 20px; padding: 0; color: var(--txt-2); }
 body.experience-next .sv-attach .att button.ax:hover { background: var(--panel-3); color: var(--txt); }
 body.experience-next .sv-attach .att button.ax::before { position: absolute; inset: 0; margin: auto; }
-body.experience-next .sv-mem { --mem-hue: var(--blue); align-self: flex-start; align-items: flex-start; margin-top: 0; }
-body.experience-next .sv-mem .mchip::after { content: ""; flex: none; width: 12px; height: 12px; background: currentColor; -webkit-mask: var(--px-chev) center / 12px 12px no-repeat; mask: var(--px-chev) center / 12px 12px no-repeat; transform: rotate(-90deg); }
-body.experience-next .sv-mem[open] .mchip::after { transform: none; }
-body.experience-next .sv-mem .mchip { height: 26px; gap: 6px; padding: 0 8px; border: 1px solid var(--line); background: var(--panel); color: var(--mem-hue); font-family: var(--mono); font-size: 11px; }
-body.experience-next .sv-mem .mchip:hover, body.experience-next .sv-mem[open] .mchip { border-color: var(--mem-hue); background: var(--panel-3); }
-body.experience-next .sv-mem .mchip:focus-visible { outline-color: var(--mem-hue); }
-body.experience-next .sv-mem .mchip b { font-weight: 400; color: var(--mem-hue); }
-body.experience-next .sv-mem .msep { color: var(--line-2); }
-body.experience-next :is(.sv-mem, .sv-memsave) .mglyph { flex: none; width: 12px; height: 12px; font-size: 0; background: currentColor; -webkit-mask: var(--px-memory) center / 12px 12px no-repeat; mask: var(--px-memory) center / 12px 12px no-repeat; }
-body.experience-next :is(.t-chips, .t-hchips) .c.memory .mdot { width: 12px; height: 12px; border-radius: 0; -webkit-mask: var(--px-memory) center / 12px 12px no-repeat; mask: var(--px-memory) center / 12px 12px no-repeat; }
-body.experience-next .sv-mem .mpop { padding: 6px 0; border-color: var(--line-2); background: var(--panel); }
-body.experience-next .sv-mem .mhead { display: none; }
-body.experience-next .sv-mem .mit { gap: 12px; padding: 6px 12px; }
-body.experience-next .sv-mem .mit[data-opens] { cursor: pointer; }
-body.experience-next .sv-mem .mit[data-opens]:hover { background: var(--panel-3); }
-body.experience-next .sv-mem .mit[data-opens]:focus-visible { outline: 1px solid var(--mem-hue); outline-offset: -1px; }
-body.experience-next .sv-mem .mrel { display: none; }
-body.experience-next .sv-mem .mby, body.experience-next .sv-mem .mit[data-verified="no"] .mby { font-size: 11px; color: var(--txt-2); }
-body.experience-next .sv-mem .mopen { display: none; }
-body.experience-next .sv-mem[open] { gap: 0; align-items: stretch; border: 1px solid var(--line-2); background: var(--panel); }
-body.experience-next .sv-mem[open] .mchip { border: 0; border-bottom: 1px solid var(--line); background: var(--panel); }
-body.experience-next .sv-mem[open] .mchip:hover { background: var(--panel-3); }
-body.experience-next .sv-mem[open] .mchip::after { margin-left: auto; }
-body.experience-next .sv-mem[open] .mpop { border: 0; }
-body.experience-next .sv-memsave { --mem-hue: var(--green); gap: 12px; padding: 6px 8px; border-color: var(--line); background: var(--panel); }
-body.experience-next .sv-memsave.running { --mem-hue: var(--blue); }
-body.experience-next .sv-memsave.bad { --mem-hue: var(--red); border-color: var(--red); }
-body.experience-next .sv-memsave .mk { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-weight: 400; color: var(--mem-hue); }
-body.experience-next .sv-memsave .ma { font-family: var(--mono); color: var(--txt-2); }
-body.experience-next .sv-memsave.running .ma { color: var(--mem-hue); animation: none; }
-body.experience-next .sv-memsave.bad .ma { color: var(--mem-hue); }
+body.experience-next .sv-memturn .mglyph { flex: none; width: 12px; height: 12px; font-size: 0; background: currentColor; -webkit-mask: var(--px-memory) center / 12px 12px no-repeat; mask: var(--px-memory) center / 12px 12px no-repeat; }
+body.experience-next .sv-memturn { border-color: var(--line); background: var(--panel); }
+body.experience-next .sv-memturn .mh { font-family: var(--mono); font-weight: 400; color: var(--blue); }
 body.experience-next .sv-ctx { color: var(--txt-2); }
 body.experience-next .sv-ctx .bar { background: var(--line); }
 body.experience-next .sv-ctx .bar > i { background: var(--txt-2); }

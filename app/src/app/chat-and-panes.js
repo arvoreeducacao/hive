@@ -11,7 +11,7 @@ import { $, apiGet, chooseOption, esc, experienceNext, raycastOn, forgetUpload, 
 import { drafts } from "./draft-seat.js";
 import { closeTile, openTile, pull, releaseKeyboard } from "./focus-navigation.js";
 import { accountSaid, providerAccounts, providerName, providerReady, providerWhyNot, pullAccounts, readyAgents } from "./providers.js";
-import { noteMemory, svMemoryUsed } from "./memory-signal.js";
+import { memoryTurnEnded, memoryTurnSaw } from "./memory-turn.js";
 import { wireMdShots, wireShelfLinks } from "./picture-preview.js";
 import { dropFieldPane, paneShownFor, takeFieldPane } from "./plane.js";
 import { pullThreads } from "./prs.js";
@@ -3043,11 +3043,6 @@ function svEvent(e, ev) {
   if (!e.firstSeq && Number(ev.seq) > 0) e.firstSeq = Number(ev.seq);
   e.at = (ev.ts && Date.parse(ev.ts)) || Date.now();
   const live = !ev.replayed;
-  if (ev.type === "memory") {
-    noteMemory(e.name, ev);
-    if (ev.kind === "used") svMemoryUsed(e, ev);
-    return;
-  }
   if (ev.type === "system") {
     if (ev.subtype === "init") {
       svSubsOfAnEndedProcess(e);
@@ -3120,6 +3115,7 @@ function svEvent(e, ev) {
         }
       }
     }
+    memoryTurnSaw(e, ev);
     return svAssistant(e, ev);
   }
   if (ev.type === "user") {
@@ -3133,6 +3129,7 @@ function svEvent(e, ev) {
       const next = [...e.pendingTools.values()].pop();
       svActivity(e, next ? `running ${toolSays(next)}` : "working");
     }
+    memoryTurnSaw(e, ev);
     return svUser(e, ev);
   }
   if (ev.type === "result") {
@@ -3146,6 +3143,7 @@ function svEvent(e, ev) {
       refreshContext(e);
     }
     svConvTurnDone(e, ev);
+    memoryTurnEnded(e);
     return;
   }
   if (ev.type === "driver") {

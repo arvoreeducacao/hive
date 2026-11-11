@@ -35,7 +35,7 @@ test("envWithValue troca só a linha da chave e acrescenta quando falta", () => 
 test("moveToVault cria o item hub-env quando ele não existe e confere a leitura", async () => {
   const { op, calls } = fakeOp({
     "vault list": { ok: true, out: JSON.stringify([{ name: "Shared" }, { name: "Employee" }]) },
-    "item get": { ok: false, out: "", error: "isn't an item" },
+    "item list": { ok: true, out: JSON.stringify([{ id: "zzz", title: "outro" }]) },
     "item create": { ok: true, out: "{}" },
     "read --no-newline": { ok: true, out: "o-segredo" }
   });
@@ -49,12 +49,14 @@ test("moveToVault cria o item hub-env quando ele não existe e confere a leitura
 test("moveToVault edita o item que existe por template, sem o valor na linha de comando", async () => {
   const { op, calls } = fakeOp({
     "vault list": { ok: true, out: JSON.stringify([{ name: "Employee" }]) },
+    "item list": { ok: true, out: JSON.stringify([{ id: "zzz", title: "outro" }, { id: "abc", title: "hub-env" }]) },
     "item get": { ok: true, out: JSON.stringify({ id: "abc", title: "hub-env", fields: [{ label: "OUTRA", type: "CONCEALED", value: "x" }] }) },
     "item edit": { ok: true, out: "{}" },
     "read --no-newline": { ok: true, out: "o-segredo" }
   });
   const moved = await moveToVault({ key: "SENTRY_ACCESS_TOKEN", value: "o-segredo", op });
   assert.equal(moved.ok, true);
+  assert.deepEqual(calls.find((c) => c.args[1] === "get").args.slice(0, 3), ["item", "get", "abc"]);
   const edited = calls.find((c) => c.args[1] === "edit");
   assert.deepEqual(edited.args.slice(0, 3), ["item", "edit", "abc"]);
   assert.deepEqual(JSON.parse(edited.template).fields.map((f) => f.label), ["OUTRA", "SENTRY_ACCESS_TOKEN"]);
@@ -66,11 +68,33 @@ test("moveToVault recusa valor vazio, valor que já está no cofre e leitura que
   assert.match((await moveToVault({ key: "A", value: "op://V/i/A" })).error, /already in 1Password/);
   const { op } = fakeOp({
     "vault list": { ok: true, out: JSON.stringify([{ name: "Employee" }]) },
-    "item get": { ok: false, out: "", error: "x" },
+    "item list": { ok: true, out: "[]" },
     "item create": { ok: true, out: "{}" },
     "read --no-newline": { ok: true, out: "outro" }
   });
   assert.match((await moveToVault({ key: "A", value: "o-segredo", op })).error, /did not match/);
+});
+
+test("moveToVault refuses and writes nothing when the vault already has more than one hub-env item", async () => {
+  const { op, calls } = fakeOp({
+    "vault list": { ok: true, out: JSON.stringify([{ name: "Employee" }]) },
+    "item list": { ok: true, out: JSON.stringify([{ id: "a", title: "hub-env" }, { id: "b", title: "hub-env" }]) }
+  });
+  const moved = await moveToVault({ key: "A", value: "o-segredo", op });
+  assert.equal(moved.reason, "vault-duplicate");
+  assert.match(moved.error, /2 items named hub-env/);
+  assert.ok(calls.every((c) => !["get", "create", "edit"].includes(c.args[1])));
+});
+
+test("moveToVault does not create a second hub-env item when 1Password fails to return the existing one", async () => {
+  const { op, calls } = fakeOp({
+    "vault list": { ok: true, out: JSON.stringify([{ name: "Employee" }]) },
+    "item list": { ok: true, out: JSON.stringify([{ id: "a", title: "hub-env" }]) },
+    "item get": { ok: false, out: "", error: "authorization prompt dismissed" }
+  });
+  const moved = await moveToVault({ key: "A", value: "o-segredo", op });
+  assert.deepEqual(moved, { error: "authorization prompt dismissed", reason: "vault-failed" });
+  assert.ok(calls.every((c) => c.args[1] !== "create"));
 });
 
 test("moveToVault explica quando o op não está instalado", async () => {

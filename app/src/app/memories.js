@@ -1,573 +1,350 @@
-import { spokenNow } from "/assets/i18n.mjs";
 import { $, phrase, renderMarkdown, screenOpens, solidMounts, st } from "./core.js";
 import { releaseKeyboard } from "./focus-navigation.js";
 import { keyHint } from "./leader-key.js";
-import { copyWithWord } from "./panel-window.js";
-
-const DAY = 86400000;
-
-const ARCHIVE_AFTER_DAYS = 60;
-
-const SOON_DAYS = 14;
-
-const GENERAL = "-";
-
-const ARCHIVED = "archived";
 
 const ALL = "all";
 
-const CHART = { width: 640, height: 170, left: 30, floor: 140, top: 20 };
+const TABS = ["mine", "proposals", "team"];
 
-const CATEGORIES = ["decisions", "conventions", "incidents", "domain", "gotchas"];
+const FILTERS = ["candidates", "personal", "none", ALL];
 
-const LOGIN_POLL_MS = 1500;
+const SCOPES = ["team", "personal"];
 
-const LOGIN_POLL_FOR_MS = 5 * 60 * 1000;
+const CLASSIFY_CHUNK = 120;
 
-st.mem = { tab: "memories", active: null, archived: null, stats: null, folder: ALL, origin: ALL, query: "", pick: "", detail: {}, asked: false, login: null, edit: null, confirm: "", busy: "", actError: null };
+const fresh = () => ({
+  tab: "mine",
+  mine: null, project: ALL, filter: ALL, query: "", pick: "", detail: {}, chosen: [],
+  classify: null, undo: null, notice: null, error: null, busy: "",
+  proposals: null, pickPr: 0, prBusy: 0, prError: null,
+  team: null, pickTeam: "", teamQuery: "", teamEdit: null, teamConfirm: "", teamBusy: ""
+});
+
+st.mem = fresh();
 
 const memoriesOnScreen = () => !$("memories").hidden;
 
-const memNow = () => st.memNow || Date.now();
+const folded = (text) => String(text ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-const repoKey = (memory) => (memory?.repo ? memory.repo : GENERAL);
+const scopeSay = (scope) => (scope === "team" ? phrase("Team") : scope === "personal" ? phrase("Personal") : phrase("no scope"));
 
-const repoSay = (repo) => (!repo || repo === GENERAL ? phrase("General") : repo);
+const nextScope = (scope) => (scope === "team" ? "personal" : "team");
 
-function daysSince(iso, now = memNow()) {
-  const at = Date.parse(iso || "");
-  return Number.isFinite(at) ? Math.floor((now - at) / DAY) : null;
+const isCandidate = (one) => one.scope === "team" && !one.proposed;
+
+function inFilter(one, filter) {
+  if (filter === "candidates") return isCandidate(one);
+  if (filter === "personal") return one.scope === "personal";
+  if (filter === "none") return !one.scope;
+  return true;
 }
 
-function daysUntilArchive(memory, now = memNow()) {
-  if (!memory || memory.status === ARCHIVED || memory.origin !== "automatica" || Number(memory.retrieved_count) > 0) return null;
-  const since = daysSince(memory.date, now);
-  return since === null ? null : Math.max(0, ARCHIVE_AFTER_DAYS - since);
+function matches(one, query) {
+  const words = folded(query).split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = folded(`${one.title} ${one.name} ${one.description} ${one.hook} ${one.file} ${one.text || one.body || ""}`);
+  return words.every((word) => hay.includes(word));
 }
 
-function agoSay(iso, now = memNow()) {
-  const at = Date.parse(iso || "");
-  if (!Number.isFinite(at)) return "";
-  const min = Math.floor((now - at) / 60000);
-  if (min < 1) return phrase("just now");
-  if (min < 60) return phrase("{n} min ago", { n: min });
-  const hours = Math.floor(min / 60);
-  if (hours < 24) return phrase("{n} h ago", { n: hours });
-  const days = Math.floor(hours / 24);
-  if (days === 1) return phrase("yesterday");
-  if (days < 14) return phrase("{n} days ago", { n: days });
-  if (days < 30) return phrase("{n} weeks ago", { n: Math.floor(days / 7) });
-  const months = Math.floor(days / 30);
-  return months === 1 ? phrase("a month ago") : phrase("{n} months ago", { n: months });
+function shownMine(memories, { project = ALL, filter = ALL, query = "" } = {}) {
+  return (memories || [])
+    .filter((one) => project === ALL || one.project === project)
+    .filter((one) => inFilter(one, filter))
+    .filter((one) => matches(one, query))
+    .sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0) || a.name.localeCompare(b.name));
 }
 
-function dateSay(iso) {
-  const at = new Date(iso || "");
-  if (Number.isNaN(at.getTime())) return "";
-  return `${String(at.getDate()).padStart(2, "0")}/${String(at.getMonth() + 1).padStart(2, "0")}`;
+function filterCounts(memories, project = ALL) {
+  const pool = (memories || []).filter((one) => project === ALL || one.project === project);
+  return Object.fromEntries(FILTERS.map((key) => [key, pool.filter((one) => inFilter(one, key)).length]));
 }
 
-function clockSay(at) {
-  const when = new Date(at || 0);
-  return `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+function proposalText(memories) {
+  const list = memories || [];
+  const title = list.length === 1
+    ? phrase("Team memory: {name}", { name: list[0].title || list[0].name })
+    : phrase("Team memory: {n} memories", { n: list.length });
+  const lines = list.map((one) => `- **${String(one.title || one.name).replace(/\s+/g, " ").trim()}**: ${String(one.description || one.hook || "").replace(/\s+/g, " ").trim()}`);
+  const body = [
+    phrase("Proposed from the Hive memories panel. Each file enters .claude/team-memory with scope team, and its line goes into the team MEMORY.md."),
+    "",
+    ...lines,
+    "",
+    phrase("Someone other than the author approves it, in the Proposals tab of the memories panel or here.")
+  ].join("\n");
+  return { title, body };
 }
 
-const thousands = (n) => String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+function teamChangeText(kind, memory) {
+  const name = memory?.name || "";
+  return kind === "delete"
+    ? { title: phrase("Team memory: remove {name}", { name }), body: phrase("Removes {file} from the team memory and its line from MEMORY.md. Opened from the Hive memories panel.", { file: memory?.file || "" }) }
+    : { title: phrase("Team memory: edit {name}", { name }), body: phrase("Edits {file} in the team memory. Opened from the Hive memories panel.", { file: memory?.file || "" }) };
+}
 
-const decimal = (n, digits) => (Number(n) || 0).toLocaleString(spokenNow(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
-
-const signedIn = () => st.mem.login?.state === "in";
-
-const canWrite = () => signedIn() && st.mem.login?.canEdit !== false && !!st.mem.login?.email;
-
-const sameMonth = (iso, now) => {
-  const at = new Date(iso || "");
-  const here = new Date(now);
-  return !Number.isNaN(at.getTime()) && at.getUTCFullYear() === here.getUTCFullYear() && at.getUTCMonth() === here.getUTCMonth();
+const PROBLEM_SAY = {
+  secret: "{file} looks like it has a {what}",
+  exists: "{file} already exists in the team memory",
+  "file-name": "{file}: use only lowercase letters without accents, digits and hyphens in the name",
+  "no-frontmatter": "{file} has no frontmatter between --- lines",
+  name: "{file}: the name in the frontmatter must be {want}",
+  "no-description": "{file} has no description",
+  type: "{file}: the type must be user, feedback, project or reference",
+  empty: "{file} has an empty body",
+  unlisted: "{file} is not in the MEMORY.md index",
+  dangling: "MEMORY.md points to {what}, which does not exist",
+  "index-lines": "MEMORY.md would have {what} lines; Claude Code reads only the first 200",
+  "index-bytes": "MEMORY.md would have {what} bytes; Claude Code reads only the first 25000"
 };
 
-function spendModel(spend, now) {
-  if (!spend || !Number.isFinite(Number(spend.month_usd)) || !sameMonth(spend.updated_at, now)) return null;
-  const month = Number(spend.month_usd) || 0;
-  const cap = Number(spend.cap_usd) || 0;
-  const share = cap > 0 ? Math.min(100, Math.round((month / cap) * 100)) : 0;
-  const calls = Number(spend.requests) || 0;
-  const when = agoSay(spend.updated_at, now);
-  return {
-    value: `US$ ${decimal(month, 2)}`,
-    say: cap > 0 ? phrase("Jev's spend in the month, of US$ {cap}", { cap: decimal(cap, 0) }) : phrase("Jev's spend in the month"),
-    bar: cap > 0 ? share : null,
-    hot: cap > 0 && share >= 80,
-    sub: [calls === 1 ? phrase("1 call") : phrase("{n} calls", { n: thousands(calls) }), when ? phrase("updated {when}", { when }) : ""].filter(Boolean).join(" · ")
-  };
+const SECRET_SAY = { "AWS key": "AWS key", "GitHub token": "GitHub token", "Slack token": "Slack token", "API key": "API key", "private key": "private key", "user secret": "user secret" };
+
+function problemSay(problem) {
+  const pattern = PROBLEM_SAY[problem?.kind];
+  if (!pattern) return phrase("{file} did not pass the check", { file: problem?.file || "" });
+  return phrase(pattern, { file: problem.file || "", what: problem.kind === "secret" ? phrase(SECRET_SAY[problem.what] || "secret") : problem.what || "", want: problem.want || "" });
 }
 
-function judgeHealth(health) {
-  const calls = Number(health?.calls) || 0;
-  if (!calls) return null;
-  const answered = Math.max(0, calls - (Number(health.fallbacks) || 0));
-  const share = (answered / calls) * 100;
-  return {
-    share,
-    say: phrase("Jev answered in {share}% of the searches · +{seconds} s on average", { share: decimal(share, share >= 99.95 || share < 10 ? 0 : 1), seconds: decimal((Number(health.avg_ms) || 0) / 1000, 1) }),
-    good: share >= 95
-  };
+function downSay(said) {
+  const state = said?.body?.state;
+  if (state === "no-repo") return phrase("The Hive does not know the hub repository. Check that the hub has a GitHub remote, or set HIVE_TEAM_MEMORY_REPO in ~/.hive/config.");
+  const why = String(said?.body?.why || "").trim();
+  return why ? phrase("GitHub did not answer: {why}", { why }) : phrase("GitHub did not answer. Check that gh is signed in and try again.");
 }
 
-function unansweredModel(unanswered, now) {
-  if (!unanswered || !Number.isFinite(Number(unanswered.total))) return null;
-  return {
-    say: phrase("Questions without an answer"),
-    periodSay: phrase("in the period"),
-    total: thousands(unanswered.total),
-    totalSay: phrase("searches where no memory helped"),
-    cap: phrase("It is what the team asks and the memory does not know yet."),
-    rows: (unanswered.top || []).slice(0, 5).map((one, at) => {
-      const count = Number(one?.count) || 0;
-      const when = agoSay(one?.last_at, now);
-      return {
-        key: `${at}:${String(one?.topic ?? "")}`,
-        topic: String(one?.topic ?? ""),
-        n: [count === 1 ? phrase("once") : phrase("{n} times", { n: thousands(count) }), when].filter(Boolean).join(" · ")
-      };
-    }),
-    none: (unanswered.top || []).length ? "" : phrase("Every search found something in the period.")
-  };
-}
-
-const usesSay = (n) => (Number(n) === 1 ? phrase("1 use") : phrase("{n} uses", { n: Number(n) || 0 }));
-
-function weekStart(now = memNow()) {
-  const day = new Date(now);
-  day.setHours(0, 0, 0, 0);
-  day.setDate(day.getDate() - ((day.getDay() + 6) % 7));
-  return day.getTime();
-}
-
-function newThisWeek(list, now = memNow()) {
-  const from = weekStart(now);
-  return (list || []).filter((one) => Date.parse(one.date || "") >= from).length;
-}
-
-function memoryFolders(active, archived) {
-  const counts = new Map();
-  for (const one of active || []) counts.set(repoKey(one), (counts.get(repoKey(one)) || 0) + 1);
-  const repos = [...counts].filter(([key]) => key !== GENERAL).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  return [
-    { key: ALL, n: (active || []).length },
-    ...repos.map(([key, n]) => ({ key, n })),
-    { key: GENERAL, n: counts.get(GENERAL) || 0 },
-    { key: ARCHIVED, n: (archived || []).length }
-  ];
-}
-
-function shownMemories(active, archived, { folder = ALL, origin = ALL, query = "" } = {}) {
-  const q = String(query).trim().toLowerCase();
-  const pool = folder === ARCHIVED ? archived || [] : (active || []).filter((one) => folder === ALL || repoKey(one) === folder);
-  return pool
-    .filter((one) => origin === ALL || one.origin === origin)
-    .filter((one) => !q || `${one.title} ${one.snippet || ""} ${(one.tags || []).join(" ")} ${one.category || ""} ${one.author || ""}`.toLowerCase().includes(q))
-    .sort((a, b) => (Number(b.retrieved_count) || 0) - (Number(a.retrieved_count) || 0) || Date.parse(b.date || 0) - Date.parse(a.date || 0));
-}
-
-function weeklyChart(weekly, box = CHART) {
-  const weeks = weekly || [];
-  const totals = weeks.map((one) => (Number(one.automatica) || 0) + (Number(one.manual) || 0));
-  const peak = Math.max(1, ...totals);
-  const step = peak <= 10 ? 5 : peak <= 40 ? 10 : Math.ceil(peak / 4 / 10) * 10;
-  const top = Math.max(step, Math.ceil(peak / step) * step);
-  const tall = box.floor - box.top;
-  const slot = weeks.length ? (box.width - box.left) / weeks.length : 0;
-  const bar = Math.max(4, Math.round(slot * 0.68));
-  const scale = (n) => (n / top) * tall;
-  const firstAuto = weeks.findIndex((one) => Number(one.automatica) > 0);
-  const bridgeAt = firstAuto > 0 ? firstAuto : -1;
-  return {
-    width: box.width, height: box.height, floor: box.floor, left: box.left,
-    ticks: Array.from({ length: Math.floor(top / step) + 1 }, (_, at) => ({ value: at * step, y: box.floor - scale(at * step) })),
-    bars: weeks.map((one, at) => {
-      const auto = Number(one.automatica) || 0;
-      const hand = Number(one.manual) || 0;
-      const x = box.left + at * slot + (slot - bar) / 2;
-      const autoH = scale(auto);
-      const handH = scale(hand);
-      return {
-        key: one.week, x, w: bar,
-        autoY: box.floor - autoH, autoH,
-        handY: box.floor - autoH - handH, handH,
-        label: at % 2 === 0 ? String(one.week || "").replace(/^\d{4}-/, "") : "",
-        auto, hand
-      };
-    }),
-    bridgeX: bridgeAt > 0 ? box.left + bridgeAt * slot : null
-  };
-}
-
-function bridgeCeilingHeld(daily, ceiling = 10) {
-  return (daily || []).length > 0 && (daily || []).every((one) => (Number(one.bridge_created) || 0) < ceiling);
-}
-
-function judgeFunnel(judge) {
-  const j = judge || {};
-  const created = Number(j.bridge_created) || 0;
-  const updated = Number(j.bridge_updated) || 0;
-  const discarded = Number(j.bridge_discarded) || 0;
-  const duplicates = Number(j.duplicates_blocked) || 0;
-  const came = created + updated + discarded + duplicates;
-  const share = (n) => (came ? Math.max(n ? 2 : 0, Math.round((n / came) * 100)) : 0);
-  return {
-    came,
-    rows: [
-      { key: "came", n: came, share: came ? 100 : 0, on: false },
-      { key: "discarded", n: discarded, share: share(discarded), on: false },
-      { key: "duplicates", n: duplicates, share: share(duplicates), on: false },
-      { key: "created", n: created, share: share(created), on: true },
-      { key: "updated", n: updated, share: share(updated), on: false }
-    ],
-    judged: Number(j.candidates_judged) || 0,
-    cutShare: j.candidates_judged ? Math.round(((Number(j.cut_by_judge) || 0) / j.candidates_judged) * 100) : 0,
-    helped: Math.max(0, (Number(j.candidates_judged) || 0) - (Number(j.cut_by_judge) || 0)),
-    searches: Number(j.searches) || 0
-  };
-}
-
-function lastWeeksAdded(weekly, weeks = 4) {
-  return (weekly || []).slice(-weeks).reduce((n, one) => n + (Number(one.automatica) || 0) + (Number(one.manual) || 0), 0);
-}
-
-function repoBars(byRepo, keep = 6) {
-  const rows = [...(byRepo || [])].sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, keep);
-  const peak = Math.max(1, ...rows.map((one) => one.count || 0));
-  return rows.map((one, at) => ({ key: one.repo || GENERAL, say: repoSay(one.repo), n: one.count || 0, share: Math.round(((one.count || 0) / peak) * 100), on: at === 0 }));
-}
-
-function soonArchived(active, now = memNow(), within = SOON_DAYS) {
-  return (active || []).filter((one) => {
-    const left = daysUntilArchive(one, now);
-    return left !== null && left <= within;
-  }).length;
-}
-
-const originSay = (origin) => (origin === "automatica" ? phrase("automatic") : phrase("written by hand"));
-
-function folderSay(key) {
-  if (key === ALL) return phrase("All memories");
-  if (key === ARCHIVED) return phrase("Archived");
-  return repoSay(key);
-}
-
-function rowModel(one, now) {
-  const left = daysUntilArchive(one, now);
-  return {
-    key: one.id, id: one.id, title: one.title || "", snippet: one.snippet || "",
-    uses: usesSay(one.retrieved_count),
-    origin: one.origin === "automatica" ? "auto" : "hand", originSay: originSay(one.origin),
-    category: one.category || "", author: one.author || "", when: agoSay(one.date, now),
-    repo: one.repo ? "" : phrase("General"),
-    fades: left === null ? "" : left === 0 ? phrase("archives today if nobody uses it") : left === 1 ? phrase("archives tomorrow if nobody uses it") : phrase("archives in {n} days if nobody uses it", { n: left }),
-    gone: one.status === ARCHIVED ? (one.archived_reason === "unused" ? phrase("archived: nobody used it") : phrase("archived: by a person")) : "",
-    here: one.id === st.mem.pick
-  };
-}
-
-const HISTORY_SHOWN = 6;
-const HISTORY_SAY = { edited: "edited", merged: "added to", archived: "archived it", unarchived: "unarchived" };
-const VIA_SAY = { chat: "in a chat", painel: "in the panel", ponte: "by the team memory bridge", automatico: "unused for too long" };
-
-function historyRows(memory) {
-  const history = Array.isArray(memory.history) ? memory.history.filter((one) => one && HISTORY_SAY[one.action] && one.by && one.at) : [];
-  if (!history.length) {
-    if (!memory.updated_by) return [];
-    const at = memory.updated_at || memory.updated;
-    return [{ key: "edited", say: phrase("edited"), value: at ? phrase("by {who} on {date}", { who: memory.updated_by, date: dateSay(at) }) : phrase("by {who}", { who: memory.updated_by }) }];
+async function getJson(path) {
+  try {
+    const r = await fetch(path);
+    let body = {};
+    try { body = await r.json(); } catch {}
+    return { ok: r.ok, status: r.status ?? 200, body: body || {} };
+  } catch {
+    return { ok: false, status: 0, body: {} };
   }
-  return history.slice(-HISTORY_SHOWN).reverse().map((one, at) => ({
-    key: `history-${at}`,
-    say: phrase(HISTORY_SAY[one.action]),
-    value: [phrase("by {who} on {date}", { who: one.by, date: dateSay(`${one.at}T12:00:00`) }), VIA_SAY[one.via] ? phrase(VIA_SAY[one.via]) : ""].filter(Boolean).join(" · ")
-  }));
 }
 
-function detailModel(one, now) {
-  if (!one) return null;
-  const full = st.mem.detail[one.id];
-  const memory = full?.memory ? { ...one, ...full.memory } : one;
-  const auto = memory.origin === "automatica";
-  const where = memory.repo || phrase("General");
-  const content = String(memory.content || "").replace(/^#\s+(.+)\n+/, (line, head) => (head.trim() === String(memory.title).trim() ? "" : line));
-  const used = Number(memory.retrieved_count) || 0;
-  return {
-    key: memory.id, id: memory.id, title: memory.title,
-    origin: auto ? "auto" : "hand", originSay: originSay(memory.origin),
-    crumb: [memory.category, where].filter(Boolean).join(" · "),
-    rows: [
-      { key: "author", say: phrase("author"), value: auto ? phrase("{who}, from a conversation in {repo}", { who: memory.author || "?", repo: where }) : memory.author || "?" },
-      { key: "created", say: phrase("created"), value: auto ? phrase("{date}, by the team memory bridge", { date: dateSay(memory.date) }) : dateSay(memory.date) },
-      { key: "used", say: phrase("used"), value: used ? `${used === 1 ? phrase("once in searches") : phrase("{n} times in searches", { n: used })}${memory.last_retrieved_at ? ` · ${phrase("last {when}", { when: agoSay(memory.last_retrieved_at, now) })}` : ""}` : phrase("never in a search yet") },
-      ...(memory.tags?.length ? [{ key: "tags", say: phrase("tags"), value: memory.tags.join(" · ") }] : []),
-      ...historyRows(memory)
-    ],
-    html: content ? renderMarkdown(content) : "",
-    snippet: content ? "" : memory.snippet || "",
-    loading: !full && !content,
-    archived: memory.status === ARCHIVED,
-    can: canWrite(),
-    canEdit: canWrite() && !!full?.memory,
-    confirm: st.mem.confirm === memory.id,
-    busy: st.mem.busy === memory.id,
-    error: st.mem.actError?.id === memory.id ? st.mem.actError.say : "",
-    archiveSay: phrase("Archive"), unarchiveSay: phrase("Unarchive"), editSay: phrase("Edit"), copySay: phrase("Copy the text"),
-    confirmSay: phrase("Archive this memory? It stops showing up in the chats' searches, and it can come back from the Archived folder."),
-    confirmYes: phrase("Archive"), confirmNo: phrase("Cancel"), busySay: phrase("saving…"),
-    lock: canWrite() ? null : lockModel(),
-    copyText: `${memory.title}\n\n${content || memory.snippet || ""}`.trim()
-  };
+async function send(path, payload = {}) {
+  try {
+    const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+    let body = {};
+    try { body = await r.json(); } catch {}
+    return { ok: r.ok, status: r.status ?? 200, body: body || {} };
+  } catch {
+    return { ok: false, status: 0, body: { state: "down" } };
+  }
 }
 
-function lockModel() {
-  const login = loginModel();
-  if (login.state === "in") return { say: phrase("your account has no e-mail, so it cannot edit"), button: "" };
-  if (login.state === "pod" || login.state === "no-vault" || login.state === "waiting") return { say: login.say, button: "" };
-  if (login.state === "unknown") return { say: phrase("editing and archiving ask you to sign in"), button: "" };
-  if (login.missing) return { say: login.error, button: "" };
-  return { say: phrase("editing and archiving ask you to sign in with your Google account"), button: login.inSay };
-}
+const errorModel = (error) => (!error ? null : typeof error === "string" ? { head: error, lines: [] } : { head: error.head || "", lines: error.lines || [] });
 
-function noticeSay(notice) {
-  return ({
-    expired: phrase("your sign-in expired — sign in again"),
-    timeout: phrase("the sign-in waited 5 minutes and gave up"),
-    refused: phrase("the sign-in was refused in the browser"),
-    failed: phrase("the sign-in did not finish — try again")
-  })[notice] || "";
-}
+const mineList = () => st.mem.mine?.memories || [];
 
-function loginModel() {
-  const login = st.mem.login;
-  if (!login) return { state: "unknown" };
-  const demo = login.demo ? phrase("sample login") : "";
-  if (login.state === "in") return { state: "in", email: login.email || phrase("account without e-mail"), demo, outSay: phrase("sign out"), title: phrase("signed in as {email}", { email: login.email || "" }) };
-  if (login.state === "waiting") return { state: "waiting", say: phrase("finish signing in in the browser…"), againSay: phrase("open it again"), cancelSay: phrase("cancel"), url: login.url || "" };
-  if (login.reach === "pod") return { state: "pod", say: phrase("signing in only works in the Hive on your machine") };
-  if (login.reach === "no-vault") return { state: "no-vault", say: phrase("this machine has no keychain to keep the sign-in") };
-  const missing = login.configured === false;
-  const error = missing ? loginErrorSay(MISSING_ADDRESS) : loginErrorSay(login.error);
-  return { state: "out", inSay: phrase("Sign in with Google"), busy: st.mem.busy === "login", disabled: missing, missing, error, notice: error ? "" : noticeSay(login.notice), demo };
-}
-
-const MISSING_ADDRESS = "HIVE_MEMORY_URL is not set";
-
-function loginErrorSay(why) {
-  if (!why) return "";
-  if (why === MISSING_ADDRESS) return phrase("The memory address is not set up in this Hive. Run infra/scripts/setup.sh again and reopen the Hive.");
-  if (why === "network") return phrase("The Hive did not answer the sign-in. Check that it is still open and try again.");
-  return phrase("The sign-in did not start. Try again in a moment ({why}).", { why });
-}
-
-function signInError(said) {
-  if (said.status === 0) return "network";
-  const why = String(said.body?.why || "");
-  if (why === "pod" || why === "no-vault") return "";
-  return why || `HTTP ${said.status}`;
-}
-
-function editorModel(memory) {
-  const edit = st.mem.edit;
-  if (!edit || !memory || edit.id !== memory.id) return null;
-  return {
-    key: `edit:${edit.id}`, id: edit.id,
-    whoSay: phrase("editing as"), email: st.mem.login?.email || "",
-    authorSay: memory.author ? phrase("original author {who}", { who: memory.author }) : "",
-    titleSay: phrase("Title"), title: edit.title,
-    categorySay: phrase("Kind"), category: edit.category,
-    categories: CATEGORIES.map((key) => ({ key, say: key })),
-    tagsSay: phrase("Tags"),
-    tags: edit.tags.map((tag) => ({ key: tag, say: tag, dropSay: phrase("remove the tag {tag}", { tag }) })),
-    tagDraft: edit.tagDraft, tagPlaceholder: phrase("+ tag"),
-    contentSay: phrase("Content"), content: edit.content,
-    view: edit.view, writeSay: phrase("Write"), previewSay: phrase("Preview"),
-    preview: edit.view === "preview" ? renderMarkdown(edit.content || "") : "",
-    saveSay: edit.saving ? phrase("saving…") : phrase("Save"), cancelSay: phrase("Cancel"),
-    note: phrase("the edit carries your name"),
-    saving: edit.saving, error: edit.error || ""
-  };
-}
+const projectLabel = (id) => (st.mem.mine?.projects || []).find((one) => one.id === id)?.label || id;
 
 function headModel() {
-  const answer = st.mem.active;
-  const fresh = answer?.memories ? newThisWeek(answer.memories) : 0;
   return {
     title: phrase("Memories"),
-    tabs: [
-      { key: "memories", say: phrase("Memories"), on: st.mem.tab === "memories" },
-      { key: "summary", say: phrase("Summary"), on: st.mem.tab === "summary" }
-    ],
-    fresh: fresh ? (fresh === 1 ? phrase("1 new this week") : phrase("{n} new this week", { n: fresh })) : "",
-    source: answer?.source ? (signedIn() ? answer.source : phrase("{source} · read only", { source: answer.source })) : "",
-    login: loginModel(),
-    demo: answer?.demo ? phrase("sample data") : "",
-    demoHint: phrase("the memory server does not answer these routes yet, so the panel shows made-up memories"),
+    tabs: TABS.map((key) => ({ key, say: phrase({ mine: "Mine", proposals: "Proposals", team: "The team's" }[key]), on: st.mem.tab === key, n: key === "proposals" && st.mem.proposals?.proposals ? String(st.mem.proposals.proposals.length) : "" })),
     key: keyHint("memories"),
     closeSay: phrase("close")
   };
 }
 
-function withCodes(text, codes) {
-  const marks = (codes || []).filter(Boolean);
-  if (!marks.length) return [{ text, code: false }];
-  const pattern = new RegExp(`(${marks.map((one) => one.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`);
-  return String(text).split(pattern).filter(Boolean).map((part) => ({ text: part, code: marks.includes(part) }));
-}
-
-function blockedModel(answer) {
-  if (!answer) return null;
-  if (answer.state === "no-token" || answer.state === "refused") {
-    return {
-      key: answer.state,
-      label: phrase("no access"),
-      head: answer.state === "refused" ? phrase("The memory server refused the Hive's token") : phrase("The Hive does not read the shared memory yet"),
-      lines: (answer.state === "refused"
-        ? [phrase("{key} in the hub .env was rejected. Ask for a new read token and put it in its place.", { key: answer.key })]
-        : [phrase("The read token {key} is missing from the hub .env. On a server, it arrives through {script}.", { key: answer.key, script: "pod-env.sh" }), phrase("The hive doctor shows the same warning.")])
-        .map((line) => withCodes(line, [answer.key, "pod-env.sh"])),
-      button: phrase("Open the doctor")
-    };
-  }
-  if (answer.state === "no-server") {
-    return {
-      key: "no-server",
-      label: phrase("no access"),
-      head: phrase("The Hive does not know where the shared memory lives"),
-      lines: [phrase("Set {key} in {file}, or run the setup again to pick it up from the deployment defaults.", { key: answer.key, file: "~/.hive/config" })].map((line) => withCodes(line, [answer.key, "~/.hive/config"])),
-      button: phrase("Open the doctor")
-    };
-  }
-  if (answer.state === "down" && !answer.memories) {
-    return { key: "down", label: phrase("error"), head: phrase("{source} did not answer", { source: answer.source }), lines: [withCodes(phrase("No list was kept on this machine yet. The chats keep searching the memory without the judge."))], button: phrase("try again"), retry: true };
-  }
-  return null;
-}
-
-function troubleModel(answer) {
-  if (answer?.state !== "down" || !answer.memories) return null;
+function rowOfMine(one) {
   return {
-    head: phrase("{source} did not answer", { source: answer.source }),
-    say: phrase("Showing the last list the Hive kept, from {clock}. Nothing is lost: the chats keep searching the memory without the judge.", { clock: clockSay(answer.keptAt) }),
-    retry: phrase("try again")
+    key: one.id, id: one.id,
+    name: one.title || one.name,
+    description: one.description || one.hook || "",
+    scope: one.scope || "none",
+    scopeSay: scopeSay(one.scope),
+    scopeHint: one.scope ? phrase("click to make it {scope}", { scope: scopeSay(nextScope(one.scope)) }) : phrase("click to mark it as team"),
+    project: st.mem.project === ALL ? projectLabel(one.project) : "",
+    proposed: one.proposed ? phrase("in PR #{n}", { n: one.proposed.number }) : "",
+    proposedUrl: one.proposed?.url || "",
+    chosen: st.mem.chosen.includes(one.id),
+    canChoose: !one.proposed,
+    here: one.id === st.mem.pick,
+    busy: st.mem.busy === one.id
   };
 }
 
-function listModel(now) {
-  const active = st.mem.active?.memories || [];
-  const archived = st.mem.archived?.memories || [];
-  const shown = shownMemories(active, archived, st.mem);
-  if (!shown.some((one) => one.id === st.mem.pick)) st.mem.pick = shown[0]?.id || "";
-  const where = st.mem.folder === ALL ? phrase("every memory") : folderSay(st.mem.folder);
-  return {
-    folders: memoryFolders(active, archived).map((one) => ({ ...one, say: folderSay(one.key), on: one.key === st.mem.folder, archived: one.key === ARCHIVED, all: one.key === ALL })),
-    reposSay: phrase("Repositories"), stateSay: phrase("Status"),
-    search: { placeholder: phrase("Search in {where}…", { where }), value: st.mem.query },
-    origins: [
-      { key: ALL, say: phrase("All kinds"), on: st.mem.origin === ALL },
-      { key: "automatica", say: phrase("Automatic"), on: st.mem.origin === "automatica" },
-      { key: "manual", say: phrase("Written by hand"), on: st.mem.origin === "manual" }
-    ],
-    rows: shown.map((one) => rowModel(one, now)),
-    empty: shown.length ? null : emptyModel(),
-    detail: detailModel(shown.find((one) => one.id === st.mem.pick), now),
-    editor: editorModel(pickedMemory(shown)),
-    editing: !!st.mem.edit
-  };
-}
-
-function pickedMemory(shown) {
-  const one = (shown || shownMemories(st.mem.active?.memories, st.mem.archived?.memories, st.mem)).find((row) => row.id === st.mem.pick);
+function detailOfMine(one) {
   if (!one) return null;
-  const full = st.mem.detail[one.id]?.memory;
-  return full ? { ...one, ...full } : one;
-}
-
-function emptyModel() {
-  if (st.mem.query.trim() || st.mem.origin !== ALL) {
-    return { head: phrase("Nothing matches"), lines: [phrase("No memory here with those words or that origin.")], button: phrase("See every memory") };
-  }
-  if (st.mem.folder === ARCHIVED) return { head: phrase("Nothing archived"), lines: [phrase("A memory nobody uses for 60 days lands here.")], button: phrase("See every memory") };
+  const full = st.mem.detail[one.id];
+  const body = full?.body ?? "";
   return {
-    head: phrase("No memory from {repo} yet", { repo: folderSay(st.mem.folder) }),
-    lines: [
-      phrase("Memories arrive on their own when a conversation in this repository proves useful: someone promotes it, or it comes back in 5 searches. The bridge runs every night."),
-      phrase("To record something now, ask the chat: “save it in the shared memory”.")
-    ],
-    button: phrase("See every memory")
+    key: one.id, id: one.id,
+    title: one.title || one.name,
+    crumb: [projectLabel(one.project), one.type, one.file].filter(Boolean).join(" · "),
+    description: one.description,
+    html: body ? renderMarkdown(body) : "",
+    loading: !full,
+    scope: one.scope || "none",
+    scopes: SCOPES.map((key) => ({ key, say: scopeSay(key), on: one.scope === key })),
+    scopeLabel: phrase("Scope"),
+    proposed: one.proposed ? phrase("Proposed to the team in PR #{n}. When it is merged, this personal copy is deleted so the sessions do not read the same fact twice.", { n: one.proposed.number }) : "",
+    proposedUrl: one.proposed?.url || "",
+    canPropose: !one.proposed,
+    busy: st.mem.busy === one.id || st.mem.busy === "propose",
+    deleteSay: phrase("Delete"), proposeSay: phrase("Propose to the team"), openPrSay: phrase("open the PR ↗")
   };
 }
 
-function summaryModel(now) {
-  const answer = st.mem.stats;
-  if (!answer || answer.state === "loading") return { loading: true, say: phrase("reading the numbers…") };
-  const stats = answer.stats;
-  if (!stats) return { loading: false, missing: true, say: phrase("{source} did not answer", { source: answer.source || "memory" }) };
-  const totals = stats.totals || {};
-  const both = (Number(totals.automatica) || 0) + (Number(totals.manual) || 0);
-  const funnel = judgeFunnel(stats.judge);
-  const chart = weeklyChart(stats.weekly);
-  const unused = stats.archived_unused || [];
-  const soon = soonArchived(st.mem.active?.memories, now);
-  const spend = spendModel(stats.spend, now);
-  const health = judgeHealth(stats.judge?.health);
-  const funnelSay = (key) => ({
-    came: phrase("candidates from the team memory"),
-    discarded: phrase("discarded by Jev"),
-    duplicates: phrase("blocked as duplicates"),
-    created: phrase("became a new memory"),
-    updated: phrase("updated one that existed")
-  })[key];
+function classifyModel() {
+  const c = st.mem.classify;
+  if (!c) return null;
+  if (c.busy) return { busy: true, say: c.n > CLASSIFY_CHUNK ? phrase("Asking Claude for the scope of {n} memories… {done} done", { n: c.n, done: c.done || 0 }) : phrase("Asking Claude for the scope of {n} memories…", { n: c.n }), cancelSay: phrase("Cancel") };
+  const byId = new Map(mineList().map((one) => [one.id, one]));
+  const rows = c.verdicts.filter((one) => byId.has(one.id)).map((one) => ({
+    key: one.id, id: one.id,
+    name: byId.get(one.id).title || byId.get(one.id).name,
+    description: byId.get(one.id).description,
+    reason: one.reason,
+    scope: one.scope, scopeSay: scopeSay(one.scope),
+    keep: one.keep
+  }));
+  const kept = rows.filter((one) => one.keep).length;
   return {
-    loading: false,
-    kpis: [
-      { key: "active", value: thousands(totals.active), say: phrase("active memories"), sub: phrase("+{n} in the last 4 weeks", { n: lastWeeksAdded(stats.weekly) }), good: true },
-      { key: "auto", value: both ? `${Math.round(((Number(totals.automatica) || 0) / both) * 100)}%` : "—", say: phrase("came in on their own through the bridge"), sub: phrase("{auto} automatic · {hand} by hand", { auto: thousands(totals.automatica), hand: thousands(totals.manual) }), accent: true },
-      { key: "helped", value: thousands(funnel.helped), say: phrase("times a memory reached a chat, in the period"), sub: phrase("{n} searches", { n: thousands(funnel.searches) }), good: true },
-      spend
-        ? { key: "cost", value: spend.value, say: spend.say, sub: spend.sub, bar: spend.bar, hot: spend.hot, muted: true }
-        : { key: "cost", value: "—", say: phrase("Jev's spend in the month"), sub: phrase("see it in ai-costs"), muted: true }
-    ],
-    chartSay: phrase("New memories per week"),
-    autoSay: phrase("automatic ones"), handSay: phrase("by hand"),
-    chartTitle: phrase("New memories per week, automatic and by hand"),
-    chart,
-    bridgeSay: phrase("bridge on"),
-    chartCap: [chart.bridgeX !== null ? phrase("Before the bridge, only what someone wrote by hand came in.") : "", bridgeCeilingHeld(stats.daily) ? phrase("The ceiling of 10 a day was never reached.") : ""].filter(Boolean).join(" "),
-    funnelSay: phrase("What Jev did in the period"),
-    funnel: funnel.rows.map((one) => ({ ...one, say: funnelSay(one.key), n: thousands(one.n) })),
-    funnelCap: funnel.judged ? phrase("In search: {n} candidates judged, {share}% cut for not helping the request.", { n: thousands(funnel.judged), share: funnel.cutShare }) : "",
-    health: health ? health.say : "",
-    healthGood: !!health?.good,
-    unanswered: unansweredModel(stats.unanswered, now),
-    reposSay: phrase("Where they come from"),
-    repos: repoBars(stats.by_repo),
-    topSay: phrase("Most used"), usesSay: phrase("uses"),
-    top: (stats.top_retrieved || []).slice(0, 5).map((one) => ({ key: one.id, id: one.id, title: one.title, n: thousands(one.retrieved_count) })),
-    cleanSay: phrase("Cleanup"),
-    cleanCount: thousands(unused.length),
-    cleanLine: phrase("archived because nobody used them in 60 days"),
-    cleanRows: unused.slice(0, 2).map((one) => ({ key: one.id, title: one.title, when: dateSay(one.archived_at) })),
-    soon: soon ? (soon === 1 ? phrase("1 will be archived in the next 14 days") : phrase("{n} will be archived in the next 14 days", { n: soon })) : ""
+    busy: false,
+    head: phrase("Claude suggested a scope for {n} memories. Click a scope to switch it, untick what you do not want, then save.", { n: rows.length }),
+    failed: c.failures?.length ? phrase("{n} batches did not come back; run it again for the rest.", { n: c.failures.length }) : "",
+    rows,
+    saveSay: kept === 1 ? phrase("Save 1 scope") : phrase("Save {n} scopes", { n: kept }),
+    canSave: kept > 0 && !c.saving,
+    cancelSay: phrase("Cancel"),
+    error: c.error || ""
   };
 }
 
-function memoriesViewModel(now = memNow()) {
-  const head = headModel();
-  const blocked = blockedModel(st.mem.active);
+function mineModel() {
+  const answer = st.mem.mine;
+  if (!answer) return null;
+  if (answer.state !== "ok") return { blocked: { head: phrase("The Hive could not read your memories"), say: String(answer.why || ""), retry: phrase("try again") } };
+  const memories = answer.memories || [];
+  const shown = shownMine(memories, st.mem);
+  if (!shown.some((one) => one.id === st.mem.pick)) st.mem.pick = shown[0]?.id || "";
+  const counts = filterCounts(memories, st.mem.project);
+  const unscoped = memories.filter((one) => (st.mem.project === ALL || one.project === st.mem.project) && !one.scope).length;
+  const chosen = st.mem.chosen.filter((id) => memories.some((one) => one.id === id && !one.proposed));
+  st.mem.chosen = chosen;
+  const where = st.mem.project === ALL ? phrase("every folder") : projectLabel(st.mem.project);
   return {
-    head,
-    tab: st.mem.tab,
-    loading: !st.mem.active,
-    loadingSay: phrase("reading the shared memory…"),
-    blocked,
-    trouble: troubleModel(st.mem.active),
-    list: blocked || !st.mem.active ? null : listModel(now),
-    summary: st.mem.tab === "summary" && !blocked && st.mem.active ? summaryModel(now) : null
+    projects: [{ key: ALL, say: phrase("All folders"), n: memories.length, on: st.mem.project === ALL }, ...(answer.projects || []).map((one) => ({ key: one.id, say: one.label, title: one.id, n: one.count, on: st.mem.project === one.id }))],
+    projectsSay: phrase("Folders"),
+    search: { placeholder: phrase("Search in {where}…", { where }), value: st.mem.query },
+    filters: FILTERS.map((key) => ({ key, say: phrase({ candidates: "Team candidates", personal: "Personal", none: "No scope", all: "All of them" }[key]), n: counts[key], on: st.mem.filter === key })),
+    classifySay: unscoped ? phrase("Classify {n} without scope", { n: unscoped }) : "",
+    proposeSay: chosen.length ? (chosen.length === 1 ? phrase("Propose 1 to the team") : phrase("Propose {n} to the team", { n: chosen.length })) : phrase("Propose to the team"),
+    canPropose: chosen.length > 0 && st.mem.busy !== "propose",
+    proposing: st.mem.busy === "propose",
+    proposingSay: phrase("opening the PR…"),
+    chooseSay: phrase("choose to propose"),
+    rows: shown.map(rowOfMine),
+    empty: shown.length ? null : emptyMine(memories.length),
+    detail: detailOfMine(shown.find((one) => one.id === st.mem.pick)),
+    classify: classifyModel(),
+    undo: st.mem.undo ? { say: st.mem.undo.say, undoSay: phrase("Undo") } : null,
+    notice: st.mem.notice,
+    error: errorModel(st.mem.error)
+  };
+}
+
+function emptyMine(total) {
+  if (!total) return { head: phrase("No memory saved on this machine yet"), say: phrase("Claude Code keeps what it learns in ~/.claude/projects/<folder>/memory. Ask a chat to remember something and it shows up here."), button: "" };
+  if (st.mem.filter === "candidates" && !st.mem.query.trim()) return { head: phrase("No team candidate here"), say: phrase("A memory marked Team and not proposed yet shows up here. Classify the ones without scope, or click the scope of a memory."), button: phrase("See all") };
+  return { head: phrase("Nothing matches"), say: phrase("No memory here with those words or that filter."), button: phrase("See all") };
+}
+
+function proposalsModel() {
+  const answer = st.mem.proposals;
+  if (!answer) return null;
+  if (answer.state !== "ok") return { blocked: { head: phrase("The proposals did not load"), say: downSay({ body: answer }), retry: phrase("try again") } };
+  const list = answer.proposals || [];
+  if (!list.some((one) => one.number === st.mem.pickPr)) st.mem.pickPr = list[0]?.number || 0;
+  const mine = String(answer.me || "").toLowerCase();
+  const checkSay = { passing: phrase("checks passed"), failing: phrase("checks failed"), pending: phrase("checks running"), none: phrase("no checks") };
+  const picked = list.find((one) => one.number === st.mem.pickPr);
+  const own = !!picked && !!mine && picked.author.toLowerCase() === mine;
+  return {
+    rows: list.map((one) => ({
+      key: String(one.number), number: one.number, title: one.title, author: one.author,
+      meta: [`#${one.number}`, one.author, phrase("{n} memories", { n: one.memories.length })].join(" · "),
+      checks: one.checks, checksSay: checkSay[one.checks] || "",
+      here: one.number === st.mem.pickPr
+    })),
+    empty: list.length ? null : { head: phrase("No open proposal"), say: phrase("A proposal opened from the Mine tab, by you or by a teammate, waits here for someone to approve it.") },
+    detail: picked ? {
+      key: String(picked.number), number: picked.number, title: picked.title, url: picked.url,
+      crumb: [`#${picked.number}`, phrase("by {who}", { who: picked.author }), checkSay[picked.checks]].filter(Boolean).join(" · "),
+      checks: picked.checks,
+      problems: (picked.problems || []).map((one, at) => ({ key: String(at), say: problemSay(one) })),
+      problemsHead: phrase("The team memory check finds problems in this branch"),
+      memories: picked.memories.map((one) => ({
+        key: one.file, file: one.file, name: one.name, description: one.description || "",
+        change: one.change, changeSay: { added: phrase("comes in"), modified: phrase("edited"), deleted: phrase("goes out") }[one.change] || "",
+        html: one.body ? renderMarkdown(one.body) : ""
+      })),
+      own,
+      approveSay: st.mem.prBusy === picked.number ? phrase("approving…") : phrase("Approve and merge"),
+      approveHint: own ? phrase("You opened this proposal, so someone else has to approve it.") : picked.checks === "failing" ? phrase("The checks failed; GitHub may refuse the merge.") : "",
+      canApprove: !own && !st.mem.prBusy,
+      openSay: phrase("open on GitHub ↗"),
+      error: st.mem.prError?.number === picked.number ? st.mem.prError.say : ""
+    } : null,
+    notice: st.mem.notice
+  };
+}
+
+function teamModel() {
+  const answer = st.mem.team;
+  if (!answer) return null;
+  if (answer.state !== "ok") return { blocked: { head: phrase("The team memory did not load"), say: downSay({ body: answer }), retry: phrase("try again") } };
+  const shown = (answer.memories || []).filter((one) => matches(one, st.mem.teamQuery));
+  if (!shown.some((one) => one.file === st.mem.pickTeam)) st.mem.pickTeam = shown[0]?.file || "";
+  const picked = shown.find((one) => one.file === st.mem.pickTeam);
+  const edit = st.mem.teamEdit && picked && st.mem.teamEdit.file === picked.file ? st.mem.teamEdit : null;
+  return {
+    search: { placeholder: phrase("Search in the team memory…"), value: st.mem.teamQuery },
+    source: phrase("{repo} · main", { repo: answer.repo }),
+    rows: shown.map((one) => ({ key: one.file, file: one.file, name: one.name, description: one.description, here: one.file === st.mem.pickTeam })),
+    empty: shown.length ? null : answer.found === false
+      ? { head: phrase("The team memory is not on main yet"), say: phrase("The folder .claude/team-memory appears in {repo} when the first proposal is merged.", { repo: answer.repo }) }
+      : st.mem.teamQuery.trim() ? { head: phrase("Nothing matches"), say: phrase("No team memory with those words.") } : { head: phrase("The team memory is empty"), say: phrase("Propose a memory from the Mine tab.") },
+    detail: picked ? {
+      key: picked.file, file: picked.file, name: picked.name,
+      crumb: [picked.type, picked.file].filter(Boolean).join(" · "),
+      description: picked.description,
+      html: renderMarkdown(picked.body || ""),
+      editSay: phrase("Edit"), deleteSay: phrase("Delete"),
+      note: phrase("Editing or deleting opens a PR; nothing changes on main until someone approves it."),
+      confirm: st.mem.teamConfirm === picked.file,
+      confirmSay: phrase("Open a PR that removes this memory from the team?"),
+      confirmYes: phrase("Open the PR"), confirmNo: phrase("Cancel"),
+      busy: st.mem.teamBusy === picked.file,
+      busySay: phrase("opening the PR…")
+    } : null,
+    editor: edit ? {
+      key: `edit:${edit.file}`, file: edit.file,
+      descriptionSay: phrase("Description"), description: edit.description,
+      bodySay: phrase("Content"), body: edit.body,
+      saveSay: edit.busy ? phrase("opening the PR…") : phrase("Open a PR with the change"), cancelSay: phrase("Cancel"),
+      busy: !!edit.busy, error: edit.error || ""
+    } : null,
+    notice: st.mem.notice,
+    error: errorModel(st.mem.error)
+  };
+}
+
+function memoriesViewModel() {
+  const tab = st.mem.tab;
+  const loading = tab === "mine" ? !st.mem.mine : tab === "proposals" ? !st.mem.proposals : !st.mem.team;
+  return {
+    head: headModel(),
+    tab,
+    loading,
+    loadingSay: { mine: phrase("reading your memories…"), proposals: phrase("reading the open proposals…"), team: phrase("reading the team memory…") }[tab],
+    mine: tab === "mine" ? mineModel() : null,
+    proposals: tab === "proposals" ? proposalsModel() : null,
+    team: tab === "team" ? teamModel() : null
   };
 }
 
@@ -578,88 +355,342 @@ function paintMemories() {
   memoriesSolid.show(memoriesViewModel());
 }
 
-async function getJson(path) {
-  const r = await fetch(path);
-  return r.json();
+function settledNotice(settled) {
+  if (!settled?.merged?.length) return null;
+  const n = settled.merged.reduce((sum, one) => sum + one.count, 0);
+  const prs = settled.merged.map((one) => `#${one.number}`).join(", ");
+  return {
+    say: n === 1 ? phrase("1 memory came into the team through {prs}; its personal copy was deleted.", { prs }) : phrase("{n} memories came into the team through {prs}; their personal copies were deleted.", { n, prs }),
+    undo: settled.entry || ""
+  };
 }
 
-async function pullMemories(fresh = false) {
-  const tail = fresh ? "&fresh=1" : "";
-  try {
-    const [active, archived] = await Promise.all([getJson(`/api/memories?status=active${tail}`), getJson(`/api/memories?status=archived${tail}`)]);
-    st.mem.active = active;
-    st.mem.archived = archived;
-  } catch {
-    st.mem.active = { state: "down", source: "memory", memories: st.mem.active?.memories, keptAt: st.mem.active?.at };
+async function pullMine(freshly = false) {
+  const said = await getJson(`/api/memories/mine${freshly ? "?fresh=1" : ""}`);
+  st.mem.mine = said.ok ? said.body : { state: "down", why: said.body?.why || "" };
+  const settled = settledNotice(said.body?.settled);
+  if (settled) {
+    st.mem.notice = { say: settled.say, url: "" };
+    if (settled.undo) st.mem.undo = { entry: settled.undo, say: settled.say };
   }
   paintMemories();
-  if (st.mem.tab === "summary") pullMemoryStats(fresh);
-  pickMemory(st.mem.pick);
+  pickMine(st.mem.pick);
 }
 
-async function send(path, payload = {}) {
-  try {
-    const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
-    let body = {};
-    try { body = await r.json(); } catch {}
-    return { status: r.status ?? 200, ok: r.ok, body: body || {} };
-  } catch {
-    return { status: 0, ok: false, body: { state: "down" } };
-  }
-}
-
-let loginPoll = null;
-
-async function pullLogin() {
-  try {
-    st.mem.login = await getJson("/api/memories/login");
-  } catch {
-    st.mem.login = st.mem.login || { state: "out", reach: "here" };
-  }
+async function pullProposals() {
+  const said = await getJson("/api/memories/proposals");
+  st.mem.proposals = said.body?.state ? said.body : { state: "down" };
   paintMemories();
-  return st.mem.login;
 }
 
-function waitForLogin(until = Date.now() + LOGIN_POLL_FOR_MS) {
-  clearTimeout(loginPoll);
-  loginPoll = setTimeout(async () => {
-    if (!memoriesOnScreen()) return;
-    const was = st.mem.login?.state;
-    const now = await pullLogin();
-    if (now?.state === "waiting" && Date.now() < until) return waitForLogin(until);
-    if (was === "waiting" && now?.state === "in") pullMemories(true);
-  }, LOGIN_POLL_MS);
-}
-
-async function signIn() {
-  if (st.mem.login?.configured === false || st.mem.busy === "login") return;
-  st.mem.busy = "login";
+async function pullTeam() {
+  const said = await getJson("/api/memories/team");
+  st.mem.team = said.body?.state ? said.body : { state: "down" };
   paintMemories();
-  const said = await send("/api/memories/login");
+}
+
+const pullTab = (tab, freshly = false) => (tab === "mine" ? pullMine(freshly) : tab === "proposals" ? pullProposals() : pullTeam());
+
+async function pullOne(id) {
+  if (!id || st.mem.detail[id]) return;
+  const said = await getJson(`/api/memories/mine/one?id=${encodeURIComponent(id)}`);
+  if (said.ok && said.body?.memory) st.mem.detail[id] = said.body.memory;
+  paintMemories();
+}
+
+function pickMine(id) {
+  st.mem.pick = id || "";
+  paintMemories();
+  if (st.mem.pick) pullOne(st.mem.pick);
+}
+
+function patchMine(id, change) {
+  if (!st.mem.mine?.memories) return;
+  st.mem.mine = { ...st.mem.mine, memories: st.mem.mine.memories.map((one) => (one.id === id ? { ...one, ...change } : one)) };
+}
+
+function failedSay(said) {
+  if (said.status === 409) return phrase("The file changed outside the panel. The list was read again; try once more.");
+  if (said.status === 404) return phrase("That memory is no longer on this machine.");
+  return phrase("Nothing was saved: {why}", { why: String(said.body?.why || phrase("the Hive did not answer")) });
+}
+
+async function setScope(id, scope) {
+  if (!SCOPES.includes(scope) || st.mem.busy) return;
+  st.mem.busy = id;
+  st.mem.error = null;
+  paintMemories();
+  const said = await send("/api/memories/mine/scope", { id, scope });
   st.mem.busy = "";
   if (said.ok) {
-    st.mem.login = said.body;
-    if (said.body.state === "waiting") waitForLogin();
-    if (said.body.state === "in") pullMemories(true);
+    patchMine(id, { scope });
+    paintMemories();
+    return;
+  }
+  st.mem.error = failedSay(said);
+  if (said.status === 409) await pullMine(false);
+  paintMemories();
+}
+
+async function deleteMine(id) {
+  const one = mineList().find((memory) => memory.id === id);
+  if (!one || st.mem.busy) return;
+  st.mem.busy = id;
+  st.mem.error = null;
+  paintMemories();
+  const said = await send("/api/memories/mine/delete", { id });
+  st.mem.busy = "";
+  if (said.ok) {
+    st.mem.mine = { ...st.mem.mine, memories: st.mem.mine.memories.filter((memory) => memory.id !== id), projects: (st.mem.mine.projects || []).map((project) => (project.id === one.project ? { ...project, count: Math.max(0, project.count - 1) } : project)) };
+    st.mem.chosen = st.mem.chosen.filter((chosen) => chosen !== id);
+    st.mem.undo = { entry: said.body.entry, say: phrase("“{name}” was deleted, and its line left the MEMORY.md.", { name: one.title || one.name }) };
+    paintMemories();
+    pickMine(st.mem.pick);
+    return;
+  }
+  st.mem.error = failedSay(said);
+  paintMemories();
+}
+
+async function undoLast() {
+  const undo = st.mem.undo;
+  if (!undo?.entry) return;
+  st.mem.undo = null;
+  const said = await send("/api/memories/mine/undo", { entry: undo.entry });
+  if (!said.ok) st.mem.error = failedSay(said);
+  else st.mem.notice = null;
+  await pullMine(false);
+}
+
+async function classify() {
+  const ids = mineList().filter((one) => (st.mem.project === ALL || one.project === st.mem.project) && !one.scope).map((one) => one.id);
+  if (!ids.length || st.mem.classify) return;
+  const ticket = Date.now() + Math.random();
+  st.mem.classify = { busy: true, n: ids.length, done: 0, ticket };
+  st.mem.error = null;
+  paintMemories();
+  const verdicts = [];
+  const failures = [];
+  for (let at = 0; at < ids.length; at += CLASSIFY_CHUNK) {
+    const said = await send("/api/memories/mine/classify", { ids: ids.slice(at, at + CLASSIFY_CHUNK) });
+    if (st.mem.classify?.ticket !== ticket) return;
+    if (said.ok) {
+      verdicts.push(...(said.body.verdicts || []));
+      failures.push(...(said.body.failures || []));
+    } else failures.push(String(said.body?.why || phrase("no answer")));
+    st.mem.classify.done = Math.min(ids.length, at + CLASSIFY_CHUNK);
+    paintMemories();
+  }
+  if (!verdicts.length) {
+    st.mem.classify = null;
+    st.mem.error = phrase("Claude did not classify: {why}", { why: failures[0] || phrase("no answer") });
+    paintMemories();
+    return;
+  }
+  st.mem.classify = { busy: false, verdicts: verdicts.map((one) => ({ ...one, keep: true })), failures };
+  paintMemories();
+}
+
+function classifyFlip(id) {
+  const one = st.mem.classify?.verdicts?.find((verdict) => verdict.id === id);
+  if (!one) return;
+  one.scope = nextScope(one.scope);
+  paintMemories();
+}
+
+function classifyKeep(id) {
+  const one = st.mem.classify?.verdicts?.find((verdict) => verdict.id === id);
+  if (!one) return;
+  one.keep = !one.keep;
+  paintMemories();
+}
+
+async function classifySave() {
+  const c = st.mem.classify;
+  if (!c || c.busy || c.saving) return;
+  const scopes = c.verdicts.filter((one) => one.keep).map((one) => ({ id: one.id, scope: one.scope }));
+  if (!scopes.length) return;
+  c.saving = true;
+  c.error = "";
+  paintMemories();
+  const said = await send("/api/memories/mine/scope", { scopes });
+  c.saving = false;
+  if (!said.ok) {
+    c.error = failedSay(said);
+    paintMemories();
+    return;
+  }
+  for (const one of scopes) patchMine(one.id, { scope: one.scope });
+  st.mem.classify = null;
+  if (said.body.entry) st.mem.undo = { entry: said.body.entry, say: scopes.length === 1 ? phrase("1 scope saved.") : phrase("{n} scopes saved.", { n: scopes.length }) };
+  paintMemories();
+}
+
+function choose(id) {
+  st.mem.chosen = st.mem.chosen.includes(id) ? st.mem.chosen.filter((one) => one !== id) : [...st.mem.chosen, id];
+  paintMemories();
+}
+
+async function propose(ids = st.mem.chosen) {
+  const picked = mineList().filter((one) => ids.includes(one.id) && !one.proposed);
+  if (!picked.length || st.mem.busy) return;
+  st.mem.busy = "propose";
+  st.mem.error = null;
+  st.mem.notice = null;
+  paintMemories();
+  const { title, body } = proposalText(picked);
+  const said = await send("/api/memories/propose", { ids: picked.map((one) => one.id), title, body });
+  st.mem.busy = "";
+  if (said.body?.state === "ok") {
+    const pr = said.body.pr;
+    for (const one of picked) patchMine(one.id, { proposed: { number: pr.number, url: pr.url, repo: pr.repo } });
+    st.mem.chosen = [];
+    st.mem.proposals = null;
+    st.mem.notice = { say: phrase("Proposal open in PR #{n}. A teammate approves it in the Proposals tab.", { n: pr.number }), url: pr.url, urlSay: phrase("open the PR ↗") };
+  } else if (said.body?.state === "blocked") {
+    st.mem.error = { head: phrase("The proposal did not go out: the team memory check found problems"), lines: (said.body.problems || []).map(problemSay) };
   } else {
-    st.mem.login = { ...(st.mem.login || {}), ...said.body, state: "out", error: signInError(said) };
+    st.mem.error = downSay(said);
   }
   paintMemories();
 }
 
-async function cancelSignIn() {
-  clearTimeout(loginPoll);
-  const said = await send("/api/memories/login/cancel");
-  st.mem.login = said.ok ? said.body : { state: "out", reach: st.mem.login?.reach };
+async function approve(number) {
+  if (st.mem.prBusy) return;
+  st.mem.prBusy = number;
+  st.mem.prError = null;
+  paintMemories();
+  const said = await send("/api/memories/proposals/approve", { number });
+  st.mem.prBusy = 0;
+  const state = said.body?.state;
+  if (state === "ok") {
+    st.mem.notice = { say: phrase("PR #{n} was approved and merged. The memory is in the team's from now on.", { n: number }), url: "" };
+    st.mem.team = null;
+    st.mem.mine = null;
+    await pullProposals();
+    return;
+  }
+  const say = state === "own" ? phrase("You opened this proposal, so someone else has to approve it.")
+    : state === "approved" ? phrase("Approved, but GitHub did not merge yet: {why}", { why: String(said.body?.why || "") })
+    : state === "bad" ? phrase("GitHub refused: {why}", { why: String(said.body?.why || "") })
+    : downSay(said);
+  st.mem.prError = { number, say };
   paintMemories();
 }
 
-async function signOut() {
-  st.mem.edit = null;
-  st.mem.confirm = "";
-  const said = await send("/api/memories/logout");
-  st.mem.login = said.ok ? said.body : { state: "out", reach: st.mem.login?.reach };
+function startTeamEdit() {
+  const one = (st.mem.team?.memories || []).find((memory) => memory.file === st.mem.pickTeam);
+  if (!one) return;
+  st.mem.teamConfirm = "";
+  st.mem.teamEdit = { file: one.file, description: one.description || "", body: one.body || "", busy: false, error: "" };
   paintMemories();
+  requestAnimationFrame(() => $("memories").querySelector("[data-mem-edit='description']")?.focus());
+}
+
+function teamEditField(key, value) {
+  if (st.mem.teamEdit && (key === "description" || key === "body")) st.mem.teamEdit[key] = value;
+}
+
+async function changeTeam(kind) {
+  const one = (st.mem.team?.memories || []).find((memory) => memory.file === st.mem.pickTeam);
+  if (!one || st.mem.teamBusy) return;
+  const edit = st.mem.teamEdit;
+  if (kind === "edit" && (!edit || !edit.body.trim() || !edit.description.trim())) {
+    if (edit) { edit.error = phrase("The description and the content cannot be empty."); paintMemories(); }
+    return;
+  }
+  st.mem.teamBusy = one.file;
+  if (edit) { edit.busy = true; edit.error = ""; }
+  st.mem.error = null;
+  st.mem.notice = null;
+  paintMemories();
+  const { title, body } = teamChangeText(kind, one);
+  const said = await send(`/api/memories/team/${kind}`, { file: one.file, title, prBody: body, ...(kind === "edit" ? { description: edit.description, body: edit.body } : {}) });
+  st.mem.teamBusy = "";
+  st.mem.teamConfirm = "";
+  if (said.body?.state === "ok") {
+    st.mem.teamEdit = null;
+    st.mem.proposals = null;
+    st.mem.notice = { say: phrase("PR #{n} is open with the change. It enters main when a teammate approves it.", { n: said.body.pr.number }), url: said.body.pr.url, urlSay: phrase("open the PR ↗") };
+  } else {
+    const say = said.body?.state === "blocked" ? (said.body.problems || []).map(problemSay).join(" · ") : downSay(said);
+    if (edit && st.mem.teamEdit === edit) { edit.busy = false; edit.error = say; } else st.mem.error = say;
+  }
+  paintMemories();
+}
+
+function memoryEscape() {
+  if (st.mem.teamEdit) { st.mem.teamEdit = null; paintMemories(); return true; }
+  if (st.mem.teamConfirm) { st.mem.teamConfirm = ""; paintMemories(); return true; }
+  if (st.mem.classify) { st.mem.classify = null; paintMemories(); return true; }
+  return false;
+}
+
+const inMemoryEditor = (target) => !!target?.closest?.("#memories .mem-editor");
+
+function stepMemory(step) {
+  if (st.mem.tab === "mine") {
+    const rows = shownMine(mineList(), st.mem);
+    if (!rows.length) return;
+    const at = rows.findIndex((one) => one.id === st.mem.pick);
+    pickMine(rows[(at + step + rows.length) % rows.length].id);
+    $("memories").querySelector(`[data-memory="${CSS.escape(st.mem.pick)}"]`)?.scrollIntoView({ block: "nearest" });
+    return;
+  }
+  if (st.mem.tab === "proposals") {
+    const rows = st.mem.proposals?.proposals || [];
+    if (!rows.length) return;
+    const at = rows.findIndex((one) => one.number === st.mem.pickPr);
+    st.mem.pickPr = rows[(at + step + rows.length) % rows.length].number;
+    paintMemories();
+    return;
+  }
+  const rows = (st.mem.team?.memories || []).filter((one) => matches(one, st.mem.teamQuery));
+  if (!rows.length) return;
+  const at = rows.findIndex((one) => one.file === st.mem.pickTeam);
+  st.mem.pickTeam = rows[(at + step + rows.length) % rows.length].file;
+  st.mem.teamEdit = null;
+  st.mem.teamConfirm = "";
+  paintMemories();
+}
+
+function setTab(tab) {
+  st.mem.tab = TABS.includes(tab) ? tab : "mine";
+  st.mem.notice = null;
+  st.mem.error = null;
+  paintMemories();
+  const held = { mine: st.mem.mine, proposals: st.mem.proposals, team: st.mem.team }[st.mem.tab];
+  if (!held) pullTab(st.mem.tab);
+}
+
+function openMemories() {
+  screenOpens();
+  releaseKeyboard();
+  $("memories").hidden = false;
+  paintMemories();
+  pullTab(st.mem.tab, true);
+  if (st.mem.tab !== "proposals") pullProposals();
+}
+
+function openMemoryAt(id) {
+  st.mem.tab = "mine";
+  if (id) {
+    st.mem.project = ALL;
+    st.mem.filter = ALL;
+    st.mem.query = "";
+    st.mem.pick = String(id);
+    delete st.mem.detail[st.mem.pick];
+  }
+  if (!memoriesOnScreen()) openMemories();
+  else { paintMemories(); pullMine(false); }
+}
+
+function closeMemories() {
+  st.mem.teamEdit = null;
+  st.mem.teamConfirm = "";
+  st.mem.classify = null;
+  $("memories").hidden = true;
+  memoriesSolid?.dispose();
 }
 
 function openOutside(url) {
@@ -668,278 +699,43 @@ function openOutside(url) {
   else window.open(url, "_blank", "noopener");
 }
 
-function writeErrorSay(said) {
-  const state = said.body?.state || (said.status === 0 ? "down" : "");
-  if (state === "out" || said.status === 401) return phrase("your sign-in expired — sign in again to save");
-  if (state === "forbidden" || said.status === 403) return phrase("your account cannot edit this memory");
-  if (state === "unsupported" || said.status === 501) return phrase("the memory server does not have this feature yet");
-  if (state === "gone" || said.status === 404) return phrase("this memory is no longer on the memory server");
-  if (state === "bad" || said.status === 400) return phrase("the memory server refused the change: {why}", { why: String(said.body?.why || "?") });
-  return phrase("the memory server did not answer — nothing was saved");
-}
-
-function signedOutBy(said) {
-  if (said.status !== 401 && said.body?.state !== "out") return;
-  st.mem.login = { ...(st.mem.login || {}), state: "out", email: "", notice: "expired" };
-}
-
-function changeListed(memory, to) {
-  const keys = to === ARCHIVED ? ["active", "archived"] : to === "active" ? ["archived", "active"] : null;
-  if (!keys) {
-    for (const key of ["active", "archived"]) {
-      if (!st.mem[key]?.memories) continue;
-      st.mem[key] = { ...st.mem[key], memories: st.mem[key].memories.map((one) => (one.id === memory.id ? { ...one, ...memory, content: undefined } : one)) };
-    }
-    return;
-  }
-  const [from, into] = keys;
-  const was = (st.mem[from]?.memories || []).find((one) => one.id === memory.id) || {};
-  const moved = { ...was, ...memory, content: undefined, status: to === ARCHIVED ? "archived" : "active" };
-  if (st.mem[from]?.memories) st.mem[from] = { ...st.mem[from], memories: st.mem[from].memories.filter((one) => one.id !== memory.id) };
-  if (st.mem[into]?.memories) st.mem[into] = { ...st.mem[into], memories: [moved, ...st.mem[into].memories.filter((one) => one.id !== memory.id)] };
-}
-
-function askArchive(id) {
-  st.mem.confirm = id;
-  st.mem.actError = null;
-  paintMemories();
-  requestAnimationFrame(() => $("memories").querySelector("[data-mem-confirm-yes]")?.focus());
-}
-
-async function archiveMemory(id, kind) {
-  st.mem.busy = id;
-  st.mem.actError = null;
-  paintMemories();
-  const said = await send(`/api/memories/${kind}`, { id });
-  st.mem.busy = "";
-  st.mem.confirm = "";
-  if (said.ok && said.body?.state === "ok") {
-    const memory = { ...(said.body.memory || { id }), id };
-    st.mem.detail[id] = { state: "ok", memory: { ...(st.mem.detail[id]?.memory || {}), ...memory } };
-    changeListed(memory, kind === "archive" ? ARCHIVED : "active");
-    paintMemories();
-    pullMemories(true);
-    return;
-  }
-  signedOutBy(said);
-  st.mem.actError = { id, say: writeErrorSay(said) };
-  paintMemories();
-}
-
-function startEdit() {
-  const memory = pickedMemory();
-  if (!memory || !canWrite()) return;
-  const was = { title: String(memory.title || ""), category: CATEGORIES.includes(memory.category) ? memory.category : CATEGORIES[0], tags: [...(memory.tags || [])], content: String(memory.content || "") };
-  st.mem.confirm = "";
-  st.mem.actError = null;
-  st.mem.edit = { id: memory.id, ...was, tags: [...was.tags], tagDraft: "", view: "write", saving: false, error: "", was };
-  paintMemories();
-  requestAnimationFrame(() => $("memories").querySelector("[data-mem-edit='title']")?.focus());
-}
-
-function cleanTag(text) {
-  return String(text || "").trim().toLowerCase().replace(/\s+/g, "-").replace(/^#/, "").slice(0, 40);
-}
-
-function addTags(text) {
-  const edit = st.mem.edit;
-  if (!edit) return;
-  for (const part of String(text).split(",")) {
-    const tag = cleanTag(part);
-    if (tag && !edit.tags.includes(tag) && edit.tags.length < 12) edit.tags.push(tag);
-  }
-}
-
-function editField(key, value, field = null) {
-  const edit = st.mem.edit;
-  if (!edit) return;
-  if (key === "tagDraft" && value.includes(",")) {
-    const parts = value.split(",");
-    addTags(parts.slice(0, -1).join(","));
-    edit.tagDraft = parts.at(-1);
-    if (field) field.value = edit.tagDraft;
-    paintMemories();
-    return;
-  }
-  edit[key] = value;
-  if (key === "category" || key === "view") paintMemories();
-}
-
-function tagKey(ev) {
-  const edit = st.mem.edit;
-  if (!edit) return;
-  if (ev.key === "Enter" && edit.tagDraft.trim()) {
-    ev.preventDefault();
-    addTags(edit.tagDraft);
-    edit.tagDraft = "";
-    ev.currentTarget.value = "";
-    paintMemories();
-  } else if (ev.key === "Backspace" && !ev.currentTarget.value && edit.tags.length) {
-    edit.tags.pop();
-    paintMemories();
-  }
-}
-
-function dropTag(tag) {
-  if (!st.mem.edit) return;
-  st.mem.edit.tags = st.mem.edit.tags.filter((one) => one !== tag);
-  paintMemories();
-}
-
-function editChanges(edit) {
-  const out = {};
-  if (edit.title.trim() !== edit.was.title.trim()) out.title = edit.title.trim();
-  if (edit.category !== edit.was.category) out.category = edit.category;
-  if (edit.content !== edit.was.content) out.content = edit.content;
-  if (edit.tags.join("\n") !== edit.was.tags.join("\n")) out.tags = [...edit.tags];
-  return out;
-}
-
-async function saveEdit() {
-  const edit = st.mem.edit;
-  if (!edit || edit.saving) return;
-  if (edit.tagDraft.trim()) { addTags(edit.tagDraft); edit.tagDraft = ""; }
-  if (!edit.title.trim()) { edit.error = phrase("the title cannot be empty"); paintMemories(); return; }
-  if (!edit.content.trim()) { edit.error = phrase("the content cannot be empty"); paintMemories(); return; }
-  const changes = editChanges(edit);
-  if (!Object.keys(changes).length) { st.mem.edit = null; paintMemories(); return; }
-  edit.saving = true;
-  edit.error = "";
-  paintMemories();
-  const said = await send("/api/memories/edit", { id: edit.id, ...changes });
-  if (st.mem.edit !== edit) return;
-  edit.saving = false;
-  if (said.ok && said.body?.state === "ok") {
-    const memory = { ...(said.body.memory || {}), id: edit.id };
-    st.mem.detail[edit.id] = { state: "ok", memory: { ...(st.mem.detail[edit.id]?.memory || {}), ...changes, ...memory } };
-    changeListed({ ...changes, ...memory }, null);
-    st.mem.edit = null;
-    paintMemories();
-    return;
-  }
-  signedOutBy(said);
-  edit.error = writeErrorSay(said);
-  paintMemories();
-}
-
-function cancelEdit() {
-  st.mem.edit = null;
-  paintMemories();
-}
-
-function memoryEscape() {
-  if (st.mem.edit) { cancelEdit(); return true; }
-  if (st.mem.confirm) { st.mem.confirm = ""; paintMemories(); return true; }
-  return false;
-}
-
-const inMemoryEditor = (target) => !!target?.closest?.("#memories .mem-editor");
-
-async function pullMemoryStats(fresh = false) {
-  try {
-    st.mem.stats = await getJson(`/api/memories/stats?weeks=12${fresh ? "&fresh=1" : ""}`);
-  } catch {
-    st.mem.stats = { state: "down", stats: null, source: "memory" };
-  }
-  paintMemories();
-}
-
-async function pullMemory(id) {
-  if (!id || st.mem.detail[id]) return;
-  try {
-    const said = await getJson(`/api/memories/one?id=${encodeURIComponent(id)}`);
-    if (said?.memory) st.mem.detail[id] = said;
-  } catch {}
-  paintMemories();
-}
-
-function pickMemory(id) {
-  if (st.mem.edit && st.mem.edit.id !== id) st.mem.edit = null;
-  if (st.mem.confirm && st.mem.confirm !== id) st.mem.confirm = "";
-  st.mem.pick = id || "";
-  paintMemories();
-  if (st.mem.pick) pullMemory(st.mem.pick);
-}
-
-function setMemoryFolder(key) {
-  st.mem.folder = key;
-  st.mem.pick = "";
-  paintMemories();
-  pickMemory(st.mem.pick);
-}
-
-function setMemoryTab(tab) {
-  st.mem.tab = tab === "summary" ? "summary" : "memories";
-  paintMemories();
-  if (st.mem.tab === "summary" && !st.mem.stats) pullMemoryStats(false);
-}
-
-function stepMemory(step) {
-  const rows = shownMemories(st.mem.active?.memories, st.mem.archived?.memories, st.mem);
-  if (!rows.length) return;
-  const at = rows.findIndex((one) => one.id === st.mem.pick);
-  pickMemory(rows[(at + step + rows.length) % rows.length].id);
-  $("memories").querySelector(`[data-memory="${CSS.escape(st.mem.pick)}"]`)?.scrollIntoView({ block: "nearest" });
-}
-
-function openMemories() {
-  screenOpens();
-  releaseKeyboard();
-  $("memories").hidden = false;
-  paintMemories();
-  pullMemories(false);
-  pullLogin().then((login) => { if (login?.state === "waiting") waitForLogin(); });
-  if (st.mem.tab === "summary") pullMemoryStats(false);
-}
-
-function openMemoryAt(id) {
-  if (!memoriesOnScreen()) openMemories();
-  if (!id) return;
-  st.mem.tab = "memories";
-  st.mem.folder = ALL;
-  st.mem.query = "";
-  st.mem.origin = ALL;
-  pickMemory(String(id));
-}
-
-function closeMemories() {
-  clearTimeout(loginPoll);
-  st.mem.edit = null;
-  st.mem.confirm = "";
-  $("memories").hidden = true;
-  memoriesSolid?.dispose();
-}
-
 document.addEventListener("hive:screen", () => { if (memoriesOnScreen()) closeMemories(); });
 
 solidMounts.push((hive) => {
   memoriesSolid = hive.mountMemories($("memories"), {
     actions: {
       close: () => closeMemories(),
-      tab: (key) => setMemoryTab(key),
-      folder: (key) => setMemoryFolder(key),
-      origin: (key) => { st.mem.origin = key; paintMemories(); pickMemory(st.mem.pick); },
-      search: (text) => { st.mem.query = text; paintMemories(); pickMemory(st.mem.pick); },
-      pick: (id) => pickMemory(id),
-      retry: () => { st.mem.active = st.mem.active?.memories ? st.mem.active : null; paintMemories(); pullMemories(true); },
-      doctor: () => window.hiveDoctorCheck?.(),
-      all: () => { st.mem.query = ""; st.mem.origin = ALL; setMemoryFolder(ALL); },
-      copy: (button, text) => copyWithWord(button, text),
-      seeOne: (id) => { st.mem.tab = "memories"; st.mem.folder = ALL; st.mem.query = ""; st.mem.origin = ALL; pickMemory(id); },
-      signIn: () => signIn(),
-      signOut: () => signOut(),
-      cancelSignIn: () => cancelSignIn(),
-      openAgain: (url) => openOutside(url),
-      edit: () => startEdit(),
-      editField: (key, value, field) => editField(key, value, field),
-      tagKey: (ev) => tagKey(ev),
-      dropTag: (tag) => dropTag(tag),
-      save: () => saveEdit(),
-      cancelEdit: () => cancelEdit(),
-      askArchive: (id) => askArchive(id),
-      keepIt: () => { st.mem.confirm = ""; paintMemories(); },
-      archive: (id) => archiveMemory(id, "archive"),
-      unarchive: (id) => archiveMemory(id, "unarchive")
+      tab: (key) => setTab(key),
+      retry: () => { if (st.mem.tab === "mine") st.mem.mine = null; if (st.mem.tab === "proposals") st.mem.proposals = null; if (st.mem.tab === "team") st.mem.team = null; paintMemories(); pullTab(st.mem.tab, true); },
+      project: (key) => { st.mem.project = key; st.mem.pick = ""; paintMemories(); pickMine(st.mem.pick); },
+      filter: (key) => { st.mem.filter = FILTERS.includes(key) ? key : ALL; paintMemories(); pickMine(st.mem.pick); },
+      search: (text) => { st.mem.query = text; paintMemories(); pickMine(st.mem.pick); },
+      all: () => { st.mem.query = ""; st.mem.filter = ALL; paintMemories(); pickMine(st.mem.pick); },
+      pick: (id) => pickMine(id),
+      choose: (id) => choose(id),
+      scope: (id, scope) => setScope(id, scope),
+      flipScope: (id) => setScope(id, nextScope(mineList().find((one) => one.id === id)?.scope)),
+      remove: (id) => deleteMine(id),
+      undo: () => undoLast(),
+      dismiss: () => { st.mem.notice = null; st.mem.error = null; paintMemories(); },
+      classify: () => classify(),
+      classifyFlip: (id) => classifyFlip(id),
+      classifyKeep: (id) => classifyKeep(id),
+      classifySave: () => classifySave(),
+      classifyCancel: () => { st.mem.classify = null; paintMemories(); },
+      propose: (ids) => propose(ids),
+      pickPr: (number) => { st.mem.pickPr = number; paintMemories(); },
+      approve: (number) => approve(number),
+      teamSearch: (text) => { st.mem.teamQuery = text; paintMemories(); },
+      pickTeam: (file) => { st.mem.pickTeam = file; st.mem.teamEdit = null; st.mem.teamConfirm = ""; paintMemories(); },
+      teamEdit: () => startTeamEdit(),
+      teamField: (key, value) => teamEditField(key, value),
+      teamSave: () => changeTeam("edit"),
+      teamCancel: () => { st.mem.teamEdit = null; paintMemories(); },
+      teamAskDelete: () => { st.mem.teamConfirm = st.mem.pickTeam; st.mem.teamEdit = null; paintMemories(); },
+      teamKeep: () => { st.mem.teamConfirm = ""; paintMemories(); },
+      teamDelete: () => changeTeam("delete"),
+      open: (url) => openOutside(url)
     }
   });
 });
@@ -947,7 +743,6 @@ solidMounts.push((hive) => {
 $("btn-memories")?.addEventListener("click", () => (memoriesOnScreen() ? closeMemories() : openMemories()));
 
 export {
-  ARCHIVE_AFTER_DAYS, agoSay, inMemoryEditor, judgeHealth, memoryEscape, spendModel, unansweredModel, signIn, signOut, saveEdit, startEdit, bridgeCeilingHeld, closeMemories, dateSay, daysUntilArchive, judgeFunnel, lastWeeksAdded, memoriesOnScreen,
-  memoriesViewModel, memoryFolders, newThisWeek, openMemories, openMemoryAt, paintMemories, pickMemory, pullMemories, repoBars, setMemoryFolder,
-  setMemoryTab, shownMemories, soonArchived, stepMemory, weeklyChart, weekStart
+  closeMemories, filterCounts, inMemoryEditor, isCandidate, memoriesOnScreen, memoriesViewModel, memoryEscape, nextScope, openMemories, openMemoryAt, paintMemories,
+  pickMine, problemSay, proposalText, pullMine, setTab, shownMine, stepMemory
 };

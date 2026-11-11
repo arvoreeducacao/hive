@@ -32,7 +32,6 @@ const ctx = {
   hubFolder: "acme-hub",
   reposOwner: "acme",
   expectedRepos: ["acme-hub", "dev-workspaces"],
-  memoryPlugin: "claude-memory@acme",
   trustedDirs: ["/workspace/repos/acme-hub", "/workspace/repos/dev-workspaces", "/workspace/hive"],
   repo: "/Users/ada/repos/dev-workspaces",
   bin: "/Users/ada/.local/bin",
@@ -665,27 +664,6 @@ test("gh on the pod", () => {
   assert.match(logged.detail, /adaandrade/);
 });
 
-test("memory: no plugin, no credential and a live session each read differently", () => {
-  const absent = readings.checkMemory(JSON.stringify({ installed: false, enabled: false, user: "", refresh: false, expiresIn: 0 }), ctx);
-  assert.equal(absent.state, "fail");
-  assert.match(absent.fix.command, /pod-memory\.sh ada/);
-  const disabled = readings.checkMemory(JSON.stringify({ installed: true, enabled: false, user: "ada", refresh: true, expiresIn: 600 }), ctx);
-  assert.equal(disabled.state, "fail");
-  assert.match(disabled.detail, /disabled/);
-  const anonymous = readings.checkMemory(JSON.stringify({ installed: true, enabled: true, user: "", refresh: false, expiresIn: 0 }), ctx);
-  assert.equal(anonymous.state, "fail");
-  assert.match(anonymous.detail, /Not authenticated/);
-  const stale = readings.checkMemory(JSON.stringify({ installed: true, enabled: true, user: "ada", refresh: false, expiresIn: -60 }), ctx);
-  assert.equal(stale.state, "warn");
-  const live = readings.checkMemory(JSON.stringify({ installed: true, enabled: true, user: "ada", refresh: true, expiresIn: 1800 }), ctx);
-  assert.equal(live.state, "ok");
-  assert.match(live.detail, /ada/);
-  const refreshable = readings.checkMemory(JSON.stringify({ installed: true, enabled: true, user: "ada", refresh: true, expiresIn: -60 }), ctx);
-  assert.equal(refreshable.state, "ok");
-  assert.match(refreshable.detail, /refreshes on the next session/);
-  assert.equal(readings.checkMemory("garbage", ctx).state, "fail");
-});
-
 test("cloud sessions: unconfigured, broken, stale and healthy each read differently", () => {
   const state = (data) => readings.checkCloudSessions(JSON.stringify(data), ctx);
   const absent = state({ repo: "", script: false, lastSync: 0, lastLog: "", now: Date.now() });
@@ -708,13 +686,6 @@ test("cloud sessions: unconfigured, broken, stale and healthy each read differen
   assert.equal(readings.checkCloudSessions("garbage", ctx).state, "warn");
 });
 
-test("the memory probe reports the credential without carrying it", () => {
-  const script = probeScript(ctx);
-  assert.match(script, /==memory/);
-  assert.equal(/cred\.token|creds\.token|refreshToken:cred\.refreshToken/.test(script), false);
-  assert.match(script, /refresh:!!cred\.refreshToken/);
-});
-
 test("disk: reads df -k and scales the state", () => {
   assert.equal(readings.checkDisk("/dev/nvme1n1 104857600 52428800 52428800 50% /workspace", ctx).state, "ok");
   assert.equal(readings.checkDisk("/dev/nvme1n1 104857600 94371840 10485760 90% /workspace", ctx).state, "warn");
@@ -730,7 +701,6 @@ test("a pod check does not invent a failure while the pod sleeps", () => {
     readings.checkSigners(null, asleep),
     readings.checkCredential(null, asleep),
     readings.checkFlags(null, asleep),
-    readings.checkMemory(null, asleep),
     readings.checkCloudSessions(null, asleep),
     readings.checkRemoteControl(null, asleep),
     readings.checkRepos(null, asleep),
@@ -757,7 +727,7 @@ test("the probe output is sliced by section", () => {
 test("every section marker opens its own line, even after output with no trailing newline", () => {
   const script = probeScript(ctx);
   const markers = [...script.matchAll(/^printf '\\n==(\w+)\\n'/gm)].map((m) => m[1]);
-  for (const section of ["clock", "signers", "credential", "flags", "memory", "boot", "cloudsessions", "control", "repos", "context", "gh", "mcpenv", "disk"]) {
+  for (const section of ["clock", "signers", "credential", "flags", "boot", "cloudsessions", "control", "repos", "context", "gh", "mcpenv", "disk"]) {
     assert.ok(markers.includes(section), `${section} must open its own line`);
   }
   assert.equal(/^echo "==/m.test(script), false);
@@ -798,7 +768,7 @@ test("the 15s ceiling holds for the whole doctor", () => {
   assert.ok(slowest < 15000, `the slowest check can take ${slowest}ms`);
 });
 
-test("a dead cluster does not hold the local checks and still returns 21 items", async () => {
+test("a dead cluster does not hold the local checks and still returns 20 items", async () => {
   const started = Date.now();
   const items = await runChecks({ ...ctx, hasConfig: true, configText: CONFIG, hubExists: true }, {
     exec: () => new Promise(() => {}),
@@ -806,21 +776,20 @@ test("a dead cluster does not hold the local checks and still returns 21 items",
     timeouts: { local: 40, cluster: 60, node: 40, probe: 80, podCheck: 90, door: 40 }
   });
   const spent = Date.now() - started;
-  assert.equal(items.length, 21);
-  assert.equal(new Set(items.map((i) => i.id)).size, 21);
+  assert.equal(items.length, 20);
+  assert.equal(new Set(items.map((i) => i.id)).size, 20);
   for (const check of items) normalizeItem(check);
   assert.ok(spent < 800, `it took ${spent}ms`);
   assert.equal(items.find((i) => i.id === "config").state, "ok");
 });
 
-test("with the probe answering, the 21 items come from one snapshot", async () => {
+test("with the probe answering, the 20 items come from one snapshot", async () => {
   const probe = [
     "==clock", String(Math.floor(Date.now() / 1000)),
     "==cli", "a".repeat(64),
     "==signers", "has", "ada",
     "==credential", JSON.stringify({ token: true, expires: Date.now() + 3600000, refresh: true, plan: "max" }),
     "==flags", JSON.stringify({ onboarding: true, bypass: true, skipBypass: true, trusted: Object.fromEntries(ctx.trustedDirs.map((d) => [d, true])), cross: "accept" }),
-    "==memory", JSON.stringify({ installed: true, enabled: true, user: "ada", refresh: true, expiresIn: 1800 }),
     "==boot", "2026-08-19T09:00:00Z boot", "2026-08-20T09:00:00Z boot",
     "==cloudsessions", JSON.stringify({ repo: "https://github.com/ada/claude-sessions.git", script: true, lastSync: Date.now() - 120000, lastLog: "2026-08-19T12:00:00.000Z pulled=0 pushed=2 unchanged=40", now: Date.now() }),
     "==control", "Ready",
@@ -836,7 +805,7 @@ test("with the probe answering, the 21 items come from one snapshot", async () =
     ask: DOOR_ANSWERS
   });
   const byId = Object.fromEntries(items.map((i) => [i.id, i]));
-  assert.equal(items.length, 21);
+  assert.equal(items.length, 20);
   assert.equal(byId["cloud-door"].state, "ok");
   assert.equal(byId["last-boot"].state, "ok");
   assert.match(byId["last-boot"].detail, /booted at 2026-08-20T09:00:00Z, with nothing failing since/);
@@ -846,14 +815,13 @@ test("with the probe answering, the 21 items come from one snapshot", async () =
   assert.equal(byId.disk.state, "ok");
   assert.equal(byId["mcp-env"].state, "ok");
   assert.equal(byId.gh.state, "ok");
-  assert.equal(byId.memory.state, "ok");
   assert.equal(byId["cloud-sessions"].state, "ok");
   assert.equal(byId["hub-context"].state, "ok");
   assert.equal(byId["hub-contract"].state, "ok");
   assert.equal(worstState(items.filter((i) => !["key", "deps"].includes(i.id))), "ok");
 });
 
-test("a kubelet that died gives one rich failure and fifteen quiet skips", async () => {
+test("a kubelet that died gives one rich failure and fourteen quiet skips", async () => {
   const dead = JSON.stringify({
     metadata: { name: "ws-ada-0", deletionTimestamp: "2026-08-19T15:05:00Z" },
     status: { phase: "Running", containerStatuses: [{ ready: true }] },
@@ -872,11 +840,11 @@ test("a kubelet that died gives one rich failure and fifteen quiet skips", async
   assert.match(root.detail, /going away for 15 min — stuck terminating on the machine ip-10-0-0-1, which is NotReady/);
   assert.equal(items.find((i) => i.id === "android").detail, readings.ANDROID_NOT_CONFIGURED, "the local skip keeps its own reason");
   const skipped = items.filter((i) => i.state === "skip" && i.id !== "android");
-  assert.equal(skipped.length, 15);
+  assert.equal(skipped.length, 14);
   assert.equal(new Set(skipped.map((i) => i.detail)).size, 1);
   assert.equal(skipped.filter((i) => i.fix).length, 0);
   assert.deepEqual(skipped.map((i) => i.id).sort(), [
-    "allowed-signers", "clock", "cloud-door", "cloud-sessions", "credential", "disk", "flags", "gh", "hub-context", "hub-contract", "last-boot", "mcp-env", "memory", "remote-control", "repos"
+    "allowed-signers", "clock", "cloud-door", "cloud-sessions", "credential", "disk", "flags", "gh", "hub-context", "hub-contract", "last-boot", "mcp-env", "remote-control", "repos"
   ]);
 });
 
@@ -1071,7 +1039,6 @@ test("--fix reaches for the fixes and leaves the investigations to be read", asy
     "==signers", "has", "ada",
     "==credential", JSON.stringify({ token: true, expires: Date.now() + 3600000, refresh: true, plan: "max" }),
     "==flags", JSON.stringify({ onboarding: false, bypass: false, trusted: {}, cross: "ask" }),
-    "==memory", JSON.stringify({ installed: true, enabled: true, user: "ada", refresh: true, expiresIn: 1800 }),
     "==boot", "2026-08-19T09:00:00Z boot", "2026-08-19T09:01:00Z boot-error step=repos detail=clone-failed",
     "==cloudsessions", JSON.stringify({ repo: "https://github.com/ada/claude-sessions.git", script: true, lastSync: Date.now() - 120000, lastLog: "2026-08-19T12:00:00.000Z pulled=0 pushed=2 unchanged=40", now: Date.now() }),
     "==control", "Ready",
@@ -1087,7 +1054,7 @@ test("--fix reaches for the fixes and leaves the investigations to be read", asy
     ask: DOOR_ANSWERS
   });
   const byId = Object.fromEntries(items.map((i) => [i.id, i]));
-  assert.equal(items.length, 21);
+  assert.equal(items.length, 20);
 
   assert.equal(byId.disk.state, "warn");
   assert.equal(actionOf(byId.disk), "investigate");
