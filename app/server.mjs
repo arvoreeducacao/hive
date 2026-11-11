@@ -9,7 +9,7 @@ import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promis
 import { parse as parseJsonc, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
 import { createHash, randomUUID } from "node:crypto";
 import { seatKey, fleetPlan, ownsFleet, localRestoreScript, localRestorePlan, seatIsRestorable, archiveEntry, seatFromArchive, archiveOrder, GAVE_UP_NOTHING_TO_RESUME, withoutTheLiving, HELD_STILL_ANSWERS, settleSpawnJobs, forgetSpawnJobsOf } from "./lib/fleet.mjs";
-import { secretsForSeats } from "./lib/secrets.mjs";
+import { isVaultRef, secretsForSeats, valueFor, vaultThroughGateway, withVaultValues } from "./lib/secrets.mjs";
 import { PEER_MODULE_PROBE, peerToolsCommand } from "./lib/peer-tools.mjs";
 import { peerEntry } from "../server/engine/peer-module.mjs";
 import { accountsDir, readAccounts as accountsHeld, shapeAccount } from "./lib/accounts.mjs";
@@ -126,7 +126,7 @@ import { attachSeat } from "./lib/seat-link.mjs";
 import { askTheDoor, findCloudServer, NO_ADDRESS } from "./lib/cloud-door.mjs";
 import { avatarFor, avatarKey } from "./assets/avatar/avatar.mjs";
 import { moodOf } from "./assets/mood.mjs";
-import { workspaceOf, readManifest } from "./lib/hub-workspace.mjs";
+import { DEFAULT_GATEWAY_PORT, workspaceOf, readManifest } from "./lib/hub-workspace.mjs";
 import { HUB_MARKERS, cloudRepoOfTheHub, hubLookOf, hubPathFrom, makeHub } from "./lib/hub-path.mjs";
 import { FIRST_FLIGHT, firstFlightAgentOf, firstFlightMission } from "./lib/first-flight.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -643,6 +643,8 @@ function readEnvFile(text) {
   return out;
 }
 
+const vaultProblemsSaid = new Set();
+
 async function hubSeatEnv() {
   const tuning = contextUsageEnv((await readConfig()).config);
   let env = {};
@@ -652,7 +654,17 @@ async function hubSeatEnv() {
     const mcp = await readFile(join(HUB, ".mcp.json"), "utf8");
     wanted = new Set([...mcp.matchAll(/\$\{([A-Z0-9_]+)\}/g)].map((m) => m[1]));
   } catch { return tuning; }
-  const found = secretsForSeats(wanted, { env, hub: HUB });
+  const plain = secretsForSeats(wanted, { env, hub: HUB });
+  const read = vaultThroughGateway({
+    port: Number(process.env.HIVE_MCP_GATEWAY_PORT || DEFAULT_GATEWAY_PORT),
+    token: valueFor("HIVE_MCP_GATEWAY_TOKEN", { env, hub: HUB }).value
+  });
+  const { values: found, problems } = await withVaultValues(plain, read);
+  for (const problem of problems) {
+    if (vaultProblemsSaid.has(problem)) continue;
+    vaultProblemsSaid.add(problem);
+    console.error(`hive: um chat abre sem uma variavel do .mcp.json: ${problem}`);
+  }
   const held = {};
   for (const key of wanted) if (found[key]) held[key] = found[key];
   return { ...held, ...tuning };
@@ -671,6 +683,11 @@ async function hubEnvIntoTmux() {
     if (already.get(key) === value) continue;
     lines.push(`tmux set-environment -g ${key} ${quoted(value)} 2>/dev/null`);
     lines.push(`tmux set-environment -t ${LOCAL_SESSION} ${key} ${quoted(value)} 2>/dev/null`);
+  }
+  for (const [key, value] of already) {
+    if (found[key] || !isVaultRef(value)) continue;
+    lines.push(`tmux set-environment -gu ${key} 2>/dev/null`);
+    lines.push(`tmux set-environment -t ${LOCAL_SESSION} -u ${key} 2>/dev/null`);
   }
   if (!found[CONTEXT_USAGE_ENV] && already.has(CONTEXT_USAGE_ENV)) {
     lines.push(`tmux set-environment -gu ${CONTEXT_USAGE_ENV} 2>/dev/null`);
