@@ -5,7 +5,51 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createGateway, expandEnv, loadDotEnv, missingEnvKeys, authorize, manifestKey, seatEnvFrom, isVaultRef, readVaultRef, resolveVaultRefs, vaultRefsOf } from "../gateway/gateway.mjs";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { createGateway, expandEnv, loadDotEnv, missingEnvKeys, authorize, manifestKey, seatEnvFrom, isVaultRef, readVaultRef, resolveVaultRefs, vaultRefsOf, invokedAsScript } from "../gateway/gateway.mjs";
+
+const GATEWAY_SCRIPT = fileURLToPath(new URL("../gateway/gateway.mjs", import.meta.url));
+
+test("invokedAsScript reconhece o proprio arquivo pelo caminho do sistema e recusa o resto", () => {
+  assert.equal(invokedAsScript(GATEWAY_SCRIPT, GATEWAY_SCRIPT), true);
+  assert.equal(invokedAsScript(fileURLToPath(import.meta.url), GATEWAY_SCRIPT), false);
+  assert.equal(invokedAsScript(undefined, GATEWAY_SCRIPT), false);
+  assert.equal(invokedAsScript(join(tmpdir(), "nao-existe.mjs"), GATEWAY_SCRIPT), false);
+});
+
+test("rodar gateway.mjs como script sobe a porta, inclusive no Windows", async (t) => {
+  const hub = mkdtempSync(join(tmpdir(), "gw-script-"));
+  mkdirSync(join(hub, ".mcp-servers"), { recursive: true });
+  writeFileSync(join(hub, ".mcp-servers", "servers.json"), JSON.stringify({ servers: {} }));
+  const child = spawn(process.execPath, [GATEWAY_SCRIPT], {
+    env: { ...process.env, HIVE_HUB: hub, HIVE_MCP_GATEWAY_PORT: "0", HIVE_MCP_GATEWAY_TOKEN: "teste" },
+    stdio: ["ignore", "ignore", "pipe"],
+  });
+  const exited = new Promise((done) => child.once("exit", done));
+  t.after(async () => {
+    child.kill();
+    await exited;
+    rmSync(hub, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+  });
+  const line = await new Promise((done, fail) => {
+    let err = "";
+    const timer = setTimeout(() => fail(new Error(`o gateway nao anunciou a porta em 10s: ${err}`)), 10000);
+    child.stderr.on("data", (chunk) => {
+      err += chunk;
+      const found = err.match(/\[mcp-gateway\] 127\.0\.0\.1:(\d+)/);
+      if (found) {
+        clearTimeout(timer);
+        done(found[0]);
+      }
+    });
+    child.on("exit", (code) => {
+      clearTimeout(timer);
+      fail(new Error(`o gateway saiu com ${code} sem subir: ${err}`));
+    });
+  });
+  assert.match(line, /127\.0\.0\.1:\d+/);
+});
 
 const FAKE_SERVER = `
 let buf = "";

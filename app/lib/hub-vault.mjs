@@ -82,6 +82,17 @@ const parsed = (text) => {
   }
 };
 
+async function hubItemOf(vault, op) {
+  const listed = await op(["item", "list", "--vault", vault, "--format", "json"]);
+  if (!listed.ok) return { error: listed.error, reason: "vault-failed" };
+  const named = (parsed(listed.out) || []).filter((one) => one?.title === VAULT_ITEM);
+  if (named.length > 1) return { error: `the ${vault} vault has ${named.length} items named ${VAULT_ITEM}: keep one and archive the others`, reason: "vault-duplicate" };
+  if (!named.length) return { item: null };
+  const current = await op(["item", "get", named[0].id, "--vault", vault, "--format", "json"]);
+  const item = current.ok ? parsed(current.out) : null;
+  return item ? { item } : { error: current.error || `1Password did not return the ${VAULT_ITEM} item`, reason: "vault-failed" };
+}
+
 export async function moveToVault({ key, value, op = runOp }) {
   if (!value) return { error: `${key} has no value in the .env to move` };
   if (value.startsWith("op://")) return { error: `${key} is already in 1Password` };
@@ -89,8 +100,9 @@ export async function moveToVault({ key, value, op = runOp }) {
   if (!listed.ok) return { error: listed.error === "ENOENT" ? "the op command is not installed" : listed.error, reason: listed.error === "ENOENT" ? "no-op" : "vault-failed" };
   const vault = pickVault(parsed(listed.out));
   if (!vault) return { error: "1Password shows no vault", reason: "vault-failed" };
-  const current = await op(["item", "get", VAULT_ITEM, "--vault", vault, "--format", "json"]);
-  const item = current.ok ? parsed(current.out) : null;
+  const found = await hubItemOf(vault, op);
+  if (found.error) return found;
+  const { item } = found;
   const saved = item
     ? await op(["item", "edit", item.id, "--vault", vault, "--format", "json"], { template: JSON.stringify(itemWithField(item, key, value)) })
     : await op(["item", "create", "--vault", vault, "--format", "json"], { template: JSON.stringify(itemWithField({ title: VAULT_ITEM, category: "API_CREDENTIAL", fields: [] }, key, value)) });

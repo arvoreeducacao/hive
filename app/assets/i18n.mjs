@@ -2152,6 +2152,7 @@ export const PT_BR = {
   "not set in .env": "não está no .env",
   "move to 1Password": "mover pro 1Password",
   "moved to 1Password: {ref}": "movida pro 1Password: {ref}",
+  "1Password has more than one hub-env item: keep one and archive the others": "o 1Password tem mais de um item hub-env: fique com um e arquive os outros",
   "check the setup": "conferir a configuração",
   "the op command of 1Password is not installed; run sudo apt install 1password-cli": "o comando op do 1Password não está instalado; rode sudo apt install 1password-cli",
   "in the 1Password app, turn on Settings, Developer, Integrate with 1Password CLI": "no app do 1Password, ligue Configurações, Desenvolvedor, Integrar com o 1Password CLI",
