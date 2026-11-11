@@ -383,7 +383,7 @@ const ACTION_SAID = {
   day: "your day — what you asked for, and what came back",
   tasks: "your tasks — yours, the ones passed to you and the team's",
   shelf: "the shelf — every page this team published",
-  memories: "memories — what the team memory holds, and how it grows",
+  memories: "memories — your memories and the team's",
   history: "past sessions (revive)",
   accounts: "providers and accounts — the agents this hive seats, their logins and limits",
   extensions: "extensions — what this hive runs on top of the hive",

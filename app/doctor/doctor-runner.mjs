@@ -131,10 +131,6 @@ export function probeScript(ctx) {
     'let s={};try{s=JSON.parse(fs.readFileSync(process.env.HOME+"/.claude/settings.json","utf8"))}catch(e){}' +
     `const t={};for(const d of ${JSON.stringify(ctx.trustedDirs ?? readings.TRUSTED_DIRS)})t[d]=!!(j.projects&&j.projects[d]&&j.projects[d].hasTrustDialogAccepted);` +
     'console.log(JSON.stringify({onboarding:!!j.hasCompletedOnboarding,bypass:!!j.bypassPermissionsModeAccepted,trusted:t,cross:s.crossSessionInbound||"",skipBypass:!!s.skipDangerousModePermissionPrompt}))\'';
-  const memory = 'node -e \'const fs=require("fs");const read=(f)=>{try{return JSON.parse(fs.readFileSync(f,"utf8"))}catch(e){return {}}};' +
-    'const home=process.env.HOME;const ins=read(home+"/.claude/plugins/installed_plugins.json");const cfg=read(home+"/.claude/settings.json");' +
-    'const cred=read(home+"/.config/pi/memory-credentials.json");' +
-    `console.log(JSON.stringify({installed:!!(ins.plugins||{})["${ctx.memoryPlugin ?? readings.MEMORY_PLUGIN}"],enabled:(cfg.enabledPlugins||{})["${ctx.memoryPlugin ?? readings.MEMORY_PLUGIN}"]===true,user:cred.username||"",refresh:!!cred.refreshToken,expiresIn:cred.expiresAt?Math.round((cred.expiresAt-Date.now())/1000):0}))'`;
   const cloudSessions = 'node -e \'const fs=require("fs");const read=(f)=>{try{return fs.readFileSync(f,"utf8")}catch(e){return ""}};const home=process.env.HOME;' +
     'let c={};try{c=JSON.parse(read(home+"/.claude/cloud-sessions.json"))}catch(e){}' +
     'const state=home+"/.claude/cloud-sessions";const last=Number(read(state+"/last-sync").trim())||0;' +
@@ -152,7 +148,6 @@ else
 fi
 printf '\\n==credential\\n'; node -e 'try{const o=JSON.parse(require("fs").readFileSync(process.env.HOME+"/.claude/.credentials.json","utf8")).claudeAiOauth||{};console.log(JSON.stringify({token:!!o.accessToken,expires:o.expiresAt||0,refresh:!!o.refreshToken,plan:o.subscriptionType||""}))}catch(e){console.log("{}")}' 2>/dev/null || echo "{}"
 printf '\\n==flags\\n'; ${flags} 2>/dev/null
-printf '\\n==memory\\n'; ${memory} 2>/dev/null
 printf '\\n==boot\\n'; tail -20 ${readings.BOOT_LOG} 2>/dev/null
 printf '\\n==cloudsessions\\n'; ${cloudSessions} 2>/dev/null
 printf '\\n==control\\n'; if tmux has-session -t rc 2>/dev/null; then tmux capture-pane -t rc -p 2>/dev/null | grep -v '^$' | tail -6; else echo down; fi
@@ -220,7 +215,6 @@ export async function buildContext(options = {}) {
     hubFolder: HUB_FOLDER,
     reposOwner: REPOS_OWNER,
     expectedRepos: readings.EXPECTED_REPOS,
-    memoryPlugin: readings.MEMORY_PLUGIN,
     trustedDirs: readings.TRUSTED_DIRS,
     home,
     stateDir: env.HIVE_STATE_DIR || env.HIVE_HOME || join(home, ".hive"),
@@ -340,7 +334,6 @@ export async function runChecks(ctx, options = {}) {
     { id: "allowed-signers", title: "allowed_signers on the server", timeout: T.podCheck, run: async () => readings.checkSigners(await section("signers"), ctx) },
     { id: "credential", title: "Claude credential on the server", timeout: T.podCheck, run: async () => readings.checkCredential(await section("credential"), ctx) },
     { id: "flags", title: "Claude flags on the server", timeout: T.podCheck, run: async () => readings.checkFlags(await section("flags"), ctx) },
-    { id: "memory", title: "team memory on the server", timeout: T.podCheck, run: async () => readings.checkMemory(await section("memory"), ctx) },
     { id: "cloud-sessions", title: "session sync on the server", timeout: T.podCheck, run: async () => readings.checkCloudSessions(await section("cloudsessions"), ctx) },
     { id: "remote-control", title: "remote control alive", timeout: T.podCheck, run: async () => readings.checkRemoteControl(await section("control"), ctx, await section("credential")) },
     { id: "repos", title: "repos cloned on the server", timeout: T.podCheck, run: async () => readings.checkRepos(await section("repos"), ctx) },

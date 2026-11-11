@@ -7,10 +7,8 @@ function Chip(props) {
       <span class="c lent" title={props.chip.title} data-take={props.chip.take} innerHTML={props.chip.html}
         onClick={(ev) => { ev.stopPropagation(); props.actions.takeBack(props.chip.take); }} />
     }>
-      <span class={`c ${props.chip.cls}`} title={props.chip.title} data-memory={props.chip.memory || undefined}
-        onClick={props.chip.memory ? (ev) => { ev.stopPropagation(); props.actions.memory(props.chip.memory, ev.currentTarget); } : undefined}>
+      <span class={`c ${props.chip.cls}`} title={props.chip.title}>
         <Show when={props.chip.icon}><svg aria-hidden="true"><use href={props.chip.icon} /></svg></Show>
-        <Show when={props.chip.memory}><i class="mdot" aria-hidden="true" /></Show>
         <span class="tx">{props.chip.text}</span>
         <Show when={props.chip.twig}><b>{props.chip.twig}</b></Show>
       </span>
@@ -20,15 +18,13 @@ function Chip(props) {
 
 function HeadChip(props) {
   return (
-    <span class={`c ${props.chip.cls}`} title={props.chip.title} data-copy={props.chip.copy || undefined} data-memory={props.chip.memory || undefined}
+    <span class={`c ${props.chip.cls}`} title={props.chip.title} data-copy={props.chip.copy || undefined}
       onClick={(ev) => {
-        if (props.chip.memory) { ev.stopPropagation(); props.actions.memory(props.chip.memory, ev.currentTarget); return; }
         if (!props.chip.copy) return;
         ev.stopPropagation();
         props.actions.copy(props.chip.copy, ev.currentTarget);
       }}>
       <Show when={props.chip.icon}><svg aria-hidden="true"><use href={props.chip.icon} /></svg></Show>
-      <Show when={props.chip.memory}><i class="mdot" aria-hidden="true" /></Show>
       <span class="tx">{props.chip.text}</span>
     </span>
   );

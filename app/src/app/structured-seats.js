@@ -6,13 +6,11 @@ import { ago } from "./pod.js";
 import { splitPeerHandle } from "./pure-helpers.js";
 import { paintSubs } from "./subagents-dock.js";
 import { blockText, toClipboard } from "./terminal-history.js";
-import { forgetMemory } from "./memory-signal.js";
 import { spokenNow } from "/assets/i18n.mjs";
 
 const structPool = new Map();
 
 function forgetStruct(name) {
-  forgetMemory(name);
   const e = structPool.get(name);
   if (!e) return false;
   try { e.talkOff?.(); } catch {}

@@ -3,7 +3,6 @@ import { svConvCards, svConvDiff, svConvShow, svConvShowSubs, svConvSubLanded, s
 import { esc, phrase, raycastOn, st } from "./core.js";
 import { openTile } from "./focus-navigation.js";
 import { liveOf } from "./leader-key.js";
-import { isMemorySave, svMemorySaveRow } from "./memory-signal.js";
 import { shotOfInput } from "./session-images.js";
 import { pullShelf, shelfTabsOf, shelfVersionsOf } from "./shelf.js";
 import { structPool, svAppend } from "./structured-seats.js";
@@ -93,7 +92,6 @@ function paintSubs(e) {
 
 function svToolCard(e, block, live) {
   if (artifactPublish(block.name, block.input)) return svArtRow(e, block, live);
-  if (isMemorySave(block.name)) return svMemorySaveRow(e, block, live);
   return svConvTool(e, block, live);
   const card = document.createElement("details");
   card.className = "sv-tool running";

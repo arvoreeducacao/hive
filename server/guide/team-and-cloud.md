@@ -302,9 +302,19 @@ The bridge reacts with 👀 to a message it takes. Threads it follows are kept i
 
 When a chat carries a link to a Slack thread, the seat menu shows it under **Slack threads**, with **open in Slack** and **mark as read in Slack**. The app reads Slack with `SLACK_USER_TOKEN` from the hub's `.env`; without it, it says "no SLACK_USER_TOKEN in the hub .env". Replying from here needs the `chat:write` scope, and reactions need `reactions:write`.
 
-## Team memory server
+## Team memory
 
-The memories screen (⋯ menu → **memories**, ⌥⇧M) reads a team memory server at `HIVE_MEMORY_URL`. Editing and archiving ask you to sign in, and signing in works only in the Hive on your own machine. The sign-in is kept in the system keychain (macOS Keychain, or `secret-tool` on Linux) under "Hive memory". `HIVE_MEMORY_PLUGIN` names the agent plugin the doctor expects for it.
+The team memory is a folder in the hub repository, `.claude/team-memory/`, with one file per fact and a `MEMORY.md` index. Nothing writes to it directly: a fact comes from one person's Claude Code memory (`~/.claude/projects/<folder>/memory/`), is proposed as a pull request, and a teammate approves it.
+
+The memories screen (⋯ menu → **memories**, ⌥⇧M) has three tabs:
+
+- **Mine**: every memory folder on this machine, grouped by folder, with search. Each memory has a scope (`metadata.scope` in its frontmatter): "Team", "Personal" or none. Click the scope to switch it. "Classify" asks Claude (`claude -p` with no tools, no MCP and no settings) for the scope of the ones without it, and you review the answer before it is saved. Delete removes the file and its line in the local `MEMORY.md` at once; "Undo" puts both back. "Propose to the team" runs the same check as the hub's CI (secrets, name, frontmatter, index size), and when it passes it opens one pull request from `main` that adds the files with `scope: team` and their lines in the team `MEMORY.md`. When that pull request is merged, the panel deletes the personal copy, so a session does not read the same fact twice.
+- **Proposals**: the open pull requests that touch `.claude/team-memory/`, with each memory and the state of the checks. "Approve and merge" reviews and merges it with `gh`. The person who opened it cannot approve it.
+- **The team's**: what is on `main`. Editing or deleting opens a pull request.
+
+The repository is the hub's `origin` remote on GitHub; `HIVE_TEAM_MEMORY_REPO=owner/repo` in `~/.hive/config` overrides it. Everything goes through `gh`, signed in as you. The panel keeps its undo history and the "proposed in PR N" marks in `~/.hive/memories/`.
+
+When a chat on this machine creates a memory file during a turn, one card at the end of the turn lists the new ones, with the scope and a delete button on each. Editing an existing memory shows nothing. Leaving the card alone keeps the memories as they are, and it goes away with the next message.
 
 ## Hosting for a team: the deployment folder
 
@@ -337,7 +347,6 @@ One `HIVE_KEY=value` per line. The app takes only these keys from the file. Prec
 | `HIVE_REPOS_OWNER` | the GitHub owner of your repositories |
 | `HIVE_EXPECTED_REPOS` | repositories the doctor expects in the hub, comma separated |
 | `HIVE_POKERS` | people who may poke a teammate, comma separated |
-| `HIVE_MEMORY_URL`, `HIVE_MEMORY_PLUGIN` | the team memory server and its agent plugin |
 | `HIVE_SCREENBOOK_STORE` | where the shelf reads Screenbook proposals, `owner/repo` or an `https://` server; off when empty |
 | `HIVE_INTERNAL_DOMAINS` | your own domains, comma separated, for the seats' scan of personal data |
 | `HIVE_APP_PACKAGES` | short names for Android apps, as `name=package` pairs, comma separated |
@@ -431,8 +440,8 @@ The welcome screen runs the same script when you press **Create my key**.
 - `app/lib/slack-bridge.mjs`
 - `app/lib/slack-hive.mjs`
 - `app/lib/slack-link.mjs`
-- `app/lib/memories.mjs`
-- `app/lib/memory-vault.mjs`
+- `app/lib/local-memories.mjs`
+- `app/lib/team-memory.mjs`
 - `app/routes/portaria.mjs`
 - `app/routes/team.mjs`
 - `app/routes/slack.mjs`

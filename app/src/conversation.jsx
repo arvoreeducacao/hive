@@ -1,5 +1,5 @@
 import { For, Match, Show, Switch, createEffect, createSignal } from "solid-js";
-import { nextHive, raycast } from "./raycast.js";
+import { raycast } from "./raycast.js";
 import { mountView } from "./view.jsx";
 
 function Raw(props) {
@@ -269,55 +269,29 @@ function PeerFrom(props) {
   );
 }
 
-const memoryRowOpens = (one) => (nextHive() ? one.opens : "");
-
-function MemoryUsed(props) {
+function MemoryTurn(props) {
+  const b = () => props.block;
   return (
-    <details class="sv-mem" classList={{ "sv-folded": !!props.block.folded }} data-memory="used" data-state={props.block.state}>
-      <summary class="mchip">
-        <span class="mglyph" aria-hidden="true">🧠</span>
-        <For each={props.block.parts}>{(part, at) => (
-          <>
-            <Show when={at()}><span class="msep">·</span></Show>
-            <span class="mpart" data-part={part.key}><b>{part.n}</b> {part.say}</span>
-          </>
-        )}</For>
-      </summary>
-      <div class="mpop">
-        <div class="mhead">{props.block.head}</div>
-        <For each={props.block.items}>{(one) => (
-          <div
-            class="mit"
-            data-source={one.source}
-            data-verified={one.verified ? "yes" : "no"}
-            data-id={one.id || undefined}
-            data-opens={memoryRowOpens(one) ? "yes" : undefined}
-            role={memoryRowOpens(one) ? "button" : undefined}
-            tabindex={memoryRowOpens(one) ? 0 : undefined}
-            on:click={() => { if (memoryRowOpens(one)) props.actions.memory(memoryRowOpens(one)); }}
-            on:keydown={(ev) => {
-              if (!memoryRowOpens(one) || (ev.key !== "Enter" && ev.key !== " ")) return;
-              ev.preventDefault();
-              props.actions.memory(memoryRowOpens(one));
-            }}
-          >
-            <span class="mrel">{one.rel}</span>
-            <span class="mtitle">{one.title}</span>
-            <span class="mby">{one.by}</span>
-          </div>
-        )}</For>
-        <button type="button" class="mopen" on:click={(ev) => { ev.stopPropagation(); props.actions.memory(props.block.focus); }}>{props.block.more}</button>
-      </div>
-    </details>
-  );
-}
-
-function MemorySave(props) {
-  return (
-    <div class="sv-memsave" classList={{ running: !!props.block.running, bad: props.block.stat === "bad", "sv-folded": !!props.block.folded }} data-memory="saved">
-      <span class="mk"><span class="mglyph" aria-hidden="true">🧠</span> {props.block.said}</span>
-      <span class="mv">{props.block.title}</span>
-      <span class="ma">{props.block.failed || props.block.when}</span>
+    <div class="sv-memturn" classList={{ "sv-folded": !!b().folded }} data-memory="turn">
+      <div class="mh"><span class="mglyph" aria-hidden="true">🧠</span><span>{b().head}</span></div>
+      <For each={b().items}>{(one) => (
+        <div class="mrow" data-id={one.id} classList={{ gone: one.gone, busy: one.busy }}>
+          <span class="mtext">
+            <button type="button" class="mname" title={b().openSay} on:click={() => props.actions.memory(one.id)}>{one.name}</button>
+            <Show when={one.description}><span class="mdesc">{one.description}</span></Show>
+          </span>
+          <Show when={!one.gone} fallback={
+            <span class="macts"><span class="mgone">{b().goneSay}</span><button type="button" class="mlink" data-mem-undo disabled={one.busy} on:click={() => props.actions.memoryUndo(b(), one)}>{b().undoSay}</button></span>
+          }>
+            <span class="macts">
+              <button type="button" class="mscope" data-scope={one.scope || "none"} title={b().scopeHint} disabled={one.busy} on:click={() => props.actions.memoryScope(b(), one)}>{one.scopeSay}</button>
+              <button type="button" class="mlink" data-mem-drop disabled={one.busy} on:click={() => props.actions.memoryDrop(b(), one)}>{b().dropSay}</button>
+            </span>
+          </Show>
+          <Show when={one.error}><span class="merr" role="alert">{one.error}</span></Show>
+        </div>
+      )}</For>
+      <div class="mfoot">{b().foot}</div>
     </div>
   );
 }
@@ -351,8 +325,7 @@ function Block(props) {
       <Match when={props.block.kind === "think"}><Think block={props.block} /></Match>
       <Match when={props.block.kind === "tool"}><Tool block={props.block} actions={props.actions} /></Match>
       <Match when={props.block.kind === "peer"}><PeerFrom block={props.block} actions={props.actions} /></Match>
-      <Match when={props.block.kind === "memory"}><MemoryUsed block={props.block} actions={props.actions} /></Match>
-      <Match when={props.block.kind === "memsave"}><MemorySave block={props.block} /></Match>
+      <Match when={props.block.kind === "memturn"}><MemoryTurn block={props.block} actions={props.actions} /></Match>
       <Match when={props.block.kind === "work"}><Work block={props.block} actions={props.actions} /></Match>
       <Match when={props.block.kind === "turn"}><TurnFold block={props.block} actions={props.actions} /></Match>
       <Match when={props.block.kind === "node"}>{props.block.el}</Match>

@@ -1,6 +1,6 @@
 import { AVD_RECIPE, DEFAULT_AVD } from "../lib/device.mjs";
 import { NATIVE, asPosixPath } from "./fix-shell.mjs";
-import { DEPLOYMENT_DIR, EXPECTED_REPOS as REPOS_WANTED, HUB_FOLDER, MEMORY_PLUGIN as PLUGIN_WANTED, POD_HUB, REPO_FOLDER, REPOS_OWNER } from "../lib/env.mjs";
+import { DEPLOYMENT_DIR, EXPECTED_REPOS as REPOS_WANTED, HUB_FOLDER, POD_HUB, REPO_FOLDER, REPOS_OWNER } from "../lib/env.mjs";
 
 export const EXPECTED_REPOS = REPOS_WANTED;
 export const TRUSTED_DIRS = [...new Set([POD_HUB, `/workspace/repos/${REPO_FOLDER}`, "/workspace/hive"])].filter((one) => one && one !== "/workspace/repos/");
@@ -9,7 +9,6 @@ export const BOOT_LOG = "/workspace/hive/boot.log";
 export const SKIPPED = "skipped — the server is not up (see the server check)";
 export const SKIPPED_DOWN_POD = "skipped — the server is not running (see the server check)";
 export const CLOUD_SESSIONS_ON_POD = "/workspace/hive/cloud-sessions.mjs";
-export const MEMORY_PLUGIN = PLUGIN_WANTED;
 export const SIGNATURE_WINDOW = 90;
 
 export function deploymentScript(ctx, name) {
@@ -143,7 +142,6 @@ export const fixes = {
     ...onPod(ctx, `mkdir -p /workspace/repos && cd /workspace/repos && for r in ${repos.join(" ")}; do git clone https://github.com/${ctx.reposOwner ?? REPOS_OWNER}/$r.git; done`)
   }),
   loginGh: (ctx) => ({ label: "log gh in on the server", command: ctx.powerSwitch ? `${powerSwitchOf(ctx)} shell gh auth login` : SELF_HOSTED_GH_LOGIN }),
-  installMemory: (ctx) => runsDeploymentScript(ctx, "pod-memory.sh", "install the team memory on the server", ""),
   installCloudSessions: (ctx) => runsDeploymentScript(ctx, "pod-cloud-sessions.sh", "install the session sync on the server", " <private-repo-url>"),
   syncCloudSessions: (ctx) => ({ label: "run a session sync on the server", ...onPod(ctx, `node ${CLOUD_SESSIONS_ON_POD} sync`) }),
   seeDisk: (ctx) => ({ label: "see what is eating the disk", ...onPod(ctx, "du -sh /workspace/* 2>/dev/null | sort -h | tail -12"), kind: "investigate" }),
@@ -406,22 +404,6 @@ export function checkFlags(text, ctx) {
   if (serious.length) return item(id, title, "fail", `missing ${serious.join(" and ")}; every new session stalls on a dialog and dies with exit code 1`, fixes.preAcceptFlags(ctx));
   if (minor.length) return item(id, title, "warn", `missing ${minor.join("; ")}`, fixes.preAcceptFlags(ctx));
   return item(id, title, "ok", "onboarding, bypass, dir trust and crossSessionInbound all in place");
-}
-
-export function checkMemory(text, ctx) {
-  const id = "memory";
-  const title = "team memory on the server";
-  const plugin = ctx.memoryPlugin ?? MEMORY_PLUGIN;
-  if (!plugin) return item(id, title, "skip", "skipped — this hive names no team memory plugin");
-  if (text === null) return podUnavailable(id, title, ctx);
-  const data = readJson(text);
-  if (!data) return item(id, title, "fail", `could not read the ${plugin} state on the pod`, fixes.installMemory(ctx));
-  if (!data.installed) return item(id, title, "fail", `${plugin} is not installed; every worker here starts blind to what the team already learned`, fixes.installMemory(ctx));
-  if (!data.enabled) return item(id, title, "fail", `${plugin} is installed but disabled in settings.json`, fixes.installMemory(ctx));
-  if (!data.user) return item(id, title, "fail", "the plugin is there with no credential, so every memory_search dies with \"Not authenticated\"", fixes.installMemory(ctx));
-  if (!data.refresh && !(data.expiresIn > 0)) return item(id, title, "warn", `the credential of ${data.user} expired and carries no refresh token`, fixes.installMemory(ctx));
-  const life = data.expiresIn > 0 ? `token good for ${Math.max(1, Math.round(data.expiresIn / 60))} min` : "token expired, refreshes on the next session";
-  return item(id, title, "ok", `${plugin} enabled, signed in as ${data.user} (${life})`);
 }
 
 export function checkCloudSessions(text, ctx) {

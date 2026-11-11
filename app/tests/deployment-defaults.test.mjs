@@ -20,7 +20,7 @@ function scene() {
   const checkout = join(root, "checkout");
   const shipped = join(root, "shipped");
   place(checkout, "acme", "# where acme hosts it\nHIVE_NAMESPACE=acme-ns\nHIVE_AVEIA_URL=https://aveia.acme.example\n");
-  place(shipped, "acme", "HIVE_NAMESPACE=acme-ns\nHIVE_MEMORY_URL=https://memory.acme.example\n");
+  place(shipped, "acme", "HIVE_NAMESPACE=acme-ns\nHIVE_DOOR_DOMAIN=door.acme.example\n");
   return { root, checkout, shipped };
 }
 
@@ -28,7 +28,7 @@ test("a config written before a new default learns it from the deployment, and w
   const { checkout, shipped } = scene();
   const config = { HIVE_DEV: "ana", HIVE_REPO: checkout, HIVE_DEPLOYMENT_DIR: "acme", HIVE_NAMESPACE: "ana-own-ns" };
   const filled = withDeploymentDefaults(config, { shipped });
-  assert.equal(filled.HIVE_MEMORY_URL, "https://memory.acme.example");
+  assert.equal(filled.HIVE_DOOR_DOMAIN, "door.acme.example");
   assert.equal(filled.HIVE_AVEIA_URL, undefined, "with a copy shipped with the app, the checkout is not read at all");
   assert.equal(filled.HIVE_NAMESPACE, "ana-own-ns");
   assert.equal(filled.HIVE_DEV, "ana");
@@ -52,19 +52,19 @@ test("a deployment kept in the hub fills the gaps when the checkout has none", (
 test("a deployment file only fills the deployment's addresses and names, never who this machine is or where it points", () => {
   const { checkout, shipped } = scene();
   place(shipped, "acme", [
-    "HIVE_MEMORY_URL=https://memory.acme.example",
+    "HIVE_DOOR_DOMAIN=door.acme.example",
     "HIVE_POD=someone-0", "HIVE_HUB=/tmp/elsewhere", "HIVE_DEV=mallory", "HIVE_HUB_FOLDER=x", "HIVE_REPO=/tmp/x", "HIVE_REPO_FOLDER=x",
     "HIVE_EXTENSIONS_REPO=someone/else", "HIVE_SERVER_URL=https://evil.example", "HIVE_SERVER_KEY=k"
   ].join("\n"));
   const filled = deploymentDefaults({ HIVE_REPO: checkout, HIVE_DEPLOYMENT_DIR: "acme" }, { shipped });
-  assert.deepEqual(Object.keys(filled), ["HIVE_MEMORY_URL"]);
+  assert.deepEqual(Object.keys(filled), ["HIVE_DOOR_DOMAIN"]);
   assert.ok(DEPLOYMENT_KEYS.every((key) => !/^HIVE_(POD|HUB|DEV|HUB_FOLDER|REPO|REPO_FOLDER|SERVER_URL|SERVER_KEY|EXTENSIONS_REPO)$/.test(key)));
 });
 
 test("the copy shipped with the app wins over a checkout that was never pulled", () => {
   const { checkout, shipped } = scene();
-  place(checkout, "acme", "HIVE_MEMORY_URL=https://old.acme.example\n");
-  assert.equal(deploymentDefaults({ HIVE_REPO: checkout, HIVE_DEPLOYMENT_DIR: "acme" }, { shipped }).HIVE_MEMORY_URL, "https://memory.acme.example");
+  place(checkout, "acme", "HIVE_DOOR_DOMAIN=old.acme.example\n");
+  assert.equal(deploymentDefaults({ HIVE_REPO: checkout, HIVE_DEPLOYMENT_DIR: "acme" }, { shipped }).HIVE_DOOR_DOMAIN, "door.acme.example");
 });
 
 test("with no deployment named, or one that climbs out of its folder, nothing is filled in", () => {
@@ -79,22 +79,22 @@ test("with no deployment named, or one that climbs out of its folder, nothing is
 test("the build ships every deployment's defaults next to the bundle, and only those", () => {
   const { root } = scene();
   const repo = join(root, "repo");
-  place(repo, "acme", "HIVE_MEMORY_URL=https://memory.acme.example\n");
+  place(repo, "acme", "HIVE_DOOR_DOMAIN=door.acme.example\n");
   mkdirSync(join(repo, "app"), { recursive: true });
   const outdir = join(root, "dist");
   assert.deepEqual(shipDeployments({ repo, outdir }), ["acme"]);
-  assert.match(readFileSync(join(outdir, "deployments", "acme", "hive.defaults"), "utf8"), /memory\.acme\.example/);
+  assert.match(readFileSync(join(outdir, "deployments", "acme", "hive.defaults"), "utf8"), /door\.acme\.example/);
 });
 
-test("the Hive boots with the memory address of a config that never had it", () => {
+test("the Hive boots with the screenbook address of a config that never had it", () => {
   const { root, checkout } = scene();
   const home = join(root, "home");
   mkdirSync(home);
   writeFileSync(join(home, "config"), `HIVE_DEV=ana\nHIVE_REPO=${checkout}\nHIVE_DEPLOYMENT_DIR=acme\n`);
-  place(checkout, "acme", "HIVE_MEMORY_URL=https://memory.acme.example/\n");
+  place(checkout, "acme", "HIVE_SCREENBOOK_STORE=https://boards.acme.example\n");
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("HIVE_") && key !== "KUBERNETES_SERVICE_HOST"));
-  const said = execFileSync(process.execPath, ["--input-type=module", "-e", `const e = await import(${JSON.stringify(ENV)}); console.log(e.MEMORY_SERVER_URL);`], { env: { ...env, HIVE_HOME: home }, encoding: "utf8" }).trim();
-  assert.equal(said, "https://memory.acme.example");
+  const said = execFileSync(process.execPath, ["--input-type=module", "-e", `const e = await import(${JSON.stringify(ENV)}); console.log(e.SCREENBOOK_STORE);`], { env: { ...env, HIVE_HOME: home }, encoding: "utf8" }).trim();
+  assert.equal(said, "https://boards.acme.example");
 });
 
 test("a stale bundle rebuilt at boot ships the deployment files too", async () => {

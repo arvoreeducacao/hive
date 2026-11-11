@@ -175,7 +175,7 @@ Checks of this machine:
 - processes of chats that are gone: processes tagged with a chat that is closed. Fix: `kill` them. Not read on Windows yet.
 - android emulator: only checked when an Android SDK is configured.
 
-Checks of the server (skipped when there is no server, or when it is down): clock in sync (a signature is valid for 90 seconds), server up, door to the server, the last boot, `allowed_signers`, the Claude credential and flags, team memory, session sync, remote control, repos cloned, hub context and contract, gh signed in, MCP credentials, and disk space on `/workspace`. See the "team-and-cloud" topic.
+Checks of the server (skipped when there is no server, or when it is down): clock in sync (a signature is valid for 90 seconds), server up, door to the server, the last boot, `allowed_signers`, the Claude credential and flags, session sync, remote control, repos cloned, hub context and contract, gh signed in, MCP credentials, and disk space on `/workspace`. See the "team-and-cloud" topic.
 
 In the app:
 

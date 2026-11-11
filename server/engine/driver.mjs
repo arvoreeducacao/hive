@@ -1041,9 +1041,7 @@ async function runConsume(mine = generation) {
       if (mine !== generation) return;
       heardFromSession();
       touch();
-      const hook = hookFate(message);
-      if (hook.memory) emit(hook.memory);
-      if (!hook.shown) continue;
+      if (!hookFate(message).shown) continue;
       if (message.type === "system" && message.subtype === "init") {
         sessionId = message.session_id;
         if (message.model) currentModel = message.model;
