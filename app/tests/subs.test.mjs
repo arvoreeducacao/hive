@@ -9,6 +9,7 @@ const {
   paintSubs, svSubAsync, svSubCall, svSubEcho, svSubLanded, svSubPin, svSubTask, svSubUnpin, svSubsOfAnEndedProcess
 } = await app("subagents-dock");
 const { svConvSeed } = await app("conversation-model");
+const { svEvent } = await app("chat-and-panes");
 const { getStructured } = await app("chat-stretches");
 const { structPool } = await app("structured-seats");
 const { mountSubs } = await import(new URL("../src/views.js", import.meta.url).href);
@@ -341,3 +342,30 @@ test("a chat whose process starts again keeps no pin of a task that died with th
   assert.equal(pinned(e), 0);
   structPool.delete(e.name);
 });
+
+function backgroundAgent(e, id) {
+  svSubPin(e, call(id, { description: "screens" }));
+  svSubAsync(e, id);
+  svSubTask(e, started(id, `task-${id}`));
+}
+
+test("a message sent while a background agent runs keeps it in the dock", () => {
+  const e = seat();
+  e.driverDequeues = true;
+  backgroundAgent(e, "t1");
+  svEvent(e, { type: "result" });
+  svEvent(e, { type: "system", subtype: "init" });
+  assert.equal(pinned(e), 1);
+  assert.ok(dock(e).classList.contains("on"));
+  structPool.delete(e.name);
+});
+
+for (const subtype of ["started", "slept"]) {
+  test(`a driver that reports ${subtype} takes down the pins of the process that is gone`, () => {
+    const e = seat();
+    backgroundAgent(e, "t1");
+    svEvent(e, { type: "driver", subtype });
+    assert.equal(pinned(e), 0);
+    structPool.delete(e.name);
+  });
+}

@@ -3045,7 +3045,6 @@ function svEvent(e, ev) {
   const live = !ev.replayed;
   if (ev.type === "system") {
     if (ev.subtype === "init") {
-      svSubsOfAnEndedProcess(e);
       if (ev.agent) e.agent = ev.agent;
       if (ev.model) e.model = ev.model;
       if (typeof ev.effort === "string") e.effort = ev.effort;
@@ -3147,6 +3146,7 @@ function svEvent(e, ev) {
     return;
   }
   if (ev.type === "driver") {
+    if (ev.subtype === "started" || ev.subtype === "slept") svSubsOfAnEndedProcess(e);
     /* the seat was reopened under the same name and its diary started over at 1: what this
        tile painted belongs to a driver that is gone, its open turn included */
     if (ev.subtype === "diary_reset") {
