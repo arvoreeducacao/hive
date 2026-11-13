@@ -77,11 +77,11 @@ test("a chat whose name ran past forty letters still owns the chats it opens", a
   const base = slug("users example hive shots mission missing piece of the plan");
   const opener = freeNameAmong(base, new Set([base]));
   assert.ok(opener.length > 40);
-  assert.equal(noteErrand(dir, { seat: "crm-meu-dia", errand: "redesenhar o meu dia", by: opener }).error, undefined);
-  assert.equal(noteErrand(dir, { seat: opener, errand: "redesenhar o meu dia" }).error, undefined);
-  const rows = withErrands([{ name: "crm-meu-dia" }, { name: opener }], readErrands(dir));
+  assert.equal(noteErrand(dir, { seat: "crm-my-day", errand: "redesign my day", by: opener }).error, undefined);
+  assert.equal(noteErrand(dir, { seat: opener, errand: "redesign my day" }).error, undefined);
+  const rows = withErrands([{ name: "crm-my-day" }, { name: opener }], readErrands(dir));
   assert.equal(rows[0].by, opener);
-  assert.equal(rows[1].errand, "redesenhar o meu dia");
+  assert.equal(rows[1].errand, "redesign my day");
   await rm(dir, { recursive: true, force: true });
 });
 
