@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 export const ERRAND_MAX = 60;
-const SEAT = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const SEAT = /^[a-z0-9][a-z0-9_-]{0,79}$/;
 
 export const errandsFile = (home) => join(home, "errands.json");
 export const seenFile = (home) => join(home, "errands-seen.json");

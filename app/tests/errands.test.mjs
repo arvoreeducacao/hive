@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { byErrand, closedErrands, errandOf, errandsFile, forgetOldKin, goneKin, keepErrands, noteErrand, raceOf, readErrands, renameErrand, seatsOfErrand, seenFile, withErrands } from "../lib/errands.mjs";
+import { freeNameAmong, slug } from "../lib/naming.mjs";
 
 const home = () => mkdtemp(join(tmpdir(), "hive-errands-"));
 
@@ -68,6 +69,19 @@ test("a chat cannot say it opened itself, and the opener is a seat name", async 
   assert.match(noteErrand(dir, { seat: "biblion-capas", by: "biblion-capas" }).error, /another seat/);
   assert.match(noteErrand(dir, { seat: "biblion-capas", by: "NOT/A/NAME" }).error, /another seat/);
   assert.deepEqual(readErrands(dir), {});
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("a chat whose name ran past forty letters still owns the chats it opens", async () => {
+  const dir = await home();
+  const base = slug("users example hive shots mission missing piece of the plan");
+  const opener = freeNameAmong(base, new Set([base]));
+  assert.ok(opener.length > 40);
+  assert.equal(noteErrand(dir, { seat: "crm-my-day", errand: "redesign my day", by: opener }).error, undefined);
+  assert.equal(noteErrand(dir, { seat: opener, errand: "redesign my day" }).error, undefined);
+  const rows = withErrands([{ name: "crm-my-day" }, { name: opener }], readErrands(dir));
+  assert.equal(rows[0].by, opener);
+  assert.equal(rows[1].errand, "redesign my day");
   await rm(dir, { recursive: true, force: true });
 });
 
