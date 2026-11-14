@@ -671,7 +671,7 @@ function svConvActions(e) {
     editSave: (shown, text) => saveEdit(e, e.conv.blocks.find((one) => one.key === shown.key), text),
     art: (row) => openArtifact(e, row),
     memory: (id) => openMemoryAt(id),
-    memoryScope: (shown, item) => memoryTurnScope(e, shown, item),
+    memoryScope: (shown, item, scope) => memoryTurnScope(e, shown, item, scope),
     memoryDrop: (shown, item) => memoryTurnDrop(e, shown, item),
     memoryUndo: (shown, item) => memoryTurnUndo(e, shown, item),
     seat: (name) => { if (focusSeat(name)) render(); },

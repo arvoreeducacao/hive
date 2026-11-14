@@ -56,7 +56,7 @@ export function slackKeys({ env = process.env, envFile = "", home = "" } = {}) {
   const bot = pick("HIVE_SLACK_BOT_TOKEN");
   const app = pick("HIVE_SLACK_APP_TOKEN");
   const link = home ? readLink(home) : null;
-  if ((!bot || !app) && link) return { bot: link.token, app: link.token, people: [link.user], api: `${link.relay}/api`, relayed: true };
+  if ((!bot || !app) && link) return { bot: link.token, app: link.token, people: [link.user], api: `${link.relay}/api`, files: `${link.relay}/file`, relayed: true };
   return { bot, app, people: pick("HIVE_SLACK_USERS").split(/[\s,]+/).filter(Boolean), api: SLACK_API, relayed: false };
 }
 
@@ -136,7 +136,22 @@ export function earlierOnSlack(said = []) {
   return kept;
 }
 
-export function missionForSlack({ text, channelName = "", person = "", direct = false, link = "", earlier = [] }) {
+export function attachedOnSlack(files = []) {
+  const kept = files.filter((one) => one.path);
+  const missed = files.filter((one) => !one.path);
+  const lines = [];
+  if (kept.length) {
+    lines.push("", "Images attached in the thread, saved on this machine. Open each one with your file-reading tool before you answer:");
+    lines.push(...kept.map((one) => `- ${one.path} (${one.name}, from ${one.who || "someone"})`));
+  }
+  if (missed.length) {
+    lines.push("", "Files attached in the thread that did not reach this machine. Do not guess what they show; tell them you could not see these:");
+    lines.push(...missed.map((one) => `- ${one.name}, from ${one.who || "someone"}: ${one.error}`));
+  }
+  return lines;
+}
+
+export function missionForSlack({ text, channelName = "", person = "", direct = false, link = "", earlier = [], files = [] }) {
   const where = direct ? "a direct message" : `#${channelName || "a channel"}`;
   const who = person || "someone on the team";
   const opened = earlier.length
@@ -151,16 +166,18 @@ export function missionForSlack({ text, channelName = "", person = "", direct = 
     "",
     opened,
     ...before,
+    ...attachedOnSlack(files),
     ...where_,
     "",
     "Nothing you write here reaches them: the only way back is the reply_on_slack tool. Call it when you are done, when you need something only they can answer, and whenever you would otherwise be leaving them in silence."
   ].join("\n");
 }
 
-export function saidOnSlack({ text, person = "" }) {
+export function saidOnSlack({ text, person = "", files = [] }) {
   return [
     `[slack] ${person || "They"} said this in the same thread — answer with reply_on_slack:`,
-    text
+    text,
+    ...attachedOnSlack(files)
   ].join("\n");
 }
 

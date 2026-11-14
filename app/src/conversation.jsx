@@ -276,16 +276,21 @@ function MemoryTurn(props) {
       <div class="mh"><span class="mglyph" aria-hidden="true">🧠</span><span>{b().head}</span></div>
       <For each={b().items}>{(one) => (
         <div class="mrow" data-id={one.id} classList={{ gone: one.gone, busy: one.busy }}>
-          <span class="mtext">
-            <button type="button" class="mname" title={b().openSay} on:click={() => props.actions.memory(one.id)}>{one.name}</button>
+          <button type="button" class="mtext" title={b().openSay} on:click={() => props.actions.memory(one.id)}>
+            <span class="mname">{one.shown}</span>
             <Show when={one.description}><span class="mdesc">{one.description}</span></Show>
-          </span>
+          </button>
           <Show when={!one.gone} fallback={
             <span class="macts"><span class="mgone">{b().goneSay}</span><button type="button" class="mlink" data-mem-undo disabled={one.busy} on:click={() => props.actions.memoryUndo(b(), one)}>{b().undoSay}</button></span>
           }>
             <span class="macts">
-              <button type="button" class="mscope" data-scope={one.scope || "none"} title={b().scopeHint} disabled={one.busy} on:click={() => props.actions.memoryScope(b(), one)}>{one.scopeSay}</button>
-              <button type="button" class="mlink" data-mem-drop disabled={one.busy} on:click={() => props.actions.memoryDrop(b(), one)}>{b().dropSay}</button>
+              <span class="mscope" role="group" aria-label={b().scopeSay}>
+                <For each={b().scopes}>{(opt) => (
+                  <button type="button" data-scope={opt.scope} aria-pressed={one.scope === opt.scope ? "true" : "false"} disabled={one.busy} on:click={() => props.actions.memoryScope(b(), one, opt.scope)}>{opt.say}</button>
+                )}</For>
+              </span>
+              <Show when={one.scope === "team"}><button type="button" class="mlink" data-mem-propose on:click={() => props.actions.memory(one.id)}>{b().proposeSay}</button></Show>
+              <button type="button" class="mlink mdrop" data-mem-drop disabled={one.busy} on:click={() => props.actions.memoryDrop(b(), one)}>{b().dropSay}</button>
             </span>
           </Show>
           <Show when={one.error}><span class="merr" role="alert">{one.error}</span></Show>

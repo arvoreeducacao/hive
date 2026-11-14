@@ -77,19 +77,28 @@ function endTurn(turn) {
   return created;
 }
 
-const scopeSay = (scope) => (scope === "team" ? phrase("Team") : scope === "personal" ? phrase("Personal") : phrase("no scope"));
+const readable = (name) => {
+  const text = String(name || "");
+  if (!/^[a-z0-9]+(-[a-z0-9]+)+$/.test(text)) return text;
+  const words = text.replace(/-/g, " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+const shownName = (memory) => memory.title || readable(memory.name);
 
 function itemModel(memory) {
-  return { key: memory.id, ...memory, gone: false, busy: false, entry: "", error: "", scopeSay: scopeSay(memory.scope) };
+  return { key: memory.id, ...memory, shown: shownName(memory), gone: false, busy: false, entry: "", error: "" };
 }
 
 function memoryTurnBlock(e, memories) {
   return {
     key: svConvKey(e),
     kind: "memturn",
-    head: memories.length === 1 ? phrase("1 new memory in this turn") : phrase("{n} new memories in this turn", { n: memories.length }),
-    foot: phrase("Left alone, they stay as they are."),
-    scopeHint: phrase("click to switch between team and personal"),
+    head: memories.length === 1 ? phrase("1 new memory") : phrase("{n} new memories", { n: memories.length }),
+    foot: phrase("Personal stays on this machine. Team reaches everyone after you propose it and a teammate approves."),
+    scopeSay: phrase("who reads this memory"),
+    scopes: [{ scope: "personal", say: phrase("Personal") }, { scope: "team", say: phrase("Team") }],
+    proposeSay: phrase("propose to the team…"),
     dropSay: phrase("Delete"),
     undoSay: phrase("Undo"),
     goneSay: phrase("deleted"),
@@ -123,7 +132,8 @@ async function refreshTurnBlock(e, block) {
   block.items = block.items.filter((one) => !said.body.memories[one.id]?.gone);
   for (const one of block.items) {
     const seen = said.body.memories[one.id];
-    if (seen && typeof seen.scope === "string") { one.scope = seen.scope; one.scopeSay = scopeSay(one.scope); }
+    if (seen && typeof seen.scope === "string") one.scope = seen.scope;
+    if (seen && typeof seen.title === "string" && seen.title) { one.title = seen.title; one.shown = seen.title; }
   }
   if (!block.items.length) {
     const at = e.conv.blocks.indexOf(block);
@@ -147,16 +157,17 @@ function heldItem(e, shown, item) {
 
 const failedSay = () => phrase("did not save — try again in the memories panel");
 
-async function memoryTurnScope(e, shown, item) {
+async function memoryTurnScope(e, shown, item, wanted) {
   const one = heldItem(e, shown, item);
   if (!one || one.busy) return;
-  const scope = one.scope === "team" ? "personal" : "team";
+  const scope = SCOPES.includes(wanted) ? wanted : one.scope === "team" ? "personal" : "team";
+  if (scope === one.scope) return;
   one.busy = true;
   one.error = "";
   svConvShow(e);
   const said = await post("/api/memories/mine/scope", { id: one.id, scope });
   one.busy = false;
-  if (said.ok) { one.scope = scope; one.scopeSay = scopeSay(scope); } else one.error = failedSay();
+  if (said.ok) one.scope = scope; else one.error = failedSay();
   svConvShow(e);
 }
 
