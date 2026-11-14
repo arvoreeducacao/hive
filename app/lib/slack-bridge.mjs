@@ -1,9 +1,11 @@
+import { createSlackFiles, filesOf } from "./slack-files.mjs";
 import { askSlack, chatOfSeat, chatOfThread, earlierOnSlack, missionForSlack, readChats, saidOnSlack, slackified, splitForSlack, withoutTheBot, writeChats } from "./slack-hive.mjs";
 
 export const SEEN_KEPT = 300;
 export const NOT_MINE = "Esse Hive é a máquina de outra pessoa, e só ela chama por aqui.";
 export const PING_EVERY = 20000;
 export const PONG_WAIT = 10000;
+export const ONLY_ATTACHED = "(no text, only what is attached)";
 
 const listen = (socket, kind, fn) => {
   if (typeof socket.on === "function") socket.on(kind, fn);
@@ -51,6 +53,8 @@ export function createSlackBridge({
     return askSlack(method, keys.bot, payload, { fetchImpl, api: keys.api });
   };
 
+  const files = createSlackFiles({ home, keysOf, ask, fetchImpl, now, log });
+
   async function post(channel, thread, text) {
     const pieces = splitForSlack(text);
     if (!pieces.length) return { error: "there is nothing to send" };
@@ -89,16 +93,22 @@ export function createSlackBridge({
     const said = await ask("conversations.replies", { channel, ts: thread, limit: 40 });
     if (!said.ok) {
       log(`slack: could not read the thread ${channel}:${thread} — ${said.error}`);
-      return [];
+      return { earlier: [], shared: [], here: null };
     }
     const before = [];
+    const shared = [];
+    let here = null;
     for (const one of said.messages || []) {
-      if (!one?.ts || one.ts === upTo || Number(one.ts) > Number(upTo)) continue;
+      if (!one?.ts || Number(one.ts) > Number(upTo)) continue;
+      if (one.ts === upTo) { here = one; continue; }
       const who = one.user ? await personName(one.user) : String(one.username || "app");
-      const text = withoutTheBot(one.text, botUser);
+      const attached = filesOf(one);
+      shared.push(...attached.map((file) => ({ ts: one.ts, file, who })));
+      const note = attached.length ? `(attached: ${attached.map((file) => file.name).join(", ")})` : "";
+      const text = [withoutTheBot(one.text, botUser), note].filter(Boolean).join(" ");
       if (text) before.push({ who, text });
     }
-    return earlierOnSlack(before);
+    return { earlier: earlierOnSlack(before), shared, here };
   }
 
   async function linkOf(channel, ts) {
@@ -108,12 +118,15 @@ export function createSlackBridge({
     return "";
   }
 
-  async function openFor({ channel, thread, ts, text, person, direct }) {
+  async function openFor({ channel, thread, ts, text, person, direct, attached = [] }) {
     const where = direct ? "" : await channelName(channel);
-    const earlier = thread && ts && thread !== ts ? await threadSoFar(channel, thread, ts) : [];
+    const sofar = thread && ts && thread !== ts ? await threadSoFar(channel, thread, ts) : { earlier: [], shared: [], here: null };
+    const mine = attached.length ? attached : filesOf(sofar.here);
+    const shared = [...sofar.shared, ...mine.map((file) => ({ ts, file, who: person }))];
+    const fetched = shared.length ? await files.fetchAll(channel, thread, shared) : [];
     const link = direct ? "" : await linkOf(channel, thread);
     const made = await openChat({
-      prompt: missionForSlack({ text, channelName: where, person, direct, link, earlier }),
+      prompt: missionForSlack({ text, channelName: where, person, direct, link, earlier: sofar.earlier, files: fetched }),
       errand: direct ? "slack · mensagem direta" : `slack · #${where || channel}`
     });
     if (made.error) {
@@ -133,7 +146,7 @@ export function createSlackBridge({
   async function onEvent(event) {
     const kind = event?.type;
     if (kind !== "message" && kind !== "app_mention") return;
-    if (event.subtype || !event.user) return;
+    if ((event.subtype && event.subtype !== "file_share") || !event.user) return;
     if (botUser && event.user === botUser) return;
     const channel = String(event.channel || "");
     const ts = String(event.ts || "");
@@ -156,18 +169,21 @@ export function createSlackBridge({
       return;
     }
 
-    const text = withoutTheBot(event.text, botUser);
-    if (!text) return;
+    const attached = filesOf(event);
+    const typed = withoutTheBot(event.text, botUser);
+    if (!typed && !attached.length) return;
+    const text = typed || ONLY_ATTACHED;
     await react(channel, ts, "eyes");
     const person = await personName(event.user);
 
-    if (!known) return openFor({ channel, thread, ts, text, person, direct });
+    if (!known) return openFor({ channel, thread, ts, text, person, direct, attached });
 
-    const sent = await say(known.seat, saidOnSlack({ text, person }));
+    const fetched = attached.length ? await files.fetchAll(channel, thread, attached.map((file) => ({ ts, file, who: person }))) : [];
+    const sent = await say(known.seat, saidOnSlack({ text, person, files: fetched }));
     if (sent.ok) return;
     await writeChats(home, chats.filter((one) => one !== known));
     await post(channel, thread, `O chat \`${known.seat}\` não está mais aberto — ${sent.error}. Abrindo outro.`);
-    return openFor({ channel, thread, ts, text, person, direct });
+    return openFor({ channel, thread, ts, text, person, direct, attached });
   }
 
   function send(note) {

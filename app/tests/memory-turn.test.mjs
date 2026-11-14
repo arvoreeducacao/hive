@@ -78,8 +78,8 @@ test("one card at the end of the turn lists each new memory with its scope, and 
   svConvFlushAll();
   const card = e.host.querySelector(".sv-memturn");
   assert.ok(card);
-  assert.match(card.querySelector(".mh").textContent, /2 new memories in this turn/);
-  assert.deepEqual([...card.querySelectorAll(".mscope")].map((one) => one.dataset.scope), ["team", "personal"], "the scope comes from the file as it is now");
+  assert.match(card.querySelector(".mh").textContent, /2 new memories/);
+  assert.deepEqual([...card.querySelectorAll(".mscope [aria-pressed=\"true\"]")].map((one) => one.dataset.scope), ["team", "personal"], "the scope comes from the file as it is now");
   assert.deepEqual(posted.find((one) => one.path === "/api/memories/mine/status").body, { ids: ["-Users-ana-hub/a.md", "-Users-ana-hub/b.md"] });
 });
 
@@ -117,9 +117,15 @@ test("switching the scope and deleting from the card call the panel's routes, an
   done(e);
   await settle();
   svConvFlushAll();
-  e.host.querySelector(".sv-memturn .mscope").click();
+  const asked = posted.length;
+  e.host.querySelector(".sv-memturn .mscope [data-scope=\"team\"]").click();
+  await settle();
+  assert.equal(posted.length, asked, "choosing the scope it already has writes nothing");
+  e.host.querySelector(".sv-memturn .mscope [data-scope=\"personal\"]").click();
   await settle();
   assert.deepEqual(posted.at(-1), { path: "/api/memories/mine/scope", body: { id: "-Users-ana-hub/a.md", scope: "personal" } });
+  svConvFlushAll();
+  assert.equal(e.host.querySelector(".sv-memturn .mscope [data-scope=\"personal\"]").getAttribute("aria-pressed"), "true");
   e.host.querySelector(".sv-memturn [data-mem-drop]").click();
   await settle();
   assert.deepEqual(posted.at(-1), { path: "/api/memories/mine/delete", body: { id: "-Users-ana-hub/a.md" } });
@@ -128,6 +134,35 @@ test("switching the scope and deleting from the card call the panel's routes, an
   e.host.querySelector(".sv-memturn [data-mem-undo]").click();
   await settle();
   assert.deepEqual(posted.at(-1), { path: "/api/memories/mine/undo", body: { entry: "1-a" } });
+});
+
+test("the card names the memory by its title in the index, and spells out a bare slug until it has one", async () => {
+  serve({ "-Users-ana-hub/chat-responde-onde-o-jonas-fala.md": { gone: false, scope: "personal", title: "Chat responde onde o Jonas fala" } });
+  const e = seat("mem-turn-title");
+  say(e, "lembra");
+  write(e, "w1", `${HOME}/chat-responde-onde-o-jonas-fala.md`, memoryFile("chat-responde-onde-o-jonas-fala"));
+  landed(e, "w1", "File created successfully at: chat-responde-onde-o-jonas-fala.md");
+  done(e);
+  svConvFlushAll();
+  assert.equal(e.host.querySelector(".sv-memturn .mname").textContent, "Chat responde onde o jonas fala");
+  await settle();
+  svConvFlushAll();
+  assert.equal(e.host.querySelector(".sv-memturn .mname").textContent, "Chat responde onde o Jonas fala");
+});
+
+test("only a team memory offers to be proposed, and the offer opens it in the memories panel", async () => {
+  serve();
+  const e = seat("mem-turn-propose");
+  say(e, "lembra");
+  write(e, "w1", `${HOME}/a.md`, memoryFile("a", "team"));
+  landed(e, "w1", "File created successfully at: a.md");
+  write(e, "w2", `${HOME}/b.md`, memoryFile("b", "personal"));
+  landed(e, "w2", "File created successfully at: b.md");
+  done(e);
+  await settle();
+  svConvFlushAll();
+  const offers = [...e.host.querySelectorAll(".sv-memturn [data-mem-propose]")];
+  assert.deepEqual(offers.map((one) => one.closest(".mrow").dataset.id), ["-Users-ana-hub/a.md"]);
 });
 
 test("a memory already deleted by the time the card shows is left out of it", async () => {

@@ -209,7 +209,9 @@ export function createLocalMemories({ projectsRoot, dataDir, home = "", now = ()
       try {
         const at = await where(id);
         const raw = await readOrNull(at.path);
-        out[id] = raw === null ? { gone: true } : { gone: false, scope: readMemory(at.file, raw).scope };
+        if (raw === null) { out[id] = { gone: true }; continue; }
+        const entry = indexEntryOf((await readOrNull(at.index)) ?? "", at.file);
+        out[id] = { gone: false, scope: readMemory(at.file, raw).scope, title: entry?.title || "" };
       } catch { out[id] = { gone: true }; }
     }
     return out;

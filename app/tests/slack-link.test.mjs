@@ -49,6 +49,7 @@ test("a claimed token is kept where only this user can read it, and the bridge s
   const keys = slackKeys({ env: {}, envFile: "", home: where });
   assert.equal(keys.relayed, true);
   assert.equal(keys.api, "https://relay.test/api");
+  assert.equal(keys.files, "https://relay.test/file");
   assert.deepEqual(keys.people, ["UADA"]);
 });
 
