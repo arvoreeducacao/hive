@@ -714,17 +714,6 @@ async function keepAutopushAlive() {
   await sh(...inBash(AUTOPUSH_LOCAL), { timeout: 10000, cwd: HOME });
 }
 
-async function mirrorMemory() {
-  if (SANDBOX || !CLOUD) return;
-  const script = deploymentScript("pod-memory-sync.sh");
-  if (!script || !existsSync(script)) return;
-  if (!(await podUp())) return;
-  await sh(...inBash(`bash ${quoted(script)} --quiet`), {
-    timeout: 120000,
-    env: { HIVE_HOME, HIVE_HUB: HUB, HIVE_POD: POD, HIVE_NAMESPACE: NS }
-  });
-}
-
 /* a loan that ended with the app is a conversation still sitting on the volume, where anyone on the
    team reads it with the same exec the deck already uses. Nothing is lent at boot, so nothing there is
    worth keeping — and the flag that spares the mirrors spares this too: a second panel on this machine
@@ -7491,7 +7480,6 @@ if (!SANDBOX && CLOUD) (async () => { if (await podUp()) await ensurePodServer()
 if (!SANDBOX) ensurePeerTools("local").catch(() => {});
 hubEnvIntoTmux().catch(() => {});
 keepAutopushAlive().catch(() => {});
-mirrorMemory().catch(() => {});
 publishPanel().catch(() => {});
 setInterval(() => { publishPanel().catch(() => {}); }, 30000);
 if (!SANDBOX) { phoneBridge.tick().catch(() => {}); setInterval(() => { phoneBridge.tick().catch(() => {}); }, 5000); }
@@ -7508,8 +7496,6 @@ setInterval(() => { routines.tick().catch(() => {}); }, 30000);
 setInterval(() => { meetingRoutes.sweep().catch(() => {}); }, 10000).unref();
 if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET) setInterval(() => { closeQuietSeats().catch(() => {}); }, QUIET_SWEEP_EVERY_MS);
 if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET) setInterval(() => { pruneQuietDiaries().catch(() => {}); }, QUIET_SWEEP_EVERY_MS);
-
-setInterval(() => { mirrorMemory().catch(() => {}); }, 600000);
 
 
 scanHistory({}).catch(() => {});

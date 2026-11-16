@@ -89,6 +89,7 @@ body.experience-next .sv-attach .att button.ax::before { position: absolute; ins
 body.experience-next .sv-memturn .mglyph { flex: none; width: 12px; height: 12px; font-size: 0; background: currentColor; -webkit-mask: var(--px-memory) center / 12px 12px no-repeat; mask: var(--px-memory) center / 12px 12px no-repeat; }
 body.experience-next .sv-memturn { border-color: var(--line); background: var(--panel); }
 body.experience-next .sv-memturn .mh { font-family: var(--mono); font-weight: 400; color: var(--blue); }
+body.experience-next .sv-memturn :is(.mrow, .mfoot) { border-top-color: var(--line); }
 body.experience-next .sv-ctx { color: var(--txt-2); }
 body.experience-next .sv-ctx .bar { background: var(--line); }
 body.experience-next .sv-ctx .bar > i { background: var(--txt-2); }

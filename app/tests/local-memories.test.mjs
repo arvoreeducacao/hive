@@ -31,6 +31,14 @@ test("every memory folder is listed once, a worktree's symlink to the hub folder
   assert.deepEqual(memories.map((one) => [one.id, one.title, one.hook, one.scope]), [["-Users-ana-hub/a.md", "A", "gancho de a", ""], ["-Users-ana-hub/b.md", "B", "gancho de b", ""]]);
 });
 
+test("the status of a memory carries its scope and its index title, and a missing one is gone", async () => {
+  const { local } = place();
+  assert.deepEqual(await local.statuses(["-Users-ana-hub/a.md", "-Users-ana-hub/nope.md"]), {
+    "-Users-ana-hub/a.md": { gone: false, scope: "", title: "A" },
+    "-Users-ana-hub/nope.md": { gone: true }
+  });
+});
+
 test("changing the scope writes the frontmatter, and undo puts the file back as it was", async () => {
   const { local, hub } = place();
   const entry = await local.setScope("-Users-ana-hub/a.md", "team");

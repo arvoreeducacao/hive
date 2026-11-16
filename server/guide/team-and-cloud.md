@@ -298,6 +298,13 @@ Or use your own Slack app:
 
 The bridge reacts with 👀 to a message it takes. Threads it follows are kept in `~/.hive/slack-chats.json`. If the bound chat is closed, the next message opens a new one.
 
+Images in the thread reach the chat as files on this machine:
+
+- When a chat opens, the bridge takes the images of the thread so far and of the message that called it; later, the images of each new message in the thread. Up to 8 at a time, PNG, JPEG, GIF or WebP, 20 MB at most.
+- It saves them in `~/.hive/slack-files/<channel>-<thread>/` and names each path in the message the chat gets, so the chat opens them with its file-reading tool. Folders untouched for 7 days are deleted.
+- Through the relay, the relay downloads the image with the bot's own token, only from a thread the person is part of. With your own Slack app, the bridge downloads it with `HIVE_SLACK_BOT_TOKEN`. Either way the Slack app needs the `files:read` scope.
+- An image that does not come is named to the chat with the reason ("the Slack app is missing the files:read scope", "the team's Slack relay does not hand files over yet"), so the chat says it could not see it instead of guessing.
+
 ## Slack threads in a seat
 
 When a chat carries a link to a Slack thread, the seat menu shows it under **Slack threads**, with **open in Slack** and **mark as read in Slack**. The app reads Slack with `SLACK_USER_TOKEN` from the hub's `.env`; without it, it says "no SLACK_USER_TOKEN in the hub .env". Replying from here needs the `chat:write` scope, and reactions need `reactions:write`.
@@ -314,7 +321,7 @@ The memories screen (⋯ menu → **memories**, ⌥⇧M) has three tabs:
 
 The repository is the hub's `origin` remote on GitHub; `HIVE_TEAM_MEMORY_REPO=owner/repo` in `~/.hive/config` overrides it. Everything goes through `gh`, signed in as you. The panel keeps its undo history and the "proposed in PR N" marks in `~/.hive/memories/`.
 
-When a chat on this machine creates a memory file during a turn, one card at the end of the turn lists the new ones, with the scope and a delete button on each. Editing an existing memory shows nothing. Leaving the card alone keeps the memories as they are, and it goes away with the next message.
+When a chat on this machine creates a memory file during a turn, one card at the end of the turn lists the new ones by their title in `MEMORY.md`, each with a Personal/Team switch and a delete button. A memory marked Team also shows "propose to the team…", which opens it in the memories panel. Nothing reaches the team until it is proposed there and a teammate approves the pull request. Editing an existing memory shows nothing. Leaving the card alone keeps the memories as they are, and it goes away with the next message.
 
 ## Hosting for a team: the deployment folder
 
@@ -326,7 +333,6 @@ The Hive knows nothing about where a team hosts it. A team keeps that in a **dep
 ├── hive-setup.sh              optional: where one person's server is
 └── scripts/
     ├── pod-power.sh           optional: the power switch of a person's server
-    ├── pod-memory-sync.sh     optional: mirrors agent memory to the server
     └── pod-cloud-sessions.sh  optional: sets transcript sync up on the server
 ```
 
@@ -365,7 +371,7 @@ The welcome screen runs the same script when you press **Create my key**.
 - Run it again whenever `hive.defaults` changes. Other lines in the config are kept, except `HIVE_DEV`, `HIVE_POD`, `HIVE_HUB`, `HIVE_REPO` and `HIVE_SERVER_URL`.
 - If it finds the files of an old command-line install in `~/.local/bin`, it deletes them, the `hive` command included.
 
-## Deployment scripts: power, memory sync, transcript sync
+## Deployment scripts: power, transcript sync
 
 **`scripts/pod-power.sh`** is the power switch of a person's server. It reads `HIVE_POD` and the rest from `~/.hive/config`. Without it, the app treats the server as something it cannot switch on.
 
@@ -382,8 +388,6 @@ The welcome screen runs the same script when you press **Create my key**.
 | `force-remove` | the doctor | remove a server stuck on its way down |
 | `exec <script>` | the doctor | run a script on the server |
 | `shell <command>` | the doctor | run an interactive command on the server |
-
-**`scripts/pod-memory-sync.sh`** runs with `--quiet` when the app starts and every ten minutes after, while the server is up. It gets `HIVE_HOME`, `HIVE_HUB`, `HIVE_POD` and `HIVE_NAMESPACE`.
 
 **`scripts/pod-cloud-sessions.sh`** runs once when a person turns on transcript sync, as `pod-cloud-sessions.sh <handle> <repository url>`, with `HIVE_HUB` set. Without it, the app tells the person to ask whoever runs the server.
 
@@ -438,6 +442,7 @@ The welcome screen runs the same script when you press **Create my key**.
 - `app/lib/shelf-pins.mjs`
 - `app/lib/slack.mjs`
 - `app/lib/slack-bridge.mjs`
+- `app/lib/slack-files.mjs`
 - `app/lib/slack-hive.mjs`
 - `app/lib/slack-link.mjs`
 - `app/lib/local-memories.mjs`
