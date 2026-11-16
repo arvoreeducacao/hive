@@ -39,7 +39,6 @@ hive-acme/
 ├── hive-setup.sh          optional: where one person's server is
 └── scripts/
     ├── pod-power.sh       optional: the power switch of a person's server
-    ├── pod-memory-sync.sh optional: mirrors the agent's memory to the server
     └── pod-cloud-sessions.sh  optional: sets session sync up on the server
 ```
 
@@ -117,12 +116,6 @@ with one verb:
 
 Without it, the app treats the server as something it cannot switch on, and the
 doctor's server repairs have nothing to run.
-
-### `scripts/pod-memory-sync.sh`
-
-Run with `--quiet` when the app starts and every ten minutes after, while the server is up. It mirrors the
-agent's memory between this machine and the server. The app passes
-`HIVE_HOME`, `HIVE_HUB`, `HIVE_POD` and `HIVE_NAMESPACE`.
 
 ### `scripts/pod-cloud-sessions.sh`
 

@@ -333,7 +333,6 @@ The Hive knows nothing about where a team hosts it. A team keeps that in a **dep
 ├── hive-setup.sh              optional: where one person's server is
 └── scripts/
     ├── pod-power.sh           optional: the power switch of a person's server
-    ├── pod-memory-sync.sh     optional: mirrors agent memory to the server
     └── pod-cloud-sessions.sh  optional: sets transcript sync up on the server
 ```
 
@@ -372,7 +371,7 @@ The welcome screen runs the same script when you press **Create my key**.
 - Run it again whenever `hive.defaults` changes. Other lines in the config are kept, except `HIVE_DEV`, `HIVE_POD`, `HIVE_HUB`, `HIVE_REPO` and `HIVE_SERVER_URL`.
 - If it finds the files of an old command-line install in `~/.local/bin`, it deletes them, the `hive` command included.
 
-## Deployment scripts: power, memory sync, transcript sync
+## Deployment scripts: power, transcript sync
 
 **`scripts/pod-power.sh`** is the power switch of a person's server. It reads `HIVE_POD` and the rest from `~/.hive/config`. Without it, the app treats the server as something it cannot switch on.
 
@@ -389,8 +388,6 @@ The welcome screen runs the same script when you press **Create my key**.
 | `force-remove` | the doctor | remove a server stuck on its way down |
 | `exec <script>` | the doctor | run a script on the server |
 | `shell <command>` | the doctor | run an interactive command on the server |
-
-**`scripts/pod-memory-sync.sh`** runs with `--quiet` when the app starts and every ten minutes after, while the server is up. It gets `HIVE_HOME`, `HIVE_HUB`, `HIVE_POD` and `HIVE_NAMESPACE`.
 
 **`scripts/pod-cloud-sessions.sh`** runs once when a person turns on transcript sync, as `pod-cloud-sessions.sh <handle> <repository url>`, with `HIVE_HUB` set. Without it, the app tells the person to ask whoever runs the server.
 
