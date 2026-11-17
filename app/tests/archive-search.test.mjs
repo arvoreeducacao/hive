@@ -61,3 +61,54 @@ test("folding and cutting into words is the same on both sides of the wire", () 
   assert.equal(foldText("Histórico DO Hive"), "historico do hive");
   assert.deepEqual(wordsOf("crm — limpeza, 2026!"), ["crm", "limpeza", "2026"]);
 });
+
+const seated = (seat, title, was = [], id = seat) => ({ id, where: "local", seat, title, was, prompt: "", cwd: "/Users/me/acme-hub", at: 1 });
+
+test("the chat's own name finds it first, ahead of chats that only share its words", () => {
+  const list = [
+    session("ver o painel, por favor"),
+    seated("por-favor-ver-o-2", "Conclusão do plano"),
+    seated("por-favor-ver-o", "Fluência de reader")
+  ];
+  assert.deepEqual(titles(rankSessions(list, "por-favor-ver-o")), ["Fluência de reader", "Conclusão do plano", "ver o painel, por favor"]);
+});
+
+test("a title the chat wore before still finds it, and says which one matched", () => {
+  const list = [
+    session("Fluxo de caixa"),
+    seated("como-estamos-com-o", "Planos com IA a partir de notas", ["Fluxo de telas do backoffice Acme"])
+  ];
+  const found = rankSessions(list, "fluxo de telas do backoffice");
+  assert.deepEqual(titles(found), ["Planos com IA a partir de notas"]);
+  assert.equal(found[0].formerly, "Fluxo de telas do backoffice Acme");
+});
+
+test("a former title is not repeated when the current title or the name already matched", () => {
+  const found = rankSessions([seated("sales-limpeza", "limpeza do sales", ["sales antigo"])], "sales");
+  assert.equal(found[0].formerly, undefined);
+});
+
+test("the whole title typed beats a title that only holds its words apart", () => {
+  const list = [session("login com problema no dashboard"), session("problema de login no dashboard")];
+  assert.deepEqual(titles(rankSessions(list, "problema de login no dashboard")), ["problema de login no dashboard"]);
+});
+
+test("a short word matches where a word begins, never the middle of another word", () => {
+  const list = [session("conversa longa"), session("ver o painel")];
+  assert.deepEqual(titles(rankSessions(list, "ver")), ["ver o painel"]);
+});
+
+test("a longer word still matches inside a word", () => {
+  assert.deepEqual(titles(rankSessions([session("bug no dashboard")], "board")), ["bug no dashboard"]);
+});
+
+test("only the start of a word is lit, so a short word does not light every syllable", () => {
+  assert.deepEqual(markUp("ver conversa", "ver"), [{ text: "ver", lit: true }, { text: " conversa" }]);
+});
+
+test("an accent written as two characters does not push the highlight off the word", () => {
+  const typed = "é que eu nao gostei desse design";
+  const lit = markUp(typed, "desse").filter((part) => part.lit).map((part) => part.text);
+  assert.deepEqual(lit, ["desse"]);
+  assert.equal(markUp(typed, "desse").map((part) => part.text).join(""), typed.normalize("NFC"));
+});

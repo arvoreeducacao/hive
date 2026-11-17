@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { Window } from 'happy-dom';
 import { createExperienceBehaviors } from '../src/app/experience-behaviors.js';
 import { EXPERIENCE_BEHAVIORS, INFO_WIDTH_DEFAULT, THREAD_WIDTH_DEFAULT, cleanExperienceOff, cleanInfoHeight, cleanInfoWidth, cleanPaneWidth, cleanPatch, cleanThreadWidth } from '../lib/config.mjs';
@@ -223,6 +224,19 @@ test('the saved pane width comes back from the config and is cleaned like the ot
   assert.equal(cleanPaneWidth(100, 'file', problems), null);
   assert.equal(problems.length, 1);
   assert.deepEqual(cleanPatch({ paneWidth: 600 }), { clean: { paneWidth: 600 }, problems: [] });
+});
+
+test('a pane width saved on a wider screen leaves the chat its 320px and keeps the handle on screen', () => {
+  const css = readFileSync(new URL('../assets/experience.css', import.meta.url), 'utf8');
+  const rule = (selector) => {
+    const start = css.indexOf(`${selector} {`);
+    assert.ok(start >= 0, `missing rule ${selector}`);
+    return css.slice(start, css.indexOf('}', start));
+  };
+  assert.match(rule('body.experience-next .tile.open.arting'), /grid-template-columns: minmax\(0, var\(--open-side\)\) minmax\(320px, 1fr\) minmax\(0, var\(--x-pane-width, 1\.25fr\)\)/);
+  assert.match(rule('body.experience-next .tile.open.arting.draft'), /grid-template-columns: minmax\(320px, 1fr\) minmax\(0, var\(--x-pane-width, 1\.25fr\)\)/);
+  assert.match(rule('body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting:not(.deviced, .draft) > .x-split-pane'), /right: calc\(min\(var\(--x-pane-width, [^;]+\), 100% - var\(--open-side\) - 320px\) - 4px\)/);
+  assert.match(rule('body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting.draft:not(.deviced) > .x-split-pane'), /right: calc\(min\(var\(--x-pane-width, [^;]+\), 100% - 320px\) - 4px\)/);
 });
 
 test('in a new chat there is no details column, so the pane only spares the chat its 320px', () => {

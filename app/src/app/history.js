@@ -69,13 +69,14 @@ function historyViewModel() {
   }
   return {
     count, hint: "", scanning: !!st.histWatch,
-    rows: shown.map(({ session: s, order, hit }) => ({
+    rows: shown.map(({ session: s, order, hit, formerly }) => ({
       key: `${s.where}/${s.id}`, at: order, where: s.where,
       whereSay: s.where === "cloud" ? "cloud" : "local",
       agent: agentOfRow(s),
       agentSay: agentOfRow(s) === "claude" ? "" : agentOfRow(s),
       prompt: s.prompt || "", title: markUp(s.title, asked),
-      sub: markUp(`${shortDir(s.cwd)}${s.prompt ? ` · ${s.prompt.slice(0, 130)}` : ""}`, asked),
+      sub: markUp([s.seat && s.seat !== s.title ? s.seat : "", shortDir(s.cwd), s.prompt ? s.prompt.slice(0, 130) : ""].filter(Boolean).join(" · "), asked),
+      formerly: formerly ? markUp(phrase("was called {title}", { title: formerly }), asked) : null,
       hit: hit ? markUp(hit, asked) : null,
       sync: s.sync === "ok" ? { tone: "ok", glyph: "g-working", hint: phrase("already in the sync repo") }
         : s.sync === "behind" ? { tone: "behind", glyph: "g-idle", hint: phrase("not in the sync repo yet — the next sync pushes it") }

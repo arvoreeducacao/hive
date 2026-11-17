@@ -88,7 +88,10 @@ test("a sign-in popup opens as a layer over the hive window that keeps its opene
   const popupRule = handler.indexOf('disposition === "new-window"');
   assert.ok(popupRule > -1, "window.open with features is how google, microsoft and clever open their sign-in");
   assert.ok(popupRule < handler.indexOf('send("seat-browser:popup"'), "the popup rule runs before the one that turns everything into a tab");
-  assert.match(handler, /createWindow: \(options\) => popupOverWindow\(window_, guest, options\)/, "a native window lands in its own full-screen space and leaves a black one behind when it closes");
+  assert.match(handler, /createWindow: \(options\) => \{\s*const popup = popupOverWindow\(window_, guest, options\)/, "a native window lands in its own full-screen space and leaves a black one behind when it closes");
+  assert.match(handler, /overrideBrowserWindowOptions: \{ webPreferences: \{ preload: join\(HERE, "main", "seat-preload\.js"\) \} \}/, "electron does not hand the opener's preload to the popup, and without it google's passkey step waits forever");
+  assert.match(handler, /seatWc\.add\(popupId\)/, "the passkey handler only answers a seat browser, and the popup is one");
+  assert.match(handler, /popup\.once\("destroyed", \(\) => seatWc\.delete\(popupId\)\)/);
   const layer = cut(main, "function popupOverWindow(", "function notify(", "main.js");
   assert.match(layer, /new WebContentsView\(\{ webContents: options\.webContents/, "the opener only survives on the webContents electron hands over");
   assert.match(layer, /input\.key === "Escape"/, "a login the person gives up on has a way out");

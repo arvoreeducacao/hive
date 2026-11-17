@@ -118,7 +118,7 @@ import { createSlackLinker } from "./lib/slack-link.mjs";
 import { createSessions, driverFileFor } from "../server/sessions.mjs";
 import { OWN_SESSION_ID, hiveEventMessages, parseHiveSessions } from "./lib/own-history.mjs";
 import { oneRowPerSession, readSeatRecords, scanTranscriptsApart } from "./lib/archive-scan.mjs";
-import { foldText, wordsOf } from "./assets/archive-search.mjs";
+import { holdsEvery, wordsOf } from "./assets/archive-search.mjs";
 import { noteSpent, readLedger } from "../server/engine/accounts.mjs";
 import { blindNamingError, namesRead } from "./lib/seat-names.mjs";
 import { attachServerStream } from "./lib/server-stream.mjs";
@@ -3727,7 +3727,7 @@ H="$HOME/.claude/projects"
 R="$HOME/.claude/cloud-sessions/repo"
 D=$(mktemp -d)
 for dir in "$H"/*/; do
-  case "$dir" in *"/-tmp/"|*"/-tmp-"*|*"/-private-tmp/"|*"/-private-tmp-"*) continue;; esac
+  case "$dir" in *"/-tmp/"|*"/-tmp-"*|*"/-private-tmp/"|*"/-private-tmp-"*|*"/-var-folders-"*"-T-"*|*"/-private-var-folders-"*"-T-"*) continue;; esac
   ls -t "$dir"*.jsonl 2>/dev/null
 done | while IFS= read -r f; do
   head -c 262144 "$f" 2>/dev/null > "$D/headbig"
@@ -3752,6 +3752,7 @@ done | while IFS= read -r f; do
   grep -o '"timestamp":"[^"]*"' "$D/tail" | tail -1 | sed 's/^/==W==/'
   cat "$D/tail" "$D/tailbig" | grep -o '"aiTitle":"[^"]*"' | tail -1 | sed 's/^/==A==/'
   cat "$D/head" "$D/headbig" "$D/tail" "$D/tailbig" | grep -o '"customTitle":"[^"]*"' | tail -1 | sed 's/^/==N==/'
+  cat "$D/head" "$D/headbig" "$D/tailbig" "$D/tail" | grep -oE '"(customTitle|aiTitle)":"[^"]*"' | awk '!seen[$0]++' | tail -12 | sed 's/^/==O==/'
   grep -o '"lastPrompt":"[^"]*"' "$D/tail" | tail -1 | cut -c1-600 | sed 's/^/==P==/'
 done
 SEATS="\${HIVE_SESSIONS:-$HOME/.hive/sessions}"
@@ -3802,7 +3803,9 @@ function parseHistory(raw, where, into) {
     const prompt = val(grab("==P=="));
     const sync = grab("==S==");
     if (!custom && !ai && !prompt) continue;
-    into.push({ id, where, at, cwd, prompt, title: custom || ai || prompt.slice(0, 90) || cwd.split("/").pop() || id.slice(0, 8), ...(ai ? { ai } : {}), ...(custom ? { custom } : {}), ...(seat ? { seat } : {}), ...(sync ? { sync } : {}) });
+    const title = custom || ai || prompt.slice(0, 90) || cwd.split("/").pop() || id.slice(0, 8);
+    const was = [...new Set(lines.filter((l) => l.startsWith("==O==")).map((l) => val(l.slice(5)).trim().slice(0, 90)))].filter((one) => one && one !== title).slice(-12);
+    into.push({ id, where, at, cwd, prompt, title, ...(ai ? { ai } : {}), ...(custom ? { custom } : {}), ...(was.length ? { was } : {}), ...(seat ? { seat } : {}), ...(sync ? { sync } : {}) });
   }
 }
 
@@ -3816,7 +3819,8 @@ function decorateHistory(data) {
     if (!seat) return row;
     const saved = titles.get(titleKey(seat, row.where));
     const title = (saved?.mine && saved.title) || row.custom || row.ai || saved?.title || row.title;
-    return { ...row, seat, title };
+    const was = [...new Set([...(row.was || []), row.title])].filter((one) => one && one !== title);
+    return { ...row, seat, title, ...(was.length ? { was } : {}) };
   });
   return { ...data, sessions };
 }
@@ -3918,10 +3922,10 @@ async function searchArchive(asked) {
   for (const entry of Object.values(histIndex)) {
     if (!entry?.row || !entry.says?.length) continue;
     const said = entry.says;
-    const plain = said.map((one) => foldText(one));
-    if (!want.every((word) => plain.some((one) => one.includes(word)))) continue;
-    const at = plain.findIndex((one) => one.includes(want[0]));
-    found.push({ id: entry.row.id, hit: said[at < 0 ? 0 : at].slice(0, 200) });
+    if (!want.every((word) => said.some((one) => holdsEvery(one, [word])))) continue;
+    const at = said.findIndex((one) => holdsEvery(one, want));
+    const first = at < 0 ? said.findIndex((one) => holdsEvery(one, [want[0]])) : at;
+    found.push({ id: entry.row.id, hit: said[first < 0 ? 0 : first].slice(0, 200) });
     if (found.length >= 200) break;
   }
   return found;

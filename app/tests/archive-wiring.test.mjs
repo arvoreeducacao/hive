@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { foldText, wordsOf } from "../assets/archive-search.mjs";
+import { holdsEvery, wordsOf } from "../assets/archive-search.mjs";
 import { oneRowPerSession } from "../lib/archive-scan.mjs";
 
 const HERE = fileURLToPath(new URL("..", import.meta.url));
@@ -97,11 +97,11 @@ test("how far the scan has got is written down while it runs, and dropped when i
 
 function searcher(index) {
   const body = slice("async function searchArchive(asked) {", "function historyStamp(");
-  return new Function("foldText", "wordsOf", "readArchiveIndex", `
+  return new Function("holdsEvery", "wordsOf", "readArchiveIndex", `
     let histIndex = ${JSON.stringify(index)};
     ${body}
     return searchArchive;
-  `)(foldText, wordsOf, async () => ({}));
+  `)(holdsEvery, wordsOf, async () => ({}));
 }
 
 test("a word only the conversation holds finds the chat, and brings the line it found", async () => {
@@ -117,6 +117,16 @@ test("every word typed has to appear somewhere in the conversation", async () =>
   const index = { "p/a.jsonl": { row: { id: "a" }, says: ["o webview branco", "no crm"] } };
   assert.equal((await searcher(index)("webview crm")).length, 1);
   assert.equal((await searcher(index)("webview jacaré")).length, 0);
+});
+
+test("a short word only counts where a word begins, so it does not match the middle of every line", async () => {
+  const index = { "p/a.jsonl": { row: { id: "a" }, says: ["a conversa toda"] }, "p/b.jsonl": { row: { id: "b" }, says: ["dá pra ver isso"] } };
+  assert.deepEqual((await searcher(index)("ver")).map((one) => one.id), ["b"]);
+});
+
+test("the line shown is the one that holds every word, when one does", async () => {
+  const index = { "p/a.jsonl": { row: { id: "a" }, says: ["o webview", "o webview branco no sales"] } };
+  assert.equal((await searcher(index)("webview sales"))[0].hit, "o webview branco no sales");
 });
 
 test("nothing typed searches nothing", async () => {

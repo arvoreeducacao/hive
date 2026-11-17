@@ -845,7 +845,17 @@ function createWindow() {
   window_.webContents.on("did-attach-webview", (_ev, guest) => {
     guest.setWindowOpenHandler(({ url, disposition }) => {
       if (guest.session === seatBrowser && /^https?:/.test(url) && disposition === "new-window") {
-        return { action: "allow", createWindow: (options) => popupOverWindow(window_, guest, options) };
+        return {
+          action: "allow",
+          overrideBrowserWindowOptions: { webPreferences: { preload: join(HERE, "main", "seat-preload.js") } },
+          createWindow: (options) => {
+            const popup = popupOverWindow(window_, guest, options);
+            const popupId = popup.id;
+            seatWc.add(popupId);
+            popup.once("destroyed", () => seatWc.delete(popupId));
+            return popup;
+          }
+        };
       }
       if (guest.session === seatBrowser && /^https?:/.test(url)) {
         if (!window_.isDestroyed()) window_.webContents.send("seat-browser:popup", guest.id, url);

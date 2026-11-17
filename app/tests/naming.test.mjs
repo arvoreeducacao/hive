@@ -93,6 +93,7 @@ test("a claude seat is named by haiku through claude -p, with no mcp servers", (
   assert.equal(ask.exe, "/usr/bin/claude");
   assert.deepEqual(ask.args.slice(0, 4), ["-p", "Mission: x", "--model", NAMER_MODELS.claude]);
   assert.ok(ask.args.includes("--strict-mcp-config"));
+  assert.ok(ask.args.includes("--no-session-persistence"), "the title ask left a transcript that showed up in past sessions");
   assert.equal(ask.answerIn, "");
 });
 

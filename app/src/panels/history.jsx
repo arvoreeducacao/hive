@@ -1,8 +1,8 @@
-import { For, Show } from "solid-js";
+import { For, Index, Show } from "solid-js";
 import { mountView } from "../view.jsx";
 
 function Marked(props) {
-  return <For each={props.parts}>{(part) => (part.lit ? <mark>{part.text}</mark> : part.text)}</For>;
+  return <Index each={props.parts}>{(part) => <Show when={part().lit} fallback={part().text}><mark>{part().text}</mark></Show>}</Index>;
 }
 
 function Row(props) {
@@ -12,6 +12,7 @@ function Row(props) {
       <span class="hist-title" title={props.row.prompt}>
         <b><Marked parts={props.row.title} /><Show when={props.row.agentSay}><i class="hist-agent">{props.row.agentSay}</i></Show></b>
         <small><Marked parts={props.row.sub} /></small>
+        <Show when={props.row.formerly}><small class="hist-hit"><Marked parts={props.row.formerly} /></small></Show>
         <Show when={props.row.hit}><small class="hist-hit"><Marked parts={props.row.hit} /></small></Show>
       </span>
       <span class="hist-when">

@@ -107,7 +107,7 @@ export function namerCommand({ agent, prompt, outFile, claude, engineDir = "", s
     : [];
   return {
     exe: claude,
-    args: ["-p", prompt, "--model", NAMER_MODELS.claude, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', ...shaped],
+    args: ["-p", prompt, "--model", NAMER_MODELS.claude, "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}', "--no-session-persistence", ...shaped],
     answerIn: ""
   };
 }

@@ -11,7 +11,16 @@ const WIDE_COLUMNS = 8000;
 const PROMPT_CAP = 600;
 const SAYS_CAP = 12;
 const SAY_CAP = 400;
-const TEMP_PROJECT = /^-(private-)?tmp(-|$)/;
+const TEMP_PROJECT = /^-(private-)?(tmp|var-folders-.+-T)(-|$)/;
+const FORMER_TITLES_CAP = 12;
+const INDEX_SHAPE = 2;
+const TITLE_MARKS = ["customTitle", "aiTitle"].map((name) => Buffer.from(`"${name}":"`));
+const TITLES_CHUNK = 4 << 20;
+const TITLES_OVERLAP = 2048;
+const TITLES_KEPT = 24;
+const QUOTE = 0x22;
+const BACKSLASH = 0x5c;
+const TITLE_CAP = 90;
 const WORTH_KEEPING = /"type":"file-history-snapshot"|"promptSource":"typed"|"entrypoint":"/;
 const SOMETHING_TYPED = /"lastPrompt":"/;
 const TRANSCRIPT_ID = /^[0-9a-f-]{8,}$/i;
@@ -53,7 +62,7 @@ export async function readWindows(path, size) {
   }
 }
 
-export function transcriptRow(id, windows, mtimeMs) {
+export function transcriptRow(id, windows, mtimeMs, titlesSeen = []) {
   const { head, headBig, tail, tailBig } = windows;
   if (!TRANSCRIPT_ID.test(id) || !(WORTH_KEEPING.test(headBig) || WORTH_KEEPING.test(head))) return null;
   const at = Date.parse(lastOf(tail, "timestamp")) || mtimeMs || 0;
@@ -63,12 +72,69 @@ export function transcriptRow(id, windows, mtimeMs) {
   const cwd = firstOf(head, "cwd");
   const prompt = lastOf(tail, "lastPrompt").slice(0, PROMPT_CAP);
   if (!custom && !ai && !prompt) return null;
+  const title = custom || ai || prompt.slice(0, TITLE_CAP) || cwd.split("/").pop() || id.slice(0, 8);
+  const was = formerTitles(title, [
+    ...fieldsOf(`${head}\n${headBig}\n${tailBig}\n${tail}`, "customTitle"),
+    ...fieldsOf(`${tailBig}\n${tail}`, "aiTitle"),
+    ...titlesSeen
+  ]);
   return {
-    id, at, cwd, prompt,
-    title: custom || ai || prompt.slice(0, 90) || cwd.split("/").pop() || id.slice(0, 8),
+    id, at, cwd, prompt, title,
     ...(ai ? { ai } : {}),
-    ...(custom ? { custom } : {})
+    ...(custom ? { custom } : {}),
+    ...(was.length ? { was } : {})
   };
+}
+
+function formerTitles(title, seen) {
+  const now = String(title || "").trim();
+  return keptTitles(seen).filter((one) => one !== now).slice(-FORMER_TITLES_CAP);
+}
+
+function quotedValueAt(chunk, from) {
+  for (let at = from; at < chunk.length && at - from < TITLES_OVERLAP / 2; at += 1) {
+    if (chunk[at] === BACKSLASH) at += 1;
+    else if (chunk[at] === QUOTE) return chunk.subarray(from, at).toString("utf8");
+  }
+  return null;
+}
+
+async function titlesAlong(path, from, to) {
+  const found = [];
+  const file = await open(path, "r");
+  try {
+    const held = Buffer.alloc(TITLES_CHUNK + TITLES_OVERLAP);
+    for (let start = Math.max(0, from); start < to; start += TITLES_CHUNK) {
+      const begin = Math.max(0, start - TITLES_OVERLAP);
+      const want = Math.min(to, start + TITLES_CHUNK) - begin;
+      const { bytesRead } = await file.read(held, 0, want, begin);
+      const chunk = held.subarray(0, bytesRead);
+      const hits = [];
+      for (const mark of TITLE_MARKS) {
+        for (let at = chunk.indexOf(mark); at >= 0; at = chunk.indexOf(mark, at + mark.length)) {
+          const raw = quotedValueAt(chunk, at + mark.length);
+          if (raw !== null) hits.push([at, unescape(raw)]);
+        }
+      }
+      hits.sort((a, b) => a[0] - b[0]);
+      for (const [, title] of hits) found.push(title);
+    }
+  } finally {
+    await file.close();
+  }
+  return found;
+}
+
+function keptTitles(seen) {
+  const kept = [];
+  for (const one of seen) {
+    const text = String(one || "").trim().slice(0, TITLE_CAP);
+    if (!text) continue;
+    const before = kept.indexOf(text);
+    if (before >= 0) kept.splice(before, 1);
+    kept.push(text);
+  }
+  return kept.slice(-TITLES_KEPT);
 }
 
 export function saysOf(windows) {
@@ -168,15 +234,24 @@ export async function scanTranscripts({ projectsDir, mirrorDir = "", known = {},
     try { live = await stat(join(projectsDir, key)); } catch { return; }
     const mtime = Math.round(live.mtimeMs);
     const kept = known[key];
-    let entry = kept && kept.m === mtime && kept.s === live.size ? kept : null;
+    let entry = kept && kept.m === mtime && kept.s === live.size && kept.v === INDEX_SHAPE ? kept : null;
     if (!entry) {
       read += 1;
       try {
-        const windows = await readWindows(join(projectsDir, key), live.size);
-        const row = transcriptRow(key.split("/").pop().replace(/\.jsonl$/, ""), windows, mtime);
-        entry = { m: mtime, s: live.size, ...(row ? { row, says: saysOf(windows) } : {}) };
+        const path = join(projectsDir, key);
+        const windows = await readWindows(path, live.size);
+        const grew = kept?.v === INDEX_SHAPE && Number(kept.tu) > 0 && kept.tu <= live.size;
+        const fresh = await titlesAlong(path, grew ? kept.tu : 0, live.size).catch(() => null);
+        const titles = fresh ? keptTitles([...(grew ? kept.tw || [] : []), ...fresh]) : kept?.tw || [];
+        const row = transcriptRow(key.split("/").pop().replace(/\.jsonl$/, ""), windows, mtime, titles);
+        entry = {
+          m: mtime, s: live.size, v: INDEX_SHAPE,
+          ...(fresh ? { tu: live.size } : {}),
+          ...(titles.length ? { tw: titles } : {}),
+          ...(row ? { row, says: saysOf(windows) } : {})
+        };
       } catch {
-        entry = { m: mtime, s: live.size };
+        entry = { m: mtime, s: live.size, v: INDEX_SHAPE };
       }
     }
     index[key] = entry;
