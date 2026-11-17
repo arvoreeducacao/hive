@@ -224,7 +224,7 @@ const boxText = (pre) => (pre.classList.contains("md-diff")
   : pre.textContent);
 
 function blockText(block) {
-  const buttons = [...block.querySelectorAll(".md-copy"), ...block.querySelectorAll(".sv-stamp")];
+  const buttons = [...block.querySelectorAll(".md-copy, .md-tochat, .md-run"), ...block.querySelectorAll(".sv-stamp")];
   for (const one of buttons) one.style.display = "none";
   const said = block.innerText;
   for (const one of buttons) one.style.display = "";

@@ -240,6 +240,7 @@ The Hive tracks the folders each chat works in and finds the worktrees in them. 
 ## The terminal and shell lines
 
 - **Shell line**: in a native chat, `!<command>` runs the line in the chat's folder. The output lands in the chat without going through the model. `!!<command>` runs it without keeping it in the chat's history. Limits: 4,000 characters, 120 seconds, 64 KB of output (the middle is cut).
+- **Run button**: when the chat answers with a code box that holds one shell line (`! <command>` or `!! <command>`), the box shows "run" beside "copy". Pressing it runs the line in that chat, as if you typed it. "copy to chat", between the two, puts the line (`!` included) in the chat's box instead, so you can edit it before Enter; Ctrl+Z (⌘Z) brings back what was in the box. The button hides while the answer is still coming in, and in a chat mirrored from another machine.
 - **Terminal seat**: the new-terminal key (see the "interface" topic) opens a plain shell in the hub folder, titled "Terminal". It closes when its shell ends ("the shell ended, so this seat closed").
 - **TUI chat**: the tile is the real terminal of the provider's program. Seat menu items: "type in this session", "take the keyboard back", "kill session".
 - **Driver output**: a native chat's driver runs in the chat's tmux window and prints one short line per event. To read it, run `tmux attach -t hive-local` and pick the window with the chat's name.
