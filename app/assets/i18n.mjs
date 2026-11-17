@@ -1332,6 +1332,8 @@ export const PT_BR = {
   "esc closes": "esc fecha",
   "copy just this box": "copiar só esta caixa",
   "run it in this chat, as if you typed it": "rodar neste chat, como se você tivesse digitado",
+  "copy to chat": "copiar pro chat",
+  "put it in the box, ! included, to edit before running": "pôr na caixa, com o !, pra editar antes de rodar",
   "the rest of it is in the seat": "o resto está no assento",
   "It stopped without a closing word — the seat itself is the only place left to look.": "Ele parou sem palavra de fecho — o próprio assento é o único lugar que sobra para olhar.",
   "no sessions here": "nenhuma sessão aqui",

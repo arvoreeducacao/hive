@@ -71,3 +71,29 @@ test("a box outside any chat does nothing", async () => {
   const msg = answer(loose, "```\n! ls\n```");
   assert.doesNotThrow(() => msg.querySelector(".md-run").click());
 });
+
+const composer = (e) => e.host.querySelector(".sv-composer textarea");
+
+test("copy to chat puts the line in the box, ! included, and runs nothing", async () => {
+  const { e, sent } = seat();
+  answer(e.host, "```\n! aws sso login --sso-session prod\n```").querySelector(".md-tochat").click();
+  await new Promise((go) => setTimeout(go, 0));
+  assert.equal(composer(e).value, "! aws sso login --sso-session prod");
+  assert.equal(sent.length, 0);
+  assert.equal(document.activeElement, composer(e));
+});
+
+test("copy to chat takes the place of what was in the box, so the line stays a shell line", async () => {
+  const { e } = seat();
+  composer(e).value = "um rascunho";
+  answer(e.host, "```\n!! gh auth status\n```").querySelector(".md-tochat").click();
+  await new Promise((go) => setTimeout(go, 0));
+  assert.equal(composer(e).value, "!! gh auth status");
+});
+
+test("copy to chat does nothing in a mirrored chat", async () => {
+  const { e } = seat({ mirror: { dev: "other", seat: "y" } });
+  answer(e.host, "```\n! ls\n```").querySelector(".md-tochat").click();
+  await new Promise((go) => setTimeout(go, 0));
+  assert.equal(composer(e).value, "");
+});

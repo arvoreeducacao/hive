@@ -173,10 +173,14 @@ function markRan(button) {
   }, 1600);
 }
 
+const shellBoxLine = (button) => {
+  const pre = button.closest(".md-codebox")?.querySelector(".md-code");
+  return pre ? boxText(pre).trim() : "";
+};
+
 function runShellBox(button) {
   if (button.classList.contains("said")) return;
-  const pre = button.closest(".md-codebox")?.querySelector(".md-code");
-  const line = pre ? shellLineOf(boxText(pre).trim()) : null;
+  const line = shellLineOf(shellBoxLine(button));
   const e = seatOfBox(button);
   if (!line || !e) return;
   if (e.mirror) return void svLine(e, "sv-meta warn", phrase("a command runs only on the machine that owns the chat"));
@@ -185,11 +189,23 @@ function runShellBox(button) {
   markRan(button);
 }
 
+function shellBoxToChat(button) {
+  const said = shellBoxLine(button);
+  const e = seatOfBox(button);
+  const box = e?.host.querySelector(".sv-composer textarea");
+  if (!shellLineOf(said) || !box || e.mirror) return;
+  box.focus();
+  box.select();
+  if (!document.execCommand?.("insertText", false, said)) box.setRangeText(said, 0, box.value.length, "end");
+  box.dispatchEvent(new Event("input"));
+}
+
 document.addEventListener("click", (ev) => {
-  const button = ev.target.closest?.(".md-run");
+  const button = ev.target.closest?.(".md-run, .md-tochat");
   if (!button) return;
   ev.preventDefault();
-  runShellBox(button);
+  if (button.classList.contains("md-run")) runShellBox(button);
+  else shellBoxToChat(button);
 }, true);
 
 async function interruptStructured(e) {
@@ -1137,4 +1153,4 @@ function offeredCommands(e) {
   return { list: [...list, "fresh"], info: { ...info, fresh: { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "" } } };
 }
 
-export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, seatReceiving, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };
+export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, seatReceiving, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };

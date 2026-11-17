@@ -92,6 +92,8 @@ const diffBody = (code) => code
 
 const copyButton = () => `<button type="button" class="md-copy" title="${phrase("copy just this box")}">${phrase("copy")}</button>`;
 
+const toChatButton = () => `<button type="button" class="md-tochat" title="${phrase("put it in the box, ! included, to edit before running")}">${phrase("copy to chat")}</button>`;
+
 const runButton = () => `<button type="button" class="md-run" title="${phrase("run it in this chat, as if you typed it")}">${phrase("run")}</button>`;
 
 const isShellBox = (code) => {
@@ -100,7 +102,7 @@ const isShellBox = (code) => {
 };
 
 const codeBox = (pre, shell = false) => (shell
-  ? `<div class="md-codebox md-shellbox">${pre}<span class="md-acts">${copyButton()}${runButton()}</span></div>`
+  ? `<div class="md-codebox md-shellbox">${pre}<span class="md-acts">${copyButton()}${toChatButton()}${runButton()}</span></div>`
   : `<div class="md-codebox">${pre}${copyButton()}</div>`);
 
 const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);

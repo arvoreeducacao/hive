@@ -94,12 +94,13 @@ test("a fence holding one ! command carries a run button next to copy", () => {
   assert.ok(out.includes('<div class="md-codebox md-shellbox">'));
   assert.ok(out.includes('class="md-run"'));
   assert.ok(out.includes('class="md-copy"'));
+  assert.ok(out.indexOf('class="md-copy"') < out.indexOf('class="md-tochat"') && out.indexOf('class="md-tochat"') < out.indexOf('class="md-run"'), "copy, then copy to chat, then run");
   assert.ok(renderMarkdown("```bash\n!! gh auth status\n```").includes('class="md-run"'));
 });
 
 test("only a single ! command gets the run button", () => {
   for (const words of ["```\nls -la\n```", "```\n! one\n! two\n```", "```\n!\n```", "```\n!!! nope\n```", "```diff\n! changed\n```"]) {
-    assert.ok(!renderMarkdown(words).includes("md-run"), words);
+    assert.ok(!renderMarkdown(words).includes("md-run") && !renderMarkdown(words).includes("md-tochat"), words);
   }
 });
 

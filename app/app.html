@@ -1194,13 +1194,17 @@
   .md .md-codebox:hover .md-code[data-lang]:not([data-lang=""])::before { opacity: 0; }
   .md .md-acts { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); z-index: 2; display: flex; align-items: center; gap: 4px; }
   .md .md-acts .md-copy { position: static; }
-  .md .md-run { display: none; }
+  .md .md-run, .md .md-tochat { display: none; }
   .sv:not(.sv-mirror) .md .md-run { all: unset; display: inline-block; cursor: pointer; user-select: none; font-family: var(--mono); font-size: 9.5px; color: var(--accent); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; transition: color .12s var(--ease), border-color .12s var(--ease); }
   .sv:not(.sv-mirror) .md .md-run:hover, .sv:not(.sv-mirror) .md .md-run.said { color: var(--txt); border-color: var(--accent); }
   .sv:not(.sv-mirror) .md .md-run:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv:not(.sv-mirror) .md .md-tochat { all: unset; display: inline-block; cursor: pointer; user-select: none; opacity: 0; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; transition: opacity .12s var(--ease); }
+  .sv:not(.sv-mirror) .md .md-codebox:hover .md-tochat, .sv:not(.sv-mirror) .md .md-tochat:focus-visible { opacity: 1; }
+  .sv:not(.sv-mirror) .md .md-tochat:hover { color: var(--txt); }
+  .sv:not(.sv-mirror) .md .md-tochat:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   .sv:not(.sv-mirror) .md .md-shellbox .md-code { padding-right: 52px; }
   .sv:not(.sv-mirror) .md .md-shellbox .md-code[data-lang]::before { display: none; }
-  .sv-msg.streaming .md-run { visibility: hidden; }
+  .sv-msg.streaming .md-run, .sv-msg.streaming .md-tochat { visibility: hidden; }
   .md .md-code.md-diff { padding-inline: 0; }
   .md .md-diff span { display: block; box-sizing: border-box; width: max-content; min-width: 100%; padding: 0 11px; white-space: pre; }
   .md .md-diff .add { background: rgba(78,169,111,.11); color: #8FD3A7; }
@@ -4072,7 +4076,7 @@
   body.look-dimension .t-num::before { border-radius: var(--r-card); }
   body.look-dimension .md code { border-radius: var(--r-row); }
   body.look-dimension .md .md-code { border-radius: var(--r-card); }
-  body.look-dimension .md .md-copy, body.look-dimension .md .md-run { border-radius: var(--r-card); }
+  body.look-dimension .md .md-copy, body.look-dimension .md .md-tochat, body.look-dimension .md .md-run { border-radius: var(--r-card); }
   body.look-dimension .md .md-h { font-weight: 500; }
   body.look-dimension .md th { font-weight: 500; }
   body.look-dimension .sv-user { border-radius: var(--r-card); }
