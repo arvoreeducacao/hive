@@ -1006,7 +1006,7 @@ function renderNode(node) {
     div.innerHTML = renderMarkdown(v.text || "");
     for (const copy of div.querySelectorAll(".md-copy")) {
       copy.textContent = t("copy");
-      copy.onclick = (event) => { event.stopPropagation(); navigator.clipboard?.writeText(copy.parentElement.querySelector("pre")?.textContent || "").then(() => toast(t("copied"))); };
+      copy.onclick = (event) => { event.stopPropagation(); navigator.clipboard?.writeText(copy.closest(".md-codebox")?.querySelector("pre")?.textContent || "").then(() => toast(t("copied"))); };
     }
     for (const link of div.querySelectorAll("a.md-shelf")) { link.onclick = (event) => { event.preventDefault(); openPage(link.dataset.slug, link.dataset.tab, Number(link.dataset.v) || 0); }; }
     for (const link of div.querySelectorAll("a.md-shot")) { link.onclick = (event) => { event.preventDefault(); toast(t("that opens on the computer")); }; }
