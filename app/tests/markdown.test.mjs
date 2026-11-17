@@ -89,6 +89,20 @@ test("every fence carries its own copy button, and only the fence is inside the 
   assert.ok(!box.includes("antes") && !box.includes("depois"));
 });
 
+test("a fence holding one ! command carries a run button next to copy", () => {
+  const out = renderMarkdown("Rode no chat:\n```\n! aws sso login --sso-session prod\n```");
+  assert.ok(out.includes('<div class="md-codebox md-shellbox">'));
+  assert.ok(out.includes('class="md-run"'));
+  assert.ok(out.includes('class="md-copy"'));
+  assert.ok(renderMarkdown("```bash\n!! gh auth status\n```").includes('class="md-run"'));
+});
+
+test("only a single ! command gets the run button", () => {
+  for (const words of ["```\nls -la\n```", "```\n! one\n! two\n```", "```\n!\n```", "```\n!!! nope\n```", "```diff\n! changed\n```"]) {
+    assert.ok(!renderMarkdown(words).includes("md-run"), words);
+  }
+});
+
 test("a diff fence colours each line by its sign", () => {
   const out = renderMarkdown("```diff\n@@ -1,3 +1,3 @@\n-const a = 1;\n+const a = 2;\n const b = 3;\n```");
   assert.ok(out.includes('class="md-code md-diff" data-lang="diff"'));

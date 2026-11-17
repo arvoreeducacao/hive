@@ -90,8 +90,18 @@ const diffBody = (code) => code
   .map((line) => `<span class="${diffClass(line)}">${line || "&#8203;"}</span>`)
   .join("");
 
-const codeBox = (pre) => `<div class="md-codebox">${pre}`
-  + `<button type="button" class="md-copy" title="${phrase("copy just this box")}">${phrase("copy")}</button></div>`;
+const copyButton = () => `<button type="button" class="md-copy" title="${phrase("copy just this box")}">${phrase("copy")}</button>`;
+
+const runButton = () => `<button type="button" class="md-run" title="${phrase("run it in this chat, as if you typed it")}">${phrase("run")}</button>`;
+
+const isShellBox = (code) => {
+  const lines = code.filter((line) => line.trim());
+  return lines.length === 1 && /^!{1,2}\s*[^\s!]/.test(lines[0].trim());
+};
+
+const codeBox = (pre, shell = false) => (shell
+  ? `<div class="md-codebox md-shellbox">${pre}<span class="md-acts">${copyButton()}${runButton()}</span></div>`
+  : `<div class="md-codebox">${pre}${copyButton()}</div>`);
 
 const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
 const isTableRule = (line) => /^\s*\|(\s*:?-+:?\s*\|)+\s*$/.test(line);
@@ -120,7 +130,7 @@ export function markedBlocks(raw) {
       i++;
       while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) code.push(lines[i++]);
       const diff = DIFF_LANG.test(fence[1]);
-      html.push({ at: from, hard: true, html: codeBox(`<pre class="md-code${diff ? " md-diff" : ""}" data-lang="${fence[1]}">${diff ? diffBody(code) : code.join("\n")}</pre>`) });
+      html.push({ at: from, hard: true, html: codeBox(`<pre class="md-code${diff ? " md-diff" : ""}" data-lang="${fence[1]}">${diff ? diffBody(code) : code.join("\n")}</pre>`, !diff && isShellBox(code)) });
       continue;
     }
 
