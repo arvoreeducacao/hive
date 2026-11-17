@@ -1,8 +1,8 @@
-import { For, Show } from "solid-js";
+import { For, Index, Show } from "solid-js";
 import { mountView } from "../view.jsx";
 
 function Marked(props) {
-  return <For each={props.parts}>{(part) => (part.lit ? <mark>{part.text}</mark> : part.text)}</For>;
+  return <Index each={props.parts}>{(part) => <Show when={part().lit} fallback={part().text}><mark>{part().text}</mark></Show>}</Index>;
 }
 
 function Row(props) {

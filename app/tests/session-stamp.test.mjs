@@ -129,6 +129,19 @@ test("a chat with a name of its own wears it instead of the first thing typed", 
   assert.equal(rows[0].prompt, "tenta de novo", "the prompt is still the subtitle");
 });
 
+test("the titles a chat wore before ride along, without the one it wears now", () => {
+  const rows = [];
+  parser()(chunk(`/p/${ID}.jsonl`, `==N=="customTitle":"nome de agora"\n==O=="customTitle":"primeiro nome"\n==O=="aiTitle":"nome do meio"\n==O=="customTitle":"nome de agora"\n==P=="lastPrompt":"segue"\n`), "local", rows);
+  assert.equal(rows[0].title, "nome de agora");
+  assert.deepEqual(rows[0].was, ["primeiro nome", "nome do meio"]);
+});
+
+test("the server's scan hands over every title the chat wore", () => {
+  const out = archive({ [ID]: [...transcript("cli", "typed"), `{"type":"custom-title","customTitle":"primeiro nome"}`, `{"type":"custom-title","customTitle":"nome de agora"}`] });
+  assert.match(out, /==O=="customTitle":"primeiro nome"/);
+  assert.match(out, /==N=="customTitle":"nome de agora"/);
+});
+
 test("a session with nothing typed and no name of its own does not take a row", () => {
   const rows = [];
   parser()(chunk(`/p/${ID}.jsonl`, ""), "local", rows);

@@ -406,7 +406,7 @@ body.experience-next ::-webkit-scrollbar-corner { background: transparent; }
 body.experience-next ::-webkit-scrollbar-thumb { background: var(--green); border: 0; border-radius: 0; box-shadow: none; }
 body.experience-next ::-webkit-scrollbar-thumb:hover, body.experience-next ::-webkit-scrollbar-thumb:active { background: var(--accent); }
 @media (min-width: 861px) {
-  body.experience-next .tile.open.arting { grid-template-columns: minmax(0, var(--open-side)) minmax(0, 1fr) minmax(0, var(--x-pane-width, 1.25fr)); grid-template-rows: minmax(0, 1fr); gap: 0; padding: 0; background: var(--panel); }
+  body.experience-next .tile.open.arting { grid-template-columns: minmax(0, var(--open-side)) minmax(320px, 1fr) minmax(0, var(--x-pane-width, 1.25fr)); grid-template-rows: minmax(0, 1fr); gap: 0; padding: 0; background: var(--panel); }
   body.experience-next .tile.open.arting > :is(.side, .well, .art) { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
   body.experience-next .tile.open.arting > :is(.side, .well) { border-right: 1px solid var(--line); }
   body.experience-next .tile.open.arting.deviced { grid-template-columns: minmax(0, var(--open-side)) minmax(0, 1fr) min(calc(84vh * var(--dev-ar, 0.45)), 44vw); }
@@ -415,14 +415,14 @@ body.experience-next ::-webkit-scrollbar-thumb:hover, body.experience-next ::-we
   body.experience-next .tile.open.arting .art { grid-area: 1 / 3 / 2 / 4; }
   body.experience-next .tile.open.arting > .y-split { display: none !important; }
   body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting > .x-split { display: block; left: calc(var(--open-side) - 4px); }
-  body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting:not(.deviced, .draft) > .x-split-pane { display: block; right: calc(var(--x-pane-width, calc((100% - var(--open-side)) * 5 / 9)) - 4px); }
+  body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting:not(.deviced, .draft) > .x-split-pane { display: block; right: calc(min(var(--x-pane-width, calc((100% - var(--open-side)) * 5 / 9)), 100% - var(--open-side) - 320px) - 4px); }
 }
 body.experience-next .tile.open .side::-webkit-scrollbar-track { margin-top: calc(var(--t-head-h, 49px) + var(--t-state-h, 22px) + var(--t-chips-h, 0px)); }
 body.experience-next .sv-scroll::-webkit-scrollbar-track { margin-bottom: calc(var(--sv-fade) - var(--sv-air)); }
 body.experience-next .sv-scroll { -webkit-mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - var(--sv-fade)), transparent calc(100% - var(--sv-fade) + var(--sv-air))), linear-gradient(#000, #000); mask-image: linear-gradient(to bottom, #000 0, #000 calc(100% - var(--sv-fade)), transparent calc(100% - var(--sv-fade) + var(--sv-air))), linear-gradient(#000, #000); -webkit-mask-size: calc(100% - 6px) 100%, 6px 100%; mask-size: calc(100% - 6px) 100%, 6px 100%; -webkit-mask-position: 0 0, 100% 0; mask-position: 0 0, 100% 0; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 body.experience-next .sv-draft .sv-scroll { -webkit-mask-image: none; mask-image: none; }
 @media (min-width: 861px) {
-  body.experience-next .tile.open.arting.draft { grid-template-columns: minmax(0, 1fr) minmax(0, var(--x-pane-width, 1.25fr)); }
+  body.experience-next .tile.open.arting.draft { grid-template-columns: minmax(320px, 1fr) minmax(0, var(--x-pane-width, 1.25fr)); }
   body.experience-next .tile.open.arting.draft.deviced { grid-template-columns: minmax(0, 1fr) min(calc(84vh * var(--dev-ar, 0.45)), 44vw); }
   body.experience-next .tile.open.arting.draft .well { grid-area: 1 / 1 / 2 / 2; }
   body.experience-next .tile.open.arting.draft .art { grid-area: 1 / 2 / 2 / 3; }
@@ -477,7 +477,7 @@ body.experience-next .tile.open .side > .t-chips { position: sticky; top: calc(v
 @keyframes t-header-edge { from { box-shadow: 0 1px 0 transparent; } to { box-shadow: 0 1px 0 var(--line); } }
 body.experience-next .tile.open .side > .t-chips:not(:empty), body.experience-next .tile.open .side:not(:has(> .t-chips:not(:empty))) > .t-state { animation: t-header-edge linear both; animation-timeline: scroll(nearest block); animation-range: 0 24px; }
 @media (min-width: 861px) {
-  body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting.draft:not(.deviced) > .x-split-pane { display: block; right: calc(var(--x-pane-width, calc(100% * 5 / 9)) - 4px); }
+  body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting.draft:not(.deviced) > .x-split-pane { display: block; right: calc(min(var(--x-pane-width, calc(100% * 5 / 9)), 100% - 320px) - 4px); }
 }
 body.experience-next .tile.draft { border-style: solid; }
 body.experience-next .sv-qitem:first-child .qbadge { text-transform: none; }

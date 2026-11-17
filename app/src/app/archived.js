@@ -3,7 +3,7 @@ import { releaseKeyboard } from "./focus-navigation.js";
 import { shortDir } from "./history.js";
 import { archKey, reviveArchived, reviving } from "./mirror.js";
 import { ago } from "./pod.js";
-import { markUp } from "/assets/archive-search.mjs";
+import { markUp, rankSessions } from "/assets/archive-search.mjs";
 
 let archivedSolid = null;
 
@@ -15,16 +15,15 @@ function archivedOnScreen() {
   return $("archived").classList.contains("on");
 }
 
-function archivedMatches(entry, asked) {
-  if (!asked) return true;
-  const said = [entry.title, entry.name, entry.cwd, entry.model, entry.why].filter(Boolean).join("\n").toLowerCase();
-  return asked.toLowerCase().split(/\s+/).every((word) => said.includes(word));
+function archivedFound(all, asked) {
+  const searchable = all.map((entry) => ({ entry, title: entry.title || entry.name, seat: entry.name, cwd: entry.cwd, prompt: [entry.model, entry.why].filter(Boolean).join(" ") }));
+  return rankSessions(searchable, asked).map((one) => one.session.entry);
 }
 
 function archivedViewModel() {
   const all = st.data.archived || [];
   const asked = $("arch-search").value.trim();
-  const found = all.filter((entry) => archivedMatches(entry, asked));
+  const found = archivedFound(all, asked);
   const count = asked
     ? phrase("{n} of {total}", { n: found.length, total: all.length })
     : phrase("{n} archived", { n: all.length });

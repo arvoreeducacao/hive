@@ -200,3 +200,45 @@ test("a row of another agent says which one, and cannot be brought local — its
   assert.equal(claude.agentSay, "", "claude is the default and needs no badge");
   assert.equal(claude.down, true);
 });
+
+test("a chat found by the name it wore before shows its seat and the old title on the row", async () => {
+  const { renderHistory } = await app("history");
+  st.histLoading = false;
+  st.histSessions = [
+    { id: "noise1", where: "local", at: 3, cwd: "/x/y", prompt: "", title: "Fluxo de caixa" },
+    { id: "real", where: "local", at: 2, cwd: "/x/y", prompt: "segue", title: "Planos com IA", seat: "como-estamos-com-o", was: ["Fluxo de telas do backoffice"] }
+  ];
+  search("fluxo de telas");
+  const model = seen();
+  assert.deepEqual(model.rows.map((r) => plain(r.title)), ["Planos com IA"]);
+  assert.equal(plain(model.rows[0].formerly), "was called Fluxo de telas do backoffice");
+  assert.match(plain(model.rows[0].sub), /^como-estamos-com-o · /);
+  renderHistory();
+  await settle();
+  const list = document.getElementById("hist-list").textContent;
+  assert.match(list, /was called Fluxo de telas do backoffice/);
+  assert.match(list, /como-estamos-com-o/);
+});
+
+test("the seat's own name finds it from the search box", async () => {
+  st.histSessions = [
+    { id: "a", where: "local", at: 3, cwd: "/x/y", prompt: "", title: "Outro assunto", seat: "por-favor-ver-o-2" },
+    { id: "b", where: "local", at: 2, cwd: "/x/y", prompt: "", title: "Fluência de reader", seat: "por-favor-ver-o" }
+  ];
+  search("por-favor-ver-o");
+  assert.deepEqual(seen().rows.map((r) => plain(r.title)), ["Fluência de reader", "Outro assunto"]);
+});
+
+test("typing a new search repaints the highlighted title whole, with no piece left from the search before", async () => {
+  const { renderHistory } = await app("history");
+  st.histSessions = [{ id: "a", where: "local", at: 3, cwd: "/x/y", prompt: "", title: "Planos com IA a partir de notas" }];
+  search("");
+  renderHistory();
+  await settle();
+  search("de notas");
+  renderHistory();
+  await settle();
+  const title = document.querySelector("#hist-list .hist-row .hist-title b");
+  assert.equal(title.textContent, "Planos com IA a partir de notas");
+  assert.deepEqual([...title.querySelectorAll("mark")].map((one) => one.textContent), ["de", "notas"]);
+});

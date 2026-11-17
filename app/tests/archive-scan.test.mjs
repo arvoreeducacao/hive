@@ -77,6 +77,44 @@ test("the scratch folders the system hands out are never walked", async () => {
   assert.deepEqual(rows, []);
 });
 
+test("the scratch folders macOS hands out are never walked either", async () => {
+  const { projects } = archive({ [ID]: transcript() }, { folder: "-private-var-folders--7-2-rx8cl54zl9mw5t0vc1f5n00000gn-T-hive-title-pbZtaj" });
+  const { rows, files } = await scanTranscripts({ projectsDir: projects });
+  assert.equal(files, 0, "the titles the hive asks for landed in the archive as chats of their own");
+  assert.deepEqual(rows, []);
+});
+
+const named = (title) => `{"type":"custom-title","customTitle":"${title}"}`;
+const filler = (bytes) => Array.from({ length: Math.ceil(bytes / 1000) }, () => `{"type":"assistant","message":"${"x".repeat(980)}"}`);
+
+test("every title the chat wore before is kept, even one buried in the middle of a long transcript", async () => {
+  const { projects } = archive({ [ID]: [...transcript(), named("primeiro nome"), ...filler(600000), named("nome do meio"), ...filler(600000), named("nome de agora"), `{"type":"last-prompt","lastPrompt":"segue"}`] });
+  const { rows } = await scanTranscripts({ projectsDir: projects });
+  assert.equal(rows[0].title, "nome de agora");
+  assert.deepEqual(rows[0].was, ["primeiro nome", "nome do meio"]);
+});
+
+test("a transcript that grew is read for titles only from where the last look stopped", async () => {
+  const { projects, folder } = archive({ [ID]: [...transcript(), named("primeiro nome")] });
+  const first = await scanTranscripts({ projectsDir: projects });
+  const path = join(projects, folder, `${ID}.jsonl`);
+  const before = statSync(path).size;
+  assert.equal(first.index[`${folder}/${ID}.jsonl`].tu, before);
+  writeFileSync(path, `${[...transcript(), named("primeiro nome"), named("segundo nome")].join("\n")}\n`);
+  first.index[`${folder}/${ID}.jsonl`].tw = ["um nome que so a primeira passada viu"];
+  const again = await scanTranscripts({ projectsDir: projects, known: first.index });
+  assert.deepEqual(again.rows[0].was, ["um nome que so a primeira passada viu", "primeiro nome"]);
+});
+
+test("an index written before titles were kept is read again once", async () => {
+  const { projects, folder } = archive({ [ID]: transcript() });
+  const first = await scanTranscripts({ projectsDir: projects });
+  const old = { ...first.index[`${folder}/${ID}.jsonl`] };
+  delete old.v;
+  const again = await scanTranscripts({ projectsDir: projects, known: { [`${folder}/${ID}.jsonl`]: old } });
+  assert.equal(again.read, 1);
+});
+
 test("a second look reads nothing again — the index carries the answer", async () => {
   const { projects } = archive({ [ID]: transcript(), [OTHER]: transcript() });
   const first = await scanTranscripts({ projectsDir: projects });
