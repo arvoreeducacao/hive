@@ -91,6 +91,8 @@ If a structure fails to start, the classic one stands in and the top bar says so
 
 **Cockpit keys** come after the leader key, so turn the leader on first. `s` opens the seat layer (`n` new chat, `t` terminal, `r` rename, `a` archive, `k` kill, `d` a window of its own). `w` opens the window layer (`2` split below, `3` split right, `0` close this window, `1` only this window, `o` the other window, `=` same sizes). `g` is PRs, `z` zooms in and back, `/` searches every seat, `?` is help. Esc or Ctrl+G quits a key chain.
 
+**The fleet** sits left of the cockpit's panes: every block of the workspace with its chats, then the chats off screen. A chat outside the block on screen shows what it is doing and since when. A click on a chat goes to it; a click on a block name goes to that block. `b` after the leader hides it and brings it back, and the window remembers the choice. In a window narrower than 1100 px it stays hidden.
+
 ## The plane
 
 The plane puts every seat on one field that you arrange yourself. Toggle it with the `plane` key (⌥L on macOS, Ctrl+Shift+L on Linux/Windows; leader `y`) or the "plane" button.

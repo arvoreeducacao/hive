@@ -2,12 +2,13 @@ import { blocksOf, labelOf, ofBlock } from "../app/blocks.js";
 import { keyLabel, whichChord } from "../app/brand-face.js";
 import { catalogRow } from "../app/chat-and-panes.js";
 import { FOCUS_MOVES, st } from "../app/core.js";
-import { goToBlockAt, gridRows, stepFocus } from "../app/focus-navigation.js";
+import { goToBlock, goToBlockAt, gridRows, stepFocus } from "../app/focus-navigation.js";
 import { disarmLeader, keyCaps } from "../app/leader-key.js";
 import { prButtonViewModel, seatMenuCommands } from "../app/seat-menu.js";
 import { inAStrip, inFocusMode } from "../app/seat-layout.js";
 import { structPool } from "../app/structured-seats.js";
 import { run } from "../app/themes.js";
+import { fleetHtml, fleetModel, fleetShown, toggleFleet } from "./cockpit-fleet.js";
 import { closeMini, miniKey, miniOn, openMini } from "./cockpit-minibuffer.js";
 
 const COLUMNS = 6;
@@ -23,6 +24,7 @@ const WHICH = [
   ["numbers", "the seat numbers"],
   ["seatMenu", "the seat's menu"],
   ["browser", "browser beside"],
+  ["fleet", "the fleet beside"],
   ["prs", "PRs"],
   ["focusLeft focusRight", "focus beside"],
   ["focusUp focusDown", "focus above / below"],
@@ -32,7 +34,7 @@ const WHICH = [
   ["palette", "palette"]
 ];
 
-const OWN_CHORDS = { zoom: "KeyZ", numbers: "KeyQ" };
+const OWN_CHORDS = { zoom: "KeyZ", numbers: "KeyQ", fleet: "KeyB" };
 
 let numbersTimer = 0;
 
@@ -40,7 +42,7 @@ let clockTimer = 0;
 
 let numbersOn = false;
 
-const dom = { grid: null, which: null, line: null, panes: new Map() };
+const dom = { fleet: null, grid: null, which: null, line: null, panes: new Map() };
 
 function gridRowsOf(n) {
   const laid = gridRows(n);
@@ -207,7 +209,7 @@ function cockpitModel(ctx, now = Date.now()) {
 }
 
 function chordCaps(action) {
-  if (OWN_CHORDS[action]) return keyCaps(action === "zoom" ? "z" : "q");
+  if (OWN_CHORDS[action]) return keyCaps(OWN_CHORDS[action].slice(3).toLowerCase());
   if (action === "seatMenu") return keyCaps(":");
   if (action === "seat") return keyCaps(`1-${Math.max(2, st.LIMIT || 6)}`);
   return action.split(" ").map((one) => (st.chords?.[one] ? keyCaps(keyLabel(st.chords[one])) : "")).join("");
@@ -271,8 +273,19 @@ function paneEl(key) {
   return pane;
 }
 
+const fleetKeys = () => `${keyCaps(keyLabel(st.leader || null))}${keyCaps("b")}`;
+
+function paintFleet(ctx, now = Date.now()) {
+  const on = fleetShown();
+  ctx.root.classList.toggle("fleet", on);
+  if (!on) return setHtml(dom.fleet, "");
+  const since = (seat) => sinceOf(seat, structPool.get(seat.key), now);
+  setHtml(dom.fleet, fleetHtml(ctx, fleetModel(ctx, since), st.leader ? fleetKeys() : ""));
+}
+
 function paintCockpit(ctx) {
   const view = cockpitModel(ctx);
+  paintFleet(ctx);
   dom.grid.classList.toggle("zoom", view.zoom);
   dom.grid.classList.toggle("numbers", view.numbers);
   dom.grid.classList.toggle("strip", view.strip);
@@ -362,6 +375,12 @@ function leaderKey(event, ctx) {
     openSeatLine(ctx);
     return true;
   }
+  if (own && event.code === OWN_CHORDS.fleet) {
+    disarmLeader();
+    toggleFleet();
+    ctx.render();
+    return true;
+  }
   if (own && event.code === OWN_CHORDS.zoom) {
     disarmLeader();
     run("fullscreen");
@@ -393,6 +412,10 @@ function numbersKey(event, ctx) {
 }
 
 function onClick(event, ctx) {
+  const row = event.target.closest(".ck-fr");
+  if (row) return ctx.focusSeat(row.dataset.seat);
+  const group = event.target.closest(".ck-fgh[data-block]");
+  if (group) return goToBlock(Number(group.dataset.block));
   const block = event.target.closest(".ck-win");
   if (block) return goToBlockAt(Number(block.dataset.block));
   const need = event.target.closest(".ck-need");
@@ -415,11 +438,15 @@ const cockpit = {
     numbersOn = false;
     dom.panes.clear();
     ctx.root.classList.add("ck");
-    ctx.root.innerHTML = `<div class="ck-grid"></div><div class="ck-which" role="note"></div><div class="ck-line" role="status"></div>`;
-    [dom.grid, dom.which, dom.line] = ctx.root.children;
+    ctx.root.innerHTML = `<aside class="ck-fleet" aria-label="${ctx.esc(ctx.phrase("fleet"))}"></aside><div class="ck-grid"></div><div class="ck-which" role="note"></div><div class="ck-line" role="status"></div>`;
+    [dom.fleet, dom.grid, dom.which, dom.line] = ctx.root.children;
     ctx.listen(ctx.root, "click", (event) => onClick(event, ctx));
     ctx.listen(ctx.root, "dblclick", onDoubleClick);
-    clockTimer = setInterval(() => { if (dom.line) setHtml(dom.line, lineHtml(ctx, lineModel(ctx, Date.now()))); }, CLOCK_BEAT);
+    clockTimer = setInterval(() => {
+      if (!dom.line) return;
+      setHtml(dom.line, lineHtml(ctx, lineModel(ctx, Date.now())));
+      paintFleet(ctx);
+    }, CLOCK_BEAT);
   },
   leave(ctx) {
     clearInterval(clockTimer);
@@ -427,8 +454,8 @@ const cockpit = {
     numbersOn = false;
     closeMini();
     dom.panes.clear();
-    dom.grid = dom.which = dom.line = null;
-    ctx.root.classList.remove("ck");
+    dom.fleet = dom.grid = dom.which = dom.line = null;
+    ctx.root.classList.remove("ck", "fleet");
   },
   paint(ctx) {
     if (dom.grid) paintCockpit(ctx);
