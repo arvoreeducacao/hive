@@ -1,7 +1,7 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -128,8 +128,9 @@ function fakeAgent(name) {
   const file = join(bin, name);
   writeFileSync(file, [
     "#!/bin/sh",
-    `for one in "$@"; do printf '%s\\n' "$one"; done > ${JSON.stringify(seen(name))}`,
     `/usr/bin/env > ${JSON.stringify(carried(name))}`,
+    `for one in "$@"; do printf '%s\\n' "$one"; done > ${JSON.stringify(`${seen(name)}.part`)}`,
+    `/bin/mv ${JSON.stringify(`${seen(name)}.part`)} ${JSON.stringify(seen(name))}`,
     "exec /bin/sleep 30"
   ].join("\n"));
   execFileSync("chmod", ["0755", file]);
@@ -318,6 +319,7 @@ test("bringing the seats back opens what the fleet remembers and says what it ha
       { name: "bench", where: "local", kind: "classic", id: "9f1c2ab3-0000-4000-8000-000000000000", cwd: hub }
     ]
   }, null, 2));
+  rmSync(seen("claude"), { force: true });
 
   const said = await seats.restore();
   assert.deepEqual(said.restored, ["back"]);
