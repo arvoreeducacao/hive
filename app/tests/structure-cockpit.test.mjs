@@ -312,3 +312,54 @@ test("a pane the chat opens, like the browser, sits beside the chat instead of b
   assert.match(css, new RegExp(`${pane.replace(/[.>]/g, "\\$&")} > \\.well \\{ flex: 1 1 0; min-width: 0; \\}`));
   assert.match(css, new RegExp(`${pane.replace(/[.>]/g, "\\$&")} > \\.art \\{ flex: 1\\.4 1 0;`));
 });
+
+test("the fleet beside the grid lists every block, and says what each chat off the screen is doing", () => {
+  wear([["a", "b"], ["g", "h", "k"]], { b: { state: "working" }, g: { state: "working" }, h: { state: "needs" }, k: { state: "answered", prs: [{ number: 4431 }] } });
+  st.data.sessions.push(seat("loose", { state: "working", by: "a" }));
+  structPool.set("g", { host: document.createElement("div"), activity: "running pnpm test" });
+  render();
+  const root = $("structure-root");
+  const fleet = root.querySelector(".ck-fleet");
+  assert.equal(root.classList.contains("fleet"), true, "the fleet is on by default");
+  const heads = [...fleet.querySelectorAll(".ck-fgh")].map((h) => h.textContent);
+  assert.match(heads[0], /^1 .*on screen/);
+  assert.match(heads[1], /^2 OMS/);
+  assert.match(heads[2], /^off screen1$/);
+  const row = (key) => fleet.querySelector(`.ck-fr[data-seat="${key}"]`);
+  assert.equal(row("a").classList.contains("here"), true);
+  assert.equal(row("a").classList.contains("on"), true, "the focused pane is marked in the list");
+  assert.equal(row("b").querySelector(".ck-ft").textContent, "2", "a chat on screen shows its pane number");
+  assert.equal(row("b").querySelector(".ck-fs"), null, "its own pane already says what it is doing");
+  assert.equal(row("g").querySelector(".ck-fs").textContent, "pnpm test");
+  assert.equal(row("g").querySelector(".ck-fs").classList.contains("run"), true);
+  assert.equal(row("h").classList.contains("need"), true);
+  assert.equal(row("h").querySelector(".ck-fs").textContent, "needs you");
+  assert.equal(row("k").querySelector(".ck-fs").textContent, "unread · #4431");
+  assert.equal(row("loose").querySelector(".ck-fs").textContent, "opened by a");
+  assert.match(fleet.querySelector(".ck-fh").textContent, /6 chats/);
+  structPool.delete("g");
+  row("h").click();
+  assert.equal(st.block, 1);
+  assert.equal(st.focus, 1);
+  root.querySelector('.ck-fgh[data-block="0"]').click();
+  assert.equal(st.block, 0);
+  setStructure("classic", { quiet: true });
+});
+
+test("⌃B b hides the fleet and brings it back, and the choice outlives the trip to another structure", () => {
+  wear([["a"], ["g"]]);
+  const root = () => $("structure-root");
+  assert.equal(root().classList.contains("fleet"), true);
+  const ev = chord("KeyB", { key: "b" });
+  assert.equal(ev.defaultPrevented, true);
+  assert.equal(root().classList.contains("fleet"), false);
+  assert.equal(root().querySelector(".ck-fleet").children.length, 0);
+  assert.equal(localStorage.getItem("hive.cockpitFleet"), "off");
+  setStructure("classic", { quiet: true });
+  setStructure("cockpit", { quiet: true });
+  assert.equal(root().classList.contains("fleet"), false);
+  chord("KeyB", { key: "b" });
+  assert.equal(root().classList.contains("fleet"), true);
+  assert.equal(localStorage.getItem("hive.cockpitFleet"), "on");
+  setStructure("classic", { quiet: true });
+});
