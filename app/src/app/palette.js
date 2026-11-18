@@ -1,5 +1,5 @@
 import { setFocusMode } from "./seat-layout.js";
-import { closeSpace, hideUntilItWorks, menuKeys, menuShow, menuStop, prOfChat, renameSpace, seatMenuRows, spaceCloseNote, threadsOfChat } from "./seat-menu.js";
+import { closeSpace, hideUntilItEnds, hideUntilItWorks, menuKeys, menuShow, menuStop, prOfChat, renameSpace, seatMenuRows, spaceCloseNote, threadsOfChat } from "./seat-menu.js";
 import { blockNumber, blocksOf, labelOf, ofBlock, openSpace, seatsOf, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel, saveConfig, whichAction } from "./brand-face.js";
 import { setAnswered, setSound } from "./chimes-and-notices.js";
@@ -475,6 +475,7 @@ function palActions() {
     { icon: "i-tree", name: phrase("the worktrees on this machine"), ctx: phrase("what every repo is holding, how old and how many gigabytes"), search: "worktree worktrees disk disco espaço", key: keyHint("worktrees"), go: () => openWorktrees() },
     { icon: "i-pr", name: phrase("the PR panel"), ctx: phrase("ci, diff, review and merge"), key: keyHint("prs"), go: () => run("prs") },
     { icon: "i-clock", name: phrase("archive this chat"), ctx: phrase("it stops and frees the slot — comes back with the same name, model and conversation"), search: "archive arquivar guardar park", key: keyHint("archive"), go: () => archiveSeatNow(focusedSeat()) },
+    { icon: "i-minus", name: phrase("hide this chat until it finishes"), ctx: phrase("it leaves the screen now, keeps working, and comes back when the turn ends or it needs you"), search: "hide snooze esconder sumir terminar finish", go: () => hideUntilItEnds(focusedSeat()) },
     { icon: "i-minus", name: phrase("hide this chat until it works again"), ctx: phrase("it leaves the rail and the grid, keeps running, and comes back on its own when it starts working"), search: "hide snooze esconder sumir soneca", go: () => hideUntilItWorks(focusedSeat()) },
     { icon: "i-clock", name: phrase("archived chats"), ctx: phrase("every archived chat, to search and bring back"), search: "archived archieved arquivados arquivadas parked reviver", go: () => openArchived() },
     { icon: "i-clock", name: phrase("revive from history"), ctx: phrase("reopens an archived chat with its whole context"), key: keyHint("history"), go: () => run("history") },

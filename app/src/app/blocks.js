@@ -49,6 +49,12 @@ const detached = new Set(soloSeat ? [] : readDetached());
 
 const WAKES_ON = new Set(["working", "needs"]);
 
+const HIDE_UNTIL = new Set(["works", "ends", "parked"]);
+
+const armsNow = (until, state) => (until === "ends" ? state === "working" : !WAKES_ON.has(state));
+
+const backNow = (one, state) => (one.until === "ends" ? state === "needs" || (one.armed && state !== "working") : one.armed && WAKES_ON.has(state));
+
 const SEAT_GRACE = 60000;
 
 function seatGrace() {
@@ -73,7 +79,11 @@ function readHidden() {
   try {
     const raw = JSON.parse(localStorage.getItem("hive.hidden") || "{}");
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
-    return Object.entries(raw).filter(([key]) => typeof key === "string" && key).map(([key, one]) => [key, { armed: !!one?.armed }]);
+    return Object.entries(raw).filter(([key]) => typeof key === "string" && key).map(([key, one]) => [key, {
+      until: HIDE_UNTIL.has(one?.until) ? one.until : "works",
+      armed: !!one?.armed,
+      from: typeof one?.from === "string" ? one.from : ""
+    }]);
   } catch { return []; }
 }
 
@@ -83,13 +93,53 @@ const saveHidden = () => { if (!soloSeat) localStorage.setItem("hive.hidden", JS
 
 const isHidden = (key) => hidden.has(key);
 
-function hideSeat(key) {
+function readParkSeen() {
+  try {
+    const raw = JSON.parse(localStorage.getItem("hive.parkSeen") || "{}");
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return [];
+    return Object.entries(raw).filter(([key, at]) => typeof key === "string" && key && Number.isFinite(at));
+  } catch { return []; }
+}
+
+const parkSeen = new Map(soloSeat ? [] : readParkSeen());
+
+const saveParkSeen = () => { if (!soloSeat) localStorage.setItem("hive.parkSeen", JSON.stringify(Object.fromEntries(parkSeen))); };
+
+function hideParked() {
+  let changed = false;
+  for (const s of st.data.sessions) {
+    const at = s.parked?.at;
+    if (!at || parkSeen.get(s.name) === at) continue;
+    parkSeen.set(s.name, at);
+    changed = true;
+    if (st.open === s.name) continue;
+    const one = hidden.get(s.name);
+    if (one) Object.assign(one, { until: "parked", armed: false });
+    else {
+      const from = st.blocks.find((b) => b.keys.includes(s.name));
+      if (from) from.keys.splice(from.keys.indexOf(s.name), 1);
+      hidden.set(s.name, { until: "parked", armed: false, from: from?.id || "" });
+    }
+    document.dispatchEvent(new CustomEvent("hive:parked", { detail: { name: s.name, title: s.title || s.name, until: s.parked.until } }));
+  }
+  for (const key of [...parkSeen.keys()]) {
+    if (!st.data.sessions.some((s) => s.name === key && !s.parked)) continue;
+    parkSeen.delete(key);
+    changed = true;
+  }
+  if (changed) { saveParkSeen(); saveHidden(); }
+}
+
+const hiddenUntil = (key) => hidden.get(key)?.until || "";
+
+function hideSeat(key, until = "works") {
   if (soloSeat) return false;
   const s = st.data.sessions.find((one) => one.name === key);
   if (!s) return false;
   const from = st.blocks.find((b) => b.keys.includes(key));
   if (from) from.keys.splice(from.keys.indexOf(key), 1);
-  hidden.set(key, { armed: !WAKES_ON.has(s.raw || s.state) });
+  const kind = HIDE_UNTIL.has(until) ? until : "works";
+  hidden.set(key, { until: kind, armed: armsNow(kind, s.raw || s.state), from: from?.id || "" });
   saveHidden();
   saveBlocks();
   render();
@@ -123,11 +173,23 @@ function wakeHidden() {
       changed = true;
       continue;
     }
-    const busy = WAKES_ON.has(s.raw || s.state);
-    if (busy && one.armed) { hidden.delete(key); changed = true; }
-    else if (!busy && !one.armed) { one.armed = true; changed = true; }
+    const state = s.raw || s.state;
+    if (one.until === "parked") {
+      if (s.parked) continue;
+      Object.assign(one, { until: "ends", armed: state === "working" });
+      changed = true;
+      continue;
+    }
+    if (backNow(one, state)) { hidden.delete(key); landHome(key, one.from); changed = true; }
+    else if (!one.armed && armsNow(one.until, state)) { one.armed = true; changed = true; }
   }
   if (changed) saveHidden();
+}
+
+function landHome(key, from) {
+  const home = from && st.blocks.find((b) => b.id === from);
+  if (!home || home.keys.length >= st.LIMIT || st.blocks.some((b) => b.keys.includes(key))) return;
+  home.keys.push(key);
 }
 
 st.blocks = readBlocks();
@@ -369,6 +431,7 @@ function tidy() {
   let shed = false;
   for (const key of [...detached]) if (leftForGood(key, alive)) { detached.delete(key); shed = true; }
   if (shed) saveDetached();
+  hideParked();
   wakeHidden();
   const jobs = new Map((st.data.spawning || []).map((j) => [j.id, j]));
   for (const j of jobs.values()) if (j.name && j.settled) jobName.set(j.id, j.name);
@@ -462,4 +525,4 @@ function blockTitle(b, items) {
     : phrase("{name} and {n} more seats: {names}", { name: head, n: rest.length, names: rest.join(", ") });
 }
 
-export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, hideSeat, hidden, isHidden, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };
+export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, hideSeat, hidden, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };

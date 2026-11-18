@@ -141,7 +141,9 @@ These sweeps run once an hour on local chats. Env `HIVE_NO_SWEEP` turns them off
 
 Other tools:
 
-- "hide until it works again" in the seat menu takes a chat off the screen. It comes back when it works or needs you.
+- "hide until…" in the seat menu takes a chat off the screen. "it finishes" brings it back when its turn ends or it needs you; "it works again" brings it back when it starts a turn. A hidden chat comes back to the block it left when that block has room.
+- The rail lists every chat with no place on the grid under "off screen", with the reason: back when it finishes, back when it works, parked till a date, opened by another chat, or in a window of its own.
+- A parked chat (the `park` tool, see the "tools" topic) is never closed by the quiet sweep.
 - The doctor check "processes of chats that are gone" lists processes tagged with a chat that is closed, and offers to stop them.
 
 ## What a chat knows when it starts

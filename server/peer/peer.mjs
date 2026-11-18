@@ -611,12 +611,12 @@ function askTheApp(door, method, path, payload, { timeout = 120000 } = {}) {
 export const SECRET_WAIT_DEFAULT_SECONDS = 600;
 export const SECRET_WAIT_MAX_SECONDS = 1800;
 
-export async function requestSecret({ label, why = "", waitSeconds = SECRET_WAIT_DEFAULT_SECONDS, env = process.env, ask = askTheApp, pause = (ms) => new Promise((go) => setTimeout(go, ms)) } = {}) {
+export async function requestSecret({ label, why = "", url = "", envKey = "", waitSeconds = SECRET_WAIT_DEFAULT_SECONDS, env = process.env, ask = askTheApp, pause = (ms) => new Promise((go) => setTimeout(go, ms)) } = {}) {
   const self = await me(env);
   if (!self.name) return { error: "this session has no seat — ask for a secret from a chat in the hive" };
   const door = hiveDoor(self.base);
   if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open to take the secret" };
-  const opened = await ask(door, "POST", "/api/secrets/ask", { seat: self.name, where: self.side, label, why });
+  const opened = await ask(door, "POST", "/api/secrets/ask", { seat: self.name, where: self.side, label, why, ...(url ? { url } : {}), ...(envKey ? { envKey } : {}) });
   if (!opened.ok) return { error: opened.error || "the hive would not open the request" };
   const id = opened.said.ask.id;
   const wait = Math.min(SECRET_WAIT_MAX_SECONDS, Math.max(30, Number(waitSeconds) || SECRET_WAIT_DEFAULT_SECONDS)) * 1000;
@@ -626,6 +626,7 @@ export async function requestSecret({ label, why = "", waitSeconds = SECRET_WAIT
     const seen = await ask(door, "GET", `/api/secrets/ask?id=${encodeURIComponent(id)}&seat=${encodeURIComponent(self.name)}`);
     if (!seen.ok) return { error: seen.error || "the request is gone" };
     const state = seen.said.ask.state;
+    if (state === "saved" && seen.said.ask.envKey) return { state, envKey: seen.said.ask.envKey, kept: seen.said.ask.kept, reloaded: !!seen.said.ask.reloaded, label: seen.said.ask.label };
     if (state === "saved") return { state, path: seen.said.ask.path, label: seen.said.ask.label };
     if (state !== "pending") return { state };
   }
@@ -643,6 +644,17 @@ export async function noteTask({ text, env = process.env, ask = askTheApp } = {}
   const kept = await ask(door, "POST", "/api/tasks", { text: said, who: "me", from: self.name });
   if (!kept.ok) return { error: kept.error || "the hive would not keep the task" };
   return { task: kept.said?.task || null };
+}
+
+export async function parkSeat({ until, task, why = "", check = "", env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this session has no seat — park from a chat in the hive" };
+  if (self.side && self.side !== "local") return { error: "only a chat on this machine can park for now" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open to park" };
+  const kept = await ask(door, "POST", "/api/parked", { name: self.name, until, task, why, check });
+  if (!kept.ok) return { error: kept.error || "the hive would not park this chat" };
+  return { until: kept.said?.park?.until, when: kept.said?.when || "", check: !!kept.said?.park?.check };
 }
 
 export async function publishProposal({ proposal, page, label = "", reopen = false, env = process.env, ask = askTheApp } = {}) {

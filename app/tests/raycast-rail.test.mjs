@@ -10,7 +10,7 @@ const sheet = readFileSync(join(HERE, "assets/raycast/rail.css"), "utf8");
 
 const st = await state();
 const { $ } = await app("core");
-const { detached } = await app("blocks");
+const { detached, hidden, hideSeat } = await app("blocks");
 const { keyLabel } = await app("brand-face");
 const { sawWorking } = await app("leader-key");
 const mirror = await app("mirror");
@@ -105,7 +105,7 @@ test("a block of another workspace is named after it and has no key, and a seat 
   });
   st.spaces = spaces;
   assert.deepEqual(rows(model), ["a", "far", "loose"], "the workspace on screen first, then the others, then the seats in no block");
-  assert.deepEqual(model.groups.map((g) => [g.label, g.keys]), [["block 1", keyLabel(st.keys.block, 1)], ["side · block 1", ""], ["outside the blocks", ""]]);
+  assert.deepEqual(model.groups.map((g) => [g.label, g.keys]), [["block 1", keyLabel(st.keys.block, 1)], ["side · block 1", ""], ["off screen", ""]]);
   assert.equal(model.groups[1].i, -1, "a block of another workspace is not reached by clicking its title");
 });
 
@@ -294,4 +294,67 @@ test("every rule of the rail sheet lives inside the flag, and the folded rail is
   assert.match(sheet, /:where\(body\.experience-raycast\) #shell\.rail-min \{ --rail-w: 56px; \}/);
   assert.match(sheet, /:where\(body\.experience-raycast\) #rail \{[^}]*grid-template-rows: minmax\(0, 1fr\) auto auto;/);
   assert.doesNotMatch(sheet, /\.item[^{]*\{[^}]*(text-shadow: 0|font-weight: 600)/, "no rail row glows or goes bold");
+});
+
+test("every chat with no place on the grid sits under off screen, each saying why it is there", () => {
+  flag(true);
+  hidden.clear();
+  mirror.setHiddenOpen(true);
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana" }), seat("ends", { state: "working" }), seat("works"), seat("kid", { by: "a" }), seat("away")], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a", "ends", "works"] }],
+    detached: ["away"]
+  });
+  hideSeat("ends", "ends");
+  hideSeat("works");
+  const model = mirror.railViewModel();
+  const off = model.groups.find((g) => g.key === "loose");
+  assert.equal(off.label, "off screen");
+  assert.deepEqual(off.items.map((it) => [it.key, it.why]), [
+    ["ends", "back when it finishes"],
+    ["works", "back when it works"],
+    ["kid", "opened by Ana"],
+    ["away", "in a window of its own"]
+  ]);
+  assert.equal(model.snoozed, null, "the hidden chats are not listed twice");
+  assert.equal(off.items[0].open, "bring it back");
+  hidden.clear();
+});
+
+test("off screen folds to a count, and a search opens it again", () => {
+  flag(true);
+  hidden.clear();
+  const data = { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b", { title: "Bia" })], archived: [] };
+  world({ data, blocks: [{ id: "b1", ws: "w0", keys: ["a", "b"] }] });
+  hideSeat("b");
+  mirror.setHiddenOpen(false);
+  const shut = mirror.railViewModel().groups.find((g) => g.key === "loose");
+  assert.deepEqual([shut.fold, shut.items], [{ open: false, count: 1 }, []]);
+  const found = world({ data, blocks: st.blocks, query: "bia" }).groups.find((g) => g.key === "loose");
+  assert.deepEqual(found.items.map((it) => it.key), ["b"]);
+  mirror.setHiddenOpen(true);
+  hidden.clear();
+});
+
+test("an off-screen row is two lines and keeps one line in the narrow rail", () => {
+  assert.match(sheet, /#rail \.item\.off \{[^}]*height: auto/);
+  assert.match(sheet, /\.item\.off \.why \{/);
+  assert.match(sheet, /#shell\.rail-min #rail-sessions \.item\.off \{[^}]*height: 24px/);
+});
+
+test("a parked chat says on the rail until when it is parked", () => {
+  flag(true);
+  hidden.clear();
+  mirror.setHiddenOpen(true);
+  const until = new Date(Date.now() + 2 * 60 * 60 * 1000);
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("p", { parked: { until: until.getTime(), task: "measure", at: 1 } })], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a", "p"] }]
+  });
+  hideSeat("p", "parked");
+  const off = mirror.railViewModel().groups.find((g) => g.key === "loose");
+  assert.deepEqual(off.items.map((it) => it.key), ["p"]);
+  assert.equal(off.items[0].why, `parked till ${mirror.parkWhen(until.getTime())}`);
+  assert.match(mirror.parkWhen(until.getTime(), new Date(until.getTime() - 60000)), /^\d{2}:\d{2}/);
+  hidden.clear();
 });
