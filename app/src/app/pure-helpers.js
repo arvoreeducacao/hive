@@ -406,6 +406,28 @@ function setContextUsage(on) {
   saveConfig({ contextUsage: on }).then((r) => adoptContextUsage(r)).catch(() => {});
 }
 
+function paintAutoUpdateAgents() {
+  const flip = $("t-agent-updates");
+  if (!flip) return;
+  const on = st.autoUpdateAgents !== false;
+  flip.textContent = on ? "on" : "off";
+  flip.classList.toggle("on", on);
+  flip.setAttribute("aria-pressed", on ? "true" : "false");
+  $("s-agent-updates-say").textContent = on ? phrase("the hive installs a newer agent as soon as it is out") : phrase("a newer agent waits for you at the top");
+}
+
+function adoptAutoUpdateAgents(r) {
+  st.autoUpdateAgents = r.config?.autoUpdateAgents !== false;
+  paintAutoUpdateAgents();
+  document.dispatchEvent(new CustomEvent("hive:providers"));
+}
+
+function setAutoUpdateAgents(on) {
+  st.autoUpdateAgents = on;
+  paintAutoUpdateAgents();
+  saveConfig({ autoUpdateAgents: on }).then((r) => adoptAutoUpdateAgents(r)).catch(() => {});
+}
+
 function setAutocompact(raw) {
   const k = autocompactK(raw);
   saveConfig({ autocompact: k ? `${k}k` : AUTOCOMPACT_AUTO }).then((r) => adoptAutocompact(r)).catch(() => {});
@@ -456,4 +478,4 @@ function setDiaryDays(raw) {
   saveConfig({ pruneDiariesAfterDays: diaryDays(raw) }).then((r) => adoptDiaryDays(r)).catch(() => {});
 }
 
-export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };
+export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptAutoUpdateAgents, paintAutoUpdateAgents, setAutoUpdateAgents, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };

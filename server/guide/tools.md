@@ -7,7 +7,7 @@ The seat's browser and phone, tasks, routines, secrets, PRs and the other workin
 Every tool in this topic is a tool of the `hive` MCP server that each seat gets. Each tool needs a ceiling, and a chat only sees the tools its ceiling allows (see the "seats" topic for how a ceiling is set).
 
 - `read`: `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`.
-- `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`.
+- `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`.
 - `full`: `browser_set_cookie` (plus `spawn` and `publish`).
 
 A call above the ceiling fails with "this chat runs with a "<ceiling>" ceiling". The browser, device, task, secret, buzz and Slack tools also need a chat with a seat name; an agent outside the Hive (a plain terminal) gets an error that it has no seat. They talk to the Hive app on the same machine, so the app must be open there: otherwise the error is "no hive answering on this machine".
@@ -142,6 +142,17 @@ Limits:
 - The bar has BACK and HOME buttons, a field ("type here — Enter sends it to the device") and a camera button that sends a screenshot to the chat.
 - With no phone, the pane says "no device on this seat — press the phone above, or ask the seat for device_open".
 
+## park: a chat that waits for a date
+
+A chat calls `park` when its work has to wait for time to pass: logs to pile up, a deploy to land, a pull request to merge. Only a chat on this machine can park, and the app must be open.
+
+- **Arguments:** `until` (an ISO 8601 date and time with its offset, at least 5 minutes and at most 30 days away), `task` (what the chat does when it wakes, up to 600 characters), `why` (optional, one line for the person, up to 300) and `check` (optional, a shell line up to 600 characters).
+- **While parked:** the chat leaves the grid and sits under "off screen" on the rail as "parked till <when>". It sleeps like any idle chat, comes back after a restart, and the quiet sweep never closes it.
+- **Waking:** every 30 seconds the app looks at `~/.hive/parked.json`. At `until`, it sends the chat a message with its task and the reason it waited. If the app was closed at that time, the chat wakes when the app opens. A `check` runs every hour in the hub folder, with a 60-second limit; exit 0 wakes the chat early.
+- **After waking:** the chat works off screen and comes back to the grid when its turn ends, like "hide until it finishes".
+- **The person:** the seat menu of a parked chat has "wake it now" and "cancel parking". Opening the chat from the rail brings it to the grid; it stays parked until its date.
+- A second `park` call moves the date. A chat that is closed for good loses its parking.
+
 ## Tasks: the person's task list
 
 The task list is the person's own to-do list inside the Hive. It opens from the "<n> tasks" button in the top bar ("your tasks") or from the ⋯ menu ("tasks", ⌥F by default).
@@ -196,16 +207,31 @@ An errand is the person's request that a chat came from, in their words, up to 6
 
 ## Secrets: request_secret
 
-`request_secret(label, why?, wait_seconds?)` asks the person for a token, password or key without the value passing through the conversation.
+`request_secret(label, why?, url?, env_key?, wait_seconds?)` asks the person for a token, password or key without the value passing through the conversation.
 
 - A card opens on the person's screen: "<seat> needs a secret", the label, the reason, a password field ("Paste the secret"), "Decline" and "Save secret".
-- The value is written to `~/.hive/secrets/<seat>-<id>`, readable only by the person's user (file 600, folder 700). The chat gets the path, never the value.
-- Use it without printing it: `export TOKEN=$(cat <path>)` inside the command that needs it. Never `cat`, `echo` or log it, and never ask for a secret in plain chat when this tool exists.
-- The file is deleted after 24 hours (the Hive sweeps every hour).
+- With `url`, the card also shows a button "Open <site>" that opens that page in the person's browser. Use it for the page where the value is created or copied. Only `http` and `https` addresses are accepted.
 - The tool blocks: default 600 seconds, at least 30, at most 1800. It ends as saved, declined or timeout; on timeout the card closes.
 - Limits: label up to 80 characters, reason up to 400, value up to 16384.
 - Only chats on this machine can ask: a cloud chat gets "a secret is only kept on this machine — ask for it from a local chat".
 - Open requests live in the app's memory. If the app restarts, the request is gone, and the tool returns an error.
+
+The value reaches its place in one of two ways.
+
+**A credential of the hub: `env_key`.** Use this when an MCP server reads the key from `<hub>/.env`.
+
+- The card says the value will be written as that key, and warns when the key already has a value.
+- The Hive writes `KEY=value` in `<hub>/.env` (it replaces the line if the key is there) and reloads the gateway. The chat gets the key name and nothing else: no path, no value.
+- When the `.env` already holds a 1Password reference, the card offers "Keep the value in 1Password", checked. The value then goes to the item `hub-env` of the person's vault, and the `.env` gets only the `op://` reference. If the person clears the box, the value goes to the `.env` as plain text.
+- The person can also paste an `op://` reference in place of the value. The `.env` then holds that reference, and the gateway reads the value from 1Password.
+- The value must be a single line. A key that starts with `HIVE_` is refused.
+- A chat that gets the key through `<hub>/.mcp.json` sees it only after it is reopened.
+
+**Anything else: a private file.** Without `env_key`:
+
+- The value is written to `~/.hive/secrets/<seat>-<id>`, readable only by the person's user (file 600, folder 700). The chat gets the path, never the value.
+- Use it without printing it: `export TOKEN=$(cat <path>)` inside the command that needs it. Never `cat`, `echo` or log it, and never ask for a secret in plain chat when this tool exists.
+- The file is deleted after 24 hours (the Hive sweeps every hour).
 
 Other ways a key reaches a chat: when a chat opens, the Hive reads the hub `.env` and passes, as environment variables, each key that the hub `.mcp.json` names as `${KEY}` (see the "mcp" topic). Extensions keep their own keys (see the "extensions" topic).
 

@@ -45,7 +45,7 @@ import { cleanDiaryDays, diariesToPrune, pruneDiary, readDiaries, readSeatMeta, 
 import { autocompactFromConfig } from "../server/engine/agents.mjs";
 import { leftoversOf, readTable, reap } from "../server/engine/leftovers.mjs";
 import { builtinClaudePath, bundledClaudeVersion, chosenClaude, claudeOnPath } from "../server/engine/claude-binary.mjs";
-import { behindOf, createLatestVersions, tailOfUpdate, updatePlanOf } from "./lib/agent-updates.mjs";
+import { AUTO_UPDATE_EVERY, AUTO_UPDATE_FIRST, behindOf, createAutoUpdater, createLatestVersions, tailOfUpdate, updatePlanOf } from "./lib/agent-updates.mjs";
 import { readScreen, findThinking, deriveState, modelOnScreen, since } from "./lib/screen.mjs";
 import { TRAILS_KEPT, trailCwds, treesOfSeat } from "./lib/trails.mjs";
 import { CHANGES_SCRIPT, DIFF_SCRIPT, DISCARD_SCRIPT, readChanges, readDiff } from "./lib/changes.mjs";
@@ -68,12 +68,14 @@ import { registerTaskRoutes } from "./routes/tasks.mjs";
 import { registerMeetingRoutes } from "./routes/meetings.mjs";
 import { cleanMeetingSettings, summarizerCommand } from "./lib/meetings.mjs";
 import { registerRoutineRoutes } from "./routes/routines.mjs";
+import { registerParkRoutes } from "./routes/parked.mjs";
+import { readParked, withParks } from "./lib/parked.mjs";
 import { registerExtensionRoutes } from "./routes/extensions.mjs";
 import { createRegistry as createExtensionRegistry } from "./lib/extensions.mjs";
 import { createStore as createExtensionStore } from "./lib/extension-store.mjs";
 import { registerFilesRoutes } from "./routes/files.mjs";
 import { registerChangesRoutes } from "./routes/changes.mjs";
-import { registerSecretRoutes } from "./routes/secrets.mjs";
+import { registerSecretAskRoutes } from "./routes/secret-asks.mjs";
 import { registerCheckpointRoutes } from "./routes/checkpoints.mjs";
 import { createTurnCheckpoints } from "./lib/turn-checkpoints.mjs";
 import { createTraces } from "./lib/traces.mjs";
@@ -269,8 +271,10 @@ const CONFIG_HEADER = `// hive — written by the app's panels, safe to edit by 
 // \`100k\` to \`1000k\` sets your own ceiling; a seat takes it when it comes
 // back), contextUsage (whether a Claude chat on this machine is told how full
 // its context is, counted against that ceiling; a chat takes it when it comes
-// back), theme (the name of the palette the
-// app wears) and themes (your custom palettes — shareable as json).`;
+// back), autoUpdateAgents (whether the hive updates the agents on this machine
+// on its own as soon as a newer version is out — on unless you turn it off; a
+// chat takes the new version when it comes back), theme (the name of the
+// palette the app wears) and themes (your custom palettes — shareable as json).`;
 
 const JSONC_FORMAT = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
 const tilde = (file) => file.replace(homedir(), "~");
@@ -310,6 +314,7 @@ async function readConfig() {
     blockSize: cleanBlockSize(raw.blockSize, tilde(CONFIG_FILE), problems),
     autocompact: cleanAutocompact(raw.autocompact, tilde(CONFIG_FILE), problems),
     contextUsage: cleanFlag(raw.contextUsage, "contextUsage", tilde(CONFIG_FILE), problems, false),
+    autoUpdateAgents: cleanFlag(raw.autoUpdateAgents, "autoUpdateAgents", tilde(CONFIG_FILE), problems, true),
     closeQuietAfterDays: cleanQuietDays(raw.closeQuietAfterDays, tilde(CONFIG_FILE), problems),
     pruneDiariesAfterDays: cleanDiaryDays(raw.pruneDiariesAfterDays, tilde(CONFIG_FILE), problems),
     language: cleanLanguage(raw.language, tilde(CONFIG_FILE), problems),
@@ -347,7 +352,7 @@ async function readConfig() {
     keys: fromLegacy ? cleanKeys(legacy.value, tilde(LEGACY_KEYS_FILE), problems) : cleanKeys(raw.keys, tilde(CONFIG_FILE), problems)
   };
   if (!config.avatar) config.avatar = avatarKey(avatarFor(DEV || ""));
-  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, keys: raw.keys !== undefined || fromLegacy };
+  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, autoUpdateAgents: raw.autoUpdateAgents !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, keys: raw.keys !== undefined || fromLegacy };
   return { config, defaults: { font: FONT_DEFAULTS }, file: tilde(CONFIG_FILE), has, fromLegacy, error: unreadable.join(" · "), ignored: problems.join(" · ") };
 }
 
@@ -402,6 +407,7 @@ async function writeConfig(patch) {
     await rename(LEGACY_KEYS_FILE, retired);
     migrated = tilde(retired);
   }
+  if (clean.autoUpdateAgents === true) kickAgentUpdates();
   return { ...(await readConfig()), migrated };
 }
 
@@ -1499,7 +1505,7 @@ async function collect() {
     missionOf: (s) => missions.get(seatKey(s.where, s.name)) || "",
     statusOf: (s) => statuses.get(seatKey(s.where, s.name)) || ""
   });
-  const withErrand = [...titled, ...anonymous];
+  const withErrand = [...withParks(titled, readParked(HIVE_HOME)), ...anonymous];
   const grouped = byErrand(titled);
   const day = dayOf(titled, errands);
   turnCheckpoints.observe(titled).catch(() => {});
@@ -2761,6 +2767,12 @@ const providerVersions = new Map();
 const latestAgentVersion = createLatestVersions({ runBrew: async (args) => (await shr("brew", args, { timeout: 10000 })).out });
 const agentsUpdating = new Set();
 const AGENT_UPDATE_TIMEOUT = 300000;
+const agentAutoUpdates = createAutoUpdater({
+  wanted: async () => !!(await readConfig()).config.autoUpdateAgents,
+  providers: () => readProviders(true),
+  update: (id) => updateAgent(id),
+  log: (line) => console.log(`agents: ${line}`),
+});
 
 function realPathOf(path) {
   try { return realpathSync(path); } catch { return path; }
@@ -2843,6 +2855,7 @@ async function readProviders(force = false) {
         bundled: plan.bundled,
         seatsRun,
         updating: agentsUpdating.has(id),
+        autoSaid: agentAutoUpdates.said(id, latest),
         home: providerHomeOf(HOME, id),
         homeEnv: spec.homeEnv,
         oneLogin: oneLoginOnly(id),
@@ -2884,6 +2897,11 @@ async function updateAgent(id) {
   } finally {
     agentsUpdating.delete(id);
   }
+}
+
+function kickAgentUpdates() {
+  if (SANDBOX || !OWNS_FLEET) return;
+  agentAutoUpdates.run().catch(() => {});
 }
 
 async function providerReadyOrSay(agent) {
@@ -5337,7 +5355,7 @@ async function closeQuietSeats() {
   const { config } = await readConfig();
   const days = config.closeQuietAfterDays;
   if (!days) return;
-  const held = new Set([...[...closingSeats].map((key) => key.replace(/^local:/, "")), ...[...spawning.values()].map((job) => job.name)]);
+  const held = new Set([...[...closingSeats].map((key) => key.replace(/^local:/, "")), ...[...spawning.values()].map((job) => job.name), ...Object.keys(readParked(HIVE_HOME))]);
   const quiet = seatsGoneQuiet({
     seats: fleetSeats("local").filter(seatIsRestorable),
     sessions: (await collect()).sessions,
@@ -6898,10 +6916,10 @@ registerInboxRoutes(on, { bodyOf: body, HIVE_HOME });
 registerMcpRoutes(on, { bodyOf: body, isSeatName, mcpLogins, onTheServer, startMcpLogin });
 registerFilesRoutes(on, { bodyOf: body, isSeatName, seatFiles, rankFiles, fileIndex, indexCache, rankIndex, searchCode, writeRepoFile, readRepoFile, languageOf, paintLines });
 registerChangesRoutes(on, { bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange });
-const secretAsks = createSecretAsks({ dir: join(HIVE_HOME, "secrets") });
+const secretAsks = createSecretAsks({ dir: join(HIVE_HOME, "secrets"), keep: workspaceDomain.keepCredential });
 secretAsks.sweep();
 setInterval(() => secretAsks.sweep(), 60 * 60 * 1000).unref?.();
-registerSecretRoutes(on, { bodyOf: body, secrets: secretAsks });
+registerSecretAskRoutes(on, { bodyOf: body, secrets: secretAsks, placeOf: workspaceDomain.credentialPlace });
 registerCheckpointRoutes(on, { bodyOf: body, isSeatName, checkpoints: turnCheckpoints, seatOf: (name) => (cache.data?.sessions || []).find((s) => s.name === name && s.where === "local") || null });
 registerConfigRoutes(on, { bodyOf: body, readConfig, writeConfig, shotsUsage: () => measureShots(SHOTS_DIR) });
 const sttEngine = createSttEngine({ home: HIVE_HOME, log: (line) => console.log(line) });
@@ -6980,6 +6998,7 @@ const meetingRoutes = registerMeetingRoutes(on, {
   log: (line) => console.log(line)
 });
 const routines = registerRoutineRoutes(on, { bodyOf: body, home: HIVE_HOME, openJob, runJob, precheckRun: (line, timeout) => shr("bash", ["-lc", line], { timeout, cwd: HUB }), invalidate: () => { cache.at = 0; }, log: console.log });
+const parking = registerParkRoutes(on, { bodyOf: body, home: HIVE_HOME, deliverSay, liveSessions: async () => (await collect()).sessions, knownSeats: () => fleetSeats("local").map((seat) => seat.name), checkRun: (line, timeout) => shr("bash", ["-lc", line], { timeout, cwd: HUB }), invalidate: () => { cache.at = 0; }, log: console.log });
 extensions = await createExtensionRegistry({
   roots: [
     { origin: "built-in", dir: join(HERE, "extensions") },
@@ -7497,6 +7516,9 @@ fleetTick().catch(() => {});
 setInterval(() => { fleetTick().catch(() => {}); }, 20000);
 setInterval(() => { if (someoneWaits(readErrands(HIVE_HOME))) collect().catch(() => {}); }, OPENER_TICK_MS);
 setInterval(() => { routines.tick().catch(() => {}); }, 30000);
+if (OWNS_FLEET) setInterval(() => { parking.tick().catch(() => {}); }, 30000);
+setTimeout(kickAgentUpdates, AUTO_UPDATE_FIRST).unref?.();
+setInterval(kickAgentUpdates, AUTO_UPDATE_EVERY).unref?.();
 setInterval(() => { meetingRoutes.sweep().catch(() => {}); }, 10000).unref();
 if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET) setInterval(() => { closeQuietSeats().catch(() => {}); }, QUIET_SWEEP_EVERY_MS);
 if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET) setInterval(() => { pruneQuietDiaries().catch(() => {}); }, QUIET_SWEEP_EVERY_MS);

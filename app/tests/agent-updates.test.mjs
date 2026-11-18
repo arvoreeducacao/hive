@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { behindOf, bundledWithHive, createLatestVersions, homebrewLatestOf, homebrewOf, npmPrefixOf, tailOfUpdate, updatePlanOf } from "../lib/agent-updates.mjs";
+import { AUTO_UPDATE_RETRY, agentsToAutoUpdate, autoUpdateSaid, behindOf, createAutoUpdater, bundledWithHive, createLatestVersions, homebrewLatestOf, homebrewOf, npmPrefixOf, tailOfUpdate, updatePlanOf } from "../lib/agent-updates.mjs";
 
 test("an agent the native installer put on the machine updates through its own command", () => {
   const codex = updatePlanOf({ id: "codex", path: "/home/a/.local/bin/codex", real: "/home/a/.codex/packages/standalone/releases/0.153.1-x86_64-unknown-linux-musl/bin/codex", binary: "codex" });
@@ -110,4 +110,80 @@ test("an agent from Homebrew is compared with what brew can deliver, not with np
   assert.deepEqual(asked, ["info --json=v2 --cask codex"]);
   assert.equal(homebrewLatestOf(JSON.stringify({ formulae: [{ versions: { stable: "1.18.32" } }] }), { kind: "formula" }), "1.18.32");
   assert.equal(homebrewLatestOf("not json", { kind: "cask" }), "");
+});
+
+const agent = (over = {}) => ({ id: "claude", enabled: true, installed: true, behind: true, canUpdate: true, updating: false, version: "2.1.300", latest: "2.1.326", ...over });
+
+test("the hive updates on its own only an agent that is on, installed, behind and that it knows how to update", () => {
+  const list = [
+    agent(),
+    agent({ id: "codex", enabled: false }),
+    agent({ id: "kiro", canUpdate: false }),
+    agent({ id: "kimi", behind: false }),
+    agent({ id: "cursor", installed: false }),
+    agent({ id: "gemini", updating: true }),
+  ];
+  assert.deepEqual(agentsToAutoUpdate(list).map((one) => one.id), ["claude"]);
+  assert.deepEqual(agentsToAutoUpdate(undefined), []);
+});
+
+test("a version the hive already tried waits hours before another try, and a newer one goes at once", () => {
+  const now = 10 * AUTO_UPDATE_RETRY;
+  const tried = { claude: { latest: "2.1.326", at: now - 60000, error: "EACCES" } };
+  assert.deepEqual(agentsToAutoUpdate([agent()], tried, now), []);
+  assert.equal(agentsToAutoUpdate([agent()], tried, now + AUTO_UPDATE_RETRY).length, 1);
+  assert.equal(agentsToAutoUpdate([agent({ latest: "2.1.327" })], tried, now).length, 1);
+});
+
+test("a failed try on its own is told only while that same version is the newest", () => {
+  const tried = { claude: { latest: "2.1.326", at: 0, error: "EACCES" }, codex: { latest: "0.1.0", at: 0, error: "" } };
+  assert.equal(autoUpdateSaid(tried, "claude", "2.1.326"), "EACCES");
+  assert.equal(autoUpdateSaid(tried, "claude", "2.1.327"), "");
+  assert.equal(autoUpdateSaid(tried, "codex", "0.1.0"), "");
+  assert.equal(autoUpdateSaid(tried, "kiro", "1.0.0"), "");
+});
+
+test("the updater runs the same update the button runs, one agent after the other, and remembers what failed", async () => {
+  const ran = [];
+  const list = [agent(), agent({ id: "codex", version: "0.150.0", latest: "0.156.0" })];
+  const updater = createAutoUpdater({
+    wanted: async () => true,
+    providers: async () => list,
+    update: async (id) => { ran.push(id); return id === "codex" ? { error: "EACCES: permission denied" } : { ok: true, after: "2.1.326" }; },
+    now: () => 0,
+  });
+  assert.deepEqual(await updater.run(), [{ id: "claude", error: "", after: "2.1.326" }, { id: "codex", error: "EACCES: permission denied", after: "" }]);
+  assert.deepEqual(ran, ["claude", "codex"]);
+  assert.equal(updater.said("codex", "0.156.0"), "EACCES: permission denied");
+  assert.equal(updater.said("claude", "2.1.326"), "");
+  assert.deepEqual(await updater.run(), [], "the same versions are not tried again within the hour");
+});
+
+test("the updater does nothing when it is turned off, and a run never overlaps the one before", async () => {
+  let asked = 0;
+  const off = createAutoUpdater({ wanted: async () => false, providers: async () => { asked += 1; return [agent()]; }, update: async () => ({ ok: true }) });
+  assert.deepEqual(await off.run(), []);
+  assert.equal(asked, 0);
+
+  let release;
+  const held = new Promise((resolve) => { release = resolve; });
+  let updates = 0;
+  const slow = createAutoUpdater({ wanted: async () => true, providers: async () => [agent()], update: async () => { updates += 1; await held; return { ok: true, after: "2.1.326" }; } });
+  const first = slow.run();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(await slow.run(), []);
+  release();
+  assert.equal((await first).length, 1);
+  assert.equal(updates, 1);
+});
+
+test("an update that throws is recorded as a failure instead of stopping the round", async () => {
+  const updater = createAutoUpdater({
+    wanted: async () => true,
+    providers: async () => [agent({ id: "kimi" }), agent()],
+    update: (id) => { if (id === "kimi") throw new Error("kimi upgrade exploded"); return { ok: true, after: "2.1.326" }; },
+    now: () => 0,
+  });
+  const done = await updater.run();
+  assert.deepEqual(done.map((one) => [one.id, one.error]), [["kimi", "kimi upgrade exploded"], ["claude", ""]]);
 });

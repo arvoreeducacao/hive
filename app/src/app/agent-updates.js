@@ -13,13 +13,17 @@ function keepLater(later) {
   try { localStorage.setItem(LATER_KEY, JSON.stringify(later)); } catch {}
 }
 
+function leftToTheHive(one) {
+  return st.autoUpdateAgents !== false && one.canUpdate && !one.autoSaid && !st.agentUpdateSaid[one.id];
+}
+
 function waiting() {
   const later = readLater();
-  return agentsBehind().filter((one) => later[one.id] !== one.latest || one.updating || st.agentUpdateSaid[one.id]);
+  return agentsBehind().filter((one) => !leftToTheHive(one) && (later[one.id] !== one.latest || one.updating || st.agentUpdateSaid[one.id]));
 }
 
 function rowHtml(one) {
-  const said = st.agentUpdateSaid[one.id] || "";
+  const said = st.agentUpdateSaid[one.id] || (one.autoSaid ? phrase("the hive tried on its own and it failed: {error}", { error: one.autoSaid }) : "");
   const act = one.canUpdate
     ? `<button type="button" class="ap-go" data-ap-update="${esc(one.id)}" ${one.updating ? "disabled" : ""}>${esc(one.updating ? phrase("updating…") : phrase("update"))}</button>`
     : "";
@@ -36,6 +40,9 @@ function paintAgentUpdates() {
     : phrase("{n} agents have a newer version", { n: list.length });
   if (!list.length) return closeAgentUpdates();
   $("ap-count").textContent = String(list.length);
+  $("ap-sub").textContent = st.autoUpdateAgents === false
+    ? phrase("A newer version is out. Update now, or keep the one you have: nothing changes until you say so.")
+    : phrase("A newer version is out, and the hive could not install it on its own.");
   $("ap-list").innerHTML = list.map(rowHtml).join("");
   $("ap-all").hidden = list.filter((one) => one.canUpdate).length < 2;
 }

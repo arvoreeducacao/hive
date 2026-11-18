@@ -1,4 +1,4 @@
-import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserHover, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
+import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserHover, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, parkSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS } from "./peer.mjs";
 import { BIRTHS_MAX } from "../engine/protocol.mjs";
 import { allows, readCeiling } from "./ceilings.mjs";
 import { stateDir } from "../engine/paths.mjs";
@@ -306,6 +306,21 @@ export const PEER_TOOLS = [
     },
   },
   {
+    name: "park",
+    description: "Park this chat until a date, when the work truly has to wait for time to pass — logs to pile up, a deploy to land, a pull request to merge — instead of promising the person you will come back. A parked chat leaves their screen, sleeps without spending anything, survives the Hive restarting and is never closed for being quiet. At that date the hive wakes you with the task you leave here; if you also leave a check, the hive runs it every hour and wakes you as soon as it passes. Never park to dodge finishing what can be done now. A second call moves the date. After parking, end your turn with one line for the person: when you come back and why.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        until: { type: "string", description: "when you wake: an ISO 8601 date and time with its offset, like 2026-11-19T10:00:00-03:00 — at least 5 minutes and at most 30 days from now" },
+        task: { type: "string", description: "what you will do when you wake, in one or two lines — it comes back to you as the message that wakes you, so write it for yourself" },
+        why: { type: "string", description: "optional: why it cannot be done now, one line the person reads on the rail" },
+        check: { type: "string", description: "optional: a shell line that exits 0 once the wait is over (a pull request merged, a deploy finished); it runs every hour in the hub folder with a 60-second limit" },
+      },
+      required: ["until", "task"],
+      additionalProperties: false,
+    },
+  },
+  {
     name: "task",
     description: "Write a task into the person's own task list in the hive — the button with the count at the top of the app. Only when the person asks you to note, remember or keep something for later; never on your own to record what is left at the end of a turn. The task starts private to them, with this chat marked as where it came from.",
     inputSchema: {
@@ -343,12 +358,14 @@ export const PEER_TOOLS = [
   },
   {
     name: "request_secret",
-    description: "Ask the person for a secret — a token, a password, an API key — without it ever passing through this conversation. A private card opens on their screen with a password field; what they type is written to a file only they and you can read on this machine, and you get the path back, never the value. Use the file without printing it: export TOKEN=$(cat <path>) inside the command that needs it. Never cat, echo or log the value, and never ask for a secret in plain chat when this exists. The file is deleted after 24 hours. Blocks until they answer, decline or the wait runs out.",
+    description: "Ask the person for a secret — a token, a password, an API key — without it ever passing through this conversation. A private card opens on their screen with a password field. A credential of the hub (a key an MCP server reads from the hub .env): pass env_key, and the Hive writes it there itself and reloads the gateway — you get no path and never touch the value. Anything else: leave env_key out, and what they type is written to a file only they and you can read on this machine; you get the path back, never the value. Use the file without printing it: export TOKEN=$(cat <path>) inside the command that needs it. Never cat, echo or log the value, and never ask for a secret in plain chat when this exists. The file is deleted after 24 hours. Pass url when there is a page where the person gets or creates the value. Blocks until they answer, decline or the wait runs out.",
     inputSchema: {
       type: "object",
       properties: {
         label: { type: "string", description: "what the secret is, in the person's language, short — \"token do GitHub com repo\", \"senha do banco de staging\"" },
         why: { type: "string", description: "one line on what you will do with it, so the person can decide" },
+        url: { type: "string", description: "the http(s) page where the person gets or creates this value — it shows as a button on the card" },
+        env_key: { type: "string", description: "for a credential of the hub: the variable to save it as in the hub .env, like TRACKER_TOKEN. The Hive writes it and reloads the gateway; no file, no path" },
         wait_seconds: { type: "number", description: `how long to wait for them, default 600, max ${1800}` },
       },
       required: ["label"],
@@ -378,7 +395,7 @@ export const TOOL_ACCESS = {
   peers: READ, peek: READ, guide: READ,
   browser_screenshot: READ, browser_snapshot: READ, browser_cookies: READ, browser_console: READ, browser_network: READ,
   device_screenshot: READ, device_tree: READ, device_logs: READ,
-  message: OPERATE, ask: OPERATE, reply_on_page: OPERATE, rename: OPERATE, task: OPERATE, buzz: OPERATE,
+  message: OPERATE, ask: OPERATE, reply_on_page: OPERATE, rename: OPERATE, park: OPERATE, task: OPERATE, buzz: OPERATE,
   reply_on_slack: OPERATE, ask_person: OPERATE, request_secret: OPERATE,
   browser_navigate: OPERATE, browser_profile: OPERATE, browser_resize: OPERATE, browser_eval: OPERATE, browser_click: OPERATE, browser_hover: OPERATE,
   browser_type: OPERATE, browser_select_option: OPERATE, browser_press_key: OPERATE, browser_wait_for: OPERATE, browser_tabs: OPERATE,
@@ -684,6 +701,13 @@ function rawCalls(env) {
       return text(`${done.name} is closed. Its transcript stays in the history and its worktree stays where it was.`);
     },
 
+    async park(args) {
+      const done = await parkSeat({ until: args.until, task: args.task, why: args.why || "", check: args.check || "", env });
+      if (done.error) return failure(done.error);
+      const early = done.check ? " The hive runs your check every hour and wakes you sooner when it passes." : "";
+      return text(`parked until ${done.when}. This chat leaves the person's screen, sleeps, survives a restart and is not closed for being quiet; at that time the hive wakes you with your task.${early} End your turn now with one line for the person: when you come back and why.`);
+    },
+
     async task(args) {
       const done = await noteTask({ text: args.text, env });
       if (done.error) return failure(done.error);
@@ -767,8 +791,9 @@ function rawCalls(env) {
     },
 
     async request_secret(args) {
-      const got = await requestSecret({ label: args.label, why: args.why || "", waitSeconds: Math.min(SECRET_WAIT_MAX_SECONDS, Number(args.wait_seconds) || 0) || undefined, env });
+      const got = await requestSecret({ label: args.label, why: args.why || "", url: args.url || "", envKey: args.env_key || "", waitSeconds: Math.min(SECRET_WAIT_MAX_SECONDS, Number(args.wait_seconds) || 0) || undefined, env });
       if (got.error) return failure(got.error);
+      if (got.state === "saved" && got.envKey) return text(`the person saved "${got.label}" as ${got.envKey} in the hub .env${got.kept === "vault" ? " — the value is in 1Password and the .env holds only the reference" : ""}. ${got.reloaded ? "The gateway reloaded" : "The gateway did not answer the reload: reload it before you call the server"}. A chat that gets ${got.envKey} through .mcp.json sees it only after it is reopened. You have no path and no value: do not open the .env to look at it.`);
       if (got.state === "saved") return text(`the person saved "${got.label}" at ${got.path} — use it without printing it, as in: export VALUE=$(cat ${got.path}). Do not cat, echo or log it. The file is deleted in 24 hours.`);
       if (got.state === "declined") return text("the person declined to give this secret. Carry on without it, or ask them in plain words why it is needed.");
       if (got.state === "timeout") return text("the person did not answer in time; the card was closed. Ask again only if the work cannot go on without it.");

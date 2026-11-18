@@ -100,10 +100,12 @@ Who reads the file:
 
 To fill in a value without showing it in a chat:
 
-1. The agent calls `request_secret` with a short `label`. The person types the value in a private card on their screen.
-2. The agent gets back a file path, never the value. The file is deleted after 24 hours.
-3. The agent appends it without printing it, for example `printf 'TRACKER_TOKEN=%s\n' "$(cat <path>)" >> <hub>/.env`.
-4. The agent reloads the gateway, and reopens the chats that use a `.mcp.json` server with that variable.
+1. The agent calls `request_secret` with a short `label` and `env_key`, for example `env_key: "TRACKER_TOKEN"`. With `url`, the card shows a button to the page where the value is created.
+2. The person types the value in a private card on their screen. The card says which key will be written.
+3. The Hive writes the key in `<hub>/.env` and reloads the gateway. The agent gets the key name, never the value or a path.
+4. The agent reopens the chats that use a `.mcp.json` server with that variable.
+
+When the `.env` already holds a 1Password reference, the card offers to keep the new value in 1Password too (see below).
 
 `request_secret` works only in a chat on this machine.
 
@@ -258,7 +260,7 @@ The state dir is `HIVE_STATE_DIR`, else `HIVE_HOME`, else `/workspace/hive` when
 Each tool and its ceiling (the "tools" topic describes each one):
 
 - **Other chats:** `peers` and `peek` (read); `message` and `ask` (operate).
-- **Opening and closing chats:** `spawn` (full), `close` (operate; only chats you opened, or this chat), `rename` (operate).
+- **Opening and closing chats:** `spawn` (full), `close` (operate; only chats you opened, or this chat), `rename` (operate), `park` (operate; this chat only).
 - **Pages on the team's shelf:** `publish` (full), `reply_on_page` (operate).
 - **Browser pane:** `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network` (read); `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload` (operate); `browser_set_cookie` (full).
 - **Device pane:** `device_screenshot`, `device_tree`, `device_logs` (read); `device_open`, `device_tap`, `device_swipe`, `device_type`, `device_key`, `device_close` (operate).
@@ -272,7 +274,7 @@ The browser, device, secret and task tools work only in a chat of this Hive, wit
 A ceiling limits which `hive` tools a chat may use. Each level includes the ones below it.
 
 - **read:** look only. `peers`, `peek`, `guide`, `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`.
-- **operate:** also talk, browse and act. `message`, `ask`, `close`, `rename`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`, `reply_on_page`, the other `browser_*` tools except `browser_set_cookie`, and the other `device_*` tools.
+- **operate:** also talk, browse and act. `message`, `ask`, `close`, `rename`, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`, `reply_on_page`, the other `browser_*` tools except `browser_set_cookie`, and the other `device_*` tools.
 - **full:** also `spawn`, `publish` and `browser_set_cookie`.
 
 How a chat gets its ceiling:

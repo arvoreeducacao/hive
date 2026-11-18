@@ -425,7 +425,7 @@ export function envKeysOf(envText) {
 }
 
 const SECRET_NAME = /(PASSWORD|TOKEN|SECRET|_KEY|_AUTH)$/;
-const VAULT_REF = /^op:\/\//;
+export const VAULT_REF = /^op:\/\//;
 const ENV_REF_IN = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 const CREDENTIAL_ORDER = { file: 0, empty: 1, vault: 2, sso: 3 };
 
@@ -444,7 +444,21 @@ function envRefsIn(spec) {
   return names;
 }
 
-const signsInWithSso = (key, values) => String(values[`${key.split("_")[0]}_AUTH`] ?? "").toLowerCase() === "iam";
+const AUTH_MODE = /^(iam|password)$/i;
+
+function nearestSibling(key, values, suffix) {
+  const parts = key.split("_");
+  for (let size = parts.length - 1; size >= 1; size--) {
+    const value = values[`${parts.slice(0, size).join("_")}_${suffix}`];
+    if (value) return value;
+  }
+  return "";
+}
+
+const signsInWithSso = (key, values) => nearestSibling(key, values, "AUTH").toLowerCase() === "iam";
+
+const isAuthSwitch = (key, values, refs) =>
+  key.endsWith("_AUTH") && (AUTH_MODE.test(values[key] ?? "") || refs.includes(`${key.slice(0, -"_AUTH".length)}_PASSWORD`));
 
 export function credentialKindOf(key, values) {
   const value = values[key] ?? "";
@@ -456,13 +470,14 @@ export function credentialKindOf(key, values) {
 export function credentialsOf({ envText, servers, mcpJson }) {
   const values = envValuesOf(envText);
   const users = new Map();
-  const note = (key, server) => {
-    if (!SECRET_NAME.test(key) || key.startsWith("HIVE_")) return;
+  const note = (key, server, refs = []) => {
+    if (!SECRET_NAME.test(key) || key.startsWith("HIVE_") || isAuthSwitch(key, values, refs)) return;
     if (!users.has(key)) users.set(key, new Set());
     users.get(key).add(server);
   };
   for (const [name, definition] of Object.entries(servers?.servers || {})) {
-    for (const key of [...envRefsIn(definition?.env), ...envRefsIn(definition?.headers)]) note(key, name);
+    const refs = [...envRefsIn(definition?.env), ...envRefsIn(definition?.headers)];
+    for (const key of refs) note(key, name, refs);
   }
   for (const [name, definition] of Object.entries(mcpJson?.mcpServers || {})) {
     for (const key of envRefsIn(definition?.headers)) note(key, name);
@@ -481,7 +496,7 @@ export function credentialCheckOf(key, values) {
   const kind = credentialKindOf(key, values);
   if (kind === "vault") return { kind, command: "bash", args: ["-c", 'op read --no-newline "$1" >/dev/null', "op-check", values[key]] };
   if (kind === "sso") {
-    const profile = values[`${key.split("_")[0]}_AWS_PROFILE`] || values.AWS_PROFILE || "default";
+    const profile = nearestSibling(key, values, "AWS_PROFILE") || values.AWS_PROFILE || "default";
     return { kind, profile, command: "aws", args: ["sts", "get-caller-identity", "--profile", profile, "--query", "Arn", "--output", "text"] };
   }
   return { kind };

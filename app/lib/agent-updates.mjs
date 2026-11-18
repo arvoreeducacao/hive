@@ -14,6 +14,9 @@ export const AGENT_UPDATES = {
 export const LATEST_FRESH = 3600000;
 export const LATEST_RETRY = 600000;
 export const LATEST_TIMEOUT = 4000;
+export const AUTO_UPDATE_FIRST = 120000;
+export const AUTO_UPDATE_EVERY = LATEST_FRESH;
+export const AUTO_UPDATE_RETRY = 6 * LATEST_FRESH;
 
 const slashed = (path) => String(path || "").replace(/\\/g, "/").toLowerCase();
 
@@ -76,6 +79,45 @@ export function homebrewLatestOf(infoJson, brew) {
 
 export function behindOf(current, latest) {
   return !!current && !!latest && compareVersions(current, latest) < 0;
+}
+
+export function agentsToAutoUpdate(list, tried = {}, now = Date.now()) {
+  return (list || []).filter((one) => {
+    if (!one.enabled || !one.installed || !one.behind || !one.canUpdate || one.updating) return false;
+    const last = tried[one.id];
+    return !last || last.latest !== one.latest || now - last.at >= AUTO_UPDATE_RETRY;
+  });
+}
+
+export function autoUpdateSaid(tried, id, latest) {
+  const last = tried[id];
+  return last && last.latest === latest ? last.error || "" : "";
+}
+
+export function createAutoUpdater({ wanted, providers, update, log = () => {}, now = () => Date.now() }) {
+  const tried = {};
+  let running = false;
+
+  async function run() {
+    if (running) return [];
+    running = true;
+    const done = [];
+    try {
+      if (!(await wanted())) return done;
+      for (const one of agentsToAutoUpdate(await providers(), tried, now())) {
+        tried[one.id] = { latest: one.latest, at: now(), error: "" };
+        const said = await Promise.resolve().then(() => update(one.id)).catch((wrong) => ({ error: wrong?.message || String(wrong) }));
+        tried[one.id].error = said?.error || "";
+        log(`${one.id} ${one.version} → ${one.latest} on its own: ${said?.error ? `failed — ${said.error}` : `now ${said?.after || "?"}`}`);
+        done.push({ id: one.id, error: said?.error || "", after: said?.after || "" });
+      }
+      return done;
+    } finally {
+      running = false;
+    }
+  }
+
+  return { run, said: (id, latest) => autoUpdateSaid(tried, id, latest) };
 }
 
 export function createLatestVersions({ fetchImpl = globalThis.fetch, now = () => Date.now(), runBrew = async () => "" } = {}) {

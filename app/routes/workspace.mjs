@@ -5,7 +5,7 @@ import { stackOf } from "../manifest/scan.mjs";
 import { repoName } from "../manifest/resolve.mjs";
 import { envWithValue, moveToVault, runOp, vaultSetupOf } from "../lib/hub-vault.mjs";
 import { oneAtATime } from "../lib/shelf.mjs";
-import { DEFAULT_GATEWAY_PORT, MANAGED_FILES, MANIFEST_FILE, SKILL_TO_WRITE, credentialAnswerOf, credentialCheckOf, credentialsOf, envValuesOf, linePlanOf, mcpEntryOf, mcpPlanOf, repoEntryOf, repoPlanOf, skillDescriptionOf, skillEntryOf, skillPlanOf, withRepoLine } from "../lib/hub-workspace.mjs";
+import { DEFAULT_GATEWAY_PORT, MANAGED_FILES, MANIFEST_FILE, SKILL_TO_WRITE, VAULT_REF, credentialAnswerOf, credentialCheckOf, credentialsOf, envValuesOf, linePlanOf, mcpEntryOf, mcpPlanOf, repoEntryOf, repoPlanOf, skillDescriptionOf, skillEntryOf, skillPlanOf, withRepoLine } from "../lib/hub-workspace.mjs";
 
 const SYNC_WALK = [
   'for root in "$1" "$1/.worktrees"; do',
@@ -198,6 +198,27 @@ export function createWorkspaceDomain({
     invalidateSync();
     const reload = await gatewayReload();
     return { key, ok: true, moved: true, ref: moved.ref, vault: moved.vault, reloaded: reload.reached };
+  }
+
+  async function credentialPlace(asked) {
+    const key = String(asked ?? "").trim();
+    const values = envValuesOf(await textOf(".env"));
+    return { key, replaces: !!values[key], vault: Object.values(values).some((value) => VAULT_REF.test(value)) };
+  }
+
+  function keepCredential(asked) {
+    return credentialTurn(() => keepCredentialNow(asked));
+  }
+
+  async function keepCredentialNow({ key, value, vault }) {
+    const toVault = !!vault && !VAULT_REF.test(value);
+    const moved = toVault ? await moveToVault({ key, value, op: opImpl }) : null;
+    if (moved && !moved.ok) return { key, ok: false, reason: moved.reason || "vault-failed", error: `1Password did not keep the value: ${moved.error}` };
+    const envText = await textOf(".env");
+    await writeFileImpl(join(hub, ".env"), envWithValue(envText, key, moved ? moved.ref : value), { mode: 0o600 });
+    invalidateSync();
+    const reload = await gatewayReload();
+    return { key, ok: true, kept: moved || VAULT_REF.test(value) ? "vault" : "file", reloaded: reload.reached };
   }
 
   async function credentialSetup() {
@@ -495,7 +516,7 @@ export function createWorkspaceDomain({
     });
   }
 
-  return { register, readSync, readWorkspace, checkCredential, moveCredential, credentialSetup, invalidateSync, planRepo, addRepo, planMcp, addMcp, planSkill, addSkill, fix, queueClones, stopClones, jobs };
+  return { register, readSync, readWorkspace, checkCredential, moveCredential, credentialPlace, keepCredential, credentialSetup, invalidateSync, planRepo, addRepo, planMcp, addMcp, planSkill, addSkill, fix, queueClones, stopClones, jobs };
 }
 
 export function registerWorkspaceRoutes(on, context) {

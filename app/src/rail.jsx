@@ -58,6 +58,7 @@ function Snoozed(props) {
         <div class="item parked snoozed" data-name={one.name} data-state={one.state} title={one.hint}>
           <span class="dot-off"></span>
           <span class="name">{one.title}</span>
+          <span class="when">{one.why}</span>
           <span class="revive">{one.action}</span>
         </div>
       )}</For>
@@ -90,7 +91,7 @@ function RaycastSeat(props) {
   return (
     <div
       class="item"
-      classList={{ sel: props.seat.sel, cursor: props.seat.cursor, naming: props.seat.naming }}
+      classList={{ sel: props.seat.sel, cursor: props.seat.cursor, naming: props.seat.naming, off: !!props.seat.why }}
       tabindex="-1"
       data-name={props.seat.name}
       data-state={props.seat.state}
@@ -98,7 +99,15 @@ function RaycastSeat(props) {
       title={props.seat.hint}
     >
       <i class={`rc-dot ${props.seat.state}`} aria-hidden="true"></i>
-      <span class="name">{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>
+      <Show
+        when={props.seat.why}
+        fallback={<span class="name">{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>}
+      >
+        <span class="col">
+          <span class="name">{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>
+          <span class="why">{props.seat.why}</span>
+        </span>
+      </Show>
       <Show when={props.seat.away}><span class="away" aria-hidden="true">↗</span></Show>
       <span class="meta" classList={{ t: props.seat.tone === "t", need: props.seat.tone === "need" }}>{props.seat.meta}</span>
       <span class="hint">{props.seat.open}<Show when={props.seat.openKey}><span class="rc-key">{props.seat.openKey}</span></Show></span>
@@ -109,11 +118,23 @@ function RaycastSeat(props) {
 function RaycastGroup(props) {
   return (
     <div class="rail-blk" classList={{ cur: props.group.here }}>
-      <div class="group-title" data-i={props.group.i >= 0 ? props.group.i : undefined}>
-        <span>{props.group.label}</span>
-        <Show when={props.group.here}><span class="on-screen">{props.group.hereSaid}</span></Show>
-        <Show when={props.group.keys} fallback={<b>{props.group.items.length}</b>}><span class="rc-key">{props.group.keys}</span></Show>
-      </div>
+      <Show
+        when={props.group.fold}
+        fallback={
+          <div class="group-title" data-i={props.group.i >= 0 ? props.group.i : undefined}>
+            <span>{props.group.label}</span>
+            <Show when={props.group.here}><span class="on-screen">{props.group.hereSaid}</span></Show>
+            <Show when={props.group.keys} fallback={<b>{props.group.items.length}</b>}><span class="rc-key">{props.group.keys}</span></Show>
+          </div>
+        }
+      >
+        {(fold) => (
+          <div class="group-title parked" data-hidden-toggle tabindex="-1" role="button" aria-expanded={fold().open ? "true" : "false"}>
+            <svg classList={{ caret: true, shut: !fold().open }} aria-hidden="true"><use href="#i-chev" /></svg>
+            <span>{props.group.label}</span><b>{fold().count}</b>
+          </div>
+        )}
+      </Show>
       <For each={props.group.items}>{(seat) => <RaycastSeat seat={seat} />}</For>
     </div>
   );

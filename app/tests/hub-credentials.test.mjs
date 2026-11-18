@@ -70,3 +70,26 @@ test("credentialAnswerOf traduz o resultado sem repassar a saida do comando", ()
   assert.equal(credentialAnswerOf({ kind: "file" }, null).reason, "in-file");
   assert.equal(credentialAnswerOf({ kind: "empty" }, null).reason, "empty");
 });
+
+test("credentialKindOf reads AUTH and the profile from the nearest prefix, as the identity database needs", () => {
+  const values = { IDENTITY_POSTGRESQL_AUTH: "iam", IDENTITY_POSTGRESQL_PASSWORD: "", IDENTITY_POSTGRESQL_AWS_PROFILE: "db-profile", AWS_PROFILE: "other" };
+  assert.equal(credentialKindOf("IDENTITY_POSTGRESQL_PASSWORD", values), "sso");
+  assert.equal(credentialCheckOf("IDENTITY_POSTGRESQL_PASSWORD", values).profile, "db-profile");
+  assert.equal(credentialKindOf("STUDIO_POSTGRESQL_PASSWORD", { ...values, STUDIO_POSTGRESQL_PASSWORD: "cru" }), "file");
+  assert.equal(credentialKindOf("IDENTITY_POSTGRESQL_PASSWORD", { IDENTITY_AUTH: "iam" }), "sso");
+});
+
+test("credentialsOf leaves out the key that only picks the sign-in mode", () => {
+  const withIdentity = {
+    servers: {
+      ...servers.servers,
+      "identity-postgresql": { command: "node", env: { POSTGRESQL_PASSWORD: "${IDENTITY_POSTGRESQL_PASSWORD}", POSTGRESQL_AUTH: "${IDENTITY_POSTGRESQL_AUTH}" } }
+    }
+  };
+  const on = credentialsOf({ envText: "IDENTITY_POSTGRESQL_AUTH=iam\nIDENTITY_POSTGRESQL_PASSWORD=", servers: withIdentity });
+  assert.equal(on.items.some((item) => item.key === "IDENTITY_POSTGRESQL_AUTH"), false);
+  assert.equal(on.items.find((item) => item.key === "IDENTITY_POSTGRESQL_PASSWORD").kind, "sso");
+  const off = credentialsOf({ envText: "IDENTITY_POSTGRESQL_PASSWORD=op://Employee/hub-env/x", servers: withIdentity });
+  assert.equal(off.items.some((item) => item.key === "IDENTITY_POSTGRESQL_AUTH"), false);
+  assert.equal(off.items.find((item) => item.key === "TRACKER_MCP_AUTH").kind, "empty");
+});

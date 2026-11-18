@@ -4741,7 +4741,7 @@ try {
     </div>
     <div class="relpop" id="agentpop" role="dialog" aria-label="agents with a newer version out" hidden>
       <div class="rp-head"><b>Agents</b><span class="cnt" id="ap-count" data-no-t></span></div>
-      <p class="rp-sub">A newer version is out. Update now, or keep the one you have: nothing changes until you say so.</p>
+      <p class="rp-sub" id="ap-sub">A newer version is out. Update now, or keep the one you have: nothing changes until you say so.</p>
       <ul id="ap-list" data-no-t></ul>
       <div class="rp-foot">
         <button class="go" id="ap-all">Update all</button>
@@ -5140,6 +5140,9 @@ try {
     <div><label for="t-context-usage" data-t>tell a Claude chat how full it is</label><div class="sound-row"><span class="fixed" id="s-context-usage-say"></span><button class="ghost flip" id="t-context-usage" type="button"></button></div></div>
     <p class="hint">On, a Claude chat on this machine is told how full its context is, counted against the ceiling above. It reads a line like <code>Token usage: 120000/180000; 60000 remaining</code> and can finish a step or write down what matters before the summary. Off unless you turn it on; a chat takes it when it comes back.</p>
     <p class="hint">To start over without a summary, type <code>/fresh</code> in a chat. A new session takes an extract of the old one and the path of the whole conversation, which it searches when it needs more.</p>
+    <h3 data-t>Agent updates</h3>
+    <div><label for="t-agent-updates" data-t>update the agents on their own</label><div class="sound-row"><span class="fixed" id="s-agent-updates-say"></span><button class="ghost flip" id="t-agent-updates" type="button"></button></div></div>
+    <p class="hint">On, the hive looks for a newer Claude, Codex or other agent every hour and installs it as soon as it is out, the same as the update button at the top. A chat that is open keeps its version until it comes back; a new chat starts on the newest one. An agent the hive cannot update for you still shows at the top, with the command to run.</p>
     <h3 data-t>Closing quiet chats</h3>
     <div class="pair">
       <div><label for="f-quiet-days" data-t>close a chat after it sits quiet for</label><div class="unit-row"><input id="f-quiet-days" type="number" min="0" max="90" step="1" placeholder="2" /><span class="unit" data-t>days</span></div></div>

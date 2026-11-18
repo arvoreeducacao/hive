@@ -97,3 +97,37 @@ test("request_secret waits on the hive and hands the seat only the path", async 
   assert.equal(calls[0][2].label, "token");
   assert.equal("value" in calls[0][2], false);
 });
+
+test("request_secret for a hub credential sends the key and the page, and the seat reads the key, never a path", async () => {
+  const { requestSecret, hiveDoor } = await import("../peer/peer.mjs");
+  const { mkdtempSync, mkdirSync, writeFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const base = mkdtempSync(join(tmpdir(), "peer-secret-env-"));
+  mkdirSync(join(base, "sessions"), { recursive: true });
+  const calls = [];
+  const ask = async (door, method, path, payload) => {
+    calls.push([method, path.split("?")[0], payload]);
+    if (path === "/api/secrets/ask") return { ok: true, said: { ask: { id: "s1" } } };
+    return { ok: true, said: { ask: { state: "saved", path: "", envKey: "TRACKER_TOKEN", kept: "vault", reloaded: true, label: "tracker" } } };
+  };
+  const env = { HIVE_SEAT: "a", HIVE_STATE_DIR: base };
+  writeFileSync(hiveDoor(base), "");
+  const got = await requestSecret({ label: "tracker", url: "https://tracker.example/tokens", envKey: "TRACKER_TOKEN", env, ask, pause: async () => {} });
+  assert.deepEqual(got, { state: "saved", envKey: "TRACKER_TOKEN", kept: "vault", reloaded: true, label: "tracker" });
+  assert.equal(calls[0][2].envKey, "TRACKER_TOKEN");
+  assert.equal(calls[0][2].url, "https://tracker.example/tokens");
+  const plain = await requestSecret({ label: "token", env, ask: async (door, method, path, payload) => { calls.push([method, path.split("?")[0], payload]); return path === "/api/secrets/ask" ? { ok: true, said: { ask: { id: "s2" } } } : { ok: true, said: { ask: { state: "declined" } } }; }, pause: async () => {} });
+  assert.deepEqual(plain, { state: "declined" });
+  const opened = calls.filter(([method, path]) => method === "POST" && path === "/api/secrets/ask").pop()[2];
+  assert.equal("envKey" in opened || "url" in opened, false);
+});
+
+test("the request_secret tool offers env_key and url, and its answer for a hub credential names the key and no file", () => {
+  const tool = PEER_TOOLS.find((one) => one.name === "request_secret");
+  assert.deepEqual(Object.keys(tool.inputSchema.properties), ["label", "why", "url", "env_key", "wait_seconds"]);
+  assert.deepEqual(tool.inputSchema.required, ["label"]);
+  const body = readFileSync(join(HERE, "peer", "peer-tools.mjs"), "utf8");
+  assert.match(body, /requestSecret\(\{ label: args\.label, why: args\.why \|\| "", url: args\.url \|\| "", envKey: args\.env_key \|\| ""/);
+  assert.match(body, /if \(got\.state === "saved" && got\.envKey\) return text\(`the person saved "\$\{got\.label\}" as \$\{got\.envKey\} in the hub \.env/);
+});

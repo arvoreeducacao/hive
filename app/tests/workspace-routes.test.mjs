@@ -488,3 +488,69 @@ test("credential moves clicked together share one hub-env item and keep every re
   assert.equal(hive.files.get("/workspace/hub/.env"), "POSTHOG_API_KEY=op://Employee/hub-env/POSTHOG_API_KEY\nSENTRY_ACCESS_TOKEN=op://Employee/hub-env/SENTRY_ACCESS_TOKEN\n");
 });
 
+
+test("a credential the person typed is written to the .env by the hive, which reloads the gateway and answers without the value", async () => {
+  const hive = workspaceHarness();
+  hive.files.set("/workspace/hub/.mcp-servers/.token", "tok");
+  hive.files.set("/workspace/hub/.env", "POSTHOG_BASE_URL=https://example\nTRACKER_TOKEN=old\n");
+
+  assert.deepEqual(await hive.domain.credentialPlace("TRACKER_TOKEN"), { key: "TRACKER_TOKEN", replaces: true, vault: false });
+  assert.deepEqual(await hive.domain.credentialPlace("NEW_TOKEN"), { key: "NEW_TOKEN", replaces: false, vault: false });
+
+  const replaced = await hive.domain.keepCredential({ key: "TRACKER_TOKEN", value: "raw-one", vault: false });
+  assert.deepEqual(replaced, { key: "TRACKER_TOKEN", ok: true, kept: "file", reloaded: true });
+  const added = await hive.domain.keepCredential({ key: "NEW_TOKEN", value: "raw-two", vault: false });
+  assert.equal(added.ok, true);
+  assert.equal(hive.files.get("/workspace/hub/.env"), "POSTHOG_BASE_URL=https://example\nTRACKER_TOKEN=raw-one\nNEW_TOKEN=raw-two\n");
+  assert.equal(hive.reloads.length, 2);
+  assert.doesNotMatch(JSON.stringify([replaced, added]), /raw-/);
+});
+
+test("a hub with no .env gets one with the credential in it", async () => {
+  const hive = workspaceHarness();
+  hive.files.set("/workspace/hub/.mcp-servers/.token", "tok");
+  const kept = await hive.domain.keepCredential({ key: "TRACKER_TOKEN", value: "raw", vault: false });
+  assert.equal(kept.ok, true);
+  assert.equal(hive.files.get("/workspace/hub/.env"), "TRACKER_TOKEN=raw\n");
+});
+
+test("a hub that already keeps values in 1Password gets the typed credential there, and only the reference in the .env", async () => {
+  const fields = new Map();
+  const hive = workspaceHarness({ opImpl: async (args, extra = {}) => {
+    const key = args.slice(0, 2).join(" ");
+    if (key === "vault list") return { ok: true, out: JSON.stringify([{ name: "Employee" }]) };
+    if (key === "item list") return { ok: true, out: "[]" };
+    if (key === "item create") {
+      for (const field of JSON.parse(extra.template).fields) fields.set(field.label, field.value);
+      return { ok: true, out: "{}" };
+    }
+    if (key === "read --no-newline") return { ok: true, out: fields.get(args[2].split("/").pop()) };
+    return { ok: false, out: "", error: key };
+  } });
+  hive.files.set("/workspace/hub/.mcp-servers/.token", "tok");
+  hive.files.set("/workspace/hub/.env", "SENTRY_ACCESS_TOKEN=op://Employee/hub-env/SENTRY_ACCESS_TOKEN\n");
+
+  assert.deepEqual(await hive.domain.credentialPlace("TRACKER_TOKEN"), { key: "TRACKER_TOKEN", replaces: false, vault: true });
+  const kept = await hive.domain.keepCredential({ key: "TRACKER_TOKEN", value: "raw-value", vault: true });
+  assert.deepEqual(kept, { key: "TRACKER_TOKEN", ok: true, kept: "vault", reloaded: true });
+  assert.equal(fields.get("TRACKER_TOKEN"), "raw-value");
+  assert.equal(hive.files.get("/workspace/hub/.env"), "SENTRY_ACCESS_TOKEN=op://Employee/hub-env/SENTRY_ACCESS_TOKEN\nTRACKER_TOKEN=op://Employee/hub-env/TRACKER_TOKEN\n");
+  assert.doesNotMatch(hive.files.get("/workspace/hub/.env"), /raw-value/);
+});
+
+test("a 1Password reference pasted as the value goes to the .env as it is, and a vault that refuses leaves the .env alone", async () => {
+  const opCalls = [];
+  const hive = workspaceHarness({ opImpl: async (args) => { opCalls.push(args); return { ok: false, out: "", error: "authorization prompt dismissed" }; } });
+  hive.files.set("/workspace/hub/.mcp-servers/.token", "tok");
+  hive.files.set("/workspace/hub/.env", "A_TOKEN=one\n");
+
+  const pasted = await hive.domain.keepCredential({ key: "TRACKER_TOKEN", value: "op://Private/tracker/credential", vault: true });
+  assert.deepEqual(pasted, { key: "TRACKER_TOKEN", ok: true, kept: "vault", reloaded: true });
+  assert.equal(opCalls.length, 0);
+  assert.equal(hive.files.get("/workspace/hub/.env"), "A_TOKEN=one\nTRACKER_TOKEN=op://Private/tracker/credential\n");
+
+  const refused = await hive.domain.keepCredential({ key: "OTHER_TOKEN", value: "raw", vault: true });
+  assert.equal(refused.ok, false);
+  assert.equal(refused.error, "1Password did not keep the value: authorization prompt dismissed");
+  assert.doesNotMatch(hive.files.get("/workspace/hub/.env"), /OTHER_TOKEN/);
+});

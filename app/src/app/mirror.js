@@ -1,5 +1,5 @@
 import { arrangeOn, canArrange, closeArrange, openArrange, paintArrange, render } from "./arrange.js";
-import { activeItems, blockNumber, blockTitle, blocksOf, detached, isHidden, itemOf, labelOf, landOnBlock, ofBlock, seatsToTradeOn, soloSeat, spaceName, spaceOf } from "./blocks.js";
+import { activeItems, blockNumber, blockTitle, blocksOf, detached, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, ofBlock, seatsToTradeOn, soloSeat, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { svEvent } from "./chat-and-panes.js";
 import { svReset } from "./chat-stretches.js";
@@ -147,9 +147,9 @@ function sayOnRail(text) {
 
 const HIDDEN_OPEN_KEY = "hive.hiddenOpen";
 
-st.hiddenOpen = false;
+st.hiddenOpen = true;
 
-try { st.hiddenOpen = localStorage.getItem(HIDDEN_OPEN_KEY) === "1"; } catch {}
+try { st.hiddenOpen = localStorage.getItem(HIDDEN_OPEN_KEY) !== "0"; } catch {}
 
 function setHiddenOpen(on) {
   st.hiddenOpen = !!on;
@@ -157,16 +157,38 @@ function setHiddenOpen(on) {
   paintRail();
 }
 
+function parkWhen(ms, now = new Date()) {
+  const at = new Date(ms);
+  if (!Number.isFinite(at.getTime())) return "";
+  const time = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  if (at.toDateString() === now.toDateString()) return time;
+  if (at - now < 6 * 24 * 60 * 60 * 1000) return `${at.toLocaleDateString([], { weekday: "short" })} ${time}`;
+  return `${at.toLocaleDateString([], { day: "numeric", month: "short" })} ${time}`;
+}
+
+function offScreenWhy(name) {
+  const until = hiddenUntil(name);
+  const parked = st.data.sessions.find((one) => one.name === name)?.parked;
+  if (until === "parked" && parked) return phrase("parked till {when}", { when: parkWhen(parked.until) });
+  if (until) return phrase(until === "works" ? "back when it works" : "back when it finishes");
+  if (detached.has(name)) return phrase("in a window of its own");
+  const by = st.data.sessions.find((one) => one.name === name)?.by;
+  if (!by) return phrase("in no block");
+  const opener = st.data.sessions.find((one) => one.name === by);
+  return phrase("opened by {who}", { who: opener?.title || by });
+}
+
 function snoozedRailModel() {
   const all = st.data.sessions.filter((s) => isHidden(s.name));
   if (!all.length) return null;
   return {
-    count: all.length, open: st.hiddenOpen, label: phrase("hidden until they work"),
+    count: all.length, open: st.hiddenOpen, label: phrase("off screen"),
     shown: (st.hiddenOpen ? all : []).map((s) => {
       const title = s.title || s.name;
+      const why = offScreenWhy(s.name);
       return {
-        key: s.name, name: s.name, state: s.state, title,
-        hint: `${title} — ${phrase("hidden, comes back when it works · click to bring it back now")}`,
+        key: s.name, name: s.name, state: s.state, title, why,
+        hint: `${title} — ${why} · ${phrase("click to bring it back now")}`,
         action: phrase("bring it back")
       };
     })
@@ -200,6 +222,36 @@ async function reviveArchived(name, where) {
     paintRail();
   }
 }
+
+async function parkingCall(path, s) {
+  const r = await (await fetch(path, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: s.name })
+  })).json();
+  if (r.error) throw new Error(r.error);
+}
+
+async function wakeParkedNow(s) {
+  if (!s) return;
+  try { await parkingCall("/api/parked/wake", s); } catch (wrong) {
+    return void sayOnRail(phrase("could not wake it") + (wrong?.message ? ` — ${wrong.message}` : ""));
+  }
+  pull();
+}
+
+async function cancelParking(s) {
+  if (!s) return;
+  try { await parkingCall("/api/parked/cancel", s); } catch (wrong) {
+    return void sayOnRail(phrase("could not cancel the parking") + (wrong?.message ? ` — ${wrong.message}` : ""));
+  }
+  goTo(s.name);
+  pull();
+}
+
+document.addEventListener("hive:parked", (ev) => {
+  const { title, until } = ev.detail || {};
+  sayOnRail(phrase("{title} parked itself till {when}", { title, when: parkWhen(until) }));
+});
 
 async function archiveSeatNow(s) {
   if (!s) return;
@@ -324,9 +376,14 @@ function railGroups(rows, picked) {
   }
   const loose = rows.filter((row) => !st.blocks.some((b) => b.keys.includes(row.key)));
   if (loose.length) {
+    const open = st.hiddenOpen || !!st.railQuery.trim();
     groups.push({
-      key: "loose", i: -1, here: false, label: phrase("outside the blocks"), hereSaid: "", keys: "",
-      items: loose.map((row) => ({ ...row, sel: row.key === picked, open: phrase("open"), openKey: "" }))
+      key: "loose", i: -1, here: false, label: phrase("off screen"), hereSaid: "", keys: "",
+      fold: { open, count: loose.length },
+      items: open ? loose.map((row) => ({
+        ...row, why: offScreenWhy(row.key), sel: row.key === picked,
+        open: phrase(isHidden(row.key) ? "bring it back" : "open"), openKey: ""
+      })) : []
     });
   }
   return groups;
@@ -363,7 +420,7 @@ function parkedRailModel(q, now) {
 function raycastRailViewModel() {
   const now = Date.now();
   const q = st.railQuery.trim().toLowerCase();
-  const all = [...raycastDraftItems(), ...st.data.sessions.filter((s) => q || !isHidden(s.name)).map((s) => seatRailItem(s, now))];
+  const all = [...raycastDraftItems(), ...st.data.sessions.map((s) => seatRailItem(s, now))];
   const tally = (where) => all.filter((row) => where === "all" || row.where === where).length;
   const shown = all.filter((row) => st.railShows === "all" || row.where === st.railShows);
   const found = shown.flatMap((row) => {
@@ -377,7 +434,6 @@ function raycastRailViewModel() {
   st.railCursor = Math.max(0, Math.min(st.railCursor, order.length - 1));
   if (q && order.length) order[st.railCursor].cursor = true;
   const parked = parkedRailModel(q, now);
-  const snoozed = q ? null : snoozedRailModel();
   const loading = !st.seatsKnown && !all.length;
   return {
     raycast: true,
@@ -389,7 +445,7 @@ function raycastRailViewModel() {
     loading: loading ? `${phrase("block {n}", { n: 1 })} · ${phrase("loading…")}` : "",
     groups,
     empty: !loading && !found.length && !(q && (parked || teamFound(q))) ? railEmpty(q) : null,
-    snoozed, parked, note: st.archNote || ""
+    snoozed: null, parked, note: st.archNote || ""
   };
 }
 
@@ -955,4 +1011,4 @@ function openTrade(i, tab) {
   });
 }
 
-export { ARCH_OPEN_KEY, ARCH_SHOWN, HIDDEN_OPEN_KEY, MIRROR_LIVE_TICK, RAIL_SHOWS, RAIL_SHOWS_KEY, archKey, archNoteTimer, archiveSeatNow, armMirrorLive, blockKey, blockTab, blocksSolid, blocksViewModel, closeMirrorChat, closeRailSearch, closeTrade, focusedSeat, forgetMirrorChats, mirrorChat, mirrorChatKey, mirrorReading, mirrorWait, openMirrorChat, openRailCursor, openRailSearch, openTrade, paintBlocks, paintRail, paintTeamRail, pullMirrorLive, railKeys, railSolid, railViewModel, reviveArchived, reviving, sayOnRail, searchRail, setArchOpen, setHiddenOpen, showOnRail, spanOf, stepRailCursor, sweepMirrorChats, teamChatPrefix, teamRailSolid, teamRailViewModel, teamSeatKey, tradeBox };
+export { ARCH_OPEN_KEY, ARCH_SHOWN, HIDDEN_OPEN_KEY, MIRROR_LIVE_TICK, RAIL_SHOWS, RAIL_SHOWS_KEY, archKey, archNoteTimer, archiveSeatNow, cancelParking, parkWhen, wakeParkedNow, armMirrorLive, blockKey, blockTab, blocksSolid, blocksViewModel, closeMirrorChat, closeRailSearch, closeTrade, focusedSeat, forgetMirrorChats, mirrorChat, mirrorChatKey, mirrorReading, mirrorWait, openMirrorChat, openRailCursor, openRailSearch, openTrade, paintBlocks, paintRail, paintTeamRail, pullMirrorLive, railKeys, railSolid, railViewModel, reviveArchived, reviving, sayOnRail, searchRail, setArchOpen, setHiddenOpen, showOnRail, spanOf, stepRailCursor, sweepMirrorChats, teamChatPrefix, teamRailSolid, teamRailViewModel, teamSeatKey, tradeBox };

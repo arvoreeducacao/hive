@@ -19,7 +19,7 @@ import { capsOf, dressHost, followRaycast, footModel, keysHtml, leavePanel, open
 import { togglePlane } from "./plane.js";
 import { ask } from "./pod.js";
 import { setLanguage, setPet } from "./preferences.js";
-import { paintAutocompactReach, paintContextUsage, setAutocompact, setCalm, setContextUsage, setDiaryDays, setPref, setQuietDays } from "./pure-helpers.js";
+import { paintAutocompactReach, paintContextUsage, setAutoUpdateAgents, setAutocompact, setCalm, setContextUsage, setDiaryDays, setPref, setQuietDays } from "./pure-helpers.js";
 import { discardDraft, draftInFocus, openDraft } from "./draft-seat.js";
 import { setBlockSize, setFocusMode, setLayout } from "./seat-layout.js";
 import { closePrPop, placePrPop, prOfChat, prPopOpen, togglePrPop } from "./seat-menu.js";
@@ -651,6 +651,8 @@ $("f-size").addEventListener("change", (e) => setBlockSize(e.target.value));
 $("f-compact").addEventListener("change", (e) => setAutocompact(e.target.value));
 
 $("t-context-usage").addEventListener("click", () => setContextUsage(!st.contextUsage));
+
+$("t-agent-updates").addEventListener("click", () => setAutoUpdateAgents(st.autoUpdateAgents === false));
 
 $("f-quiet-days").addEventListener("change", (e) => setQuietDays(e.target.value));
 

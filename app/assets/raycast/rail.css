@@ -120,6 +120,14 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) .item:hover .meta, :where(body.experience-raycast) .item.parked.busy .meta { display: none; }
 :where(body.experience-raycast) .item.parked { color: var(--txt-3); }
 :where(body.experience-raycast) .item.parked:hover { color: var(--txt); }
+body:where(.experience-raycast) #rail .item.off { height: auto; min-height: 28px; padding-top: 4px; padding-bottom: 4px; align-items: flex-start; }
+body:where(.experience-raycast) #rail .item.off > .rc-dot { margin-top: 6px; }
+:where(body.experience-raycast) .item.off .col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+:where(body.experience-raycast) .item.off .why { font: 400 11px/1.45 var(--mono); color: var(--txt-3); overflow: hidden; text-overflow: ellipsis; }
+:where(body.experience-raycast) .item.off .meta { display: none; }
+:where(body.experience-raycast) .item.off:hover .hint { align-self: center; }
+:where(body.experience-raycast) #shell.rail-min #rail-sessions .item.off { height: 24px; min-height: 0; padding: 0; align-items: center; }
+:where(body.experience-raycast) #shell.rail-min #rail-sessions .item.off > .rc-dot { margin-top: 0; }
 :where(body.experience-raycast) .group-title.parked { margin-top: 12px; cursor: pointer; }
 :where(body.experience-raycast) .group-title.parked:hover { color: var(--txt-2); }
 :where(body.experience-raycast) .group-title.parked .caret { transition: transform 140ms var(--ease); }

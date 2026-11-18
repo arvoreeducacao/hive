@@ -526,6 +526,7 @@ export function cleanPatch(patch) {
   if (patch.visual !== undefined) clean.visual = cleanVisual(patch.visual, "patch", problems);
   if (patch.autocompact !== undefined) clean.autocompact = cleanAutocompact(patch.autocompact, "patch", problems);
   if (patch.contextUsage !== undefined) clean.contextUsage = cleanFlag(patch.contextUsage, "contextUsage", "patch", problems, false);
+  if (patch.autoUpdateAgents !== undefined) clean.autoUpdateAgents = cleanFlag(patch.autoUpdateAgents, "autoUpdateAgents", "patch", problems, true);
   if (patch.closeQuietAfterDays !== undefined) clean.closeQuietAfterDays = cleanQuietDays(patch.closeQuietAfterDays, "patch", problems);
   if (patch.pruneDiariesAfterDays !== undefined) clean.pruneDiariesAfterDays = cleanDiaryDays(patch.pruneDiariesAfterDays, "patch", problems);
   if (patch.share !== undefined) clean.share = cleanFlag(patch.share, "share", "patch", problems);
