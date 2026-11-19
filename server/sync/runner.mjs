@@ -399,6 +399,7 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
       names.add(seat.name);
       await openIfNew(seat).catch((wrong) => log(`sync: could not open ${seat.name} on the hive: ${wrong.message}`));
     }
+    if (!running) return;
     await closeGone(names);
     const wanted = JSON.stringify(profile() || null);
     if (wanted !== "null" && wanted !== profileSent) {
