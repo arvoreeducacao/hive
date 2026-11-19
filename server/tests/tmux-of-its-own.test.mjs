@@ -37,7 +37,7 @@ test("every test that opens or ends a tmux session does it on a server of its ow
       if (!/\.test\.m?js$/.test(name)) continue;
       const text = readFileSync(join(root, folder, name), "utf8");
       if (!/\[\s*"(new-session|kill-session)"/.test(text)) continue;
-      if (text.includes("tmux-of-its-own.mjs") || /process\.env\.TMUX_TMPDIR\s*=/.test(text)) continue;
+      if (text.includes("tmuxOfItsOwn(") || /process\.env\.TMUX_TMPDIR\s*=/.test(text)) continue;
       shared.push(`${folder}/${name}`);
     }
   }
