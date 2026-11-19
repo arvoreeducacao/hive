@@ -92,10 +92,22 @@ jobs:
             "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${arch}"
           chmod +x "$HOME/.docker/cli-plugins/docker-compose"
           docker compose version
+      - name: the shared runner ip gets rate-limited by the registry, so the build waits it out
+        working-directory: infra/docker
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/compose-build.log"
+          for try in 1 2 3 4 5 6; do
+            if docker compose build 2>&1 | tee "$log"; then exit 0; fi
+            grep -qE "429 Too Many Requests|toomanyrequests" "$log" || exit 1
+            if [ "$try" = "6" ]; then echo "the registry kept refusing the base image"; exit 1; fi
+            echo "the registry answered 429, trying again in $((try * 20))s"
+            sleep $((try * 20))
+          done
       - name: one command puts a hive up on a machine that never heard of us
         working-directory: infra/docker
         run: |
-          docker compose up -d --build
+          docker compose up -d
           for i in $(seq 1 90); do
             docker compose exec -T hive node -e "fetch('http://127.0.0.1:8791/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" && break
             if [ "$i" = "90" ]; then echo "the door never answered:"; docker compose logs; exit 1; fi
