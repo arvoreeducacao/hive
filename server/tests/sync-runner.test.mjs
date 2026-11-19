@@ -255,6 +255,36 @@ test("a chat that ended while the runner was away closes on the phone once the r
   rmSync(root, { recursive: true, force: true });
 });
 
+test("a runner that stops while a fleet listing is on its way closes nothing with it", async () => {
+  const { root, base, mac, broker, fetchImpl } = stage();
+  writeFileSync(join(base, "events", "vivo.ndjson"), line(1, { type: "assistant", message: { content: [{ type: "text", text: "oi" }] } }));
+  const store = fileStore(join(root, "mac-store"));
+  let listing = async () => [{ name: "vivo", title: "vivo" }];
+  const device = await Device.fromIdentity({ name: "mac", secret: mac.secret, publicSsh: mac.publicSsh, store, fetchImpl, lean: true });
+  await device.enroll("http://sync/sync");
+  const runner = createRunner({ device, base, seats: () => listing(), say: async () => ({ ok: true }), pollMs: 50, fleetMs: 60 * 60 * 1000 });
+  await runner.start();
+  const phone = await Device.create({ name: "phone", fetchImpl });
+  await phone.pair("http://sync/sync", (await device.openCode()).code);
+  phone.listen(() => {});
+  await waitFor(() => phone.seats.has("vivo"));
+
+  let answer = null;
+  listing = () => new Promise((done) => { answer = done; });
+  const late = runner.refreshFleet();
+  await waitFor(() => answer);
+  runner.stop();
+  answer([]);
+  await late;
+
+  await phone.sync();
+  assert.equal(phone.seats.get("vivo").closedAt, 0, "a runner that had stopped closed a chat with a listing that came back after it stopped");
+
+  phone.stream?.stop();
+  broker.close();
+  rmSync(root, { recursive: true, force: true });
+});
+
 test("the chat's slash commands travel to the phone with the first turn and when they change", () => {
   const first = slim({ type: "system", subtype: "init", model: "claude", slash_commands: ["compact", "clear", { name: "review" }], terminal_slash_commands: ["clear"] });
   assert.deepEqual(first.map((one) => [one.type, one.slash]), [["system", ["compact", "review"]]]);
