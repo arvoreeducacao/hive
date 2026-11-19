@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -11,8 +11,8 @@ import { createBroker } from "../server.mjs";
 import { createBrokerClient } from "../client.mjs";
 import { newIdentity } from "../identity.mjs";
 import { seatWindowSession } from "../sessions.mjs";
+import { haveTmux, tmuxOfItsOwn } from "./tmux-of-its-own.mjs";
 
-const haveTmux = spawnSync("tmux", ["-V"], { stdio: "ignore" }).status === 0;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let home;
@@ -21,8 +21,10 @@ let broker;
 let url;
 let owner;
 let session;
+let ownTmux = null;
 
 before(async () => {
+  ownTmux = tmuxOfItsOwn();
   workspace = mkdtempSync(join(tmpdir(), "hive-reach-space-"));
   for (const one of ["repos", "worktrees", "hive", "home"]) mkdirSync(join(workspace, one), { recursive: true });
   process.env.HIVE_WORKSPACE = workspace;
@@ -43,6 +45,7 @@ after(() => {
   rmSync(workspace, { recursive: true, force: true });
   delete process.env.HIVE_WORKSPACE;
   delete process.env.HIVE_TMUX_SESSION;
+  ownTmux?.close();
 });
 
 async function pair(kind, name) {

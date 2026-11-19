@@ -1,14 +1,16 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
 import {
   createTerminals, dropViewArgv, hexOf, hushArgv, isSeatName, paintArgv, readFrame, resizeArgv, sizeAsked,
   streamArgv, typeArgv, viewArgv, windowTarget, INPUT_CEILING
 } from "../terminal.mjs";
+import { haveTmux, tmuxOfItsOwn } from "./tmux-of-its-own.mjs";
 
-const haveTmux = spawnSync("tmux", ["-V"], { stdio: "ignore" }).status === 0;
+const ownTmux = tmuxOfItsOwn();
+after(() => ownTmux?.close());
 
 test("the window is named the way tmux names one", () => {
   assert.equal(windowTarget("hive-abc", "a-seat"), "hive-abc:a-seat");
