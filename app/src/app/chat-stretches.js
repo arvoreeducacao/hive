@@ -86,17 +86,27 @@ function svTypePath(e, path) {
   box.dispatchEvent(new Event("input"));
 }
 
-function seatReceiving(session, files) {
-  const label = files.length > 1 ? `receiving ${files.length} files…` : `receiving ${(files[0]?.name || "the file").split("/").pop()}…`;
+function badgeSays(session, label) {
   receiving.set(session.name, label);
-  const el = tiles.get(session.name);
-  const badge = el?.querySelector(".badge");
+  const badge = tiles.get(session.name)?.querySelector(".badge");
   if (badge) badge.textContent = label;
   return () => {
+    if (receiving.get(session.name) !== label) return;
     receiving.delete(session.name);
     const now = tiles.get(session.name)?.querySelector(".badge");
     if (now) now.textContent = st.typing === session.name ? phrase("typing here") : phrase("live terminal");
   };
+}
+
+function seatReceiving(session, files) {
+  const label = files.length > 1 ? `receiving ${files.length} files…` : `receiving ${(files[0]?.name || "the file").split("/").pop()}…`;
+  return badgeSays(session, label);
+}
+
+const REFUSAL_STAYS_MS = 8000;
+
+function seatRefused(session, said) {
+  setTimeout(badgeSays(session, said), REFUSAL_STAYS_MS);
 }
 
 function svLoadingChips(e, files) {
@@ -1153,4 +1163,4 @@ function offeredCommands(e) {
   return { list: [...list, "fresh"], info: { ...info, fresh: { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "" } } };
 }
 
-export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, seatReceiving, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };
+export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, seatReceiving, seatRefused, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };

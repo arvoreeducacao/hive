@@ -404,6 +404,12 @@ async function attachFilesToDraft(d, files, marked) {
   if (!d.error) d.e.host.querySelector("textarea").focus();
 }
 
+function draftRefused(d, said) {
+  d.error = [d.error, said].filter(Boolean).join(" · ");
+  paintDraftHost(d);
+  render();
+}
+
 function paintDraftHost(d) {
   const host = d.e.host;
   for (const seg of host.querySelectorAll(".sv-seg")) {
@@ -483,4 +489,4 @@ document.addEventListener("hive:experience", (event) => {
   for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, raycastOn());
 });
 
-export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, allowSendingBehind, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };
+export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, allowSendingBehind, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, draftRefused, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };
