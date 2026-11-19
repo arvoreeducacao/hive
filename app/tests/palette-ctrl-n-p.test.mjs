@@ -6,6 +6,7 @@ const st = await state();
 await views();
 const { $ } = await app("core");
 const { closePal, palKeys, palPaint } = await app("palette");
+await app("hold-numbers");
 
 const press = (over) => new dom.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...over });
 const ctrl = (code, over = {}) => press({ key: code.slice(3).toLowerCase(), code, ctrlKey: true, ...over });
@@ -104,5 +105,21 @@ test("with the palette on its own key, that key still opens the actions", () => 
     closePal();
     raycast(false);
     st.keys.palette = was;
+  }
+});
+
+test("with the palette shut, ctrl+n and ctrl+p never reach it", () => {
+  const taken = Object.entries(st.keys).filter(([, b]) => b && b.ctrl && !b.alt && !b.shift && !b.meta && (b.code === "KeyN" || b.code === "KeyP"));
+  for (const [a] of taken) st.keys[a] = null;
+  openFresh();
+  closePal();
+  st.palSel = 0;
+  try {
+    for (const code of ["KeyN", "KeyN", "KeyP"]) document.dispatchEvent(ctrl(code));
+    assert.equal(st.palSel, 0);
+    assert.equal($("pal").hidden, true);
+    assert.equal($("pal-acts")?.hidden ?? true, true);
+  } finally {
+    for (const [a, b] of taken) st.keys[a] = b;
   }
 });
