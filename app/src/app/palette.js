@@ -1,9 +1,9 @@
 import { setFocusMode } from "./seat-layout.js";
-import { closeSpace, hideUntilItEnds, hideUntilItWorks, menuKeys, menuShow, menuStop, prOfChat, renameSpace, seatMenuRows, spaceCloseNote, threadsOfChat } from "./seat-menu.js";
+import { closeSpace, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, prOfChat, renameSpace, seatMenuRows, spaceCloseNote, threadsOfChat } from "./seat-menu.js";
 import { blockNumber, blocksOf, labelOf, ofBlock, openSpace, seatsOf, spaceName, spaceOf } from "./blocks.js";
-import { keyLabel, saveConfig, whichAction } from "./brand-face.js";
+import { codeOf, keyLabel, modsMatch, saveConfig, whichAction } from "./brand-face.js";
 import { setAnswered, setSound } from "./chimes-and-notices.js";
-import { $, LABEL, LANGUAGES, esc, experienceNext, phrase, raycastOn, solidMounts, st, stateColor, svgIcon } from "./core.js";
+import { $, IS_MAC, LABEL, LANGUAGES, esc, experienceNext, phrase, raycastOn, solidMounts, st, stateColor, svgIcon } from "./core.js";
 import { openPrInASeat } from "./page-in-a-seat.js";
 import { baseName, fileKey, openInEditor } from "./files-editor.js";
 import { goTo, goToBlock, goToSpace, releaseKeyboard } from "./focus-navigation.js";
@@ -580,9 +580,23 @@ function palRowHtml(r, i, q) {
 
 const palVerb = (r) => phrase(r?.verb || (st.palMode || r?.file ? "Open" : "Run"));
 
+const PAL_STEPS = { KeyN: 1, KeyP: -1 };
+
+const PAL_ACTS_SPARE = IS_MAC ? { meta: true, code: "KeyK" } : { ctrl: true, code: "KeyK" };
+
+const palStepOf = (e) => (modsMatch({ ctrl: true }, e) && PAL_STEPS[codeOf(e)]) || 0;
+
+const stepsTake = (b) => !!b && !!PAL_STEPS[b.code] && !!b.ctrl && !b.alt && !b.shift && !b.meta;
+
+const palActsKey = () => (stepsTake(st.keys.palette) ? PAL_ACTS_SPARE : st.keys.palette);
+
+const isPalActsKey = (e) => (stepsTake(st.keys.palette)
+  ? codeOf(e) === PAL_ACTS_SPARE.code && modsMatch(PAL_ACTS_SPARE, e)
+  : whichAction(e)?.action === "palette");
+
 function palPaintFoot() {
   const row = st.palRows.filter((r) => !r.sec)[st.palSel];
-  $("pal-hints").innerHTML = `${row && !row.quiet ? `<button type="button" class="pal-fact" data-pal="go">${esc(palVerb(row))}${keyCaps("↵")}</button><span class="pal-vbar"></span>` : ""}<button type="button" class="pal-fact dim" data-pal="acts"${row && !row.quiet ? "" : " disabled"}>${esc(phrase("Actions"))}${keyCaps(keyLabel(st.keys.palette))}</button>`;
+  $("pal-hints").innerHTML = `${row && !row.quiet ? `<button type="button" class="pal-fact" data-pal="go">${esc(palVerb(row))}${keyCaps("↵")}</button><span class="pal-vbar"></span>` : ""}<button type="button" class="pal-fact dim" data-pal="acts"${row && !row.quiet ? "" : " disabled"}>${esc(phrase("Actions"))}${keyCaps(keyLabel(palActsKey()))}</button>`;
 }
 
 function palActRows(r) {
@@ -743,9 +757,11 @@ function closePal() {
 }
 
 function palKeys(e) {
+  const step = e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : palStepOf(e);
   if (palActsOn()) {
+    if (step) { e.preventDefault(); e.stopPropagation(); menuMove("pal-acts", step); return; }
     if (menuKeys("pal-acts", e)) return;
-    if (whichAction(e)?.action === "palette" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePalActs(); return $("pal-q").focus(); }
+    if (isPalActsKey(e) || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePalActs(); return $("pal-q").focus(); }
     return;
   }
   if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); return st.palMode ? setPalMode("") : closePal(); }
@@ -755,13 +771,12 @@ function palKeys(e) {
     if (st.palMode) return setPalMode(st.palMode === "file" ? "code" : "file");
     return $("pal-q").focus();
   }
-  if (e.key === "ArrowDown") { e.preventDefault(); e.stopPropagation(); return palMove(1); }
-  if (e.key === "ArrowUp") { e.preventDefault(); e.stopPropagation(); return palMove(-1); }
+  if (step) { e.preventDefault(); e.stopPropagation(); return palMove(step); }
   if (e.key === "Enter") { e.preventDefault(); e.stopPropagation(); return palRun(undefined, { beside: e.shiftKey }); }
   const m = whichAction(e);
   if (m?.action === "openFile") { e.preventDefault(); e.stopPropagation(); return setPalMode("file"); }
   if (m?.action === "searchCode") { e.preventDefault(); e.stopPropagation(); return setPalMode("code"); }
-  if (m?.action === "palette" && raycastOn()) { e.preventDefault(); e.stopPropagation(); return openPalActs(); }
+  if (raycastOn() && isPalActsKey(e)) { e.preventDefault(); e.stopPropagation(); return openPalActs(); }
   if (m?.action === "palette") { e.preventDefault(); e.stopPropagation(); return closePal(); }
 }
 
