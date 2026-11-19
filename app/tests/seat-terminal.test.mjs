@@ -1,6 +1,6 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { randomBytes } from "node:crypto";
@@ -12,8 +12,8 @@ import { createBroker } from "../../server/server.mjs";
 import { createBrokerClient } from "../../server/client.mjs";
 import { newIdentity } from "../../server/identity.mjs";
 import { seatWindowSession } from "../../server/sessions.mjs";
+import { haveTmux, tmuxOfItsOwn } from "../../server/tests/tmux-of-its-own.mjs";
 
-const haveTmux = spawnSync("tmux", ["-V"], { stdio: "ignore" }).status === 0;
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 class FakeSeatSocket extends EventEmitter {
@@ -86,8 +86,10 @@ let broker;
 let url;
 let owner;
 let session;
+let ownTmux = null;
 
 before(async () => {
+  ownTmux = tmuxOfItsOwn();
   workspace = mkdtempSync(join(tmpdir(), "hive-bridge-space-"));
   for (const one of ["repos", "worktrees", "hive", "home"]) mkdirSync(join(workspace, one), { recursive: true });
   process.env.HIVE_WORKSPACE = workspace;
@@ -116,6 +118,7 @@ after(() => {
   rmSync(workspace, { recursive: true, force: true });
   delete process.env.HIVE_WORKSPACE;
   delete process.env.HIVE_TMUX_SESSION;
+  ownTmux?.close();
 });
 
 test("the whole way: the app's terminal reaches a real seat on a real server and types into it", { skip: !haveTmux }, async () => {

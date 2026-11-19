@@ -1,10 +1,11 @@
-import { test } from "node:test";
+import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { accountDirOf, carriedEnv, seatCommand, quoteForShell } from "../engine/seat-command.mjs";
+import { haveTmux, tmuxOfItsOwn } from "./tmux-of-its-own.mjs";
 
 const seat = { hub: "/hub", name: "orca", stateDir: "/home/.hive" };
 
@@ -142,9 +143,10 @@ test("a shell seat without a state dir keeps the plain login shell", () => {
   assert.equal(seatCommand({ hub: "/hub", name: "term", kind: "shell" }), "cd /hub && exec bash -l");
 });
 
-const hasTmux = !spawnSync("tmux", ["-V"], { stdio: "ignore" }).error;
+const ownTmux = tmuxOfItsOwn();
+after(() => ownTmux?.close());
 
-test("tmux opens the window with the command as one piece, path with a space and all", { skip: !hasTmux }, () => {
+test("tmux opens the window with the command as one piece, path with a space and all", { skip: !haveTmux }, () => {
   const root = mkdtempSync(join(tmpdir(), "hive-seat-"));
   const hub = join(root, "my hub");
   mkdirSync(hub, { recursive: true });
@@ -173,7 +175,7 @@ test("tmux opens the window with the command as one piece, path with a space and
   }
 });
 
-test("a carried environment survives the trip through tmux into the shell", { skip: !hasTmux }, () => {
+test("a carried environment survives the trip through tmux into the shell", { skip: !haveTmux }, () => {
   const root = mkdtempSync(join(tmpdir(), "hive-carry-"));
   const seen = join(root, "carried.txt");
   const session = `hive-carry-${process.pid}`;
