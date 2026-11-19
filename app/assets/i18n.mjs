@@ -1461,6 +1461,8 @@ export const PT_BR = {
   "{name} is empty — a folder has to be dropped as the files inside it": "{name} está vazio — uma pasta tem que ser arrastada como os arquivos de dentro",
   "{name} is {size} — {ceiling} is the ceiling for one file": "{name} tem {size} — {ceiling} é o teto de um arquivo",
   "{size} in one drop — {ceiling} is the ceiling": "{size} num arraste só — {ceiling} é o teto",
+  "{name} is a folder — drop the files inside it": "{name} é uma pasta — arraste os arquivos de dentro",
+  "{name} could not be read": "não deu pra ler {name}",
   "Click a shortcut to change it": "Clique num atalho para mudá-lo",
   "click to change": "clique para mudar",
   "leader key": "tecla líder",

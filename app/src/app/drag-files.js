@@ -1,9 +1,10 @@
-import { attachFilesToSeat, seatReceiving, svLoadingChips } from "./chat-stretches.js";
-import { refuseDrop, st } from "./core.js";
-import { attachFilesToDraft, draftFrom, draftLoadingChips } from "./draft-seat.js";
+import { packDrop } from "/assets/drops.mjs";
+import { attachFilesToSeat, seatReceiving, seatRefused, svLoadingChips } from "./chat-stretches.js";
+import { phrase, st } from "./core.js";
+import { attachFilesToDraft, draftFrom, draftLoadingChips, draftRefused } from "./draft-seat.js";
 import { readFile, sendFiles } from "./hold-numbers.js";
 import { pool } from "./leader-key.js";
-import { structPool } from "./structured-seats.js";
+import { structPool, svLine } from "./structured-seats.js";
 import { refit } from "./terminal-history.js";
 
 st.dropZone = null;
@@ -39,8 +40,43 @@ window.addEventListener("dragover", (ev) => {
 
 window.addEventListener("dragleave", (ev) => { if (!ev.relatedTarget) markZone(null); });
 
-const foldersIn = (dt) => [...(dt?.items || [])]
-  .some((i) => i.kind === "file" && i.webkitGetAsEntry?.()?.isDirectory);
+const foldersIn = (dt) => new Set([...(dt?.items || [])]
+  .map((i) => (i.kind === "file" ? i.webkitGetAsEntry?.() : null))
+  .filter((entry) => entry?.isDirectory)
+  .map((entry) => entry.name));
+
+function sayRefused(zone, entry, said) {
+  if (!said.length) return;
+  const text = said.join(" · ");
+  if (zone.draft) return draftRefused(zone.draft, text);
+  if (entry) return void svLine(entry, "sv-meta warn", text);
+  seatRefused(zone.session, text);
+}
+
+async function sendBatch(zone, entry, batch) {
+  const read = await Promise.all(batch.map(async (f) => ({ name: f.name, data: await readFile(f) })));
+  const loaded = read.filter((f) => f.data);
+  if (loaded.length && zone.draft) await attachFilesToDraft(zone.draft, loaded, true);
+  else if (loaded.length && entry) await attachFilesToSeat(entry, loaded, true);
+  else if (loaded.length) await sendFiles(zone.session, loaded, true);
+  return read.filter((f) => !f.data).map((f) => phrase("{name} could not be read", { name: f.name }));
+}
+
+async function takeFiles(zone, files, folders = new Set()) {
+  if (!files.length || !zone) return;
+  const asFolder = files.filter((f) => folders.has(f.name));
+  const { batches, refused } = packDrop(files.filter((f) => !folders.has(f.name)));
+  const said = [...asFolder.map((f) => phrase("{name} is a folder — drop the files inside it", { name: f.name })), ...refused];
+  const entry = zone.session?.structured ? structPool.get(zone.session.name) : null;
+  const taken = batches.flat();
+  const stop = !taken.length ? () => {}
+    : zone.draft ? draftLoadingChips(zone.draft, taken)
+    : entry ? svLoadingChips(entry, taken) : seatReceiving(zone.session, taken);
+  try {
+    for (const batch of batches) said.push(...await sendBatch(zone, entry, batch));
+  } finally { stop(); }
+  sayRefused(zone, entry, said);
+}
 
 window.addEventListener("drop", async (ev) => {
   ev.preventDefault();
@@ -48,26 +84,11 @@ window.addEventListener("drop", async (ev) => {
   const folders = foldersIn(ev.dataTransfer);
   markZone(null);
   const files = [...(ev.dataTransfer?.files || [])];
-  if (!files.length) return;
-  if (!zone) return;
-  if (folders) return;
-  const refused = refuseDrop(files);
-  if (refused) return;
-  const seat = zone.draft ? null : zone.session;
-  const entry = seat && seat.structured && structPool.get(seat.name);
-  const stop = zone.draft ? draftLoadingChips(zone.draft, files)
-    : entry ? svLoadingChips(entry, files) : seat ? seatReceiving(seat, files) : () => {};
-  try {
-    const loaded = (await Promise.all(files.map(async (f) => ({ name: f.name, data: await readFile(f) })))).filter((f) => f.data);
-    if (!loaded.length) return;
-    if (zone.draft) return await attachFilesToDraft(zone.draft, loaded, true);
-    if (entry) return await attachFilesToSeat(entry, loaded, true);
-    return await sendFiles(seat, loaded, true);
-  } finally { stop(); }
+  await takeFiles(zone, files, folders);
 });
 
 window.addEventListener("resize", () => {
   for (const e of pool.values()) if (e.host.isConnected) refit(e);
 });
 
-export { carriesFile, foldersIn, markZone, zoneOf };
+export { carriesFile, foldersIn, markZone, takeFiles, zoneOf };
