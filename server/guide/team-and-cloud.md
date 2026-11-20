@@ -298,12 +298,12 @@ Or use your own Slack app:
 
 The bridge reacts with 👀 to a message it takes. Threads it follows are kept in `~/.hive/slack-chats.json`. If the bound chat is closed, the next message opens a new one.
 
-Images in the thread reach the chat as files on this machine:
+Images and videos in the thread reach the chat as files on this machine:
 
-- When a chat opens, the bridge takes the images of the thread so far and of the message that called it; later, the images of each new message in the thread. Up to 8 at a time, PNG, JPEG, GIF or WebP, 20 MB at most.
-- It saves them in `~/.hive/slack-files/<channel>-<thread>/` and names each path in the message the chat gets, so the chat opens them with its file-reading tool. Folders untouched for 7 days are deleted.
-- Through the relay, the relay downloads the image with the bot's own token, only from a thread the person is part of. With your own Slack app, the bridge downloads it with `HIVE_SLACK_BOT_TOKEN`. Either way the Slack app needs the `files:read` scope.
-- An image that does not come is named to the chat with the reason ("the Slack app is missing the files:read scope", "the team's Slack relay does not hand files over yet"), so the chat says it could not see it instead of guessing.
+- When a chat opens, the bridge takes the images and videos of the thread so far and of the message that called it; later, those of each new message in the thread. Up to 8 at a time. Images: PNG, JPEG, GIF or WebP, 20 MB at most. Videos: MP4, QuickTime (`.mov`, what an iPhone screen recording is) or WebM, 200 MB at most.
+- It saves them in `~/.hive/slack-files/<channel>-<thread>/` and names each path in the message the chat gets. The chat opens an image with its file-reading tool. A video is marked as one, with the hint to pull frames out of it with `ffmpeg` and open the frames; without `ffmpeg` on the machine the chat says it could not watch it. The bridge streams the file to disk and keeps it only once it arrived whole. Folders untouched for 7 days are deleted.
+- Through the relay, the relay downloads the file with the bot's own token, only from a thread the person is part of, and streams it on without holding it in memory. With your own Slack app, the bridge downloads it with `HIVE_SLACK_BOT_TOKEN`. Either way the Slack app needs the `files:read` scope, and the file must sit on Slack's own file host.
+- A file that does not come is named to the chat with the reason ("the Slack app is missing the files:read scope", "the team's Slack relay does not hand files over yet", "the team's Slack relay does not hand videos over yet", "it is bigger than 200 MB"), so the chat says it could not see it instead of guessing. Other kinds of file (a PDF, a spreadsheet) are named the same way, as "it is not an image or a video".
 
 ## Slack threads in a seat
 

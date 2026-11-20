@@ -1,17 +1,21 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, utimesSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { ONLY_ATTACHED, createSlackBridge } from "../lib/slack-bridge.mjs";
-import { FILES_DAYS, filesFolder, slackFileUrl, sweepFiles } from "../lib/slack-files.mjs";
+import { FILES_DAYS, IMAGE_CEILING, VIDEO_CEILING, filesFolder, slackFileUrl, sweepFiles } from "../lib/slack-files.mjs";
 
 const JONAS = "U0748LXRG48";
 const BOT = "U0C35AT9TQW";
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 7, 7, 7]);
 const SHOT_URL = "https://files.slack.com/files-pri/T024-F0PRINT01/download/print.png";
 const shot = (over = {}) => ({ id: "F0PRINT01", name: "print.png", mimetype: "image/png", size: PNG.length, url_private_download: SHOT_URL, ...over });
+const MP4 = Buffer.from([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x6d, 0x70, 0x34, 0x32]);
+const CLIP_URL = "https://files.slack.com/files-pri/T024-F0CLIP001/download/screenrecording.mp4";
+const clip = (over = {}) => ({ id: "F0CLIP001", name: "ScreenRecording_1.MP4", mimetype: "video/mp4", size: MP4.length, url_private_download: CLIP_URL, ...over });
+const RELAYED = { bot: "hsr1.a.b", app: "hsr1.a.b", people: [JONAS], api: "https://relay.test/api", files: "https://relay.test/file", relayed: true };
 
 class FakeSocket {
   constructor() { this.listeners = new Map(); }
@@ -29,12 +33,13 @@ function stage({ keys = { bot: "xoxb-test", app: "xapp-test", people: [JONAS] },
     if (String(url).startsWith("https://files.slack.com/")) {
       downloads.push({ url, token: options.headers.authorization, redirect: options.redirect });
       const got = download(url);
-      return { status: got.status, headers: new Headers({ "content-type": got.type }), arrayBuffer: async () => got.bytes };
+      return new Response(got.bytes, { status: got.status, headers: { "content-type": got.type } });
     }
     if (String(url).endsWith("/file")) {
       downloads.push({ url, token: options.headers.authorization, body: JSON.parse(options.body) });
       const got = relay(JSON.parse(options.body));
-      return { status: 200, headers: new Headers({ "content-type": got.type }), json: async () => got.json, arrayBuffer: async () => got.bytes };
+      const headers = { "content-type": got.type, ...(got.length ? { "content-length": String(got.length) } : {}) };
+      return new Response(got.json ? JSON.stringify(got.json) : got.bytes, { status: 200, headers });
     }
     const method = String(url).split("/").pop();
     if (method === "auth.test") return { json: async () => ({ ok: true, user_id: BOT, user: "hive" }) };
@@ -99,7 +104,7 @@ test("a mention that carries its own print opens the chat with it", async () => 
 
 test("through the relay the image is asked by its place in the thread, never by a url", async () => {
   const it = stage({
-    keys: { bot: "hsr1.a.b", app: "hsr1.a.b", people: [JONAS], api: "https://relay.test/api", files: "https://relay.test/file", relayed: true },
+    keys: RELAYED,
     relay: () => ({ type: "image/png", bytes: PNG })
   });
   await it.bridge.tick();
@@ -110,7 +115,7 @@ test("through the relay the image is asked by its place in the thread, never by 
 
 test("an image the bot may not download is named to the chat as unseen, with the scope that is missing", async () => {
   const it = stage({
-    keys: { bot: "hsr1.a.b", app: "hsr1.a.b", people: [JONAS], api: "https://relay.test/api", files: "https://relay.test/file", relayed: true },
+    keys: RELAYED,
     relay: () => ({ type: "application/json; charset=utf-8", json: { ok: false, error: "file_refused", needed: "files:read" } })
   });
   await it.bridge.tick();
@@ -123,7 +128,7 @@ test("an image the bot may not download is named to the chat as unseen, with the
 
 test("a relay that does not hand files yet is said plainly", async () => {
   const it = stage({
-    keys: { bot: "hsr1.a.b", app: "hsr1.a.b", people: [JONAS], api: "https://relay.test/api", files: "https://relay.test/file", relayed: true },
+    keys: RELAYED,
     relay: () => ({ type: "application/json; charset=utf-8", json: { ok: false, error: "unknown_method" } })
   });
   await it.bridge.tick();
@@ -146,9 +151,66 @@ test("a file that is not an image, or that lives off slack's file host, is never
     files: [shot({ id: "F1", name: "planilha.pdf", mimetype: "application/pdf" }), shot({ id: "F2", url_private_download: "https://evil.example/x.png" })]
   }));
   assert.equal(it.downloads.length, 0);
-  assert.match(it.opened[0].prompt, /planilha\.pdf, from Ada: it is not an image/);
+  assert.match(it.opened[0].prompt, /planilha\.pdf, from Ada: it is not an image or a video/);
   assert.match(it.opened[0].prompt, /print\.png, from Ada: slack gave no address on its own file host/);
   assert.equal(slackFileUrl("https://files.slack.com.evil.example/x"), "");
+});
+
+test("a screen recording reaches the chat as a video saved on this machine, with how to look at it", async () => {
+  const it = stage({ keys: RELAYED, relay: () => ({ type: "video/mp4", bytes: MP4, length: MP4.length }) });
+  await it.bridge.tick();
+  await it.bridge.take(envelope({ type: "message", channel_type: "im", user: JONAS, text: "look at the bug", ts: "4.4", channel: "D0DM01", files: [clip()] }));
+
+  const path = join(filesFolder(it.home, "D0DM01", "4.4"), "4.4-F0CLIP001.mp4");
+  assert.deepEqual(readFileSync(path), MP4);
+  assert.equal(statSync(path).mode & 0o777, 0o600);
+  assert.deepEqual(it.downloads[0].body, { channel: "D0DM01", thread: "4.4", ts: "4.4", file: "F0CLIP001" });
+  const prompt = it.opened[0].prompt;
+  assert.ok(prompt.includes(`- ${path} (video, ScreenRecording_1.MP4, from Ada)`));
+  assert.match(prompt, /Videos attached in the thread/);
+  assert.match(prompt, /ffmpeg/);
+  assert.doesNotMatch(prompt, /Images attached/);
+});
+
+test("a quicktime video past the image ceiling still comes, kept as .mov", async () => {
+  const it = stage({ download: () => ({ status: 200, type: "video/quicktime", bytes: MP4 }) });
+  await it.bridge.tick();
+  await it.bridge.take(envelope({
+    type: "app_mention", user: JONAS, text: `<@${BOT}> see`, ts: "5.5", channel: "C024",
+    files: [clip({ name: "screen.mov", mimetype: "video/quicktime", size: IMAGE_CEILING + 1 })]
+  }));
+  const path = join(filesFolder(it.home, "C024", "5.5"), "5.5-F0CLIP001.mov");
+  assert.deepEqual(readFileSync(path), MP4);
+  assert.deepEqual(it.downloads.map((one) => one.url), [CLIP_URL]);
+  assert.ok(it.opened[0].prompt.includes(`- ${path} (video, screen.mov, from Ada)`));
+});
+
+test("each kind keeps its own ceiling, checked before anything is downloaded", async () => {
+  const it = stage();
+  await it.bridge.tick();
+  await it.bridge.take(envelope({
+    type: "app_mention", user: JONAS, text: `<@${BOT}> see`, ts: "6.6", channel: "C024",
+    files: [shot({ size: IMAGE_CEILING + 1 }), clip({ size: VIDEO_CEILING + 1 })]
+  }));
+  assert.equal(it.downloads.length, 0);
+  assert.match(it.opened[0].prompt, /print\.png, from Ada: it is bigger than 20 MB/);
+  assert.match(it.opened[0].prompt, /ScreenRecording_1\.MP4, from Ada: it is bigger than 200 MB/);
+});
+
+test("bytes that run past the ceiling are cut off and leave nothing behind", async () => {
+  const it = stage({ keys: RELAYED, relay: () => ({ type: "image/png", bytes: Buffer.alloc(IMAGE_CEILING + 1) }) });
+  await it.bridge.tick();
+  await it.bridge.take(envelope({ type: "app_mention", user: JONAS, text: `<@${BOT}> see`, ts: "7.7", channel: "C024", files: [shot()] }));
+  assert.match(it.opened[0].prompt, /print\.png, from Ada: it is bigger than 20 MB/);
+  const folder = filesFolder(it.home, "C024", "7.7");
+  assert.deepEqual(existsSync(folder) ? readdirSync(folder) : [], []);
+});
+
+test("a relay that still takes only images says so for a video, instead of calling it something else", async () => {
+  const it = stage({ keys: RELAYED, relay: () => ({ type: "application/json; charset=utf-8", json: { ok: false, error: "not_an_image" } }) });
+  await it.bridge.tick();
+  await it.bridge.take(envelope({ type: "app_mention", user: JONAS, text: `<@${BOT}> see`, ts: "8.8", channel: "C024", files: [clip()] }));
+  assert.match(it.opened[0].prompt, /ScreenRecording_1\.MP4, from Ada: the team's Slack relay does not hand videos over yet/);
 });
 
 test("a print already on this machine is not downloaded again when the thread gets a new chat", async () => {
