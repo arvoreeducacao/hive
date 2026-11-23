@@ -1,10 +1,17 @@
 import { execFile, spawn } from "node:child_process";
 import { agents, normalizeClaudeModels } from "./engine/agents.mjs";
+import { builtinClaudePath, chosenClaudeAsync } from "./engine/claude-binary.mjs";
+
+export async function seatClaudeOptions({ builtin = builtinClaudePath(), choose = chosenClaudeAsync } = {}) {
+  const chosen = await choose({ builtin });
+  return chosen.path && chosen.path !== builtin ? { pathToClaudeCodeExecutable: chosen.path } : {};
+}
 
 export async function providerCatalog(agent, cwd) {
   if (agent === "claude") {
     const { query } = await import("@anthropic-ai/claude-agent-sdk");
-    const session = query({ prompt: (async function* () {})(), options: { cwd, permissionMode: "bypassPermissions" } });
+    const seatClaude = await seatClaudeOptions();
+    const session = query({ prompt: (async function* () {})(), options: { cwd, permissionMode: "bypassPermissions", ...seatClaude } });
     try { return normalizeClaudeModels(await session.supportedModels()); }
     finally { session.close(); }
   }
