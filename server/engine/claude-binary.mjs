@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { accessSync, constants as fsConstants, chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, renameSync, rmSync, statSync } from "node:fs";
 import { homedir } from "node:os";
@@ -202,6 +202,17 @@ export function claudeVersionOf(path, run = spawnSync) {
   }
 }
 
+export function claudeVersionOfAsync(path, run = execFile) {
+  if (!path) return Promise.resolve("");
+  return new Promise((resolve) => {
+    try {
+      run(path, ["--version"], { encoding: "utf8", timeout: 5000 }, (wrong, out) => resolve(wrong ? "" : /(\d+\.\d+\.\d+)/.exec(`${out || ""}`)?.[1] || ""));
+    } catch {
+      resolve("");
+    }
+  });
+}
+
 export function pickClaude({ bundled, bundledVersion, machine, machineVersion, prefer = "" }) {
   const own = { path: bundled, from: "bundled", version: bundledVersion };
   if (prefer === "bundled" && bundled) return own;
@@ -218,4 +229,9 @@ export function chosenClaude({ env = process.env, builtin = builtinClaudePath(),
     machineVersion: versionOf(machine),
     prefer: env.HIVE_CLAUDE === "bundled" ? "bundled" : "",
   });
+}
+
+export async function chosenClaudeAsync({ env = process.env, builtin = builtinClaudePath(), machine = claudeOnPath({ env }), versionOf = claudeVersionOfAsync } = {}) {
+  const machineVersion = await versionOf(machine);
+  return chosenClaude({ env, builtin, machine, versionOf: () => machineVersion });
 }
