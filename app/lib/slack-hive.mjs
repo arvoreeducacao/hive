@@ -137,12 +137,17 @@ export function earlierOnSlack(said = []) {
 }
 
 export function attachedOnSlack(files = []) {
-  const kept = files.filter((one) => one.path);
+  const images = files.filter((one) => one.path && one.kind !== "video");
+  const videos = files.filter((one) => one.path && one.kind === "video");
   const missed = files.filter((one) => !one.path);
   const lines = [];
-  if (kept.length) {
+  if (images.length) {
     lines.push("", "Images attached in the thread, saved on this machine. Open each one with your file-reading tool before you answer:");
-    lines.push(...kept.map((one) => `- ${one.path} (${one.name}, from ${one.who || "someone"})`));
+    lines.push(...images.map((one) => `- ${one.path} (${one.name}, from ${one.who || "someone"})`));
+  }
+  if (videos.length) {
+    lines.push("", "Videos attached in the thread, saved on this machine. A video does not open with your file-reading tool: pull frames out of each one with ffmpeg (for example `ffmpeg -i <video> -vf fps=1 <video>-%03d.png`) and open the frames before you answer. If this machine has no ffmpeg, tell them you could not watch it instead of guessing:");
+    lines.push(...videos.map((one) => `- ${one.path} (video, ${one.name}, from ${one.who || "someone"})`));
   }
   if (missed.length) {
     lines.push("", "Files attached in the thread that did not reach this machine. Do not guess what they show; tell them you could not see these:");
