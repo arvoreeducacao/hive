@@ -16,7 +16,7 @@ function slice(from, to) {
   return server.slice(a, b);
 }
 
-function scanner({ local = [], cloud = "", podIsUp = false, held = null } = {}) {
+function scanner({ local = [], cloud = "", podIsUp = false, podTakes = 0, held = null } = {}) {
   const body = slice("async function scanLocalHistory(sessions) {", "async function readArchiveFile()");
   const seen = { kept: null, watched: [], asked: 0 };
   const world = {
@@ -27,7 +27,7 @@ function scanner({ local = [], cloud = "", podIsUp = false, held = null } = {}) 
     join: (...bits) => bits.join("/"),
     existsSync: () => false,
     oneRowPerSession,
-    podUp: async () => { seen.asked += 1; return podIsUp; },
+    podUp: async () => { seen.asked += 1; if (podTakes) await new Promise((go) => setTimeout(go, podTakes)); return podIsUp; },
     HIST_SCAN: "",
     onTheServer: async () => ({ ok: !!cloud, out: cloud }),
     parseHistory: (raw, where, into) => { if (raw) into.push({ id: "cloudy", where, at: 2, title: "on the pod" }); },
@@ -74,6 +74,21 @@ test("a local scan that breaks keeps the rows already on the shelf instead of em
   const hive = scanner({ local: new Error("disk said no"), held: { sessions: [{ id: "old", where: "local", at: 9, title: "de ontem" }] } });
   const { sessions } = await hive.runHistoryScan();
   assert.deepEqual(sessions.map((row) => row.id), ["old"], "a failed scan must never erase the archive");
+});
+
+test("a local scan that breaks while the pod is still being asked leaves no rejection for the server to die of", async () => {
+  const stray = [];
+  const note = (wrong) => stray.push(wrong);
+  process.on("unhandledRejection", note);
+  try {
+    const hive = scanner({ local: new Error("the scan child left with 0 before answering"), podTakes: 20, held: { sessions: [{ id: "old", where: "local", at: 9, title: "from yesterday" }] } });
+    const { sessions } = await hive.runHistoryScan();
+    await new Promise((go) => setImmediate(go));
+    assert.deepEqual(stray, [], "node kills the server over a rejection nobody was holding");
+    assert.deepEqual(sessions.map((row) => row.id), ["old"]);
+  } finally {
+    process.off("unhandledRejection", note);
+  }
 });
 
 test("the pod rows come from the shell scan and sit in the same list", async () => {

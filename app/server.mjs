@@ -3862,21 +3862,24 @@ async function scanLocalHistory(sessions) {
 async function runHistoryScan({ reachOut = true } = {}) {
   const local = [];
   const cloud = [];
-  const jobs = [scanLocalHistory(local)];
+  const readingLocal = scanLocalHistory(local).then(() => true, (wrong) => {
+    console.log(`hive: archive: the local scan failed, so the rows already here stay — ${wrong?.message || wrong}`);
+    return false;
+  });
   const asked = reachOut && (await podUp());
-  if (asked) {
-    jobs.push(onTheServer(`HIVE_SESSIONS="$HIVE_STATE_DIR/sessions"\n${HIST_SCAN}`, [], { timeout: 120000 })
-      .then((r) => {
-        if (!r.ok) throw new Error(r.error || "the server would not read its archives");
-        parseHistory(r.out, "cloud", cloud);
-        parseHiveSessions(r.out, "cloud", cloud);
-      }));
-  }
-  const ran = await Promise.allSettled(jobs);
+  const cloudWasRead = asked && (await onTheServer(`HIVE_SESSIONS="$HIVE_STATE_DIR/sessions"\n${HIST_SCAN}`, [], { timeout: 120000 })
+    .then((r) => {
+      if (!r.ok) throw new Error(r.error || "the server would not read its archives");
+      parseHistory(r.out, "cloud", cloud);
+      parseHiveSessions(r.out, "cloud", cloud);
+      return true;
+    })
+    .catch(() => false));
+  const localWasRead = await readingLocal;
   const kept = histCache.data?.sessions || [];
   const sessions = [
-    ...(ran[0].status === "fulfilled" ? local : kept.filter((row) => row.where === "local")),
-    ...(asked && ran[1].status === "fulfilled" ? cloud : kept.filter((row) => row.where === "cloud"))
+    ...(localWasRead ? local : kept.filter((row) => row.where === "local")),
+    ...(cloudWasRead ? cloud : kept.filter((row) => row.where === "cloud"))
   ];
   histWatch = null;
   return { sessions: oneRowPerSession(sessions) };
