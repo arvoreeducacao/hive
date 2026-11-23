@@ -8,5 +8,5 @@ process.once("message", async ({ scan }) => {
   } catch (wrong) {
     answer = { failed: String(wrong?.stack || wrong) };
   }
-  process.send(answer, () => process.exit(0));
+  process.send(answer, (wrong) => process.exit(wrong ? 1 : 0));
 });
