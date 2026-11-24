@@ -109,7 +109,7 @@ function paintThreadSettings() {
   paintFlip("settle-merged", now.autoSettleMerged, "a merged PR settles the chat", "a merged PR leaves the chat where it is");
   paintFlip("keep-open-pr", now.keepWithOpenPr, "an open PR keeps the chat active", "an open PR does not hold the chat");
   paintFlip("wake-early", now.wakeEarly, "a snoozed chat comes back when it needs you", "a snoozed chat waits for its time");
-  paintFlip("working-section", now.workingSection, "working chats wait in Working", "working chats stay in the list");
+  paintFlip("working-section", now.workingSection, "working chats show in Working", "working chats stay in the list");
   paintFlip("group-by-project", now.groupByProject, "one folder per project", "the list follows the blocks");
   paintOptions();
   paintCommands();
