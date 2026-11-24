@@ -2,7 +2,7 @@ import { render } from "./arrange.js";
 import { activeItems, detachSeat, forgetSeat, giveSeatBack, saveBlocks, soloSeat } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { $, esc, experienceNext, phrase, raycastOn, saveSidesShut, saveUnfolded, sidesShut, st, unfolded } from "./core.js";
-import { hiveMark, openDraft } from "./draft-seat.js";
+import { askNewChat, hiveMark } from "./draft-seat.js";
 import { closeTile, pull, releaseKeyboard } from "./focus-navigation.js";
 import { disarmLeader, keyCaps, keyHint, keyParts, tiles } from "./leader-key.js";
 import { closeTrade, reviveArchived } from "./mirror.js";
@@ -171,8 +171,8 @@ function emptyWallModel() {
   };
 }
 
-function wallAct(hit) {
-  if (hit.dataset.act === "new") return openDraft();
+function wallAct(hit, ev) {
+  if (hit.dataset.act === "new") return askNewChat({ here: !!ev?.shiftKey });
   if (hit.dataset.act === "term") return run("term");
   if (hit.dataset.act === "linear") return openPal("linear");
   if (hit.dataset.act === "find") return openPal();
@@ -181,7 +181,7 @@ function wallAct(hit) {
 
 $("canvas").addEventListener("click", (ev) => {
   const hit = raycastOn() && ev.target.closest(".blank [data-act]");
-  if (hit) wallAct(hit);
+  if (hit) wallAct(hit, ev);
 });
 
 export { canDetach, carrySeatOut, closeSeat, detachToWindow, emptyWallModel, seatDrag, swapSeats };

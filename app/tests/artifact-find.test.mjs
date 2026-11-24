@@ -88,6 +88,18 @@ test("the middle button does the same, and it only ever arrives as auxclick", ()
   assert.deepEqual(tabsOf(name), []);
 });
 
+test("the right button is the link menu's, so it opens nothing behind the menu", () => {
+  const name = seat();
+  apple(true);
+  const { box, links } = root(URL_A);
+  wireLinks(name, box);
+  const ev = new window.MouseEvent("auxclick", { bubbles: true, cancelable: true, button: 2 });
+  links[0].dispatchEvent(ev);
+  assert.equal(ev.defaultPrevented, false);
+  assert.deepEqual(tabsOf(name), []);
+  assert.deepEqual(opened, []);
+});
+
 test("ctrl+click on a mac is the context menu, so the link stays in the hive", () => {
   const name = seat();
   apple(true);

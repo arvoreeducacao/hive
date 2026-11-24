@@ -12,7 +12,7 @@ export { mountOptions } from "./settings/choices.jsx";
 export { mountThemePreview, mountThemes, themeRowActions } from "./settings/themes.jsx";
 export { mountFacePicker, mountGate, mountFaceSheet } from "./settings/face.jsx";
 export { mountKeysGrid, mountKeysLeader } from "./settings/keys.jsx";
-export { mountRelnotes, mountWhatsNewGroups } from "./settings/notes.jsx";
+export { mountRelnotes } from "./settings/notes.jsx";
 export { mountTourPop } from "./settings/tour.jsx";
 export { mountConversation, mountSubs } from "./conversation.jsx";
 export { mountDay } from "./panels/day.jsx";

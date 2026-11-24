@@ -17,7 +17,6 @@ const st = await state();
 await views();
 const { CALM_KEY, adoptCalm, calmly, setAway, setCalm } = await app("pure-helpers");
 const { shakeWindow } = await app("team");
-const { countUp } = await app("whats-new");
 await app("themes");
 
 const saved = [];
@@ -51,7 +50,8 @@ test("the switch is a select in a pane of its own, Performance, and writes the o
   const help = page.slice(page.indexOf('<div class="modal" id="help"'), page.indexOf('<div class="modal" id="themes"'));
   assert.match(help, /<button type="button" data-pane="performance">Performance<\/button>/);
   assert.match(help, /<section class="pref-pane" data-pane="performance" hidden>/);
-  assert.match(help, /<label for="f-visual" data-t>how the screen is drawn<\/label><select id="f-visual"><\/select>/);
+  assert.match(help, /<label class="set-title" for="f-visual">how the screen is drawn<\/label>/);
+  assert.match(help, /<div class="set-ctl"><select id="f-visual"><\/select><\/div>/);
   assert.doesNotMatch(help, /t-motion|fewer animations/, "the old button is gone, not doubled");
   const restore = asleepFetch();
   setCalm(true, true);
@@ -101,7 +101,7 @@ const leanBackground = (surface) => {
 };
 
 test("lean paints every blurred surface on a solid panel, so nothing shows through", () => {
-  const surfaces = [".menu", "#btrade", ".sv-menu", ".box", ".pal-sheet", ".relpop", "#plane-hud", ".plink-menu", ".pbar", "#plane-said", "#plane-map", ".sv-queue", ".sv-subs", ".sv-suggest::before", ".sv-jump", ".w-bar", ".wn-list"];
+  const surfaces = [".menu", "#btrade", ".sv-menu", ".box", ".pal-sheet", ".relpop", "#plane-hud", ".plink-menu", ".pbar", "#plane-said", "#plane-map", ".sv-queue", ".sv-subs", ".sv-suggest::before", ".sv-jump", ".w-bar"];
   for (const one of surfaces) {
     const background = leanBackground(one);
     assert.match(background || "", /^var\(--(panel|panel-2|well)\)$/, `${one} stays see-through under lean: ${background}`);
@@ -190,9 +190,6 @@ test("the js that checks the media query by hand goes through the switch instead
   shakeWindow();
   assert.equal(document.body.classList.contains("nudged"), false, "the nudge shake asks calmly()");
   assert.ok(!source("team").slice(source("team").indexOf("function shakeWindow()"), source("team").indexOf("function pulseNudge()")).includes("matchMedia"));
-  const number = document.createElement("b");
-  countUp(number, 42);
-  assert.equal(number.textContent, "42", "a calm counter lands on the total at once");
   setCalm(false, true);
 });
 

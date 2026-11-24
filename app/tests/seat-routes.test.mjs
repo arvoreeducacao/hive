@@ -7,6 +7,7 @@ const PNG = "data:image/png;base64,YQ==";
 function seatHarness() {
   const routes = new Map();
   const calls = {
+    erased: [],
     retitled: [],
     jobs: [],
     says: [],
@@ -90,6 +91,11 @@ function seatHarness() {
       return state.archive;
     },
     reviveArchivedSeat: async (...args) => { calls.revived.push(args); return state.revive; },
+    eraseConversation: async (...args) => {
+      calls.erased.push(args);
+      if (state.eraseError) throw new Error(state.eraseError);
+      return { ok: true, name: args[0], where: args[1] };
+    },
     archivedSeats,
     saveArchivedSeats: () => { state.archivedWrites++; },
     readFileImpl: async (path) => { calls.reads.push(path); return Buffer.from(path); }
@@ -120,6 +126,7 @@ test("the seat room registers every extracted route as POST in server order", ()
     ["/api/seat/leftovers", "POST"],
     ["/api/kill", "POST"],
     ["/api/seat/archive", "POST"],
+    ["/api/seat/erase", "POST"],
     ["/api/seat/unarchive", "POST"],
     ["/api/seat/forget-archived", "POST"]
   ]);
@@ -247,6 +254,8 @@ test("spawning forget, rename and attach retain cache and file contracts", async
   assert.deepEqual(await hive.call("/api/retitle", { name: " seat ", where: "cloud" }), [{ value: { ok: true, title: "Fresh title" }, status: 200 }]);
   assert.deepEqual(hive.calls.retitled, [["seat", "cloud"]]);
   assert.equal(hive.state.invalidations, 3);
+  assert.deepEqual(await hive.call("/api/retitle", { name: "seat", by: "agent" }), [{ value: { ok: true, title: "Fresh title" }, status: 200 }]);
+  assert.deepEqual(hive.calls.retitled.at(-1), ["seat", "local", { keepHand: true }], "a chat that asks for its own title never writes over the person's");
 
   hive.state.save = { files: ["/tmp/a.txt", "/tmp/b.txt"], error: "" };
   assert.deepEqual(await hive.call("/api/attach", { images: ["a", "b"] }), [{ value: { ok: true, paths: ["/tmp/a.txt", "/tmp/b.txt"], path: "/tmp/a.txt" }, status: 200 }]);
@@ -301,6 +310,14 @@ test("kill, archive, unarchive and archived forgetting preserve lifecycle side e
 
   hive.state.archiveError = "cannot archive";
   assert.deepEqual(await hive.call("/api/seat/archive", { name: "seat" }), [{ value: { error: "cannot archive" }, status: 400 }]);
+});
+
+test("deleting a conversation for good goes to the hive and says why when it cannot", async () => {
+  const hive = seatHarness();
+  assert.deepEqual(await hive.call("/api/seat/erase", { name: "seat", where: "cloud" }), [{ value: { ok: true, name: "seat", where: "cloud" }, status: 200 }]);
+  assert.deepEqual(hive.calls.erased, [["seat", "cloud"]]);
+  hive.state.eraseError = "this app does not know that conversation";
+  assert.deepEqual(await hive.call("/api/seat/erase", { name: "ghost" }), [{ value: { error: "this app does not know that conversation" }, status: 400 }]);
 });
 
 test("closing a local chat takes its shots folder with it; a cloud chat leaves the pod's alone", async () => {

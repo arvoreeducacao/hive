@@ -1,9 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { prKey, readPrRegistry, writePrRegistry, readPrNotes, writePrNotes, retirePrs } from "../lib/prs.mjs";
+import { prKey, readPrRegistry, writePrRegistry, readPrNotes, writePrNotes, retirePrs, readPrLinks, writePrLinks, withLink, withoutLink, ownersWithLinks } from "../lib/prs.mjs";
 import { addNote, batchText, cleanNote, editNote, openNotes, removeNote } from "../assets/review-notes.mjs";
 import { attributeFiles, linesWrittenIn } from "../lib/attribution.mjs";
 import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
 import { isPrPageSlug, prPageFailed, prPageRest, prPageSlug, prPageStart } from "../assets/pr-page.mjs";
+import { checksSummary, readJobLog } from "../lib/pr-checks.mjs";
+import { PR_TOOL_NEEDS, PR_TOOL_WRITES, createPrTools } from "../lib/pr-tools.mjs";
+import { allows } from "../../server/peer/ceilings.mjs";
 
 const PR_FRESH_OPEN = 60000;
 const PR_FRESH_RUNNING = 20000;
@@ -11,16 +15,10 @@ const PR_FRESH_SETTLED = 6 * 60 * 60 * 1000;
 const PR_RETIRE_AFTER = 24 * 60 * 60 * 1000;
 const PR_LANES = 4;
 const PR_FIELDS = "number,title,url,state,isDraft,author,headRefName,baseRefName,additions,deletions,changedFiles,reviewDecision,mergeable,autoMergeRequest,statusCheckRollup,updatedAt,body,isCrossRepository,labels,reviewRequests";
-const CHECK_GOOD = ["SUCCESS", "NEUTRAL", "SKIPPED"];
-const CHECK_ABANDONED = ["CANCELLED", "STALE", "EXPECTED"];
 const PR_NOT_THERE = /could not resolve to (a|an) (repository|pullrequest)|no pull requests found|could not find|\b404\b/i;
 const REVIEW_SAID = { APPROVED: "approved", CHANGES_REQUESTED: "asked for changes", DISMISSED: "review dismissed" };
 const SPEAKS_ALONE = ["APPROVED", "CHANGES_REQUESTED"];
 const HTML_NOTE = /<!--[\s\S]*?-->/g;
-const LOG_LINE_CAP = 400;
-const ANSI = /(?:\u001b|\^\[)\[[0-9;]*[a-zA-Z]/g;
-const STAMP = /^\d{4}-\d\d-\d\dT[\d:.]+Z ?/;
-const LOG_MARK = /^(?:##)?\[(group|endgroup|error|warning|notice|command|debug|section)\](.*)$/;
 const NOISE = /(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|composer\.lock|Cargo\.lock|mix\.lock|\.min\.(js|css)$|\.snap$|\.icns$|\.woff2?$|\.map$|(^|\/)(dist|build|vendor|__generated__)\/)/i;
 const PICTURE_KIND = {
   png: "image/png",
@@ -48,45 +46,6 @@ const clockAt = (ms) => new Date(ms).toTimeString().slice(0, 5);
 const branchRef = (branch) => String(branch).split("/").map(encodeURIComponent).join("/");
 const BRANCH_ALREADY_GONE = /reference does not exist/i;
 
-function checkState(check) {
-  if (check.status && check.status !== "COMPLETED") return "running";
-  const done = check.conclusion || check.state || "";
-  if (CHECK_GOOD.includes(done)) return "passed";
-  if (CHECK_ABANDONED.includes(done)) return "skipped";
-  return "failed";
-}
-
-function jobInUrl(url) {
-  const found = String(url || "").match(/\/actions\/runs\/(\d+)\/job\/(\d+)/);
-  return found ? { run: Number(found[1]), job: Number(found[2]) } : { run: 0, job: 0 };
-}
-
-function oneCheck(check) {
-  const where = jobInUrl(check.detailsUrl);
-  const from = Date.parse(check.startedAt || "") || 0;
-  const to = Date.parse(check.completedAt || "") || 0;
-  return {
-    name: check.name || check.context || "check",
-    workflow: check.workflowName || "",
-    state: checkState(check),
-    took: from && to > from ? to - from : 0,
-    url: check.detailsUrl || check.targetUrl || "",
-    run: where.run,
-    job: where.job
-  };
-}
-
-function checksSummary(rollup) {
-  const checks = (rollup || []).filter((check) => check && (check.status || check.state)).map(oneCheck);
-  if (!checks.length) return { ci: "none", detail: "", checks };
-  const count = (state) => checks.filter((check) => check.state === state).length;
-  const broken = checks.filter((check) => check.state === "failed");
-  if (broken.length) return { ci: "failed", detail: broken.slice(0, 3).map((check) => check.name).join(", "), checks };
-  const running = count("running");
-  if (running) return { ci: "running", detail: `${running} of ${checks.length}`, checks };
-  return { ci: "passed", detail: `${count("passed")} checks`, checks };
-}
-
 function oneCommit(commit) {
   return {
     sha: String(commit.oid || "").slice(0, 7),
@@ -100,30 +59,6 @@ function oneCommit(commit) {
 function said(who, when, body, kind, extra = {}) {
   const text = String(body || "").replace(HTML_NOTE, "").trim();
   return { who: who || "someone", when: when || "", body: text.slice(0, 6000), kind, ...extra };
-}
-
-function oneLogLine(raw) {
-  const parts = raw.split("\t");
-  const wide = parts.length >= 3;
-  const step = wide ? parts[1] : "";
-  const text = (wide ? parts.slice(2).join("\t") : raw)
-    .replace(ANSI, "")
-    .replace(/^\uFEFF/, "")
-    .replace(STAMP, "")
-    .replace(/\r$/, "");
-  const marked = text.match(LOG_MARK);
-  if (!marked) return { step, kind: "line", text };
-  const [, what, rest] = marked;
-  if (what === "endgroup") return null;
-  if (what === "group") return { step, kind: "group", text: rest };
-  if (what === "error") return { step, kind: "bad", text: rest };
-  return { step, kind: "line", text: rest };
-}
-
-function readJobLog(raw, cap = LOG_LINE_CAP) {
-  const all = String(raw || "").split("\n").filter((line) => line.trim());
-  const cut = Math.max(0, all.length - cap);
-  return { cut, lines: all.slice(cut).map(oneLogLine).filter(Boolean) };
 }
 
 function diffMap(raw) {
@@ -214,19 +149,30 @@ export function createPrDomain({
   languageOf,
   paintLines,
   liveSessions = () => [],
+  ceilingOfChat = () => "read",
   readRegistry = readPrRegistry,
   writeRegistry = writePrRegistry,
   retire = retirePrs,
+  readLinks = readPrLinks,
+  writeLinks = writePrLinks,
   readNotes = readPrNotes,
   writeNotes = writePrNotes,
   newId = randomUUID,
   now = Date.now,
   transcriptOf = async () => ({ text: "", seat: "" }),
   fetchImpl = fetch,
+  placeExists = existsSync,
   markdownCss = () => readFile(new URL("../assets/github-markdown-dark.css", import.meta.url), "utf8")
 }) {
   const prCache = new Map();
   const prFetching = new Map();
+  let linksTurn = Promise.resolve();
+  const inLinksTurn = (work) => {
+    const run = linksTurn.then(work);
+    linksTurn = run.catch(() => {});
+    return run;
+  };
+  const isLiveChat = (name) => liveSessions().some((one) => one?.name === name);
   const prShas = new Map();
   let ghPausedUntil = 0;
   let meOnGithub = "";
@@ -481,6 +427,23 @@ export function createPrDomain({
     }
   }
 
+  const prTools = createPrTools({
+    gh: (args, options = {}) => shr("gh", args, { timeout: 30000, maxBuffer: 16 << 20, ...options }),
+    git: (args, options = {}) => shr("git", args, { timeout: 30000, ...options }),
+    readRegistry,
+    writeRegistry,
+    readLinks,
+    talkOf: prTalk,
+    now
+  });
+
+  function chatOf(name, where) {
+    const seat = liveSessions().find((one) => one.name === name && (one.where || "local") === where) || null;
+    const tree = (seat?.trees || []).find((one) => one?.path);
+    const cwd = where === "local" ? tree?.path || seat?.cwd || "" : "";
+    return { name, cwd: cwd && placeExists(cwd) ? cwd : "" };
+  }
+
   async function collectPrs() {
     const registry = await readRegistry();
     const retired = new Set(registry.filter((pr) => pr.retired).map((pr) => pr.key));
@@ -493,18 +456,21 @@ export function createPrDomain({
         if (key && !retired.has(key) && !fromHive.has(key)) fromHive.set(key, session.name);
       }
     }
-    const keys = [...fromHive.keys()];
+    const links = await readLinks();
+    const linked = new Set(links.map((one) => one.key));
+    const owners = ownersWithLinks(fromHive, links);
+    const keys = [...owners.keys()];
     const found = [];
     let taken = 0;
     await Promise.all(Array.from({ length: Math.min(PR_LANES, keys.length) }, async () => {
       for (let index = taken++; index < keys.length; index = taken++) {
         const key = keys[index];
-        found.push({ ...(await prData(key)), session: fromHive.get(key) });
+        found.push({ ...(await prData(key)), session: owners.get(key), ...(linked.has(key) ? { linked: true } : {}) });
       }
     }));
     const me = await whoAmIOnGithub();
-    const borrowed = me ? found.filter((pr) => pr.session && pr.author && pr.author !== me && !chosen.has(pr.key)) : [];
-    const done = found.filter((pr) => pr.missing || (prSettled(pr.state) && pr.updatedAt && Date.now() - Date.parse(pr.updatedAt) > PR_RETIRE_AFTER));
+    const borrowed = me ? found.filter((pr) => pr.session && pr.author && pr.author !== me && !chosen.has(pr.key) && !pr.linked) : [];
+    const done = found.filter((pr) => !pr.linked && (pr.missing || (prSettled(pr.state) && pr.updatedAt && Date.now() - Date.parse(pr.updatedAt) > PR_RETIRE_AFTER)));
     const gone = [...new Set([...done, ...borrowed])];
     if (gone.length) await retire(gone.map((pr) => pr.key));
     const list = found.filter((pr) => !gone.includes(pr));
@@ -533,6 +499,34 @@ export function createPrDomain({
       await writeRegistry(registry);
       prCache.delete(key);
       return json({ ok: true, key });
+    });
+
+    on("POST", "/api/prs/link", async (req, res, url, json) => {
+      const { name, where, url: link } = await bodyOf(req);
+      const session = String(name || "").trim();
+      const key = prKey(link);
+      if (!session) return json({ error: "say which chat the pull request goes with" }, 400);
+      if (!key) return json({ error: "send the PR url or owner/repo#number" }, 400);
+      if (!isLiveChat(session)) return json({ error: `there is no chat called ${session}` }, 404);
+      await inLinksTurn(async () => writeLinks(withLink(await readLinks(), { session, where: where === "cloud" ? "cloud" : "local", key, at: new Date(now()).toISOString() })));
+      prCache.delete(key);
+      return json({ ok: true, key, linked: key });
+    });
+
+    on("POST", "/api/prs/unlink", async (req, res, url, json) => {
+      const { name, url: link } = await bodyOf(req);
+      const session = String(name || "").trim();
+      if (!session) return json({ error: "say which chat to unlink" }, 400);
+      const said = await inLinksTurn(async () => {
+        const links = await readLinks();
+        const held = links.find((one) => one.session === session);
+        if (!held) return { status: 404, value: { error: "this chat has no pull request linked by hand" } };
+        const key = link ? prKey(link) : held.key;
+        if (key !== held.key) return { status: 409, value: { error: `${key || "that link"} is not the pull request linked to this chat; ${held.key} is` } };
+        await writeLinks(withoutLink(links, session));
+        return { status: 200, value: { ok: true, key: held.key, linked: "" } };
+      });
+      return json(said.value, said.status);
     });
 
     on("POST", "/api/prs/forget", async (req, res, url, json) => {
@@ -630,6 +624,20 @@ export function createPrDomain({
       if (!out.ok) return json({ error: out.error }, out.code || 404);
       res.writeHead(200, { "content-type": out.kind, "cache-control": "private, max-age=600", "content-length": out.bytes.length });
       return res.end(out.bytes);
+    });
+
+    on("POST", "/api/prs/tool", async (req, res, url, json) => {
+      const asked = await bodyOf(req);
+      const name = String(asked.name || "").trim();
+      if (!name) return json({ error: "a PR tool runs for a chat of the hive, and no chat was named" }, 400);
+      const tool = String(asked.tool || "");
+      const need = PR_TOOL_NEEDS[tool];
+      if (!need) return json({ error: `there is no PR tool called ${tool || "(none)"}` }, 400);
+      if (!allows(ceilingOfChat(name), need)) return json({ error: `the chat ${name} may not use ${tool}: it needs ${need} access` }, 403);
+      const done = await prTools.call(tool, asked.args, chatOf(name, asked.where === "cloud" ? "cloud" : "local"));
+      if (done.error) return json({ error: done.error }, 400);
+      if (PR_TOOL_WRITES.has(tool) && done.result?.repository && done.result?.number) prCache.delete(`${done.result.repository}#${done.result.number}`);
+      return json({ ok: true, result: done.result });
     });
 
     on(null, "/api/prs/joblog", async (req, res, url, json) => {

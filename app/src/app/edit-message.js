@@ -34,23 +34,59 @@ function paintEditPencil(e, el) {
   pencil.title = behind ? phrase(EDIT_BEFORE_COMPACT) : phrase("edit and redo from here");
 }
 
+function filesGoBack(e) {
+  if (e.turnOpen || (e.where && e.where !== "local")) return false;
+  const seat = st.data?.sessions?.find((one) => one.name === e.name && one.where === "local");
+  return !!seat?.trees?.some((one) => one?.path && !one.main);
+}
+
 function startEdit(e, uuid) {
   const working = !!e.turnOpen;
-  svConvEdit(e, uuid, {
+  const block = svConvEdit(e, uuid, {
     label: phrase("edit this message"),
     hint: working
       ? phrase("The chat stops what it is doing, forgets what came after this message and answers again. Files stay as they are.")
       : phrase("The chat forgets what came after this message and answers again. Files stay as they are."),
     cancel: phrase("cancel"),
-    save: working ? phrase("stop and redo") : phrase("redo from here")
+    save: working ? phrase("stop and redo") : phrase("redo from here"),
+    revert: "",
+    revertHint: phrase("The chat forgets what came after this message, its files go back to how they were before it, and it answers again.")
   });
+  if (block && filesGoBack(e)) offerRevert(e, block);
 }
 
-function saveEdit(e, block, text) {
+async function offerRevert(e, block) {
+  let said = null;
+  try {
+    const answer = await fetch(`/api/chat/revert-files?name=${encodeURIComponent(e.name)}&seq=${seqOfBubble(e, block)}`);
+    said = await answer.json();
+  } catch {
+    return;
+  }
+  if (said?.available && block.editing && !block.editing.busy) svConvEditing(e, block, { revert: phrase("Revert files too") });
+}
+
+const seqOfBubble = (e, block) => Number(block?.seq) || Number(e?.saidSeqs?.get(block?.dataset?.cid || "")) || 0;
+
+async function revertFilesBefore(e, block) {
+  try {
+    const answer = await fetch("/api/chat/revert-files", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: e.name, seq: seqOfBubble(e, block) }) });
+    return await answer.json();
+  } catch (wrong) {
+    return { error: String(wrong?.message || wrong) };
+  }
+}
+
+async function saveEdit(e, block, text, revert = false) {
   if (!block?.editing || block.editing.busy) return;
   const said = String(text || "").trim();
   if (!said && !block.thumbs.length) return;
   svConvEditing(e, block, { text: said, busy: true, error: "" });
+  if (revert) {
+    const back = await revertFilesBefore(e, block);
+    if (!block.editing) return;
+    if (!back?.ok) return void svConvEditing(e, block, { busy: false, error: back?.error || phrase("the files did not go back") });
+  }
   svCmd(e, { type: "edit", target: block.dataset.uuid, text: said, images: block.thumbs.map((one) => one.path) }).then((r) => {
     if (!block.editing) return;
     if (r?.ok) {

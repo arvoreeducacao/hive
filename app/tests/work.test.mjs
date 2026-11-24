@@ -7,255 +7,89 @@ import { app, views } from "./dom.mjs";
 
 await views();
 
-const { svAppend } = await app("structured-seats");
-const { svConvFlushAll, svConvSaid, svConvThink, svConvTool, svConvToolLanded } = await app("conversation-model");
-const { getStructured } = await app("chat-stretches");
+const rows = await app("timeline-rows");
 
 const SRC = fileURLToPath(new URL("../src", import.meta.url));
 const model = readFileSync(join(SRC, "app", "conversation-model.js"), "utf8");
 const view = readFileSync(join(SRC, "conversation.jsx"), "utf8");
 
-function slice(text, from, to, what) {
-  const a = text.indexOf(from);
-  const b = text.indexOf(to, a);
-  assert.ok(a >= 0 && b > a, `could not cut ${from} … ${to} out of ${what}`);
-  return text.slice(a, b);
+const say = (text, vars) => (vars ? String(text).replace(/\{(\w+)\}/g, (whole, key) => (key in vars ? String(vars[key]) : whole)) : text);
+
+let made = 0;
+const key = () => `w${++made}`;
+const ask = (text, at = 1000) => ({ key: key(), kind: "bubble", body: text, text, at: String(at), dataset: {} });
+const said = (text, at = 9000) => ({ key: key(), kind: "said", parts: [`<p>${text}</p>`], at: String(at), streaming: false });
+const tool = (face, name, arg = "", extra = {}) => ({ key: key(), kind: "tool", face, tool: name, name, arg, running: false, stat: "ok", keep: false, ...extra });
+const run = (extra) => tool("run", "Bash", "npm test", extra);
+const read = (arg = "a.js") => tool("read", "Read", arg);
+const edit = (file) => tool("write", "Edit", file, file ? { edit: { file } } : {});
+const card = (cls) => ({ key: key(), kind: "node", el: { className: cls } });
+const kinds = (list) => list.map((one) => (one.kind === "block" ? `${one.block.kind}${one.block.keep ? ":kept" : ""}${one.hidden ? ":hidden" : ""}` : one.kind));
+
+const settled = (blocks) => rows.deriveTimelineRows(blocks, { say });
+
+function opened(blocks) {
+  const fold = settled(blocks).find((one) => one.kind === "turn-fold");
+  assert.ok(fold, "the settled turn folds its work");
+  return rows.deriveTimelineRows(blocks, { say, unfolded: new Set([fold.fold]) });
 }
 
-function node(classes = "") {
-  const el = document.createElement("div");
-  el.className = classes;
-  return el;
-}
+const summaries = (list) => list.filter((one) => one.kind === "work-toggle").map((one) => one.summary);
 
-let seq = 0;
-
-function seat() {
-  return getStructured({ name: `work-${++seq}`, where: "local" });
-}
-
-const TOOL_OF = { read: "Read", write: "Write", run: "Bash", web: "WebFetch", agent: "Task", mcp: "mcp__db__query", "": "Bolt" };
-
-let calls = 0;
-
-function toolCard(e, { ms = 0, failed = false, running = false, shot = false, kind = "", targ = "" } = {}) {
-  const use = `t${++calls}`;
-  const card = svConvTool(e, { id: use, name: TOOL_OF[kind], input: {} }, false);
-  card.use = use;
-  card.arg = targ;
-  if (shot) card.keep = true;
-  if (running) return card;
-  landed(e, card);
-  card.ms = ms ? String(ms) : "";
-  return card;
-}
-
-const landed = (e, card) => svConvToolLanded(e, { tool_use_id: card.use, is_error: false, content: "" }, false);
-
-const failedCard = (e, opts) => {
-  const card = toolCard(e, { ...opts, running: true });
-  svConvToolLanded(e, { tool_use_id: card.use, is_error: true, content: "" }, false);
-  return card;
-};
-
-const prose = (e) => svConvSaid(e, "here is what came out of it");
-const summary = (el) => el.querySelector(".wname").textContent;
-const blocks = (e) => (svConvFlushAll(), [...e.scroll.children]).filter((c) => c.classList.contains("sv-work"));
-const kinds = (e) => (svConvFlushAll(), [...e.scroll.children]).map((c) => c.className.split(" ")[0]);
-const grouped = (e) => (svConvFlushAll(), [...e.scroll.children]).find((c) => c.classList.contains("sv-work"));
-const args = (el) => [...el.children].map((c) => c.querySelector(".targ").textContent);
-
-test("a run of tool calls folds into one block when the answer starts", () => {
-  const e = seat();
-  toolCard(e, { ms: 120 });
-  toolCard(e, { ms: 380 });
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-work", "sv-msg"]);
-  assert.equal(grouped(e).querySelector(".wname").textContent, "used 2 tools");
-  assert.equal(grouped(e).querySelector(".wms").textContent, "500ms");
+test("a run of calls becomes one line that says what it did, and a lone call stays a line of its own", () => {
+  const out = opened([ask("arruma"), run(), run(), said("pronto", 4000), read(), said("fim")]);
+  assert.deepEqual(kinds(out), ["bubble", "turn-fold", "work-toggle", "said", "tool", "said"]);
+  assert.deepEqual(summaries(out), ["Ran 2 commands"]);
 });
 
-test("the folded block keeps the cards, in order, inside its body", () => {
-  const e = seat();
-  toolCard(e, { targ: "first" });
-  toolCard(e, { targ: "second" });
-  svAppend(e, node("sv-meta"));
-  assert.deepEqual(args(grouped(e).querySelector(".wbody")), ["first", "second"]);
+test("words in the middle cut the run in two, so the order stays honest", () => {
+  const out = opened([ask("arruma"), run(), run(), said("metade", 4000), read(), read("b.js"), said("fim")]);
+  assert.deepEqual(kinds(out), ["bubble", "turn-fold", "work-toggle", "said", "work-toggle", "said"]);
+  assert.deepEqual(summaries(out), ["Ran 2 commands", "Read 2 files"]);
 });
 
-test("thinking rides along with the calls it belongs to", () => {
-  const e = seat();
-  svConvThink(e, "weighing it up", "");
-  toolCard(e);
-  toolCard(e);
-  prose(e);
-  assert.equal(grouped(e).querySelector(".wbody").children.length, 3);
+test("a question card and a published artifact are never folded away", () => {
+  const out = settled([ask("decide"), run(), run(), card("sv-q"), card("sv-art"), said("fim")]);
+  assert.deepEqual(kinds(out), ["bubble", "turn-fold", "node", "node", "said"]);
 });
 
-test("a lone call is not worth a wrapper", () => {
-  const e = seat();
-  toolCard(e);
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-tool", "sv-msg"]);
+test("a picture is never folded away, and it cuts the run around it", () => {
+  const shot = () => tool("read", "Read", "tela.png", { keep: true });
+  assert.deepEqual(kinds(settled([ask("tira o print"), run(), shot(), said("fim")])), ["bubble", "turn-fold", "tool:kept", "said"]);
+  const out = opened([ask("tira o print"), run(), run(), shot(), run(), run(), said("fim")]);
+  assert.deepEqual(kinds(out), ["bubble", "turn-fold", "work-toggle", "tool:kept", "work-toggle", "said"]);
+  assert.deepEqual(kinds(opened([ask("dois prints"), run(), shot(), shot(), said("fim")])), ["bubble", "turn-fold", "tool", "tool:kept", "tool:kept", "said"]);
 });
 
-test("prose in the middle cuts the run in two, so the order stays honest", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e);
-  prose(e);
-  toolCard(e);
-  toolCard(e);
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-work", "sv-msg", "sv-work", "sv-msg"]);
+test("a run that ended on a failure says so on its line", () => {
+  const out = opened([ask("testa"), read(), run({ stat: "bad" }), said("falhou")]);
+  const line = out.find((one) => one.kind === "work-toggle");
+  assert.equal(line.bad, true);
+  assert.equal(opened([ask("testa"), run({ stat: "bad" }), read(), said("ok")]).find((one) => one.kind === "work-toggle").bad, false);
 });
 
-test("a question card is never folded away — it is waiting on an answer", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e);
-  svAppend(e, node("sv-q"));
-  assert.deepEqual(kinds(e), ["sv-work", "sv-q"]);
-});
-
-test("a published artifact stays on the surface", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e);
-  svAppend(e, node("sv-art"));
-  assert.deepEqual(kinds(e), ["sv-work", "sv-art"]);
-});
-
-test("a failure is counted on the closed summary, so it cannot hide in there", () => {
-  const e = seat();
-  toolCard(e);
-  failedCard(e);
-  failedCard(e);
-  prose(e);
-  assert.equal(grouped(e).querySelector(".wbad").textContent, "2 failed");
-  assert.ok(grouped(e).classList.contains("bad"));
-});
-
-test("a run with no timing shows no duration", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e);
-  prose(e);
-  assert.equal(grouped(e).querySelector(".wms").textContent, "");
-});
-
-test("the block builds while the run is still going, so what is on the surface is what is running", () => {
-  const e = seat();
-  toolCard(e, { ms: 120 });
-  toolCard(e, { running: true });
-  assert.deepEqual(kinds(e), ["sv-work", "sv-tool"]);
-  assert.equal(summary(grouped(e)), "used 1 tool");
-});
-
-test("the summary counts up as the calls drop into it", () => {
-  const e = seat();
-  toolCard(e, { ms: 100 });
-  toolCard(e, { ms: 200 });
-  assert.equal(summary(grouped(e)), "used 1 tool");
-  toolCard(e, { running: true });
-  assert.equal(summary(grouped(e)), "used 2 tools");
-  assert.equal(grouped(e).querySelector(".wms").textContent, "300ms");
-});
-
-test("a call that is still running keeps the ones behind it on the surface, so the order stays honest", () => {
-  const e = seat();
-  const slow = toolCard(e, { running: true });
-  toolCard(e);
-  toolCard(e, { running: true });
-  assert.deepEqual(kinds(e), ["sv-tool", "sv-tool", "sv-tool"]);
-  landed(e, slow);
-  toolCard(e, { running: true });
-  assert.deepEqual(kinds(e), ["sv-work", "sv-tool", "sv-tool"]);
-  assert.equal(summary(grouped(e)), "used 2 tools");
-});
-
-test("a card that came back with a picture stays on the surface and cuts the run in two", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e);
-  toolCard(e, { shot: true });
-  toolCard(e);
-  toolCard(e);
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-work", "sv-tool", "sv-work", "sv-msg"]);
-  assert.deepEqual(blocks(e).map(summary), ["used 2 tools", "used 2 tools"]);
-});
-
-test("a picture is never folded away, even when it is the last thing the run did", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e);
-  toolCard(e, { shot: true });
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-work", "sv-tool", "sv-msg"]);
-});
-
-test("a lone call before a picture is left as itself, not put in a drawer of one", () => {
-  const e = seat();
-  toolCard(e);
-  toolCard(e, { shot: true });
-  toolCard(e);
-  toolCard(e);
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-tool", "sv-tool", "sv-work", "sv-msg"]);
-});
-
-test("two pictures in a row both stay out", () => {
-  const e = seat();
-  toolCard(e, { shot: true });
-  toolCard(e, { shot: true });
-  prose(e);
-  assert.deepEqual(kinds(e), ["sv-tool", "sv-tool", "sv-msg"]);
-});
-
-test("a tool result that carries a picture marks its card to stay on the surface", () => {
-  assert.match(slice(model, "function svConvShots(e, card, paths)", "function svConvRunOff(", "conversation-model.js"), /card\.keep = true;/);
-  assert.match(view, /"sv-keep": !!props\.block\.keep/);
+test("while the turn works, the calls that finished stay in order and the running one is the live line", () => {
+  const out = rows.deriveTimelineRows([ask("arruma"), run(), run(), said("metade", 4000), read(), tool("run", "Bash", "npm run lint", { running: true, stat: "" })], { say, busy: true, since: 1000 });
+  assert.deepEqual(kinds(out), ["bubble", "working", "work-toggle", "said", "work-live"]);
+  assert.match(out.at(-1).label, /npm run lint|Running/);
 });
 
 test("the summary says what the run did, not how many times it did something", () => {
-  const e = seat();
-  toolCard(e, { kind: "read" });
-  toolCard(e, { kind: "read" });
-  toolCard(e, { kind: "run" });
-  prose(e);
-  assert.equal(summary(grouped(e)), "read 2 files and ran 1 command");
+  assert.equal(rows.summarizeWork([read(), read("b.js"), run()], say), "Read 2 files and ran 1 command");
 });
 
-test("editing one file four times is one file changed, not four", () => {
-  const e = seat();
-  for (let i = 0; i < 4; i++) toolCard(e, { kind: "write", targ: "app/app.html" });
-  toolCard(e, { kind: "write", targ: "app/assets/i18n.mjs" });
-  prose(e);
-  assert.equal(summary(grouped(e)), "changed 2 files");
+test("editing one file four times is one file changed, and a write with no name still counts", () => {
+  assert.equal(rows.summarizeWork([edit("app/app.html"), edit("app/app.html"), edit("app/app.html"), edit("app/app.html"), edit("app/assets/i18n.mjs")], say), "Changed 2 files");
+  assert.equal(rows.summarizeWork([edit(""), edit("app/app.html")], say), "Changed 2 files");
 });
 
-test("a write nobody could name a target for still counts as one", () => {
-  const e = seat();
-  toolCard(e, { kind: "write" });
-  toolCard(e, { kind: "write", targ: "app/app.html" });
-  prose(e);
-  assert.equal(summary(grouped(e)), "changed 2 files");
+test("past two kinds, the rest are other actions, and a kind with no verb still counts", () => {
+  assert.equal(rows.summarizeWork([tool("agent", "Task", "x"), run(), read()], say), "Ran 1 agent, ran 1 command, and performed 1 other action");
+  assert.equal(rows.summarizeWork([tool("", "mcp__db__query", "q"), read()], say), "Used 1 tool and read 1 file");
 });
 
-test("three kinds are joined as a sentence, in a fixed order", () => {
-  const e = seat();
-  toolCard(e, { kind: "agent" });
-  toolCard(e, { kind: "run" });
-  toolCard(e, { kind: "read" });
-  prose(e);
-  assert.equal(summary(grouped(e)), "read 1 file, ran 1 command and ran 1 agent");
-});
-
-test("a species the summary has no verb for falls back instead of disappearing", () => {
-  const e = seat();
-  toolCard(e, { kind: "mcp" });
-  toolCard(e, { kind: "read" });
-  prose(e);
-  assert.equal(summary(grouped(e)), "read 1 file and used 1 tool");
+test("a tool result that carries a picture marks its card to stay on the surface", () => {
+  const shots = model.slice(model.indexOf("function svConvShots(e, card, paths)"), model.indexOf("function svConvRunOff("));
+  assert.match(shots, /card\.keep = true;/);
+  assert.match(view, /"sv-keep": !!props\.block\.keep/);
 });

@@ -1,6 +1,6 @@
 import { $, esc, every, phrase, raycastOn, st } from "./core.js";
 import { closeMore } from "./new-chat.js";
-import { agentsBehind, pullProviders, updateAgentNow } from "./providers.js";
+import { agentsBehind, openProviders, pullProviders, updateAgentNow } from "./providers.js";
 
 const LATER_KEY = "hive-agent-updates-later";
 const AGENT_CHECK_BEAT = 3600000;
@@ -31,7 +31,42 @@ function rowHtml(one) {
   return `<li><span><span class="ap-name">${esc(one.name)}</span><span class="ap-ver">${esc(one.version)} → ${esc(one.latest)}</span>${how}${said ? `<span class="ap-said">${esc(said)}</span>` : ""}</span>${act}</li>`;
 }
 
+function agentPillModel() {
+  const list = waiting();
+  if (!list.length) return null;
+  const first = list[0];
+  return {
+    id: first.id,
+    say: list.length === 1 ? phrase("{name} {version} available", { name: first.name, version: first.latest }) : phrase("{n} agent updates available", { n: list.length }),
+    dismissSay: phrase("Not now")
+  };
+}
+
+function agentPillHtml(model = agentPillModel(), cls = "agent-pill") {
+  if (!model) return "";
+  return `<div class="${cls}"><button type="button" class="ap-open" data-agent-pill="${esc(model.id)}">${esc(model.say)}</button><button type="button" class="ap-x" data-agent-pill-later aria-label="${esc(model.dismissSay)}" title="${esc(model.dismissSay)}">×</button></div>`;
+}
+
+function paintRailPill() {
+  const rail = $("rail");
+  if (!rail) return;
+  let host = document.getElementById("rail-agents");
+  const html = raycastOn() ? agentPillHtml() : "";
+  if (!html) return host?.remove();
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "rail-agents";
+    host.dataset.noT = "";
+    rail.append(host);
+  }
+  if (host.dataset.h !== html) {
+    host.dataset.h = html;
+    host.innerHTML = html;
+  }
+}
+
 function paintAgentUpdates() {
+  paintRailPill();
   const list = waiting();
   const button = $("btn-agents");
   button.hidden = !list.length;
@@ -88,8 +123,13 @@ $("ap-all").addEventListener("click", updateAll);
 
 $("ap-later").addEventListener("click", notNow);
 
-document.addEventListener("click", () => { if (!$("agentpop").hidden) closeAgentUpdates(); });
+document.addEventListener("click", (e) => {
+  const open = e.target.closest?.("[data-agent-pill]");
+  if (open) return void openProviders(open.dataset.agentPill);
+  if (e.target.closest?.("[data-agent-pill-later]")) return notNow();
+  if (!$("agentpop").hidden) closeAgentUpdates();
+});
 
 every("agent-updates", AGENT_CHECK_BEAT, () => pullProviders(), { background: true });
 
-export { closeAgentUpdates, openAgentUpdates, paintAgentUpdates };
+export { agentPillHtml, paintRailPill, closeAgentUpdates, openAgentUpdates, paintAgentUpdates };

@@ -14,8 +14,9 @@ import { toClipboard } from "./terminal-history.js";
 import { closePrs, exitReview, prsOnScreen } from "./thread.js";
 import { startTour } from "./tour.js";
 import { closeUsage, usageOnScreen } from "./usage.js";
-import { HEX, W_STEPS, brandKey, check, copyBox, facePicker, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, rollAvatar, wAct, wAllEssential, wAvatar, wDone, wFirstOpen, wGo, wLocked, wNext, wPrev, wPull, wSkipped, wb, welcomeOn } from "./welcome.js";
+import { HEX, W_ON_THE_PAGE, W_STEPS, brandKey, check, copyBox, facePicker, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, rollAvatar, wAct, wAllEssential, wAvatar, wDone, wFirstOpen, wGo, wLocked, wNext, wPrev, wPull, wSkipped, wb, welcomeOn } from "./welcome.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
+import { forgetWelcomePage, isPageAction, leaveWelcomePage, onePage, pageAct, paintWelcomePage, welcomePageKeys } from "./welcome-page.js";
 
 st.mugPlayer = null;
 
@@ -575,8 +576,13 @@ function wForget() { for (const k in wHtml) delete wHtml[k]; }
 
 function wPaint() {
   if (!welcomeOn()) return;
+  if (onePage()) return void paintWelcomePage();
+  if ($("welcome").classList.contains("one-page")) {
+    leaveWelcomePage();
+    wForget();
+  }
   const s = wb.s;
-  wSet("w-dots", W_STEPS.filter((own) => !wSkipped(own.id)).map((own, i) => {
+  wSet("w-dots", W_STEPS.filter((own) => !wSkipped(own.id) && !W_ON_THE_PAGE.includes(own.id)).map((own, i) => {
     const done = wDone(own.id);
     const locked = wLocked(own.id);
     return `<button data-id="${own.id}" data-done="${done}" data-locked="${locked}" title="${i + 1} · ${phrase(own.label)}" ${wb.step === own.id ? 'aria-current="step"' : ""} aria-label="${phrase(own.label)}"><i>${i + 1}</i><span>${esc(phrase(own.short))}</span></button>`;
@@ -591,7 +597,7 @@ function wPaint() {
   }
   const prev = wPrev();
   const i = W_STEPS.findIndex((x) => x.id === wb.step);
-  const shown = W_STEPS.filter((own) => !wSkipped(own.id));
+  const shown = W_STEPS.filter((own) => !wSkipped(own.id) && !W_ON_THE_PAGE.includes(own.id));
   const done = shown.filter((own) => wDone(own.id)).length;
   const at = shown.findIndex((own) => own.id === wb.step);
   wSet("w-bar-left", `${prev ? `<button class="btn" data-w="back">${phrase("Back")}</button>` : ""}<span class="says">${phrase("{i} of {total}", { i: Math.max(at, 0) + 1, total: shown.length })} · ${phrase(W_STEPS[i].label)} · <b>${phrase("{n} done", { n: done })}</b>${s?.server?.url ? ` · ${esc(new URL(s.server.url).host)}` : ""}</span>`);
@@ -656,6 +662,7 @@ function agentSignInLanded() {
 }
 
 async function wRun(action, el) {
+  if (isPageAction(action)) return pageAct(action, { saveFace: () => saveAvatar(), go: (id) => wGo(id), close: closeWelcome, finish: async (tour) => { await wAct("finish"); closeWelcome(); if (tour) startTour(); } });
   if (action === "next") return wGo(wNext());
   if (action === "back") { const p = wPrev(); return p ? wGo(p) : null; }
   if (action === "recheck") { wb.busy = "recheck"; wPaint(); await wPull(true); wb.busy = ""; return wPaint(); }
@@ -747,6 +754,7 @@ function openWelcome(step) {
   wb.step = step || "hello";
   wb.login = null;
   wForget();
+  forgetWelcomePage();
   wPaint();
   wPull(true);
   every("welcome", 4000, async () => { await wPull(!!wb.agentSignIn?.step); agentSignInLanded(); });
@@ -804,6 +812,7 @@ $("welcome").addEventListener("input", (e) => {
 $("w-skip").addEventListener("click", () => closeWelcome());
 
 function welcomeKeys(e) {
+  if (onePage() && welcomePageKeys(e, wRun)) return;
   if (e.key === "Escape") { e.preventDefault(); if (wb.login?.step === "code") return wRun("login-cancel"); return; }
   if (e.key === "Enter" && !(e.metaKey || e.ctrlKey || e.altKey)) {
     const tag = document.activeElement?.tagName;

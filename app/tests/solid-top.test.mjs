@@ -201,8 +201,8 @@ test("the bar meters the two windows that can stop you, and the popover blocks e
   assert.equal(foot.accounts[0].icon, "i-claude");
   assert.equal(foot.accounts[0].color, "#D97757");
   assert.deepEqual(foot.accounts[0].parts, [
-    { key: "session", k: "5h", heat: "", pct: "27%", width: "27%" },
-    { key: "weekly_all", k: "week", heat: "full", pct: "96%", width: "96%" }
+    { key: "session", k: "5h", heat: "", pct: "27%", width: "27%", tick: "" },
+    { key: "weekly_all", k: "week", heat: "full", pct: "96%", width: "96%", tick: "" }
   ]);
   assert.equal(pop.empty, "");
   assert.equal(pop.accounts[0].named, false);

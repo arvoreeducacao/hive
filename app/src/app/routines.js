@@ -6,6 +6,7 @@ import { closePrs, prsOnScreen } from "./thread.js";
 import { closeUsage, usageOnScreen } from "./usage.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
 import { providerName, readyAgents } from "./providers.js";
+import { clockOptions } from "./clock-format.js";
 
 const RT_BEAT = 30000;
 
@@ -52,7 +53,7 @@ function inSay(ms) {
 function lastRunModel(r) {
   const run = (r.runs || [])[0];
   if (!run) return null;
-  const clock = new Date(run.at).toLocaleString(undefined, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const clock = new Date(run.at).toLocaleString(undefined, clockOptions({ day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }));
   if (run.outcome === "ran") return { cls: "ran", seat: run.seat || "", say: phrase("{when} · opened", { when: clock }), hint: phrase("open that chat") };
   if (run.outcome === "skipped") return { cls: "skipped", seat: "", say: phrase("{when} · skipped — {why}", { when: clock, why: run.why || phrase("the check said no") }), hint: phrase("the precheck returned non-zero, so no chat was opened") };
   if (run.outcome === "missed") return { cls: "missed", seat: "", say: phrase("{when} · missed — the app was not up", { when: clock }), hint: phrase("a run more than 30 minutes late is not run at all") };

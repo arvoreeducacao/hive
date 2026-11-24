@@ -4,7 +4,9 @@ import { activeItems } from "./blocks.js";
 import { whichAction } from "./brand-face.js";
 import { NATIVE_COMMANDS, openSeatPicker, paintMentions, refreshCatalog, runNativeCommand, structuredCtrlC, svEvent, svShellBlock, svUserThumb, weaveHandles } from "./chat-and-panes.js";
 import { paintEditPencil } from "./edit-message.js";
-import { svConvCutKey, svConvDrain, svConvMount, svConvPrepend, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
+import { paintForkButton } from "./chat-fork.js";
+import { paintReplyButton, takesMessage } from "./chat-reply.js";
+import { FOLLOW_SLACK, svConvCutKey, svConvElements, svConvHasBar, svConvLetGo, svConvMount, svConvPrepend, svConvRestore, svConvScrolled, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvStick, svConvTimelineOn, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
 import { inkChips } from "./context-chips.js";
 import { openContextWindow } from "./context-window.js";
 import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, experienceNext, isImageName, isNativeCommand, phrase, raycastOn, st, withCommand, withoutCommand } from "./core.js";
@@ -245,6 +247,8 @@ function svReset(e) {
 
 const SV_TURNS = 5;
 
+const UP_KEYS = new Set(["PageUp", "Home", "ArrowUp"]);
+
 const SV_EARLIER_NEAR = 40;
 
 const SV_KEEP_TURNS = 8;
@@ -281,9 +285,7 @@ function svEarlierBar(e, ev) {
 }
 
 function svCutTop(e, key) {
-  svConvFlush(e);
-  const at = svConvShown(e.conv).findIndex((one) => one.key === key);
-  const el = at < 0 ? null : e.scroll.children?.[at];
+  const el = svConvElements(e).get(key);
   if (!el?.getBoundingClientRect) return null;
   return el.getBoundingClientRect().top - e.scroll.getBoundingClientRect().top;
 }
@@ -372,6 +374,52 @@ async function svLoadEarlier(e) {
   e.scroll.scrollTop = y + (e.scroll.scrollHeight - tall);
 }
 
+const SV_WHOLE_TURNS = 1000000;
+
+async function svLoadWhole(e) {
+  while (e.earlier?.loading) await new Promise((done) => setTimeout(done, 50));
+  const held = e.earlier;
+  if (!held?.more || !e.firstSeq) return true;
+  held.loading = true;
+  held.btn.disabled = true;
+  let got = null;
+  try {
+    got = await fetch(`/api/seat/earlier?name=${encodeURIComponent(e.name)}&where=${e.where}&before=${e.firstSeq}&turns=${SV_WHOLE_TURNS}`).then((r) => r.json());
+  } catch {}
+  held.loading = false;
+  held.btn.disabled = false;
+  if (!got || !Array.isArray(got.events)) return false;
+  const older = svEarlierBlocks(e, got.events, ++held.pages);
+  svConvFlush(e);
+  const first = svConvShown(e.conv)[svConvHasBar(e.conv.blocks) ? 1 : 0];
+  svSpliceEarlier(e.conv.blocks, older);
+  e.firstSeq = svEarlierSeq(got.events) || e.firstSeq;
+  held.more = false;
+  if (!e.conv.shownFrom && first) e.conv.shownFrom = first.key;
+  held.say.textContent = svEarlierSay(e);
+  svConvShow(e);
+  return true;
+}
+
+function svRevealBlock(e, key) {
+  const blocks = e.conv.blocks;
+  const at = blocks.findIndex((one) => one.key === key);
+  if (at < 0 || at >= svConvShownAt(e.conv)) return false;
+  const floor = svConvHasBar(blocks) ? 1 : 0;
+  const start = svConvTurnStarts(blocks).filter((one) => one <= at).at(-1) ?? floor;
+  svConvFlush(e);
+  e.atBottom = false;
+  e.conv.shownFrom = start > floor ? blocks[start].key : null;
+  if (!e.conv.shownFrom && e.earlier && !e.earlier.more) {
+    blocks.shift();
+    e.earlier = null;
+  } else if (e.earlier) {
+    e.earlier.say.textContent = svEarlierSay(e);
+  }
+  svConvShowNow(e);
+  return true;
+}
+
 function svEarlierBlocks(e, events, page) {
   const kept = { conv: e.conv, lastSeq: e.lastSeq, atBottom: e.atBottom, draft: e.draft, run: e.run, sent: e.sent, firstSeq: e.firstSeq, convView: e.convView };
   e.conv = svConvSeed();
@@ -387,7 +435,6 @@ function svEarlierBlocks(e, events, page) {
       let at = 0;
       try {
         for (const ev of events) { at++; svEvent(e, { ...ev, replayed: true }); }
-        svConvDrain(e, true);
       } catch (err) {
         console.warn(`an earlier page stopped at event ${at} of ${events.length} (${events[at - 1]?.type}/${events[at - 1]?.subtype || ""}): ${String(err?.stack || err).split("\n").slice(0, 5).join(" | ")}`);
       }
@@ -503,6 +550,7 @@ function getStructured(s) {
     const bottom = y + scroll.clientHeight >= scroll.scrollHeight - 48;
     const wasBottom = e.atBottom;
     if (e.settling) e.settling = false;
+    else if (svConvTimelineOn(e)) svConvScrolled(e);
     else if (y < (e.lastScrollY || 0)) e.atBottom = bottom;
     else if (bottom) e.atBottom = true;
     e.lastScrollY = y;
@@ -512,9 +560,22 @@ function getStructured(s) {
   });
   jump.addEventListener("click", () => {
     e.atBottom = true;
-    scroll.scrollTop = scroll.scrollHeight;
+    e.anchor = null;
+    svConvStick(e);
     paintJump();
     svTrimTurns(e);
+  });
+  scroll.addEventListener("wheel", (ev) => { if (ev.deltaY < 0 && !ev.ctrlKey) svConvLetGo(e); }, { passive: true });
+  scroll.addEventListener("touchmove", () => {
+    if (scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight > FOLLOW_SLACK) svConvLetGo(e);
+  }, { passive: true });
+  scroll.addEventListener("pointerdown", (ev) => {
+    if (ev.target !== scroll) return;
+    e.dragging = true;
+    window.addEventListener("pointerup", () => { e.dragging = false; }, { once: true });
+  });
+  scroll.addEventListener("keydown", (ev) => {
+    if (UP_KEYS.has(ev.key) && !ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey) svConvLetGo(e);
   });
   const subsHead = host.querySelector(".sv-subs .shead");
   subsHead.addEventListener("click", () => {
@@ -542,9 +603,7 @@ function getStructured(s) {
   host.querySelector(".sv-composer").addEventListener("transitionend", (ev) => {
     if (ev.target === ev.currentTarget) svReserve(e);
   });
-  new ResizeObserver(() => {
-    if (e.atBottom) scroll.scrollTop = scroll.scrollHeight;
-  }).observe(host);
+  new ResizeObserver(() => svConvStick(e)).observe(host);
   const textarea = host.querySelector("textarea");
   const ink = host.querySelector(".sv-ink");
   /* the box paints nothing itself: when a command is in the text, the textarea goes transparent and
@@ -648,6 +707,7 @@ function getStructured(s) {
         e.command.clear();
         paintComposerReady(e.host, false);
       }
+      if (fromDraft) e.atBottom = true;
       const shownText = typeof r.shown === "string" ? r.shown : text;
       const wentIn = svWasDequeuedEarly(e, r.cid);
       const waits = !wentIn && (r.queued ?? (e.turnOpen && !r.dismissed));
@@ -683,6 +743,7 @@ function getStructured(s) {
       } else {
         const bubble = svLine(e, "sv-user", shownText || "(image)");
         if (r.uuid) bubble.dataset.uuid = r.uuid;
+        if (r.cid) bubble.dataset.cid = r.cid;
         for (const path of sending) svUserThumb(e, bubble, path);
       }
       if (fromDraft) { textarea.value = ""; textarea.style.height = ""; paintInk(); keepDraftNow(e.name, ""); }
@@ -767,6 +828,8 @@ function getStructured(s) {
     if (!lit) return;
     paintStamp(lit);
     paintEditPencil(e, lit);
+    paintForkButton(e, lit);
+    paintReplyButton(e, lit);
     lit.classList.add("lit");
   };
   scroll.addEventListener("mouseover", (ev) => {
@@ -806,7 +869,7 @@ function getStructured(s) {
   };
   const offerQuote = () => {
     const found = readSelection();
-    if (!found) return dropQuotePop();
+    if (!found || !takesMessage(e)) return dropQuotePop();
     picked = found;
     quotePop.classList.add("on");
     const frame = host.getBoundingClientRect();
@@ -969,7 +1032,11 @@ function mountStructured(s, well) {
   dropTerminal(s.name);
   const e = getStructured(s);
   well.classList.add("structured");
-  if (e.host.parentElement !== well) { well.appendChild(e.host); svReserve(e); }
+  if (e.host.parentElement !== well) {
+    well.appendChild(e.host);
+    svReserve(e);
+    requestAnimationFrame(() => svConvRestore(e));
+  }
   if (!e.ws && Date.now() - (e.since || 0) >= RETRY_AFTER) connectStructured(e);
 }
 
@@ -1049,7 +1116,7 @@ function svReserve(e) {
   e.scroll.style.paddingBottom = `${room}px`;
   e.scroll.style.setProperty("--sv-fade", `${room}px`);
   e.scroll.style.setProperty("--sv-air", `${air}px`);
-  if (e.atBottom) e.scroll.scrollTop = e.scroll.scrollHeight;
+  svConvStick(e);
 }
 
 let healFrame = 0;
@@ -1163,4 +1230,4 @@ function offeredCommands(e) {
   return { list: [...list, "fresh"], info: { ...info, fresh: { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "" } } };
 }
 
-export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, seatReceiving, seatRefused, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadingChips, svNarrow, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };
+export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, runShellInChat, seatReceiving, seatRefused, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadWhole, svLoadingChips, svNarrow, svRevealBlock, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };

@@ -3,7 +3,7 @@ import { dirname, join } from "node:path";
 
 export const MARKS_KEPT = 1000;
 export const UNMARKED_KEPT_MS = 7 * 24 * 3600 * 1000;
-export const MARK_FIELDS = ["pinnedAt", "snoozeUntil", "wokeAt", "settledAt", "stayActive", "unread"];
+export const MARK_FIELDS = ["pinnedAt", "snoozeUntil", "snoozedAt", "wokeAt", "wokeEarly", "settledAt", "autoSettled", "stayActive", "neverSettles", "unread"];
 
 export const marksFile = (home) => join(home, "inbox-marks.json");
 
@@ -66,6 +66,7 @@ export function readMarks(home) {
 export function keepMarks(home, changes, { now = Date.now(), moving = false } = {}) {
   const kept = load(home);
   const taken = [];
+  const settled = [];
   for (const [key, raw] of Object.entries(changes && typeof changes === "object" ? changes : {})) {
     if (!key || key.length > KEY_CEILING) continue;
     const mark = cleanMark(raw);
@@ -77,11 +78,12 @@ export function keepMarks(home, changes, { now = Date.now(), moving = false } = 
       if (!mark.at) mark.at = now;
       if (kept[key] && mark.at < kept[key].at) continue;
     }
+    if (mark.settledAt && !kept[key]?.settledAt) settled.push(key);
     kept[key] = mark;
     taken.push(key);
   }
   if (taken.length) keep(home, kept, now);
-  return { taken, marks: readMarks(home) };
+  return { taken, settled, marks: readMarks(home) };
 }
 
 export function forgetMarksCache() {

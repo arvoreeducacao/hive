@@ -30,8 +30,31 @@ function runPreload({ withWebCrypto = true } = {}) {
 
 test("every bridge survives the sandbox the window preload runs in", () => {
   const { exposed } = runPreload();
-  assert.deepEqual([...exposed.keys()].sort(), ["hiveAway", "hiveGaze", "hiveLink", "hiveMicrophone", "hiveSeatWindow", "hiveSystemSound", "hiveWindow", "seatBrowser"]);
+  assert.deepEqual([...exposed.keys()].sort(), ["hiveAway", "hiveDock", "hiveFiles", "hiveGaze", "hiveLink", "hiveMenu", "hiveMicrophone", "hiveQuit", "hiveSeatWindow", "hiveSystemSound", "hiveWindow", "seatBrowser"]);
   assert.equal(typeof exposed.get("hiveLink").open, "function");
+});
+
+test("the dock bridge hands main a whole count and asks for the window back", () => {
+  const { exposed, sent } = runPreload();
+  const dock = exposed.get("hiveDock");
+  dock.badge(3.7);
+  dock.badge(-2);
+  dock.badge("x");
+  dock.reveal();
+  assert.deepEqual(sent, [["hive:badge", 3], ["hive:badge", 0], ["hive:badge", 0], ["hive:reveal"]]);
+});
+
+test("the file bridge asks main for a native drag with only a chat name and a path", async () => {
+  const invoked = [];
+  const exposed = new Map();
+  const electron = {
+    contextBridge: { exposeInMainWorld: (name, api) => exposed.set(name, api) },
+    ipcRenderer: { on() {}, send() {}, invoke: async (...args) => { invoked.push(args); return { ok: true }; } }
+  };
+  const context = vm.createContext({ require: () => electron, crypto: { randomUUID: () => "page" } });
+  vm.runInContext(readFileSync(PRELOAD, "utf8"), context, { filename: PRELOAD });
+  assert.deepEqual(await exposed.get("hiveFiles").drag({ name: "fix-login", path: "src/a.js", extra: "dropped" }), { ok: true });
+  assert.deepEqual(JSON.parse(JSON.stringify(invoked)), [["hive:file-drag", { name: "fix-login", path: "src/a.js" }]]);
 });
 
 test("the preload asks for nothing the sandbox withholds", () => {

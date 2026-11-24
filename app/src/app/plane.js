@@ -4,7 +4,7 @@ import { keyLabel } from "./brand-face.js";
 import { $, GLYPH, IS_MAC, LABEL, esc, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { goTo, pull } from "./focus-navigation.js";
 import { pool, tiles } from "./leader-key.js";
-import { openDraft } from "./draft-seat.js";
+import { askNewChat } from "./draft-seat.js";
 import { paintMenu, prIsGone, prsOfChat } from "./seat-menu.js";
 import { refit } from "./terminal-history.js";
 
@@ -1232,7 +1232,7 @@ function paintPlaneEmpty(empty) {
     + `<span>${phrase("Open a chat and it shows up here. Drag to arrange, or pull an area around several.")}</span>`
     + `<span class="pe-acts"><button type="button" class="pe-new">${phrase("New chat")}<span class="rc-key">${esc(keyLabel(st.keys.new))}</span></button>`
     + `<button type="button" class="pe-back">${phrase("Back to the wall")}<span class="rc-key">esc</span></button></span>`;
-  empty.querySelector(".pe-new").addEventListener("click", () => openDraft());
+  empty.querySelector(".pe-new").addEventListener("click", (ev) => askNewChat({ here: ev.shiftKey }));
   empty.querySelector(".pe-back").addEventListener("click", () => togglePlane());
 }
 

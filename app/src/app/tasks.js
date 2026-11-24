@@ -6,6 +6,7 @@ import { closeMore } from "./new-chat.js";
 import { capsOf, followRaycast, leavePanel, openActions, panelOf, registerPanel, runAction } from "./panel-window.js";
 import { personFace } from "./person-face.js";
 import { devFace, wearsBlob } from "./team.js";
+import { clockHM } from "./clock-format.js";
 
 const TASKS_POLL = 60000;
 const PR_IN_URL = /github\.com\/[\w.-]+\/([\w.-]+)\/pull\/(\d+)/;
@@ -31,7 +32,7 @@ function clock(at) {
   if (!at) return "";
   const when = new Date(at);
   const today = new Date();
-  const hm = `${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+  const hm = clockHM(when);
   if (when.toDateString() === today.toDateString()) return phrase("today {hm}", { hm });
   return `${String(when.getDate()).padStart(2, "0")}/${String(when.getMonth() + 1).padStart(2, "0")} ${hm}`;
 }

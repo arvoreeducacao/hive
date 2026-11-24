@@ -4,7 +4,9 @@ import { blockNumber, blocksOf, canGiveBack, forgetSeat, giveSeatBack, hideSeat,
 import { keyLabel } from "./brand-face.js";
 import { fitChipRow } from "./chip-row.js";
 import { artifactTabOf, canopy, drivingNow, markArtRows, openBrowser, openCockpit, openKeptPage, pagesOfChat, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintFrontsOfChat, paintWebChipOfChat, paintWebOfChat, showingArtifact, startDevice, wireLinks } from "./chat-and-panes.js";
-import { paintName, startRename } from "./chat-name.js";
+import { paintName, retitle, retitlingNow, startRename } from "./chat-name.js";
+import { branchPlaceOf } from "./draft-place.js";
+import { openDraftOnBranchOf } from "./draft-seat.js";
 import { mountStructured } from "./chat-stretches.js";
 import { $, GLYPH, LABEL, PILL_LABEL, esc, experienceNext, markFinishSeen, paintFold, phrase, previewOf, raycastOn, renderMarkdown, saveUnfolded, sideShut, solidMounts, st, statusFolded, svgIcon, unfolded } from "./core.js";
 import { behaviorOn } from "./experience.js";
@@ -16,6 +18,7 @@ import { ago, ask } from "./pod.js";
 import { paintDiffOfChat, paintInfoOfChat } from "./seat-changes.js";
 import { appendLeftovers, leftoversOf, worktreesThatStayed, worktreesToDrop } from "./seat-leftovers.js";
 import { WHERE_ICON, knock, shortBranch } from "./seat-layout.js";
+import { eraseRow, marksMenuRows } from "./seat-marks-menu.js";
 import { SHELF_TABS } from "./shelf.js";
 import { openPrInASeat } from "./page-in-a-seat.js";
 import { structureWorn } from "./structure.js";
@@ -47,11 +50,14 @@ function seatMenuRows(s) {
   rows.push({ label: phrase("type in this session"), note: keyHint("type"), go: () => takeKeyboard(s.name) });
   if (s.finish) rows.push({ label: phrase("what it left for you"), note: ago(s.finish.at), go: () => openFinishOf(s.name) });
   if (!s.anon) rows.push({ label: phrase("rename…"), go: () => startRename(s.name) });
+  if (!s.anon) rows.push({ ...retitleRow(s), note: keyHint("retitle") === "—" ? "" : keyHint("retitle") });
   rows.push(isOpen
     ? { label: sideShut(s.name) ? phrase("bring the cards back") : phrase("fold the cards away"), go: () => toggleFold(s.name) }
     : { label: statusFolded(s.name) ? "unfold the status" : "fold the status away", go: () => toggleFold(s.name) });
   if (threadsOfChat(s.name).length) rows.push({ label: phrase("its Slack thread"), note: keyHint("threads"), go: () => openThreadOf(s.name, st.openThread) });
   if (prOfChat(s.name)) rows.push({ label: phrase("review its PR"), note: keyHint("prs"), go: () => reviewInChat(s.name) });
+  const onBranch = branchPlaceOf(s);
+  if (onBranch) rows.push({ label: phrase("new chat on {branch}", { branch: onBranch.branch }), note: onBranch.repo, go: () => openDraftOnBranchOf(s) });
   rows.push({ label: phrase("open the browser here"), go: () => openBrowser(s.name) });
   rows.push({ label: phrase("open the phone here"), go: () => startDevice(s.name) });
   rows.push({ label: phrase("its browser cockpit"), note: canopy.up ? "canopy" : phrase("canopy is not running"), go: () => openCockpit(s.name) });
@@ -72,15 +78,28 @@ function seatMenuRows(s) {
   rows.push({ sep: true });
   rows.push({ label: phrase("reconnect"), note: keyHint("reconnect"), go: () => reconnect(s.name) });
   rows.push({ label: phrase("copy the seat name"), note: s.name, go: () => toClipboard(s.name) });
+  if (!s.anon) rows.push({ label: phrase("copy the chat link"), go: () => toClipboard(`hive://seat/${s.name}`) });
   if (s.parked) {
     rows.push({ label: phrase("wake it now"), note: phrase("parked till {when}", { when: parkWhen(s.parked.until) }), go: () => wakeParkedNow(s) });
     rows.push({ label: phrase("cancel parking"), go: () => cancelParking(s) });
   }
+  rows.push({ sep: true });
+  for (const row of marksMenuRows(s)) {
+    if (!row.sub) rows.push({ label: row.label, note: row.note, go: row.go });
+    else for (const one of row.sub) if (!one.sep) rows.push({ label: `${row.label} · ${one.label}`, note: one.note, go: one.go });
+  }
   rows.push({ label: phrase("hide until it finishes"), go: () => hideUntilItEnds(s) });
   rows.push({ label: phrase("hide until it works again"), go: () => hideUntilItWorks(s) });
   if (!s.anon) rows.push({ label: phrase("archive"), note: keyHint("archive") || phrase("no key"), go: () => archiveSeatNow(s) });
+  const erase = eraseRow(s);
+  if (erase) rows.push({ label: erase.label, danger: true, go: erase.go });
   rows.push({ label: phrase("close the seat"), danger: true, go: (at) => closeSeat(s, at) });
   return rows;
+}
+
+function retitleRow(s) {
+  const busy = retitlingNow(s);
+  return { label: busy ? phrase("regenerating…") : phrase("regenerate title"), off: busy, go: () => retitle(s) };
 }
 
 function seatMenuRowsRaycast(s) {
@@ -91,12 +110,15 @@ function seatMenuRowsRaycast(s) {
   rows.push({ icon: "i-term", label: phrase("type in this session"), keys: keyHint("type"), go: () => takeKeyboard(s.name) });
   if (s.finish) rows.push({ icon: "i-check", label: phrase("what it left for you"), note: ago(s.finish.at), go: () => openFinishOf(s.name) });
   if (!s.anon) rows.push({ icon: "i-pen", label: phrase("rename…"), go: () => startRename(s.name) });
+  if (!s.anon) rows.push({ icon: "i-reload", ...retitleRow(s), keys: keyHint("retitle") });
   rows.push(isOpen
     ? { icon: "i-minus", label: sideShut(s.name) ? phrase("bring the cards back") : phrase("fold the cards away"), go: () => toggleFold(s.name) }
     : { icon: "i-minus", label: statusFolded(s.name) ? "unfold the status" : "fold the status away", go: () => toggleFold(s.name) });
   rows.push({ sep: true });
   if (threadsOfChat(s.name).length) rows.push({ icon: "i-hash", label: phrase("its Slack thread"), keys: keyHint("threads"), go: () => openThreadOf(s.name, st.openThread) });
   if (prOfChat(s.name)) rows.push({ icon: "i-pr", label: phrase("review its PR"), keys: keyHint("prs"), go: () => reviewInChat(s.name) });
+  const onBranch = branchPlaceOf(s);
+  if (onBranch) rows.push({ icon: "i-fork", label: phrase("new chat on {branch}", { branch: onBranch.branch }), note: onBranch.repo, go: () => openDraftOnBranchOf(s) });
   rows.push({ icon: "i-browser", label: phrase("open the browser here"), go: () => openBrowser(s.name) });
   rows.push({ icon: "i-phone", label: phrase("open the phone here"), go: () => startDevice(s.name) });
   rows.push({ icon: "i-screen", label: phrase("its browser cockpit"), note: canopy.up ? "canopy" : phrase("canopy is not running"), go: () => openCockpit(s.name) });
@@ -125,10 +147,12 @@ function seatMenuRowsRaycast(s) {
   rows.push({ sep: true });
   rows.push({ icon: "i-reload", label: phrase("reconnect"), keys: keyHint("reconnect"), go: () => reconnect(s.name) });
   rows.push({ icon: "i-copy", label: phrase("copy the seat name"), note: s.name, go: () => toClipboard(s.name) });
+  if (!s.anon) rows.push({ icon: "i-copy", label: phrase("copy the chat link"), go: () => toClipboard(`hive://seat/${s.name}`) });
   if (s.parked) {
     rows.push({ icon: "i-play", label: phrase("wake it now"), note: phrase("parked till {when}", { when: parkWhen(s.parked.until) }), go: () => wakeParkedNow(s) });
     rows.push({ icon: "i-x", label: phrase("cancel parking"), go: () => cancelParking(s) });
   }
+  rows.push({ sep: true }, ...marksMenuRows(s));
   rows.push({
     icon: "i-minus",
     label: phrase("hide until…"),
@@ -139,6 +163,8 @@ function seatMenuRowsRaycast(s) {
     ]
   });
   if (!s.anon) rows.push({ icon: "i-clock", label: phrase("archive"), keys: keyHint("archive"), go: () => archiveSeatNow(s) });
+  const erase = eraseRow(s);
+  if (erase) rows.push(erase);
   rows.push({ icon: "i-x", label: phrase("close the seat…"), keys: keyHint("kill"), danger: true, go: (at) => closeSeat(s, at) });
   return rows;
 }
@@ -179,6 +205,11 @@ function paintMenu(cap, rows, x, y) {
   const box = el.getBoundingClientRect();
   el.style.left = `${Math.max(6, Math.min(x, innerWidth - box.width - 6))}px`;
   el.style.top = `${Math.max(6, Math.min(y, innerHeight - box.height - 6))}px`;
+}
+
+function openMenuRows(cap, rows, x, y) {
+  st.seatMenuFor = "";
+  paintMenu(cap, rows, x, y);
 }
 
 function paintMenuRaycast(cap, rows, x, y, at = "") {
@@ -1537,4 +1568,4 @@ function markThreadSeen(t) {
 
 const CHANNEL_GLYPH = (t) => `<svg aria-hidden="true"><use href="#${t.private ? "i-lock" : "i-hash"}"/></svg><span>${esc(String(t.channel || "slack").replace(/^#/, ""))}</span>`;
 
-export { forgetPalActs, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, seatSpot, branchTrouble, CHANNEL_GLYPH, CI_MARK, MERGE_ARMED, MERGE_ARMED_LONG, MERGE_BUSY, MERGE_LANDING_WAIT, PR_GONE, PR_LANDED, PR_SHELVES, PR_WAITS_ON_YOU, SPINNER, blockMenuRows, brokenCheck, chatOfPr, chatOfThread, closeBlock, closeFinish, closePrPop, closeSeatMenu, closeSpace, spaceCloseNote, createJobTile, createOpeningTile, createTile, updateOpening, finishMeta, finishOn, finishWarnings, freshOf, goToPr, helloTeam, jobSideOf, jobSides, jobViewModel, landedSeen, markLandedSeen, markSeatLandedSeen, markThreadSeen, menuSolid, menuViewModel, mergeTrouble, merging, nodeOf, openBlockMenu, openFinish, openFinishOf, openPrPop, openSeatMenu, openSpaceMenu, openTeamMenu, paintMenu, paintPrButton, paintPrOfChat, paintPrPop, placePrPop, pokeTeam, prActions, prButtonSolid, prButtonViewModel, prCardModel, prIsGone, prOfChat, prPopOpen, prPopRowModel, prPopSolid, prPopViewModel, prSays, prUrgency, prWindowOf, prsMemo, prsMemoOf, prsOfChat, prsOnCard, prsWorthShowing, readSeenThreads, renameSpace, saveLandedSeen, saveSeenThreads, seatMenuOn, seatMenuCommands, seatMenuRows, seenThreads, sinceStart, spaceMenuRows, teamMenuRows, threadCardModel, threadOfChat, threadsOfChat, tileActions, tileChipsModel, tileNodes, tilePagesModel, tilePrsModel, tileSideOf, tileSides, tileThreadsModel, tileViewModel, togglePrPop, update, updateJob };
+export { forgetPalActs, openMenuRows, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, seatSpot, branchTrouble, CHANNEL_GLYPH, CI_MARK, MERGE_ARMED, MERGE_ARMED_LONG, MERGE_BUSY, MERGE_LANDING_WAIT, PR_GONE, PR_LANDED, PR_SHELVES, PR_WAITS_ON_YOU, SPINNER, blockMenuRows, brokenCheck, chatOfPr, chatOfThread, closeBlock, closeFinish, closePrPop, closeSeatMenu, closeSpace, spaceCloseNote, createJobTile, createOpeningTile, createTile, updateOpening, finishMeta, finishOn, finishWarnings, freshOf, goToPr, helloTeam, jobSideOf, jobSides, jobViewModel, landedSeen, markLandedSeen, markSeatLandedSeen, markThreadSeen, menuSolid, menuViewModel, mergeTrouble, merging, nodeOf, openBlockMenu, openFinish, openFinishOf, openPrPop, openSeatMenu, openSpaceMenu, openTeamMenu, paintMenu, paintPrButton, paintPrOfChat, paintPrPop, placePrPop, pokeTeam, prActions, prButtonSolid, prButtonViewModel, prCardModel, prIsGone, prOfChat, prPopOpen, prPopRowModel, prPopSolid, prPopViewModel, prSays, prUrgency, prWindowOf, prsMemo, prsMemoOf, prsOfChat, prsOnCard, prsWorthShowing, readSeenThreads, renameSpace, saveLandedSeen, saveSeenThreads, seatMenuOn, seatMenuCommands, seatMenuRows, seenThreads, sinceStart, spaceMenuRows, teamMenuRows, threadCardModel, threadOfChat, threadsOfChat, tileActions, tileChipsModel, tileNodes, tilePagesModel, tilePrsModel, tileSideOf, tileSides, tileThreadsModel, tileViewModel, togglePrPop, update, updateJob };

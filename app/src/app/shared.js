@@ -212,7 +212,8 @@ function applyBindings(raw) {
     const label = formatKey(lead);
     for (const [action, chord, holder, prefix] of layerBad) bad.push(`${label} ${chord} on ${action}: ${holder} already has ${label} ${prefix}`);
     const owner = taken.get(label);
-    if (owner) bad.push(phrase("{label} on {owner}: the leader already has it", { label: label, owner: owner }));
+    if (owner && !explicit.has(owner) && label === formatKey(DEFAULT_LEADER)) next[owner] = null;
+    else if (owner) bad.push(phrase("{label} on {owner}: the leader already has it", { label: label, owner: owner }));
     const chordTaken = new Map();
     for (const [action, b] of Object.entries(nextChords)) {
       const chord = formatKey(b);

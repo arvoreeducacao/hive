@@ -100,8 +100,16 @@ In plan mode the chat writes a plan, and the plan becomes a card. The plan ends 
 - With no name, the Hive takes the first four words of the mission as the name. A small model then writes a title in the background. Until it lands, the tile says "naming this chat in the background — the first words hold the seat until the name lands".
 - If the model is unsure of the subject, the Hive asks once more after the first turn ends. It never writes over a name a person gave.
 - To rename, double-click the chat's name, or use "rename…" in the seat menu. Enter saves, Esc cancels. An empty name gives the seat name back. A title has at most 60 characters.
-- In the Inbox layout, "Regenerate title" asks the model again from the whole chat.
-- A chat renames itself with the `rename` tool, with an optional `now` line for what it does at the moment.
+- "regenerate title" in the seat menu asks the model again from the whole chat, in every layout. The Inbox row menu has it too, and the `retitle` shortcut does it for the focused chat (no key by default; bind one in Settings, "Keyboard"). While the model works, the chat's title glimmers, and a second ask is ignored. A new title replaces a name a person gave.
+- A chat renames itself with the `rename` tool, with an optional `now` line for what it does at the moment. Called without a title, `rename` asks the model again from the whole chat, as "Regenerate title" does, but it never replaces a name the person wrote by hand.
+- Settings › The conversation › Titles keeps your own instructions for titles, such as "start with the ticket": one for all projects and one per project. A project's own instructions take the place of the ones for all projects. They go into the request for new and regenerated titles. In the settings file they are `titleInstructions`, with `all` and `projects` (project folder → text, up to 2000 characters each).
+
+## Linking a pull request to a chat
+
+- The Hive finds a chat's pull request on its own, from the links in the chat and on its screen.
+- Right-click a pull request link in a chat and choose "Link to this chat" to make that pull request the chat's own. It takes the place of the ones the Hive found, and stays after the pull request merges.
+- "Unlink from this chat" on the same link gives the chat back the pull request the Hive finds on its own, if there is one.
+- A chat does the same with the `link_pr` and `unlink_pr` tools (operate). The choice lives in `<hub>/.hive/pr-links.json`, one pull request per chat.
 - Titles live in `<hub>/.hive/titles.json`. For a native chat the title is also in `~/.hive/sessions/<name>.json`.
 
 ## Closing a chat
@@ -160,7 +168,7 @@ It also gets the `hive` MCP server with the Hive's tools (peers, message, ask, p
 
 A message from another chat arrives as a turn that starts with `[hive] message from seat <name> (<side>). Answer it by name with the hive tools — or say nothing to it if it does not need an answer.` A TUI chat gets it typed into its terminal as `[hive] from <name>: <text>`.
 
-## Chats talking to each other: peers, message, ask, peek
+## Chats talking to each other: peers, message, ask, peek, read_chat
 
 These are tools of the `hive` MCP server. A seat is named whole or by an unambiguous prefix.
 
@@ -168,6 +176,7 @@ These are tools of the `hive` MCP server. A seat is named whole or by an unambig
 - **`message`** (`seat`, `text`): sends a message. It lands in that chat as a turn and the person sees it. If the target is busy, it waits in the queue. The reply arrives later as a message.
 - **`ask`** (`seat`, `question`, `timeout_seconds`): asks and waits for the answer. Default 180 seconds, 15 to 270. The answer comes back as the tool result and does not interrupt the conversation. With no answer in time, the tool returns. The answer arrives later as a normal message. A TUI chat cannot wait: its question goes as a message.
 - **`peek`** (`seat`, `lines`): reads the last lines of a chat without writing to it. Default 30, 5 to 200.
+- **`read_chat`** (`seat`, `after`): reads a chat's conversation from its first message, one page at a time: what the person wrote, what the chat answered and the tools it called. Each page ends with the `after` of the next one. Long tool results are cut. A TUI chat gives its screen and scrollback instead. It never writes to that chat.
 
 How the answer hold works: while an `ask` waits, the asking chat holds the target's next message. The tool collects it within 30 seconds. If nobody collects it, it goes into the chat as a normal message.
 
@@ -287,8 +296,9 @@ The spent list is `~/.hive/accounts/spent.json` for Claude and `~/.hive/provider
 | `<hub>/.hive/fleet.json` | the chats the Hive brings back after a restart |
 | `<hub>/.hive/archived-seats.json` | archived chats |
 | `<hub>/.hive/titles.json` | chat titles |
+| `<hub>/.hive/pr-links.json` | the pull request linked to each chat by hand |
 | `~/.claude/projects/<folder>/<session-id>.jsonl` | the Claude transcript |
-| `~/.hive/config.jsonc` | `autocompact`, `contextUsage`, `closeQuietAfterDays`, `pruneDiariesAfterDays` |
+| `~/.hive/config.jsonc` | `autocompact`, `contextUsage`, `closeQuietAfterDays`, `pruneDiariesAfterDays`, `titleInstructions` |
 
 To watch a chat's events live, run `tail -f ~/.hive/events/<name>.ndjson`.
 

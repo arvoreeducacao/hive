@@ -274,9 +274,18 @@ const MAC_KEYS = {
   palette: { meta: true, code: "KeyK" },
   openFile: { meta: true, code: "KeyP" },
   searchCode: { meta: true, shift: true, code: "KeyF" },
+  find: { meta: true, code: "KeyF" },
   talk: { meta: true, code: "KeyD" },
   dim: { alt: true, code: "KeyQ" },
-  plane: { alt: true, code: "KeyL" }
+  plane: { alt: true, code: "KeyL" },
+  newChat: { meta: true, shift: true, code: "KeyO" },
+  sidebar: { meta: true, code: "KeyB" },
+  prevChat: { meta: true, shift: true, code: "BracketLeft" },
+  nextChat: { meta: true, shift: true, code: "BracketRight" },
+  copyChat: { meta: true, shift: true, code: "KeyC" },
+  copyPr: { meta: true, shift: true, code: "KeyK" },
+  nextArea: { code: "F6" },
+  prevArea: { shift: true, code: "F6" }
 };
 
 const CTRL_KEYS = {
@@ -313,12 +322,21 @@ const CTRL_KEYS = {
   palette: { ctrl: true, shift: true, code: "KeyK" },
   openFile: { ctrl: true, shift: true, code: "KeyP" },
   searchCode: { ctrl: true, shift: true, code: "KeyF" },
+  find: { ctrl: true, code: "KeyF" },
   talk: { ctrl: true, shift: true, code: "Space" },
   dim: { ctrl: true, shift: true, code: "KeyD" },
-  plane: { ctrl: true, shift: true, code: "KeyL" }
+  plane: { ctrl: true, shift: true, code: "KeyL" },
+  newChat: { ctrl: true, shift: true, code: "KeyO" },
+  sidebar: { ctrl: true, code: "KeyB" },
+  prevChat: { ctrl: true, shift: true, code: "BracketLeft" },
+  nextChat: { ctrl: true, shift: true, code: "BracketRight" },
+  copyChat: { ctrl: true, alt: true, code: "KeyC" },
+  copyPr: { ctrl: true, alt: true, code: "KeyK" },
+  nextArea: { code: "F6" },
+  prevArea: { shift: true, code: "F6" }
 };
 
-const UNBOUND_KEYS = { archive: null, detach: null, rename: null, worktrees: null, themes: null, doctor: null, extensions: null, focusMode: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null, scrollUp: null, scrollDown: null };
+const UNBOUND_KEYS = { archive: null, detach: null, rename: null, retitle: null, worktrees: null, themes: null, doctor: null, extensions: null, focusMode: null, focusLeft: null, focusRight: null, focusUp: null, focusDown: null, moveLeft: null, moveRight: null, moveUp: null, moveDown: null, sendPrevBlock: null, sendNextBlock: null, sendBlock: null, scrollUp: null, scrollDown: null };
 
 const RETIRED_ACTIONS = ["pod", "asked", "compose", "bar"];
 
@@ -352,11 +370,11 @@ const CHAT_SCROLLS = { scrollUp: -1, scrollDown: 1 };
 const MOVE_MODES = ["navigate", "type"];
 
 const ACTION_GROUPS = [
-  ["chats", "chats and seats", ["new", "term", "calls", "fullscreen", "detach", "rename", "reconnect", "type", "release", "copy", "scrollUp", "scrollDown", "archive", "kill"]],
-  ["screens", "screens and panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "dim"]],
-  ["talking", "talking instead of typing", ["talk"]],
-  ["moving", "moving around", ["seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusMode", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
-  ["notices", "notices", ["sound", "answered"]]
+  ["chats", "Chats", ["new", "newChat", "term", "calls", "fullscreen", "detach", "rename", "retitle", "reconnect", "type", "release", "copy", "find", "scrollUp", "scrollDown", "copyChat", "copyPr", "archive", "kill"]],
+  ["screens", "Panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "dim"]],
+  ["talking", "Voice", ["talk"]],
+  ["moving", "Navigation", ["sidebar", "prevChat", "nextChat", "nextArea", "prevArea", "seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusMode", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
+  ["notices", "Notifications", ["sound", "answered"]]
 ];
 
 const ACTION_SAID = {
@@ -366,6 +384,7 @@ const ACTION_SAID = {
   fullscreen: "open fullscreen",
   detach: "open the focused chat in a window of its own",
   rename: "rename the focused chat — your name sticks, the AI stops renaming it",
+  retitle: "regenerate the title of the focused chat — the AI reads the conversation again and names it",
   reconnect: "reconnect the terminal",
   talk: "hold it and talk — let go and the words land in the composer. A quick tap leaves it listening until you tap again",
   type: "type in the focused session (hands over the keyboard)",
@@ -373,6 +392,7 @@ const ACTION_SAID = {
   copy: "copy the terminal selection",
   scrollUp: "scroll the focused chat up half a screen",
   scrollDown: "scroll the focused chat down half a screen",
+  find: "find in the focused chat — its whole history, not only what is on screen",
   archive: "archive the focused chat — it stops, and comes back the same",
   kill: "kill the focused chat — it stops for good and the seat is freed",
   palette: "search anything — sessions, blocks, commands",
@@ -416,7 +436,36 @@ const ACTION_SAID = {
   moveUp: "move the focused tile up",
   moveDown: "move the focused tile down",
   sound: "the chime when a seat needs you",
-  answered: "the notice when a seat answers"
+  answered: "the notice when a seat answers",
+  newChat: "a second shortcut for a new chat, the one other apps use",
+  sidebar: "hide or show the list of chats on the side",
+  prevChat: "open the chat above in the list",
+  nextChat: "open the chat below in the list",
+  copyChat: "copy the link of the PR you are reading, or a link to this chat that pastes as a chip",
+  copyPr: "copy the number of this chat's PR, with the #",
+  nextArea: "move the focus to the next area — the list, the conversation, the composer and the panels",
+  prevArea: "move the focus to the previous area"
+};
+
+const ACTION_NAMES = {
+  new: "New chat", newChat: "New chat · second shortcut", term: "New terminal", calls: "Next chat that needs you",
+  fullscreen: "Toggle fullscreen", detach: "Open in its own window", rename: "Rename chat", reconnect: "Reconnect the terminal",
+  type: "Type in the terminal", release: "Release the terminal", copy: "Copy the terminal selection", find: "Find in chat",
+  scrollUp: "Scroll chat up", scrollDown: "Scroll chat down", copyChat: "Copy PR link or chat", copyPr: "Copy PR number",
+  archive: "Archive chat", kill: "Close chat",
+  palette: "Command palette", openFile: "Go to file", searchCode: "Search project contents", prs: "Open pull requests",
+  threads: "Open the Slack thread", day: "Your day", tasks: "Your tasks", shelf: "The shelf", memories: "Memories",
+  history: "Reopen a past chat", accounts: "Providers and accounts", extensions: "Extensions", usage: "Open usage",
+  routines: "Routines", worktrees: "Machine worktrees", themes: "Choose a theme", help: "Open settings", doctor: "Run the doctor",
+  alerts: "Environment alerts", dim: "Dim the other seats",
+  talk: "Dictation",
+  sidebar: "Toggle sidebar", prevChat: "Previous chat", nextChat: "Next chat", nextArea: "Focus next area", prevArea: "Focus previous area",
+  seat: "Jump to a seat", block: "Jump to a block", space: "Jump to a workspace", prevBlock: "Previous block", nextBlock: "Next block",
+  sendPrevBlock: "Send chat to the previous block", sendNextBlock: "Send chat to the next block", sendBlock: "Send chat to a block",
+  arrange: "The floors", plane: "The plane", focusMode: "Focus mode",
+  focusLeft: "Focus left", focusRight: "Focus right", focusUp: "Focus up", focusDown: "Focus down",
+  moveLeft: "Move left", moveRight: "Move right", moveUp: "Move up", moveDown: "Move down",
+  sound: "Sound when a chat needs you", answered: "Notice when a chat answers"
 };
 
 const ACTIONS = ACTION_GROUPS.flatMap(([, , actions]) => actions.map((a) => [a, ACTION_SAID[a]]));
@@ -545,8 +594,12 @@ function overrides() {
   if (st.leader) out.leader = formatKey(st.leader) === formatKey(DEFAULT_LEADER) ? "on" : formatKey(st.leader);
   if (st.directMode !== "keep") out.direct = st.directMode;
   if (st.moveMode !== "navigate") out.move = st.moveMode;
+  const leaderHolds = st.leader ? formatKey(st.leader) : "";
   for (const [action, b] of Object.entries(st.keys)) {
-    if (formatKey(b) !== formatKey(DEFAULT_KEYS[action])) out[action] = formatKey(b) || "off";
+    const fallback = formatKey(DEFAULT_KEYS[action]);
+    if (formatKey(b) === fallback) continue;
+    if (!b && fallback && fallback === leaderHolds && leaderHolds === formatKey(DEFAULT_LEADER)) continue;
+    out[action] = formatKey(b) || "off";
   }
   for (const [action, b] of Object.entries(st.chords)) {
     if (formatKey(b) !== formatKey(defaultChord(action))) out[`leader.${action}`] = formatKey(b) || "off";
@@ -619,4 +672,4 @@ function fontFromPanel() {
   };
 }
 
-export { $, chordKeys, parseChord, ACTION_GROUPS, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };
+export { $, chordKeys, parseChord, ACTION_GROUPS, ACTION_NAMES, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };

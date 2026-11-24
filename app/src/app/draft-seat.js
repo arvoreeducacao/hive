@@ -1,9 +1,11 @@
 import { render } from "./arrange.js";
-import { activeItems, blockWithRoom, openBlock, saveBlocks } from "./blocks.js";
+import { activeItems, blockWithRoom, openBlock, saveBlocks, soloSeat } from "./blocks.js";
 import { AGENT_NAMES, artifactTabOf, draftCarriesEffort, openSeatPicker, paintPills, paintWebOfChat, refreshCatalog, seatAgent, shelfLinkOf, weaveHandles, webOfSeat } from "./chat-and-panes.js";
 import { SV_FLOOR, continueListOnShiftEnter, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
 import { COMPOSER_MIN, IS_MAC, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
-import { closeTile, focusSeat, pull, releaseKeyboard } from "./focus-navigation.js";
+import { BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, openPlaceMenu, paintPlace, placeMarkup, projectItems, projectNamed, projectOfRepo, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu } from "./draft-place.js";
+import { closeTile, focusSeat, goTo, pull, releaseKeyboard } from "./focus-navigation.js";
+import { hud } from "./hud.js";
 import { jobName, justCreated } from "./leader-key.js";
 import { providerReady, pullAccounts, readyAgents } from "./providers.js";
 import { imageTray, outboundImageMarks } from "./pinned-images.js";
@@ -33,9 +35,21 @@ function keptChoices() {
 
 function keepChoices(d) {
   try {
-    const where = draftIsAnonymous(d) ? keptChoices().where || "local" : d.where;
-    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ agent: d.e.agent, model: d.e.model, where, kind: d.kind }));
+    const kept = keptChoices();
+    const where = draftIsAnonymous(d) ? kept.where || "local" : d.where;
+    const project = draftIsAnonymous(d) || d.where === "cloud" ? kept.project || "" : d.project || "";
+    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ agent: d.e.agent, model: d.e.model, where, kind: d.kind, project }));
   } catch {}
+}
+
+const recentProject = () => (typeof keptChoices().project === "string" ? keptChoices().project : NO_PROJECT);
+
+const draftPlaced = (d) => !draftIsAnonymous(d) && d.where !== "cloud";
+
+function placeOfDraft(d) {
+  if (!draftPlaced(d) || !d.project) return {};
+  if (d.tree) return { project: d.project, tree: d.tree };
+  return { project: d.project, ...(d.base ? { base: d.base } : {}), ...(d.worktree ? { worktree: true } : {}) };
 }
 
 function draftChoices(kept) {
@@ -62,7 +76,8 @@ function spawnPayloadOf(d, prompt, images = []) {
     structured: anon || d.kind === "structured",
     account: cloud ? "" : (d.e.account || ""),
     repo: cloud ? String(d.repo || "").trim() : "",
-    branch: cloud ? String(d.branch || "").trim() : ""
+    branch: cloud ? String(d.branch || "").trim() : "",
+    ...placeOfDraft(d)
   };
 }
 
@@ -100,6 +115,7 @@ function draftHost(d) {
     <div class="sv-scroll">
       <div class="sv-empty">
         ${hiveMark()}
+        ${placeMarkup()}
         <b class="sv-draft-title" hidden>${phrase("New chat")}</b>
         <b>${phrase("a chat with nothing in it yet")}</b>
         <p>${phrase("where it runs and how it opens are here; the provider and the model are in the pills below. The seat opens on the first send.")}</p>
@@ -136,7 +152,7 @@ function draftHost(d) {
         </span>
         <span class="sv-btns">
           <button type="button" class="sv-talk" hidden aria-pressed="false" aria-label="${phrase("talk instead of typing")}"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#i-mic"/></svg></button>
-          <button type="submit" class="sv-send" title="${phrase("open the chat (enter)")}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12.6V3.8M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="submit" class="sv-send" title="${phrase("open the chat (enter) — {key} starts it in the background", { key: BEHIND_KEY })}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12.6V3.8M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </span>
       </div>
     </form>`;
@@ -197,6 +213,13 @@ function draftHost(d) {
   host.querySelector(".sv-repo").addEventListener("input", (ev) => { d.repo = ev.target.value; });
   host.querySelector(".sv-branch").addEventListener("input", (ev) => { d.branch = ev.target.value; });
   for (const input of host.querySelectorAll(".sv-cloud input")) input.addEventListener("keydown", (kev) => kev.stopPropagation());
+  for (const pick of host.querySelectorAll(".sv-place-pick")) {
+    pick.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      if (pick.classList.contains("open")) return closePlaceMenu({ refocus: true });
+      openPlaceMenuOf(d, pick.dataset.place);
+    });
+  }
   host.querySelector(".sv-pill-model").addEventListener("click", () => openSeatPicker(d.e, "model"));
   host.querySelector(".sv-pill-effort").addEventListener("click", () => openSeatPicker(d.e, "effort"));
   host.querySelector(".sv-pill-account").addEventListener("click", () => openSeatPicker(d.e, "account"));
@@ -222,12 +245,117 @@ async function hubFiles(where, q) {
   return { files: (r?.files || []).map((row) => `${row.repo}/${row.path}`), error: r?.error || "" };
 }
 
-let behindAllowed = false;
+const BEHIND_WORDS = 26;
 
-/* a structure that lists chats on the side lets mod+enter send the chat off on its own and hand
-   back a clean composer, the way T3 Code starts a thread in the background. plain enter opens it. */
-function allowSendingBehind(on) {
-  behindAllowed = !!on;
+let listScope = () => "";
+
+function scopeNewChatsBy(scope) {
+  listScope = typeof scope === "function" ? scope : () => "";
+}
+
+const focusedDraftOrSeatKey = () => st.open || activeItems()[st.focus]?.key || "";
+
+function projectInFocus() {
+  const key = focusedDraftOrSeatKey();
+  if (key.startsWith("draft:")) return drafts.get(key.slice(6))?.project || NO_PROJECT;
+  return projectOfSeat((st.data?.sessions || []).find((one) => one.name === key));
+}
+
+function placeDraft(d, { repo = NO_PROJECT, branch = "", tree = "", main = false, worktree = true } = {}) {
+  d.project = String(repo || "");
+  d.tree = d.project && tree ? String(tree) : "";
+  d.treeBranch = d.tree ? String(branch || "") : "";
+  d.treeMain = !!d.tree && !!main;
+  d.base = d.project && !d.tree ? String(branch || "") : "";
+  d.worktree = !!d.project && !d.tree && worktree !== false;
+  if (d.project && !d.tree) pullBranches(d.project).then(() => repaintDraft(d));
+  repaintDraft(d);
+}
+
+function repaintDraft(d) {
+  if (!drafts.has(d.id)) return;
+  const held = d.e.host.contains(document.activeElement) ? document.activeElement : null;
+  paintDraftHost(d);
+  render({ animate: false });
+  if (held?.isConnected && !held.disabled && document.activeElement !== held) held.focus({ preventScroll: true });
+}
+
+function focusDraftComposer(d) {
+  const textarea = d.e.host.querySelector("textarea");
+  if (!textarea || textarea.disabled) return;
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+function openPlaceMenuOf(d, kind) {
+  if (d.sending) return;
+  const anchor = d.e.host.querySelector(`.sv-place-pick[data-place="${kind}"]`);
+  if (!anchor || anchor.hidden || anchor.disabled) return;
+  const refocus = () => focusDraftComposer(d);
+  if (kind === "project") {
+    const recent = recentProject();
+    openPlaceMenu(anchor, {
+      kind,
+      items: () => projectItems(d, recent),
+      loading: !projectsKnown(),
+      refocus,
+      onPick: (project) => { placeDraft(d, { repo: project }); refocus(); }
+    });
+    if (!projectsKnown()) pullProjects().then(() => repaintPlaceMenu("project", { loading: false }));
+    return;
+  }
+  openPlaceMenu(anchor, {
+    kind,
+    items: () => baseItems(d),
+    loading: true,
+    refocus,
+    onPick: (base) => { d.base = base; repaintDraft(d); refocus(); }
+  });
+  pullBranches(d.project).then(() => repaintPlaceMenu("base", { loading: false }));
+}
+
+function openDraftIn({ repo = NO_PROJECT, branch = "", tree = "", main = false, worktree = true, seed = "" } = {}) {
+  const d = openDraft(seed);
+  placeDraft(d, { repo, branch, tree, main, worktree });
+  pullProjects().then(() => {
+    if (d.project && !d.tree && projectsKnown() && !projectNamed(d.project)) placeDraft(d, { repo: NO_PROJECT });
+    else repaintDraft(d);
+  });
+  return d;
+}
+
+function askNewChat({ here = false } = {}) {
+  if (here) return openDraftIn({ repo: projectInFocus() });
+  const scoped = projectOfRepo(listScope());
+  if (scoped) return openDraftIn({ repo: scoped });
+  return openDraftIn({ repo: recentProject() });
+}
+
+function openDraftOnBranchOf(seat) {
+  const place = branchPlaceOf(seat);
+  return place ? openDraftIn(place) : null;
+}
+
+let arrived = false;
+
+const ARRIVAL_TRIES = 20;
+
+const ARRIVAL_WAIT = 1500;
+
+function nothingInFocus() {
+  const welcome = document.getElementById("welcome");
+  return !soloSeat && !st.open && !st.mirrorDev && !activeItems().length && !(welcome && !welcome.hidden);
+}
+
+function arriveOnADraft(tries = 0) {
+  if (arrived) return;
+  if (!st.seatsKnown) {
+    if (tries < ARRIVAL_TRIES) setTimeout(() => arriveOnADraft(tries + 1), ARRIVAL_WAIT);
+    return;
+  }
+  arrived = true;
+  render({ animate: false });
+  if (nothingInFocus()) openDraftIn({ repo: recentProject() });
 }
 
 function newDraft() {
@@ -240,6 +368,12 @@ function newDraft() {
     where: chosen.where,
     repo: "",
     branch: "",
+    project: NO_PROJECT,
+    base: "",
+    worktree: false,
+    tree: "",
+    treeBranch: "",
+    treeMain: false,
     at: Date.now(),
     sending: false,
     error: "",
@@ -299,6 +433,7 @@ function openDraft(seed = "") {
 }
 
 function discardDraft(d) {
+  closePlaceMenu();
   const b = st.blocks.find((x) => x.keys.includes(d.key));
   if (b) b.keys.splice(b.keys.indexOf(d.key), 1);
   try { d.e.talkOff?.(); } catch {}
@@ -331,6 +466,7 @@ async function sendDraft(d, text, behind = false) {
   }
   const prompt = woven.text.trim();
   if ((!prompt && !marked.images.length) || d.sending) return;
+  closePlaceMenu();
   d.sending = true;
   d.error = "";
   d.said = marked.text.trim();
@@ -347,6 +483,7 @@ async function sendDraft(d, text, behind = false) {
     return;
   }
   keepChoices(d);
+  const place = { repo: d.project, branch: d.tree ? d.treeBranch : d.base, tree: d.tree, main: d.treeMain, worktree: d.worktree };
   const jobKey = `job:${r.id}`;
   if (r.name) jobName.set(r.id, r.name);
   const b = st.blocks.find((x) => x.keys.includes(d.key));
@@ -366,12 +503,26 @@ async function sendDraft(d, text, behind = false) {
     if (st.webChat === d.key) st.webChat = born;
     if (st.blocks.some((b) => b.keys.includes(born))) st.open = born;
   }
-  if (behind && behindAllowed) {
-    openDraft();
+  if (behind) {
+    if (draftPlaced(d)) openDraftIn(place);
+    else openDraft();
+    noteStartedBehind(born || r.name || "", place.repo, d.said);
     return;
   }
   focusSeat(jobKey);
   render();
+}
+
+function noteStartedBehind(name, project, said = "") {
+  const seat = (st.data?.sessions || []).find((one) => one.name === name);
+  const words = String(said || "").split("\n")[0].trim();
+  const title = seat?.title && seat.title !== name ? seat.title : words.length > BEHIND_WORDS ? `${words.slice(0, BEHIND_WORDS - 1)}…` : words;
+  hud({
+    icon: "i-check",
+    text: phrase("Started in the background"),
+    mono: [title, project].filter(Boolean).join(" · "),
+    act: name ? { label: phrase("Open"), run: () => goTo(name) } : null
+  });
 }
 
 const draftLoadingChips = (d, files) => loadingChips(d.e.host.querySelector(".sv-attach"), files);
@@ -420,6 +571,8 @@ function paintDraftHost(d) {
     }
   }
   host.querySelector(".sv-cloud").hidden = d.where !== "cloud";
+  host.querySelector(".sv-place").hidden = !draftPlaced(d);
+  paintPlace(host, d);
   host.querySelector(".sv-anon-said").hidden = !draftIsAnonymous(d);
   host.classList.toggle("anon", draftIsAnonymous(d));
   const tui = host.querySelector('.sv-seg[data-pick="kind"] button[data-v="terminal"]');
@@ -476,11 +629,17 @@ function updateDraft(el, it, pos) {
   paintDraftHost(d);
 }
 
+function plannedTrees(d) {
+  if (!draftPlaced(d) || !d.project) return [];
+  if (d.tree) return [{ repo: d.project, branch: d.treeBranch, path: d.tree, main: d.treeMain }];
+  return [{ repo: d.project, branch: d.base || baseOf(d.project), path: "", main: !d.worktree }];
+}
+
 function draftItem(key) {
   const d = drafts.get(key.slice(6));
   if (!d) return null;
   const anon = draftIsAnonymous(d);
-  return { id: d.id, key, kind: "draft", where: anon ? "local" : d.where, anon, sending: d.sending, state: "idle", name: key, title: anon ? phrase("new anonymous chat") : phrase("new chat") };
+  return { id: d.id, key, kind: "draft", where: anon ? "local" : d.where, anon, sending: d.sending, state: "idle", name: key, title: anon ? phrase("new anonymous chat") : phrase("new chat"), project: draftPlaced(d) ? d.project : NO_PROJECT, trees: plannedTrees(d) };
 }
 
 document.addEventListener("hive:experience", (event) => {
@@ -489,4 +648,4 @@ document.addEventListener("hive:experience", (event) => {
   for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, raycastOn());
 });
 
-export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, allowSendingBehind, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, draftRefused, drafts, hexPoints, hiveMark, newDraft, openDraft, paintDraftHost, sendDraft, spawnPayloadOf, updateDraft };
+export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, arriveOnADraft, askNewChat, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, draftRefused, drafts, hexPoints, hiveMark, newDraft, nothingInFocus, openDraft, openDraftIn, openDraftOnBranchOf, paintDraftHost, placeDraft, projectInFocus, scopeNewChatsBy, sendDraft, spawnPayloadOf, updateDraft };

@@ -152,7 +152,7 @@ test("the popover carries one block per login, each window with its meter and it
   assert.deepEqual(pop.accounts[0].limits.map((one) => one.label), ["current session", "current week · all models", "current week · Fable"]);
   assert.equal(pop.accounts[0].limits[0].pct, "27% used");
   assert.equal(pop.accounts[1].limits[0].pct, "100% used");
-  assert.match(pop.accounts[0].limits[0].resets, /^resets .+/);
+  assert.equal(pop.accounts[0].limits[0].resets, "", "a window whose reset already passed has no renewal left to announce");
   assert.equal(pop.accounts[0].limits[2].pct, "23% used", "the model-scoped week is a window of its own here");
   assert.deepEqual(pop.accounts[0].limits.map((one) => one.sub), [false, false, true], "only the model-scoped week hangs off the week above it");
 });

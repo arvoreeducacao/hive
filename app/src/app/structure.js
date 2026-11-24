@@ -8,6 +8,8 @@ import { hudUndo } from "./hud.js";
 import { keyHint, pool, tiles } from "./leader-key.js";
 import { planeShown } from "./plane.js";
 import { refit } from "./terminal-history.js";
+import { closeShelvesDock, paintShelvesDock, shelvedSeats, shelvesAct, shelvesHtml } from "./seat-shelves.js";
+import { paintNodes } from "/assets/i18n.mjs";
 
 const STRUCTURE_KEY = "hive.structure";
 
@@ -54,9 +56,10 @@ function mountStructureDom() {
     button.addEventListener("click", () => stepStructure(1));
     help.before(button);
   }
-  const look = $("f-look")?.closest("div");
+  const look = $("f-look")?.closest(".set-row");
   if (!$("structure-pick") && look) {
-    const pick = fromHtml(`<div id="structure-pick" data-no-t><label>${esc(phrase("structure"))}</label><p class="hint">${esc(phrase("The shape of the whole screen. The chats, the focus and what you were typing stay where they are when it changes."))}</p><div id="f-structure" class="sx-list" role="radiogroup" aria-label="${esc(phrase("structure"))}"></div></div>`);
+    const pick = fromHtml(`<div class="set-row wide" id="structure-pick" data-control="f-structure"><div class="set-text"><span class="set-title" id="structure-title">structure</span><p class="set-says">The shape of the whole screen. The chats, the focus and what you were typing stay where they are when it changes.</p></div><div class="set-ctl"><div id="f-structure" class="sx-list" role="radiogroup" aria-labelledby="structure-title" data-no-t></div></div></div>`);
+    paintNodes([pick]);
     pick.querySelector("#f-structure").addEventListener("click", (event) => {
       const choice = event.target.closest("[data-structure]");
       if (choice) setStructure(choice.dataset.structure);
@@ -88,6 +91,8 @@ function contextFor(def) {
     id: def.id,
     root: $("structure-root"),
     seats: structureSeats,
+    shelved: () => shelvedSeats().map((s) => ({ ...itemOf(s.name), key: s.name, block: -1, at: 0, space: st.space, here: false })),
+    shelvesHtml: () => shelvesHtml(),
     focused: focusedKey,
     focusSeat: (name) => goTo(name),
     openSeat: (name) => openTile(name),
@@ -179,6 +184,12 @@ function settleStructure() {
 }
 
 function paintStructure() {
+  const placed = paintWorn();
+  paintShelvesDock(!!worn && !worn.module?.ownsShelves && (!worn.module?.shelvesInline || !!$("structure-root")?.hidden));
+  return placed;
+}
+
+function paintWorn() {
   if (!worn && effective() === STRUCTURE_DEFAULT) return NO_CLAIMS;
   settleStructure();
   if (!worn) return NO_CLAIMS;
@@ -195,6 +206,27 @@ function paintStructure() {
   painting = null;
   return placed;
 }
+
+document.addEventListener("click", (event) => {
+  const hit = event.target.closest?.("#shelves-dock, .seat-shelves");
+  if (!hit) {
+    if (document.getElementById("shelves-dock")?.querySelector(".shv-pop")) closeShelvesDock();
+    return;
+  }
+  if (shelvesAct(event.target, (name) => goTo(name))) event.stopPropagation();
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && closeShelvesDock()) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
+  if ((event.key === "Enter" || event.key === " ") && event.target.closest?.("[data-shelves-open]") && !event.target.closest("button")) {
+    event.preventDefault();
+    shelvesAct(event.target, (name) => goTo(name));
+  }
+}, true);
 
 function setStructure(id, { quiet = false, said = true } = {}) {
   const was = st.structure;
@@ -271,7 +303,7 @@ function structurePaletteRows() {
 }
 
 window.addEventListener("keydown", (event) => {
-  if (!worn?.module.keydown) return;
+  if (!worn?.module.keydown || $("shot")?.classList.contains("on")) return;
   let took = false;
   try { took = worn.module.keydown(event, ctx) === true; }
   catch (err) { console.warn(`the ${worn.id} structure stumbled on a key`, err); }
@@ -304,4 +336,14 @@ mountStructureDom();
 
 const structureWorn = () => worn?.id || STRUCTURE_DEFAULT;
 
-export { NO_CLAIMS, STRUCTURE_KEY, adoptStructure, bootStructure, paintStructure, paintStructureChoices, setStructure, stepStructure, structurePaletteRows, structureSeats, structureWorn };
+function structureHook(name, ...args) {
+  const hook = worn?.module?.[name];
+  if (typeof hook !== "function" || !ctx) return undefined;
+  try { return hook(ctx, ...args); }
+  catch (err) {
+    console.warn(`the ${worn.id} structure stumbled on ${name}`, err);
+    return undefined;
+  }
+}
+
+export { NO_CLAIMS, STRUCTURE_KEY, adoptStructure, bootStructure, paintStructure, paintStructureChoices, setStructure, stepStructure, structureHook, structurePaletteRows, structureSeats, structureWorn };

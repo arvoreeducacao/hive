@@ -37,6 +37,43 @@ async function writePrNotes(all) {
   await writeFile(NOTES_FILE, JSON.stringify(all, null, 2));
 }
 
+const LINKS_FILE = join(HUB, ".hive/pr-links.json");
+
+let heldLinks = [];
+
+const isLink = (one) => !!one && typeof one.session === "string" && !!one.session && typeof one.key === "string" && !!prKey(one.key);
+
+async function readPrLinks() {
+  try {
+    const raw = JSON.parse(await readFile(LINKS_FILE, "utf8"));
+    heldLinks = Array.isArray(raw) ? raw.filter(isLink) : [];
+  } catch { heldLinks = []; }
+  return heldLinks.map((one) => ({ ...one }));
+}
+
+async function writePrLinks(list) {
+  await mkdir(join(HUB, ".hive"), { recursive: true });
+  await writeFile(LINKS_FILE, JSON.stringify(list, null, 2));
+  heldLinks = list.map((one) => ({ ...one }));
+}
+
+const prLinkOf = (session) => heldLinks.find((one) => one.session === session)?.key || "";
+
+function withLink(links, { session, where = "local", key, at = new Date().toISOString() }) {
+  return [...links.filter((one) => one.session !== session && one.key !== key), { session, where, key, at }];
+}
+
+const withoutLink = (links, session) => links.filter((one) => one.session !== session);
+
+function ownersWithLinks(owners, links) {
+  const linked = new Map(links.map((one) => [one.key, one.session]));
+  const held = new Set(linked.values());
+  const out = new Map();
+  for (const [key, session] of owners) out.set(key, held.has(session) && linked.get(key) !== session ? "" : session);
+  for (const [key, session] of linked) out.set(key, session);
+  return out;
+}
+
 let storing = false;
 
 async function storeSessionPrs(sessions) {
@@ -67,4 +104,4 @@ async function retirePrs(keys) {
   if (changed) await writePrRegistry(registry);
 }
 
-export { prKey, readPrRegistry, writePrRegistry, readPrNotes, writePrNotes, storeSessionPrs, retirePrs };
+export { prKey, readPrRegistry, writePrRegistry, readPrNotes, writePrNotes, storeSessionPrs, retirePrs, readPrLinks, writePrLinks, prLinkOf, withLink, withoutLink, ownersWithLinks };

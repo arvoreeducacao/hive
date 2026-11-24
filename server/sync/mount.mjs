@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { PAGE_HOST, PAGE_HOST_POLICY } from "../phone/pages.mjs";
 
 export const SYNC_PREFIX = "/sync";
 export const PHONE_PREFIX = "/phone";
@@ -31,6 +32,9 @@ const PHONE_FILES = {
   "/icon-512.png": join(phoneDir, "icon-512.png"),
   "/avatar.mjs": join(phoneDir, "avatar.mjs"),
   "/markdown.mjs": join(phoneDir, "markdown.mjs"),
+  "/pages.mjs": join(phoneDir, "pages.mjs"),
+  "/page-shield.mjs": join(phoneDir, "page-shield.mjs"),
+  [PAGE_HOST.slice(PHONE_PREFIX.length)]: join(phoneDir, "page-host.html"),
   "/device.mjs": join(here, "device.mjs"),
   "/crypto.mjs": join(here, "crypto.mjs")
 };
@@ -64,7 +68,8 @@ export async function serveSync(broker, request, response, url, { log = () => {}
     const found = phoneFile(url.pathname);
     if (!found) { response.writeHead(404, { "content-type": "application/json" }); response.end(JSON.stringify({ error: "no such route" })); return true; }
     const headers = { "content-type": found.type, "cache-control": "no-store", "x-content-type-options": "nosniff" };
-    if (found.type.startsWith("text/html")) headers["content-security-policy"] = "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; manifest-src 'self'; worker-src 'self'";
+    if (url.pathname === PAGE_HOST) Object.assign(headers, { "content-security-policy": PAGE_HOST_POLICY, "referrer-policy": "no-referrer" });
+    else if (found.type.startsWith("text/html")) headers["content-security-policy"] = "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; manifest-src 'self'; worker-src 'self'";
     response.writeHead(200, headers);
     response.end(request.method === "HEAD" ? undefined : readFileSync(found.file));
     return true;

@@ -141,7 +141,7 @@ test("the seat is named from the mission at once and the title comes later, off 
   assert.doesNotMatch(open, /"naming"/);
   const run = slice(server, "async function runJob(job, body) {", "\n}\n");
   assert.doesNotMatch(run, /await nameSession\(/);
-  assert.match(run, /titleInTheBackground\(job\.name, job\.where, prompt, body\.agent\)/);
+  assert.match(run, /titleInTheBackground\(job\.name, job\.where, prompt, body\.agent, /);
 });
 
 test("an image that does not reach the pod keeps its slot, so no mark points at the wrong picture", async () => {
@@ -184,16 +184,16 @@ test("the word a seat gave itself outranks the panel's guess, and a hand outrank
 test("while the background name is on its way the seat says so, and stops saying so once any title lands", () => {
   const seat = slice(server, "  return {\n    name,\n    title: label || name,", "    mine: !!mine,");
   assert.match(seat, /naming: !label && namingNow\.has\(seatKey\(where, name\)\)/);
-  const background = slice(server, "function titleInTheBackground(name, where, prompt, agent) {", "async function runJob");
+  const background = slice(server, 'function titleInTheBackground(name, where, prompt, agent, project = "") {', "async function runJob");
   assert.match(background, /\.finally\(\(\) => \{ namingNow\.delete\(seatKey\(where, name\)\)/);
   const paint = readFileSync(join(HERE, "src", "app", "chat-name.js"), "utf8");
   assert.match(paint, /const html = s\.naming \? "" : esc\(s\.title \|\| s\.name\)/);
   const run = slice(server, "async function runJob(job, body) {", "\n}\n");
-  assert.match(run, /namingNow\.add\(seatKey\(job\.where, job\.name\)\);\n\s+titleInTheBackground\(job\.name, job\.where, prompt, body\.agent\)/);
+  assert.match(run, /namingNow\.add\(seatKey\(job\.where, job\.name\)\);\n\s+titleInTheBackground\(job\.name, job\.where, prompt, body\.agent, /);
   assert.ok(run.indexOf("titleInTheBackground(") < run.indexOf("await newChat("), "the name is asked for before the window is even up");
-  const guess = slice(server, "async function guessedTitle(prompt, agent) {", "function titleInTheBackground");
+  const guess = slice(server, "async function guessedTitle(prompt, agent, project) {", "function titleInTheBackground");
   assert.match(guess, /tries < NAME_TRIES/);
-  const fallback = slice(server, "function titleInTheBackground(name, where, prompt, agent) {", "async function runJob");
+  const fallback = slice(server, 'function titleInTheBackground(name, where, prompt, agent, project = "") {', "async function runJob");
   assert.match(fallback, /guess \|\| cleanTitle\(titleFallback\(pastHandles\(prompt\)\)\)/);
 });
 

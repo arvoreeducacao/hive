@@ -1,4 +1,5 @@
 import { labelOf, ofBlock } from "../app/blocks.js";
+import { retitlingNamed, retitlingNow } from "../app/chat-name.js";
 import { keyLabel } from "../app/brand-face.js";
 import { IS_MAC, st } from "../app/core.js";
 import { sendToSeat } from "../app/seat-layout.js";
@@ -141,7 +142,7 @@ function cellHtml(cell, at, ctx) {
   const sub = cell.here ? phrase("{state} · you are here", { state: ctx.label(cell.state) }) : cell.near ? ctx.label(cell.state) : `${ctx.label(cell.state)} · ${phrase("block {n}", { n: cell.block + 1 })}`;
   const key = seatKey(cell);
   return `<button type="button" class="il-cell${cell.here ? " here" : ""}${at === pick ? " picked" : ""}" data-seat="${esc(cell.key)}" data-at="${at}">
-    <span class="h"><span class="rc-dot ${esc(cell.state)}"></span><span class="n">${esc(cell.name)}</span>${key ? `<span class="rc-key">${esc(key)}</span>` : ""}</span>
+    <span class="h"><span class="rc-dot ${esc(cell.state)}"></span><span class="n${retitlingNamed(cell.key) ? " title-regenerating" : ""}"${retitlingNamed(cell.key) ? ' aria-busy="true"' : ""}>${esc(cell.name)}</span>${key ? `<span class="rc-key">${esc(key)}</span>` : ""}</span>
     <span class="st">${esc(sub)}${cell.prs ? ` · ${esc(cell.prs === 1 ? phrase("1 PR") : phrase("{n} PRs", { n: cell.prs }))}` : ""}</span>
     <span class="ph">${esc(cell.line || "—")}</span>
   </button>`;
@@ -198,7 +199,7 @@ function headHtml(seat, ctx) {
   if ((seat.live || []).length) meta.push(`<span>${esc(phrase("{n} in the background", { n: seat.live.length }))}</span>`);
   const pip = '<span class="pipe"></span>';
   return `<span class="eyebrow">${esc(phrase("block {n} · seat {m} of {k}", { n: seat.block + 1, m: seat.at + 1, k: mates.length }))}${key ? `<span class="rc-key">${esc(key)}</span>` : ""}</span>
-    <div class="il-title">${esc(seatName(seat))}</div>
+    <div class="il-title${retitlingNow(seat) ? " title-regenerating" : ""}"${retitlingNow(seat) ? ' aria-busy="true"' : ""}>${esc(seatName(seat))}</div>
     <div class="il-meta">${meta.join(pip)}<span class="sp"></span><button type="button" class="il-tool" data-act="browser" title="${esc(`${phrase("browser")} · ${ctx.keyHint("browser")}`)}">${ctx.svgIcon("i-browser")}<span>${esc(phrase("browser"))}</span><span class="rc-key">${esc(ctx.keyHint("browser"))}</span></button></div>`;
 }
 

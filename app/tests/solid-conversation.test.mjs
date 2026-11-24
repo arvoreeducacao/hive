@@ -7,6 +7,7 @@ const { phrase, renderMarkdownBlocks } = await app("core");
 const { SUB_LOG_MAX } = await app("subagents-dock");
 const { workSummary } = await app("structured-seats");
 const hive = await app("conversation-model");
+const { legacyRows } = await app("timeline-rows");
 
 const seat = () => ({
   name: "rafa", tag: "t", where: "local", at: Date.now(), atBottom: false,
@@ -15,6 +16,8 @@ const seat = () => ({
 });
 
 const kinds = (e) => e.conv.blocks.map((one) => one.kind);
+const drawn = (e, busy) => legacyRows(e.conv.blocks, busy).map((one) => (one.kind === "block" ? one.block.kind : one.kind));
+const drawer = (e, busy) => legacyRows(e.conv.blocks, busy).find((one) => one.kind === "work");
 const tool = (e, name, arg, live = true) => hive.svConvTool(e, { id: `x${e.conv.seq}`, name, input: name === "Bash" ? { command: arg } : { file_path: arg } }, live);
 
 test("every block the chat holds is keyed apart, so the view can tell two of a kind from each other", () => {
@@ -45,8 +48,8 @@ test("the quotes the box pinned come back as their own cards, and the rest as th
   const e = seat();
   hive.svConvLine(e, "sv-user", "> citado\n\nresto");
   const body = e.conv.blocks[0].body;
-  assert.match(body, /<blockquote class="sv-said-quote">/);
-  assert.match(body, /<span class="qt">citado<\/span>/);
+  assert.match(body, /<div class="sv-said-quotes" data-md-copy="(?:>|&gt;) citado\n"><blockquote class="sv-said-quote" role="button" tabindex="0" title="Go to the original answer" aria-label="Go to the quoted response: citado">/);
+  assert.match(body, /<span class="qt" dir="auto">citado<\/span>/);
   assert.match(body, /<div class="sv-said-body">resto<\/div>/);
 });
 
@@ -131,20 +134,20 @@ test("something the person said starts a run of its own", () => {
   assert.notEqual(asked.said, said.at);
 });
 
-test("a card that landed drops into the drawer the moment there is a newer one to show", () => {
+test("the chat holds its calls flat, in the order they came: the drawers are drawn from them, never kept", () => {
   const e = seat();
-  const first = tool(e, "Read", "a.txt");
-  first.running = false;
+  tool(e, "Read", "a.txt").running = false;
   tool(e, "Read", "b.txt");
-  assert.deepEqual(kinds(e), ["work", "tool"]);
-  assert.deepEqual(e.conv.blocks[0].items.map((one) => one.arg), ["a.txt"]);
+  assert.deepEqual(kinds(e), ["tool", "tool"]);
+  assert.deepEqual(drawn(e, true), ["work", "tool"], "a card that landed drops into the drawer the moment there is a newer one to show");
+  assert.deepEqual(drawer(e, true).items.map((one) => one.arg), ["a.txt"]);
 });
 
 test("a call that is still running keeps the ones behind it out on the surface with it", () => {
   const e = seat();
   tool(e, "Read", "a.txt");
   tool(e, "Read", "b.txt");
-  assert.deepEqual(kinds(e), ["tool", "tool"]);
+  assert.deepEqual(drawn(e, true), ["tool", "tool"]);
 });
 
 test("a drawer that would hold a single card is undone, and the card goes back where it was", () => {
@@ -152,22 +155,23 @@ test("a drawer that would hold a single card is undone, and the card goes back w
   const one = tool(e, "Read", "a.txt");
   one.running = false;
   const kept = tool(e, "Read", "b.txt");
-  assert.deepEqual(kinds(e), ["work", "tool"]);
+  assert.deepEqual(drawn(e, true), ["work", "tool"]);
   kept.running = false;
   hive.svConvShots(e, kept, ["/tmp/shot.png"]);
   tool(e, "Read", "c.txt");
-  assert.deepEqual(kinds(e), ["tool", "tool", "tool"]);
+  assert.deepEqual(drawn(e, true), ["tool", "tool", "tool"]);
   assert.deepEqual(e.conv.blocks.map((b) => b.arg), ["a.txt", "b.txt", "c.txt"]);
 });
 
-test("two calls or more are worth a drawer, and it says what the run did", () => {
+test("two calls or more are worth a drawer once the turn is over, and it says what the run did", () => {
   const e = seat();
   for (const name of ["a.txt", "b.txt", "c.txt"]) tool(e, "Read", name).running = false;
-  hive.svConvFold(e);
-  assert.deepEqual(kinds(e), ["work"]);
-  assert.equal(e.conv.blocks[0].items.length, 3);
-  assert.equal(e.conv.blocks[0].name, workSummary(e.conv.blocks[0].items.map(hive.svConvAsCard)));
-  assert.match(e.conv.blocks[0].name, /3/, "o gaveteiro tem que dizer quantas chamadas guardou");
+  assert.deepEqual(drawn(e, false), ["work"]);
+  const held = drawer(e, false).items;
+  assert.equal(held.length, 3);
+  const said = hive.svConvTally(held);
+  assert.equal(said.name, workSummary(held.map(hive.svConvAsCard)));
+  assert.match(said.name, /3/, "o gaveteiro tem que dizer quantas chamadas guardou");
 });
 
 test("a failed call turns the drawer, and the drawer counts it", () => {
@@ -180,9 +184,10 @@ test("a failed call turns the drawer, and the drawer counts it", () => {
   two.running = false;
   two.ms = "60";
   tool(e, "Read", "c.txt");
-  assert.equal(e.conv.blocks[0].bad, true);
-  assert.equal(e.conv.blocks[0].badly, phrase("{n} failed", { n: 1 }));
-  assert.equal(e.conv.blocks[0].ms, "100ms");
+  const said = hive.svConvTally(drawer(e, true).items);
+  assert.equal(said.bad, true);
+  assert.equal(said.badly, phrase("{n} failed", { n: 1 }));
+  assert.equal(said.ms, "100ms");
 });
 
 test("a card that carries a picture stays on the surface and never enters the drawer", () => {
@@ -191,9 +196,20 @@ test("a card that carries a picture stays on the surface and never enters the dr
   one.running = false;
   hive.svConvShots(e, one, ["/tmp/shot.png"]);
   tool(e, "Read", "b.txt");
-  assert.deepEqual(kinds(e), ["tool", "tool"]);
+  assert.deepEqual(drawn(e, true), ["tool", "tool"]);
   assert.equal(one.keep, true);
   assert.equal(one.shots[0].alt, "shot.png");
+});
+
+test("a Bash call keeps its whole command and its whole output, apart from the exit code", () => {
+  const e = seat();
+  const card = hive.svConvTool(e, { id: "b1", name: "Bash", input: { command: "cd app && npm test" } }, true);
+  assert.equal(card.cmd, "cd app && npm test");
+  const long = `Exit code 2\n${"x".repeat(5000)}`;
+  hive.svConvToolLanded(e, { tool_use_id: "b1", is_error: true, content: long }, true);
+  assert.equal(card.exit, 2);
+  assert.equal(card.out.length, 5000, "the inspector gets what the summary cuts");
+  assert.ok(card.body.length < 4100);
 });
 
 test("a call that lands says how it went, how long it took and what it answered", () => {

@@ -1,0 +1,19 @@
+<!doctype html>
+<meta charset="utf-8">
+<script>
+(() => {
+  const up = parent;
+  if (up === window) return;
+  let taken = false;
+  const take = (event) => {
+    if (taken || event.source !== up || event.data?.type !== "hive-page-source" || typeof event.data.html !== "string") return;
+    taken = true;
+    removeEventListener("message", take);
+    document.open();
+    document.write(event.data.html);
+    document.close();
+  };
+  addEventListener("message", take);
+  up.postMessage({ type: "hive-page-ready" }, "*");
+})();
+</script>

@@ -2,14 +2,18 @@ import { arrangeOn, closeArrange, openArrange } from "./arrange.js";
 import { openWelcome } from "./avatars.js";
 import { activeItems, itemOf } from "./blocks.js";
 import { keyLabel, saveConfig } from "./brand-face.js";
-import { startRename } from "./chat-name.js";
+import { openChatFind } from "./chat-find.js";
+import { openContextMenu } from "./chat-context-menu.js";
+import { copyChatLink, copyPrNumber, stepChat, toggleSidebar } from "./chat-shortcuts.js";
+import { retitleChat, startRename } from "./chat-name.js";
 import { DEFAULT_SOUNDS, ensureAudio, openNewestSeatNotice, paintNotices, playSound, setAnswered, setSound, setVolume } from "./chimes-and-notices.js";
 import { $, BUILTIN_THEMES, CHAT_SCROLLS, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { closeTasks, openTasks, tasksOn } from "./tasks.js";
 import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, scrollFocusedChat, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
+import { stepArea } from "./focus-areas.js";
 import { closeHistory, openHistory } from "./history.js";
-import { commitKeys, disarmLeader, paintKeys } from "./leader-key.js";
+import { commitKeys, disarmLeader, keyMenuItems, paintKeys } from "./leader-key.js";
 import { closeLimPop, limPopOpen, placeLimPop, pullLimits, toggleLimPop } from "./limit-chip.js";
 import { archiveSeatNow, closeMirrorChat, focusedSeat, openMirrorChat } from "./mirror.js";
 import { closeProviders, openProviders, providersOnScreen } from "./providers.js";
@@ -19,8 +23,8 @@ import { capsOf, dressHost, followRaycast, footModel, keysHtml, leavePanel, open
 import { togglePlane } from "./plane.js";
 import { ask } from "./pod.js";
 import { setLanguage, setPet } from "./preferences.js";
-import { paintAutocompactReach, paintContextUsage, setAutoUpdateAgents, setAutocompact, setCalm, setContextUsage, setDiaryDays, setPref, setQuietDays } from "./pure-helpers.js";
-import { discardDraft, draftInFocus, openDraft } from "./draft-seat.js";
+import { paintAutocompactReach, paintContextUsage, setAutoUpdateAgents, setAutocompact, setCalm, setContextUsage, setDiaryDays, setKeepAwake, setPref, setQuietDays } from "./pure-helpers.js";
+import { askNewChat, discardDraft, draftInFocus } from "./draft-seat.js";
 import { setBlockSize, setFocusMode, setLayout } from "./seat-layout.js";
 import { closePrPop, placePrPop, prOfChat, prPopOpen, togglePrPop } from "./seat-menu.js";
 import { applyFonts, applyTheme } from "./shared.js";
@@ -35,6 +39,7 @@ import { closeUsage, openUsage, usageOnScreen } from "./usage.js";
 import { closeWorktrees, openWorktrees, worktreesOnScreen } from "./worktrees.js";
 import { closeRoutines, openRoutines, routinesOnScreen } from "./routines.js";
 import { closeMeetings, meetingsOnScreen, openMeetings } from "./meetings.js";
+import { paintSettingResets, searchSettings, searching, watchSettings } from "./settings-cards.js";
 import { paintSettingsFace } from "./welcome.js";
 
 st.themeEditing = null;
@@ -146,6 +151,16 @@ function themesWindowModel() {
     mine: Object.entries(st.customThemes).filter(([name]) => !builtinTheme(name)).map(([name, def]) => themeRowModel(name, def, true, worn)),
     mineSay: phrase("yours"), newSay: phrase("new theme from this one"), newKeys: capsOf(NEW_THEME_KEY)
   };
+}
+
+function themeChoices() {
+  const worn = wornThemeName();
+  const builtins = raycastOn() ? raycastBuiltins() : BUILTIN_THEMES;
+  const names = [...builtins.map((one) => one.name), ...Object.keys(st.customThemes).filter((name) => !builtinTheme(name))];
+  return names.map((name) => {
+    const full = fullThemeDef(wearsRaycast(name) ? RAYCAST_THEME.def : themeDef(name));
+    return { name, say: wearsRaycast(name) ? RAYCAST_THEME.name : name, worn: name === worn, custom: !builtinTheme(name), swatches: [full.ui.bg, full.ui.panel, full.ui.accent] };
+  });
 }
 
 const THEME_CHIPS = [["bg", "the wall"], ["panel", "cards"], ["panel2", "raised"], ["line3", "hairline"], ["txt2", "dim text"], ["accent", "accent colour"], ["signal", "signal colour"], ["accentBg", "accent wash"]];
@@ -379,9 +394,9 @@ let helpPane = "keyboard";
 
 let helpFootSolid = null;
 
-const PANE_TITLES = { keyboard: "Keyboard", look: "Appearance", performance: "Performance", experimental: "Experiments", dictation: "Dictation", meetings: "Meetings", character: "Your character", notices: "Notices", screen: "The screen", conversation: "The conversation", slack: "Slack" };
+const PANE_TITLES = { keyboard: "Keyboard", look: "Appearance", performance: "Performance", experimental: "Experiments", dictation: "Dictation", meetings: "Meetings", character: "Your character", notices: "Notices", screen: "The screen", conversation: "The conversation", threads: "Settle and snooze", slack: "Slack" };
 
-const PANE_ICONS = { keyboard: "i-keys", look: "i-image", performance: "i-bolt", experimental: "i-flow", dictation: "i-mic", meetings: "i-quote", character: "i-user", notices: "i-sound", screen: "i-grid", conversation: "i-quote", slack: "i-hash" };
+const PANE_ICONS = { keyboard: "i-keys", look: "i-image", performance: "i-bolt", experimental: "i-flow", dictation: "i-mic", meetings: "i-quote", character: "i-user", notices: "i-sound", screen: "i-grid", conversation: "i-quote", threads: "i-check", slack: "i-hash" };
 
 function helpActions() {
   if (helpPane !== "look") {
@@ -427,15 +442,7 @@ function paintHelpFoot() {
 }
 
 function findSetting(text) {
-  const q = text.trim().toLowerCase();
-  let first = "";
-  for (const tab of $("pref-nav").querySelectorAll("button[data-pane]")) {
-    const pane = $("pref-body").querySelector(`.pref-pane[data-pane="${tab.dataset.pane}"]`);
-    const hit = !q || `${tab.textContent} ${pane?.textContent || ""}`.toLowerCase().includes(q);
-    tab.classList.toggle("miss", !hit);
-    if (hit && !first) first = tab.dataset.pane;
-  }
-  if (q && first && $("pref-nav").querySelector(`button[data-pane="${helpPane}"]`)?.classList.contains("miss")) showPrefPane(first);
+  searchSettings(text);
 }
 
 let lookWas = null;
@@ -484,9 +491,12 @@ function dressHelp() {
       list.appendChild(grid);
       const side = document.createElement("div");
       side.className = "thm-side";
-      side.innerHTML = `<div class="pw-cap">${say("Preview")}</div><div id="thm-prev" data-no-t></div><p class="hint thm-where">${say("The choice lives in")} <span data-pw-cfg></span>${say(", next to your fonts and shortcuts.")}</p><div class="pw-hr"></div><div class="pw-cap">${say("Fonts and size")}</div>`;
+      side.innerHTML = `<div class="pw-cap">${say("Preview")}</div><div id="thm-prev" data-no-t></div><p class="hint thm-where">${say("The choice lives in")} <span data-pw-cfg></span>${say(", next to your fonts and shortcuts.")}</p><div class="pw-hr"></div>`;
       side.querySelector("[data-pw-cfg]").replaceWith(cfg);
-      side.append(...lookWas.children.filter((node) => !(node.nodeType === 1 && node.tagName === "H2")));
+      const moved = lookWas.children.filter((node) => !(node.nodeType === 1 && node.tagName === "H2"));
+      side.append(...moved);
+      lookWas.side = side;
+      lookWas.moved = new Set(moved);
       look.classList.add("pref-look");
       look.replaceChildren(list, side);
     },
@@ -494,7 +504,7 @@ function dressHelp() {
       const look = $("pref-body").querySelector('.pref-pane[data-pane="look"]');
       look.classList.remove("pref-look");
       for (const [node, parent, next] of [lookWas.grid, lookWas.cfg, lookWas.reset, lookWas.setup]) parent.insertBefore(node, next && next.parentNode === parent ? next : null);
-      look.replaceChildren(...lookWas.children);
+      look.replaceChildren(...lookWas.children.filter((node) => !lookWas.moved.has(node) || node.parentNode === lookWas.side));
       $("pref-body").querySelector("[data-pw-tour]")?.remove();
       lookWas = null;
     }
@@ -525,6 +535,7 @@ function undressHelp() {
 
 function openHelp(pane) {
   st.cfgFaceOpen = false;
+  watchSettings();
   paintSettingsFace();
   paintAutocompactReach();
   paintContextUsage();
@@ -535,10 +546,12 @@ function openHelp(pane) {
     $("help-key").innerHTML = keysHtml(st.keys.help);
     $("help").classList.add("on");
     paintThemes();
+    paintSettingResets();
     $("pref-find").focus();
     return;
   }
   $("help").classList.add("on");
+  paintSettingResets();
 }
 
 function closeHelp() {
@@ -546,8 +559,9 @@ function closeHelp() {
   if (raycastOn() && $("pref-find")) {
     leavePanel($("help"));
     $("pref-find").value = "";
-    findSetting("");
   }
+  if ($("pref-search")) $("pref-search").value = "";
+  findSetting("");
   $("help").classList.remove("on");
   st.capturing = null;
   st.keysOpen = false;
@@ -572,11 +586,17 @@ function showPrefPane(name) {
 $("pref-nav").addEventListener("click", (e) => {
   const tab = e.target.closest("button[data-pane]");
   if (!tab) return;
+  if (searching()) {
+    for (const id of ["pref-find", "pref-search"]) if ($(id)) $(id).value = "";
+    findSetting("");
+  }
   showPrefPane(tab.dataset.pane);
   tab.scrollIntoView({ block: "nearest", inline: "nearest" });
 });
 
 showPrefPane("keyboard");
+
+watchSettings();
 
 $("h-ok").addEventListener("click", closeHelp);
 
@@ -654,6 +674,8 @@ $("t-context-usage").addEventListener("click", () => setContextUsage(!st.context
 
 $("t-agent-updates").addEventListener("click", () => setAutoUpdateAgents(st.autoUpdateAgents === false));
 
+$("t-keep-awake").addEventListener("click", () => setKeepAwake(st.keepAwake === false));
+
 $("f-quiet-days").addEventListener("change", (e) => setQuietDays(e.target.value));
 
 $("f-diary-days").addEventListener("change", (e) => setDiaryDays(e.target.value));
@@ -668,7 +690,44 @@ for (const id of ["f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap"]) {
   });
 }
 
+function startCapture(action) {
+  st.capturing = action;
+  paintKeys();
+  requestAnimationFrame(() => $("help-keys").querySelector(`[data-slot="direct"][data-action="${CSS.escape(action)}"]`)?.focus({ preventScroll: true }));
+}
+
+function openKeyMenu(action, anchor, byKey) {
+  const box = anchor.getBoundingClientRect();
+  const owner = $("help-keys").querySelector(`[data-slot="direct"][data-action="${CSS.escape(action)}"]`) || anchor;
+  openContextMenu(keyMenuItems(action, { edit: startCapture }), { x: box.left, y: box.bottom + 2, owner, label: phrase("Shortcut actions"), byKey });
+}
+
+$("help-keys").addEventListener("contextmenu", (e) => {
+  const row = e.target.closest(".keys-row[data-action]");
+  if (!row) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openContextMenu(keyMenuItems(row.dataset.action, { edit: startCapture }), { x: e.clientX, y: e.clientY, owner: row.querySelector('[data-slot="direct"]'), label: phrase("Shortcut actions") });
+});
+
+$("help-keys").addEventListener("keydown", (e) => {
+  const cell = e.target.closest('[data-slot="direct"]');
+  if (!cell || st.capturing) return;
+  if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+    e.preventDefault();
+    e.stopPropagation();
+    return openKeyMenu(cell.dataset.action, cell, true);
+  }
+  if ((e.key === "Enter" || e.key === " ") && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    startCapture(cell.dataset.action);
+  }
+});
+
 $("help-keys").addEventListener("click", (e) => {
+  const more = e.target.closest('[data-w="key-menu"]');
+  if (more) return openKeyMenu(more.dataset.action, more, e.detail === 0);
   if (e.target.closest('[data-w="keys-toggle"]')) {
     st.keysOpen = !st.keysOpen;
     paintKeys();
@@ -714,7 +773,15 @@ $("btn-calls").addEventListener("click", () => {
 
 function run(action, digit) {
   switch (action) {
-    case "new": return openDraft();
+    case "new": return askNewChat();
+    case "newChat": return askNewChat();
+    case "sidebar": return toggleSidebar();
+    case "prevChat": return stepChat(-1);
+    case "nextChat": return stepChat(1);
+    case "copyChat": return copyChatLink();
+    case "copyPr": return copyPrNumber();
+    case "nextArea": return stepArea(1);
+    case "prevArea": return stepArea(-1);
     case "term": return openShell("local");
     case "dim": return setPref("dim", !st.dimOn);
     case "sound": return setSound(!st.sound);
@@ -766,6 +833,11 @@ function run(action, digit) {
       if (it?.kind !== "session") return;
       return startRename(it.name);
     }
+    case "retitle": {
+      const it = st.open ? { kind: "session", name: st.open } : activeItems()[st.focus];
+      if (it?.kind !== "session") return;
+      return void retitleChat(it.name);
+    }
     case "arrange": return arrangeOn() ? closeArrange() : openArrange();
     case "plane": return togglePlane();
     case "focusMode": return setFocusMode(!st.focusMode);
@@ -809,6 +881,7 @@ function run(action, digit) {
     }
     case "alerts": return window.hiveAlertsToggle?.();
     case "copy": return copySelection();
+    case "find": return void openChatFind(st.open || activeItems()[st.focus]?.name);
     case "type": {
       const it = st.open ? { kind: "session", name: st.open } : activeItems()[st.focus];
       if (it?.kind === "session") takeKeyboard(it.name);
@@ -832,4 +905,4 @@ function run(action, digit) {
   }
 }
 
-export { helpActions, pasteTheme, pickTheme, showPrefPane, stepTheme, themePreviewModel, themeRowModel, themesWindowModel, THEME_UI_LABELS, backToThemeBrowse, closeHelp, closeThemes, deleteTheme, keepPastedTheme, nextFreeThemeName, openHelp, openThemeEditor, openThemes, paintThemes, run, saveThemeFromEditor, saveThemesToConfig, setTheme, shareTheme, showThemeView, termColorLabel, themeCardModel, themeColorRow, themesOn, themesSolid, themesViewModel };
+export { helpActions, pasteTheme, pickTheme, themeChoices, showPrefPane, stepTheme, themePreviewModel, themeRowModel, themesWindowModel, THEME_UI_LABELS, backToThemeBrowse, closeHelp, closeThemes, deleteTheme, keepPastedTheme, nextFreeThemeName, openHelp, openThemeEditor, openThemes, paintThemes, run, saveThemeFromEditor, saveThemesToConfig, setTheme, shareTheme, showThemeView, termColorLabel, themeCardModel, themeColorRow, themesOn, themesSolid, themesViewModel };

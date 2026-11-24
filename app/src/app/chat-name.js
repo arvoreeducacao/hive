@@ -7,6 +7,12 @@ import { nodeOf } from "./seat-menu.js";
 
 st.renaming = "";
 
+st.retitlingAsked = new Set();
+
+const retitlingNow = (s) => !!s && (!!s.retitling || st.retitlingAsked.has(s.name));
+
+const retitlingNamed = (name) => retitlingNow((st.data?.sessions || []).find((x) => x.name === name));
+
 function nameHint(s) {
   if (behaviorOn("titleClick")) return phrase("click to rename this chat");
   if (s.mine) return phrase("the name you wrote — double-click to change it");
@@ -23,6 +29,10 @@ function paintName(el, s) {
     slot.dataset.h = html;
   }
   slot.classList.toggle("naming", !!s.naming);
+  const regenerating = !s.naming && retitlingNow(s);
+  slot.classList.toggle("title-regenerating", regenerating);
+  if (regenerating) slot.setAttribute("aria-busy", "true");
+  else slot.removeAttribute("aria-busy");
   slot.title = s.naming ? phrase("naming this chat in the background — the first words hold the seat until the name lands") : nameHint(s);
 }
 
@@ -40,6 +50,9 @@ async function rename(s, written) {
 }
 
 async function retitle(s) {
+  if (!s || s.anon || retitlingNow(s)) return false;
+  st.retitlingAsked.add(s.name);
+  render();
   try {
     const r = await fetch("/api/retitle", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -47,10 +60,16 @@ async function retitle(s) {
     });
     if (!r.ok) throw new Error("retitle");
   } catch {
-    return;
+    return false;
+  } finally {
+    st.retitlingAsked.delete(s.name);
+    render();
   }
   pull();
+  return true;
 }
+
+const retitleChat = (name) => retitle(st.data.sessions.find((x) => x.name === name));
 
 function startRename(name) {
   const el = tiles.get(name);
@@ -86,4 +105,4 @@ function startRename(name) {
   inp.select();
 }
 
-export { nameHint, paintName, rename, retitle, startRename };
+export { nameHint, paintName, rename, retitle, retitleChat, retitlingNamed, retitlingNow, startRename };

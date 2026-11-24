@@ -15,6 +15,14 @@ test("a plain chat carries the seat, the side and the state dir, and answers to 
   assert.doesNotMatch(seatCommand({ ...seat, remoteControl: false }), /--remote-control/);
 });
 
+test("a terminal chat in a project of the hub reads the hub's settings file and reaches the hub folder", () => {
+  const asked = { ...seat, hub: "/hub/.worktrees/api/conserta", settingsFile: "/home/.hive/hub-settings.json", addDir: "/hub" };
+  assert.match(seatCommand(asked), / claude --dangerously-skip-permissions --settings \/home\/\.hive\/hub-settings\.json --add-dir \/hub --remote-control orca$/);
+  const argv = seatArgv(asked).args;
+  assert.deepEqual(argv.slice(argv.indexOf("--settings"), argv.indexOf("--settings") + 4), ["--settings", "/home/.hive/hub-settings.json", "--add-dir", "/hub"]);
+  assert.doesNotMatch(seatCommand(seat), /--settings/);
+});
+
 test("a seat with no hub folder starts from home, never from wherever tmux happens to be", () => {
   assert.match(seatCommand({ ...seat, hub: "" }), /^cd "\$HOME" && HIVE_SEAT=orca /);
   assert.match(seatCommand({ ...seat, hub: "", kind: "shell" }), /^cd "\$HOME" && /);

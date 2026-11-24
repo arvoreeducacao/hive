@@ -1,0 +1,27 @@
+.seat-card { position: fixed; z-index: 2147483000; box-sizing: border-box; max-width: 320px; padding: 4px 8px; border: 1px solid var(--tx-border, var(--line-2)); border-radius: 6px; background: color-mix(in srgb, var(--tx-pop, var(--panel-3)) 94%, transparent); -webkit-backdrop-filter: blur(12px) saturate(1.14); backdrop-filter: blur(12px) saturate(1.14); box-shadow: 0 20px 25px -5px rgb(0 0 0 / .25), 0 8px 10px -6px rgb(0 0 0 / .25); font-family: var(--tx-font, var(--sans)); font-size: 12px; line-height: 16px; color: var(--tx-fg, var(--txt)); text-align: start; white-space: normal; pointer-events: none; animation: seat-card-in .1s ease-out; }
+@keyframes seat-card-in { from { opacity: 0; transform: scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .seat-card { animation: none; } }
+.seat-card .tx-tip-title { padding: 8px 4px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; line-height: 15px; }
+.seat-card .tx-tip-rows { display: grid; gap: 6px; padding: 8px 4px 8px 6px; color: var(--tx-muted-fg, var(--txt-3)); }
+.seat-card .tx-tip-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.seat-card .tx-i { width: 12px; height: 12px; flex: none; color: var(--tx-muted-fg, var(--txt-3)); }
+.seat-card .tx-tip-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: color-mix(in srgb, var(--tx-fg, var(--txt)) 75%, transparent); }
+.seat-card .tx-fav { display: inline-grid; place-items: center; width: 12px; height: 12px; flex: none; border-radius: 3px; }
+.seat-card .tx-mono { overflow: hidden; color: var(--mono, var(--txt-3)); background: color-mix(in srgb, currentColor 14%, transparent); font-family: var(--tx-mono, ui-monospace, "SF Mono", Menlo, monospace); }
+.seat-card .tx-mono svg { display: block; width: 100%; height: 100%; }
+.seat-card .tx-mid { display: inline-flex; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; }
+.seat-card .tx-mid-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.seat-card .tx-mid-head[data-over] { text-overflow: clip; }
+.seat-card .tx-mid-head[data-over] + .tx-mid-tail::before { content: "…"; }
+.seat-card .tx-mid-tail { flex: none; }
+.seat-card .tx-mid-whole { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.seat-card .tx-prov-i { position: relative; display: inline-flex; }
+.seat-card .tx-prov-i > svg { width: 12px; height: 12px; opacity: .6; filter: grayscale(1); }
+.seat-card .tx-acct { position: absolute; left: -1px; top: 6px; box-sizing: border-box; min-width: 19px; height: 12px; padding: 0 2px; border: 1px solid rgb(255 255 255 / .08); border-radius: 999px; background: oklch(0.5 0.24 var(--fav-h, 262)); color: #fff; font: 600 7px/10px var(--tx-font, var(--sans)); text-align: center; letter-spacing: 0; }
+.seat-card .tx-tip-foot { display: grid; gap: 6px; margin: 0 4px; padding: 8px 0 8px 2px; border-top: 1px solid var(--tx-border, var(--line)); color: var(--tx-muted-fg, var(--txt-3)); }
+.seat-card .tx-tip-pr { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.seat-card .tx-tip-num { flex: none; font-variant-numeric: tabular-nums; }
+.seat-card .tx-tip-pr.pr-open .tx-i { color: var(--tx-pr-open, var(--green)); }
+.seat-card .tx-tip-pr.pr-merged .tx-i { color: var(--tx-pr-merged, var(--violet)); }
+.seat-card .tx-tip-pr.pr-closed .tx-i { color: var(--tx-pr-closed, var(--red)); }
+.seat-card .tx-tip-pr.pr-draft .tx-i { color: var(--tx-pr-draft, var(--txt-3)); }

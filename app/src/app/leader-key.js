@@ -1,7 +1,10 @@
 import { render } from "./arrange.js";
 import { chordStep, codeOf, isLeader, keyLabel, saveBindings, silenced } from "./brand-face.js";
 import { paintNotices } from "./chimes-and-notices.js";
-import { $, chordKeys, ACTION_GROUPS, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { tellMenu } from "./app-menu.js";
+import { hud } from "./hud.js";
+import { paintQuitChoice } from "./quit-hint.js";
+import { $, chordKeys, ACTION_GROUPS, ACTION_NAMES, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_KEYS, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, formatKey, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { ago } from "./pod.js";
 import { run } from "./themes.js";
 
@@ -151,6 +154,8 @@ function paintKeys() {
   keysGridSolid.show(said.grid);
   document.querySelectorAll(".b-reconnect").forEach((b) => b.textContent = said.reconnect);
   document.querySelectorAll(".cover span").forEach((s) => s.textContent = said.cover);
+  paintQuitChoice();
+  tellMenu();
 }
 
 let keysGridSolid = null;
@@ -189,23 +194,33 @@ const FIXED_KEYS = () => [
   { key: "escape", combo: phrase("Esc"), desc: phrase("leaves fullscreen") }
 ];
 
-const SET_ONE = "no shortcut yet — click to set one";
+const SET_ONE = "Set a shortcut";
+
+const PRESSING = "Press shortcut";
+
+const UNSET = "Unassigned";
+
+const keyIsDefault = (a) => formatKey(st.keys[a]) === formatKey(DEFAULT_KEYS[a]);
 
 function keyRow(a) {
   const capturing = st.capturing === a ? "direct" : st.capturing === `chord:${a}` ? "chord" : "";
   const chord = st.chords[a];
+  const name = phrase(ACTION_NAMES[a] || a);
+  const label = capturing === "direct" ? phrase(PRESSING) : st.keys[a] ? keyLabel(st.keys[a], null, digitSpan(a)) : phrase(UNSET);
   return {
-    key: a, action: a, muted: silenced(a), unset: !st.keys[a], capturing,
-    title: silenced(a) ? phrase("off while the leader is on") : phrase(st.keys[a] ? "click to change" : SET_ONE),
-    label: capturing === "direct" ? "press…" : keyLabel(st.keys[a], null, digitSpan(a)),
+    key: a, action: a, muted: silenced(a), unset: !st.keys[a], capturing, name, label,
+    title: silenced(a) ? phrase("off while the leader is on") : phrase(st.keys[a] ? "Edit shortcut" : SET_ONE),
+    said: phrase("{name}, shortcut {key}", { name, key: label }),
+    custom: !keyIsDefault(a),
+    menuSay: phrase("Shortcut actions"),
     chord: st.leader
-      ? { unset: !chord, title: phrase(chord ? "click to change" : SET_ONE), label: capturing === "chord" ? "press…" : (chord ? keyLabel(chord) : "—") }
+      ? { unset: !chord, title: phrase(chord ? "Edit shortcut" : SET_ONE), label: capturing === "chord" ? phrase(PRESSING) : (chord ? keyLabel(chord) : phrase(UNSET)) }
       : null,
     desc: phrase(ACTION_SAID[a], { limit: st.LIMIT })
   };
 }
 
-const rowSays = (row) => `${row.desc} ${row.combo || row.label || ""} ${row.chord?.label || ""}`.toLowerCase();
+const rowSays = (row) => `${row.name || ""} ${row.desc} ${row.combo || row.label || ""} ${row.chord?.label || ""}`.toLowerCase();
 
 const keyWords = () => st.keysFilter.trim().toLowerCase().split(/\s+/).filter(Boolean);
 
@@ -233,7 +248,7 @@ function keysGridModel() {
       chord: st.leader ? phrase("after {n}", { n: keyLabel(st.leader) }) : null
     },
     groups,
-    empty: groups.length ? "" : phrase("nothing here answers to that")
+    empty: groups.length ? "" : phrase("No keybindings match your search.")
   };
 }
 
@@ -266,6 +281,42 @@ function commitKeys(said) {
   paintKeys();
   render();
   saveBindings().catch(() => {});
+}
+
+function removeKey(a) {
+  if (!(a in DEFAULT_KEYS)) return;
+  st.keys[a] = null;
+  st.explicitKeys.delete(a);
+  commitKeys();
+}
+
+function restoreKey(a) {
+  const fallback = DEFAULT_KEYS[a];
+  if (!(a in DEFAULT_KEYS)) return null;
+  st.explicitKeys.delete(a);
+  const owner = fallback ? Object.entries(st.keys).find(([other, b]) => other !== a && formatKey(b) === formatKey(fallback)) : null;
+  if (owner && st.explicitKeys.has(owner[0])) {
+    st.keys[a] = null;
+    commitKeys();
+    return owner[0];
+  }
+  if (owner) st.keys[owner[0]] = null;
+  st.keys[a] = fallback ? { ...fallback } : null;
+  commitKeys();
+  return null;
+}
+
+function sayTaken(owner, a) {
+  if (!owner) return;
+  hud({ icon: "i-warn", tone: "warn", text: phrase("{key} belongs to “{name}” — change that one first", { key: keyLabel(DEFAULT_KEYS[a]), name: phrase(ACTION_NAMES[owner] || owner) }) });
+}
+
+function keyMenuItems(a, { edit }) {
+  return [
+    { label: phrase("Edit shortcut"), run: () => edit(a) },
+    st.keys[a] ? { label: phrase("Remove shortcut"), run: () => removeKey(a) } : null,
+    keyIsDefault(a) ? null : { label: phrase("Restore default"), run: () => sayTaken(restoreKey(a), a) }
+  ].filter(Boolean);
 }
 
 function captureKey(e) {
@@ -377,4 +428,4 @@ const jobName = new Map();
 
 const justCreated = new Map();
 
-export { KEY_SLOTS, armLeader, captureKey, commitKeys, disarmLeader, jobName, justCreated, keyCaps, keyHint, keyParts, keysGridModel, keysGridSolid, keysLeaderModel, keysLeaderSolid, keysViewModel, lastLively, lastMark, literalOf, liveAge, liveBadge, liveOf, liveTitle, markSeatRead, paintKeys, pool, previousState, readMark, receiving, resolveLeader, sameBinding, sawWorking, seatMark, sendLiteral, showWhich, stateOf, tiles };
+export { KEY_SLOTS, armLeader, captureKey, commitKeys, disarmLeader, keyMenuItems, removeKey, restoreKey, jobName, justCreated, keyCaps, keyHint, keyParts, keysGridModel, keysGridSolid, keysLeaderModel, keysLeaderSolid, keysViewModel, lastLively, lastMark, literalOf, liveAge, liveBadge, liveOf, liveTitle, markSeatRead, paintKeys, pool, previousState, readMark, receiving, resolveLeader, sameBinding, sawWorking, seatMark, sendLiteral, showWhich, stateOf, tiles };

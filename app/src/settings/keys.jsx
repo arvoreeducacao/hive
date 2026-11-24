@@ -6,9 +6,26 @@ function KeyCell(props) {
     <b
       data-action={props.row.action}
       data-slot="direct"
+      role="button"
+      tabindex="0"
+      aria-label={props.row.said}
       classList={{ muted: props.row.muted, unset: props.row.unset, capturing: props.row.capturing === "direct" }}
       title={props.row.title}
     >{props.row.label}</b>
+  );
+}
+
+function KeyMenu(props) {
+  return (
+    <button
+      type="button"
+      class="keys-more"
+      data-w="key-menu"
+      data-action={props.row.action}
+      aria-haspopup="menu"
+      aria-label={props.row.menuSay}
+      title={props.row.menuSay}
+    >⋯</button>
   );
 }
 
@@ -43,10 +60,15 @@ function KeysGrid(props) {
             <div class="keys-group" classList={{ fixed: !!group.fixed }}>
               <h3>{group.title}</h3>
               <For each={group.rows}>{(row) => (
-                <div class="keys-row">
-                  <span class="desc">{row.desc}</span>
+                <div class="keys-row" classList={{ named: !!row.name }} data-action={row.fixed ? undefined : row.action}>
+                  <Show when={row.name} fallback={<span class="desc">{row.desc}</span>}>
+                    <span class="desc"><span class="keys-name">{row.name}</span><span class="keys-says">{row.desc}</span></span>
+                  </Show>
                   <Show when={!row.fixed} fallback={<b class="combo">{row.combo}</b>}>
-                    <KeyCell row={row} />
+                    <span class="keys-cell">
+                      <KeyCell row={row} />
+                      <KeyMenu row={row} />
+                    </span>
                     <Show when={row.chord}>{(chord) => <ChordCell row={row} chord={chord()} />}</Show>
                   </Show>
                 </div>

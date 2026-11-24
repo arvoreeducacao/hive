@@ -6,6 +6,7 @@ import { ago, ask, bytes } from "./pod.js";
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, exitReview, prsOnScreen } from "./thread.js";
 import { closeUsage, usageOnScreen } from "./usage.js";
+import { clockOptions } from "./clock-format.js";
 
 const WT_BEAT = 15000;
 
@@ -148,7 +149,7 @@ function worktreesViewModel() {
   const repos = new Set(rows.map((row) => row.repo));
   const top = {
     title, hub: st.wt.hub,
-    read: phrase("read at {clock}, again every {n}s", { clock: new Date(st.wt.at).toLocaleTimeString(), n: Math.round(WT_BEAT / 1000) }),
+    read: phrase("read at {clock}, again every {n}s", { clock: new Date(st.wt.at).toLocaleTimeString(undefined, clockOptions()), n: Math.round(WT_BEAT / 1000) }),
     idleAfter: phrase("idle after"),
     hours: [1, 3, 6, 24].map((n) => ({ key: n, value: String(n), on: n === st.wtHours, say: n === 1 ? phrase("1 hour") : phrase("{n} hours", { n }) })),
     refresh: st.wt.measuring ? phrase("measuring…") : phrase("refresh"),

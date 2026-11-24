@@ -43,6 +43,21 @@ export function saidPieces(text) {
   return pieces;
 }
 
+const MARKED = [
+  /(^|\n)[ \t]*(?:```|~~~)/,
+  /`[^`\n]+`/,
+  /\*\*[^*\n]+\*\*/,
+  /~~[^~\n]+~~/,
+  /(^|\n)[ \t]{0,3}#{1,6}[ \t]+\S/,
+  /(^|\n)[ \t]*\|.*\|[ \t]*\n[ \t]*\|?[ \t]*:?-{3,}/,
+  /\[[^\]\n]+\]\(https?:\/\/[^)\s]+\)/
+];
+
+export const markedSaid = (text) => {
+  const said = String(text ?? "");
+  return !/^\s*\//.test(said) && MARKED.some((one) => one.test(said));
+};
+
 const SAID_URL = /https?:\/\/[^\s<>"']+/g;
 const URL_TAIL = /[.,;:!?)\]…*~]+$/;
 

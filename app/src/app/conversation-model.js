@@ -1,24 +1,36 @@
 import { render } from "./arrange.js";
 import { paintMentions, wireLinks } from "./chat-and-panes.js";
 import { giveImageChipItsPicture, paintSaidChips, wireChips } from "./context-chips.js";
-import { liveStart, liveStep, phrase, raycastOn, renderMarkdownBlocks, solidMounts } from "./core.js";
-import { focusSeat } from "./focus-navigation.js";
-import { openShot, wireMdShots } from "./picture-preview.js";
+import { liveStart, liveStep, phrase, raycastOn, renderMarkdownBlocks, solidMounts, st } from "./core.js";
+import { enrichMarkdown } from "./markdown-rich.js";
+import { focusSeat, goTo } from "./focus-navigation.js";
+import { openShotFrom, wireMdShots } from "./picture-preview.js";
 import { keepPrintOnPage } from "./keep-print.js";
 import { openMemoryAt } from "./memories.js";
 import { memoryTurnDrop, memoryTurnScope, memoryTurnUndo } from "./memory-turn.js";
+import { editLanded, editOf } from "./edit-diff.js";
 import { saveEdit } from "./edit-message.js";
 import { resultText, shotOfInput, shotsOfSaid, shotsOfTool, withoutImageNotes } from "./session-images.js";
-import { fillSaid } from "/assets/said-lists.mjs";
-import { paintSaidCommand, splitLeadingQuotes, svQuoteCard, workSummary } from "./structured-seats.js";
+import { fillSaid, markedSaid } from "/assets/said-lists.mjs";
+import { renderMarkdown } from "/assets/markdown.mjs";
+import { paintSaidCommand, splitLeadingQuotes, structPool, svQuoteCard, workSummary } from "./structured-seats.js";
+import { marksStatusAct, marksStatusLines } from "./seat-marks.js";
 import { fillWithPastes, hasPasted } from "./pasted-text.js";
 import { AGENT_TOOL, ASYNC_LAUNCH, DIFF_HUNK, IMAGE_NOTE_ONLY, SUB_LOG_MAX, SUB_STALE, diffLines, openArtifact, paintSubs, svArtLanded, svSubAsync, svSubPin, svSubUnpin, tookLabel } from "./subagents-dock.js";
 import { SKILL_TOOL, artifactLink, oneLine, toolArg, toolFace, toolTitle, trimBody } from "./tool-face.js";
+import { commandResult, deriveTimelineRows, legacyRows, workedFor } from "./timeline-rows.js";
+import { jumpToQuote, needleOf, quotedBlock, quoteLines } from "./quote-jump.js";
+import { chatsOpenedIn, hiveCallOf } from "./orchestration-summary.js";
+import { faviconOf, isBrowserTool, pageOfInput, prettyJson, toolArgs, webResults } from "./tool-inspector.js";
+import { screenReaderHeard } from "./screen-reader.js";
+import { markFileDrags } from "./file-drag.js";
+import { prToolSummary } from "./pr-tool-summary.js";
 
 let convSolid = null;
+const TOOK_SHOWN_FROM_MS = 10;
 
 function svConvSeed() {
-  return { blocks: [], subs: [], seq: 0, run: null, shownFrom: null };
+  return { blocks: [], subs: [], seq: 0, shownFrom: null, thinking: null, retrying: null, steers: new Set() };
 }
 
 const svConvHasBar = (blocks) => blocks[0]?.kind === "node" && String(blocks[0].key).endsWith(":earlier");
@@ -69,6 +81,7 @@ function svConvSay(one) {
   if (one.thumbs) said.thumbs = one.thumbs.map((t) => ({ ...t }));
   if (one.shots) said.shots = one.shots.map((t) => ({ ...t }));
   if (one.diff) said.diff = one.diff.map((t) => ({ ...t }));
+  if (one.edit) said.edit = { file: one.edit.file, path: one.edit.path, added: one.edit.added, removed: one.edit.removed };
   if (one.items) said.items = one.items.map(svConvSay);
   return said;
 }
@@ -79,13 +92,209 @@ function svConvSaySub(one) {
 
 const svConvDue = new Set();
 
+const ANCHOR_OFFSET = 24;
+const ANCHOR_FRESH = 15000;
+const FOLLOW_SLACK = 40;
+const OUT_CAP = 200000;
+
+let timelineHook = null;
+
+function svConvTimeline(hook) {
+  timelineHook = hook || null;
+}
+
+const svConvTimelineOn = (e) => !!e?.convView;
+
+function svConvUi(e) {
+  return (e.tl ||= { unfolded: new Set(), expanded: new Set(), users: new Set() });
+}
+
+function svConvLook(e) {
+  if (!svConvTimelineOn(e)) return null;
+  const tl = svConvUi(e);
+  const extra = timelineHook?.look?.(e) || {};
+  return {
+    say: phrase, busy: !!e.turnOpen, waiting: (e.asked?.size || 0) > 0, since: extra.since || svConvTurnSince(e), thinking: e.conv.thinking?.text || "", tools: st.toolCalls || "all",
+    steers: e.conv.steers, unfolded: tl.unfolded, expanded: tl.expanded, users: tl.users,
+    turnFiles: extra.turnFiles || null, status: [...svConvBackground(e), ...(extra.status || marksStatusLines(e.name))]
+  };
+}
+
+function svConvTurnSince(e) {
+  const seat = (st.data?.sessions || []).find((one) => one.name === e.name && (!e.where || one.where === e.where));
+  return Date.parse(seat?.turnSince || "") || 0;
+}
+
+function svConvBackground(e) {
+  const running = e.subs?.size || 0;
+  if (!running || e.turnOpen) return [];
+  return [{ id: "bg", icon: "bot", label: running === 1 ? phrase("1 background agent running") : phrase("{n} background agents running", { n: running }) }];
+}
+
+function svConvLegacy(row) {
+  if (row.kind !== "work") return row;
+  return { ...row, ...svConvTally(row.items), items: row.items };
+}
+
 function svConvPaint(e) {
   e.convFrame = 0;
   svConvDue.delete(e);
   if (!e.convView) return;
-  e.convView.show({ key: e.name, blocks: svConvShown(e.conv).map(svConvSay) });
+  const look = svConvLook(e);
+  const blocks = svConvShown(e.conv).map(svConvSay);
+  const rows = look ? deriveTimelineRows(blocks, look) : legacyRows(blocks, true).map(svConvLegacy);
+  e.convRows = rows;
+  e.convView.show({ key: e.name, rows });
+  if (e.holdOnce) {
+    e.holdOnce = false;
+    const s = e.scroll;
+    if (s.scrollHeight - s.scrollTop - s.clientHeight > FOLLOW_SLACK) { e.atBottom = false; e.anchor = null; }
+  } else svConvStick(e);
+  svConvEndPill(e, look);
+  if (look) timelineHook?.painted?.(e);
+  screenReaderHeard(e);
+}
+
+function svConvRowEls(e) {
+  const els = new Map();
+  const kids = e.scroll?.children || [];
+  (e.convRows || []).forEach((row, at) => { if (kids[at]) els.set(row.key, kids[at]); });
+  return els;
+}
+
+function svConvElements(e) {
+  svConvFlush(e);
+  return svConvRowEls(e);
+}
+
+function svConvAnchor(e, block) {
+  if (!block || block.peer || !e.atBottom) return;
+  if (Date.now() - Number(block.at || 0) > ANCHOR_FRESH) return;
+  e.anchor = { key: block.key };
+}
+
+function svConvAnchorLetsGo(e) {
+  if (e.conv.thinking?.text) return true;
+  const at = e.conv.blocks.findIndex((one) => one.key === e.anchor.key);
+  if (at < 0) return true;
+  return e.conv.blocks.slice(at + 1).some((one) => one.kind === "tool" || one.kind === "think" || one.kind === "memsave");
+}
+
+function svConvSpace(e, px) {
+  if ((e.anchorSpace || 0) === px) return;
+  e.anchorSpace = px;
+  e.scroll.style.setProperty("--tl-anchor-space", `${px}px`);
+}
+
+function svConvHold(e) {
+  const el = svConvRowEls(e).get(e.anchor.key);
+  if (!el?.getBoundingClientRect) {
+    e.anchor = null;
+    return svConvStick(e);
+  }
+  const s = e.scroll;
+  const top = el.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop;
+  const want = Math.max(0, Math.round(top - ANCHOR_OFFSET));
+  const end = s.scrollHeight - (e.anchorSpace || 0);
+  svConvSpace(e, Math.max(0, Math.ceil(want + s.clientHeight - end)));
+  e.anchorTop = want;
+  if (e.anchor.placed && !e.anchorSpace) return;
+  e.anchor.placed = true;
+  s.scrollTop = want;
+}
+
+function svConvStick(e) {
+  if (!e.scroll) return;
+  if (e.anchor && !e.atBottom) e.anchor = null;
+  if (e.anchor && (!svConvTimelineOn(e) || svConvAnchorLetsGo(e))) {
+    e.anchor = null;
+    e.atBottom = true;
+  }
+  if (e.anchor) return svConvHold(e);
+  if (e.anchorSpace && (e.atBottom || !e.turnOpen)) svConvSpace(e, 0);
   if (e.atBottom) e.scroll.scrollTop = e.scroll.scrollHeight;
 }
+
+function svConvLetGo(e) {
+  if (!svConvTimelineOn(e) || !(e.scroll?.scrollTop > 0)) return;
+  e.anchor = null;
+  e.atBottom = false;
+}
+
+function svConvScrolled(e) {
+  const s = e.scroll;
+  const distance = s.scrollHeight - s.scrollTop - s.clientHeight;
+  if (e.dragging && s.scrollTop < (e.lastScrollY || 0) - 1) svConvLetGo(e);
+  if (e.anchor) {
+    if (!e.anchorSpace && distance <= FOLLOW_SLACK && s.scrollTop > (e.anchorTop ?? Infinity) + 1) {
+      e.anchor = null;
+      e.atBottom = true;
+    }
+  } else if (distance <= FOLLOW_SLACK) e.atBottom = true;
+  svConvRemember(e);
+}
+
+function svConvRemember(e) {
+  if (e.rememberFrame) return;
+  e.rememberFrame = requestAnimationFrame(() => {
+    e.rememberFrame = 0;
+    const view = e.scroll.getBoundingClientRect();
+    if (!view.height) return;
+    const rows = e.convRows || [];
+    const kids = e.scroll.children;
+    for (let at = 0; at < rows.length; at++) {
+      const box = kids[at]?.getBoundingClientRect();
+      if (!box || box.bottom <= view.top) continue;
+      e.tlPos = { key: rows[at].key, offset: view.top - box.top };
+      return;
+    }
+  });
+}
+
+function svConvRestore(e) {
+  if (!e.scroll?.isConnected) return;
+  if (e.anchor || e.atBottom || !e.tlPos) return svConvStick(e);
+  const el = svConvRowEls(e).get(e.tlPos.key);
+  if (!el?.getBoundingClientRect) return;
+  const s = e.scroll;
+  s.scrollTop = el.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop + e.tlPos.offset;
+  e.lastScrollY = s.scrollTop;
+}
+
+function svConvToggle(e, set, key) {
+  const held = svConvUi(e)[set];
+  if (!held || !key) return;
+  if (held.has(key)) held.delete(key);
+  else held.add(key);
+  e.holdOnce = true;
+  svConvShowNow(e);
+}
+
+const escHtml = (text) => String(text).replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`);
+
+function svConvEndPill(e, look) {
+  const jump = e.host?.querySelector?.(".sv-jump");
+  if (!jump) return;
+  let html = "";
+  if (look) {
+    const queued = e.queuedEls?.length || 0;
+    const subs = e.subs?.size || 0;
+    const summary = [queued ? phrase("{n} queued", { n: queued }) : "", subs ? (subs === 1 ? phrase("Subagent running") : phrase("{n} subagents running", { n: subs })) : ""].filter(Boolean).join(" · ");
+    html = `<svg class="tl-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg><span>${escHtml(phrase("Scroll to end"))}</span>${summary ? `<span class="tl-jsum"><span aria-hidden="true">· </span>${escHtml(summary)}</span>` : ""}`;
+  }
+  if ((jump.dataset.tl || "") === html) return;
+  if (html) {
+    jump.dataset.tl = html;
+    jump.innerHTML = html;
+  } else {
+    delete jump.dataset.tl;
+    jump.textContent = phrase("↓ latest");
+  }
+}
+
+document.addEventListener("hive:marks", () => {
+  for (const e of structPool.values()) if (e.convView) svConvShow(e);
+});
 
 function svConvShow(e) {
   if (!e.convView || e.convFrame) return;
@@ -111,14 +320,21 @@ function svConvShowSubs(e) {
   e.subsView.show({ key: e.name, subs: e.conv.subs.map(svConvSaySub) });
 }
 
-const SV_CONV_WORK = ["tool", "think"];
-
-const SV_CONV_QUIET = ["think", "work", "tool"];
+const SV_CONV_QUIET = ["think", "work", "tool", "retry"];
 
 const svConvSayKind = (one) => (one.kind === "bubble" ? "bubble" : "said");
 
 function svConvAppend(e, el) {
   return svConvPush(e, { key: svConvKey(e), kind: "node", el });
+}
+
+function svConvAppendAfter(e, anchor, el) {
+  const at = anchor ? e.conv.blocks.indexOf(anchor) : -1;
+  if (at < 0) return svConvAppend(e, el);
+  const block = { key: svConvKey(e), kind: "node", el };
+  e.conv.blocks.splice(at + 1, 0, block);
+  svConvShow(e);
+  return block;
 }
 
 function svConvPrepend(e, block) {
@@ -128,118 +344,25 @@ function svConvPrepend(e, block) {
 }
 
 function svConvPush(e, block) {
-  if (SV_CONV_WORK.includes(block.kind)) {
-    (e.conv.run ||= { pending: [], folded: [], wrap: null }).pending.push(block);
-    e.conv.blocks.push(block);
-    svConvDrain(e, false);
-  } else {
-    svConvFold(e);
-    if (block.kind === "bubble") for (let at = e.conv.blocks.length - 1; at >= 0; at--) if (e.conv.blocks[at].kind === "memturn") e.conv.blocks.splice(at, 1);
-    e.conv.blocks.push(block);
-  }
+  if (block.kind === "bubble") for (let at = e.conv.blocks.length - 1; at >= 0; at--) if (e.conv.blocks[at].kind === "memturn") e.conv.blocks.splice(at, 1);
+  e.conv.blocks.push(block);
   if (block.kind === "bubble" || (block.kind === "said" && !block.streaming)) svConvStamp(e, block);
   svConvShow(e);
   return block;
 }
 
-function svConvWrap(e, head) {
-  const wrap = { key: svConvKey(e), kind: "work", name: phrase("the work"), badly: "", ms: "", bad: false, items: [] };
-  const at = e.conv.blocks.indexOf(head);
-  e.conv.blocks.splice(at < 0 ? e.conv.blocks.length : at, 0, wrap);
-  return wrap;
-}
-
-function svConvDrain(e, toTheEnd) {
-  const run = e.conv.run;
-  if (!run) return;
-  while (run.pending.length > (toTheEnd ? 0 : 1)) {
-    const head = run.pending[0];
-    if (!toTheEnd && head.running) return;
-    run.pending.shift();
-    if (head.keep) { svConvSeal(e, run); continue; }
-    if (!run.wrap) run.wrap = svConvWrap(e, head);
-    const at = e.conv.blocks.indexOf(head);
-    if (at >= 0) e.conv.blocks.splice(at, 1);
-    run.wrap.items.push(head);
-    run.folded.push(head);
-    svConvTally(run);
-  }
-}
-
-function svConvSeal(e, run) {
-  const wrap = run.wrap;
-  const held = run.folded;
-  run.wrap = null;
-  run.folded = [];
-  if (!wrap || held.filter((one) => one.kind === "tool").length >= 2) return;
-  const at = e.conv.blocks.indexOf(wrap);
-  e.conv.blocks.splice(at < 0 ? e.conv.blocks.length : at, 1, ...held);
-  wrap.items = [];
-}
-
-function svConvFold(e) {
-  if (!e.conv.run) return;
-  svConvDrain(e, true);
-  svConvSeal(e, e.conv.run);
-  e.conv.run = null;
-}
-
-const SV_TURN_HIDES = ["said", "think", "tool", "work", "memory", "memsave"];
-
-function svTurnTook(ms) {
-  if (ms < 1000) return `${Math.max(1, Math.round(ms))}ms`;
-  if (ms < 10000) {
-    const tenths = Math.round(ms / 100) / 10;
-    return tenths >= 10 ? "10s" : `${tenths.toFixed(1)}s`;
-  }
-  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
-  const total = Math.round(ms / 1000);
-  const hours = Math.floor(total / 3600);
-  const minutes = Math.floor((total % 3600) / 60);
-  const seconds = total % 60;
-  return [hours && `${hours}h`, minutes && `${minutes}m`, seconds && `${seconds}s`].filter(Boolean).join(" ");
-}
-
-function svConvTurnDone(e, ev) {
-  if (!e.conv || ev.is_error || (ev.subtype && ev.subtype !== "success")) return null;
-  svConvFold(e);
-  const blocks = e.conv.blocks;
-  let start = blocks.length - 1;
-  while (start >= 0 && blocks[start].kind !== "bubble") start--;
-  if (start < 0) return null;
-  const turn = blocks.slice(start + 1);
-  if (turn.some((one) => one.kind === "turn")) return null;
-  let answer = turn.length - 1;
-  while (answer >= 0 && turn[answer].kind !== "said") answer--;
-  const hides = turn.slice(0, Math.max(answer, 0)).filter((one) => SV_TURN_HIDES.includes(one.kind));
-  if (!hides.some((one) => one.kind !== "said")) return null;
-  const ms = Number(ev.duration_ms) || Math.max(0, Date.parse(ev.ts || "") - Number(blocks[start].at || 0)) || 0;
-  const fold = { key: svConvKey(e), kind: "turn", open: false, hides: hides.map((one) => one.key), label: ms ? phrase("Worked for {time}", { time: svTurnTook(ms) }) : phrase("Worked") };
-  for (const one of hides) one.folded = true;
-  blocks.splice(start + 1, 0, fold);
-  svConvShow(e);
-  return fold;
-}
-
-function svConvTurnToggle(e, key) {
-  const fold = e.conv?.blocks.find((one) => one.kind === "turn" && one.key === key);
-  if (!fold) return;
-  fold.open = !fold.open;
-  const hides = new Set(fold.hides);
-  for (const one of e.conv.blocks) if (hides.has(one.key)) one.folded = !fold.open;
-  svConvShow(e);
-}
-
 const svConvAsCard = (one) => ({ dataset: { kind: one.face }, querySelector: () => ({ textContent: one.arg }) });
 
-function svConvTally(run) {
-  const cards = run.folded.filter((one) => one.kind === "tool");
+function svConvTally(items) {
+  const cards = items.filter((one) => one.kind === "tool");
   const failed = cards.filter((one) => one.stat === "bad").length;
   const spent = cards.reduce((sum, one) => sum + Number(one.ms || 0), 0);
-  run.wrap.name = workSummary(cards.map(svConvAsCard));
-  run.wrap.bad = !!failed;
-  run.wrap.badly = failed ? phrase("{n} failed", { n: failed }) : "";
-  run.wrap.ms = spent ? tookLabel(spent) : "";
+  return {
+    name: workSummary(cards.map(svConvAsCard)),
+    bad: !!failed,
+    badly: failed ? phrase("{n} failed", { n: failed }) : "",
+    ms: spent ? tookLabel(spent) : ""
+  };
 }
 
 function svConvNear(e, block, back) {
@@ -254,8 +377,13 @@ function svConvNear(e, block, back) {
   return null;
 }
 
+function svConvNow(e) {
+  if (e.heardAt && Date.now() - e.heardAt > 1000) return Date.now();
+  return e.at || Date.now();
+}
+
 function svConvStamp(e, block) {
-  const at = String(e.at || Date.now());
+  const at = String(svConvNow(e));
   const prev = svConvNear(e, block, true);
   const goes = !!prev && svConvSayKind(prev) === svConvSayKind(block) && prev.stamped;
   block.stamped = true;
@@ -264,25 +392,82 @@ function svConvStamp(e, block) {
   if (goes) prev.stamped = false;
 }
 
-const SV_SAID_CLIP_LINES = 8;
-const SV_SAID_CLIP_CHARS = 600;
-
-const svSaidClips = (text) => {
-  const said = String(text || "");
-  return said.trim().length > 0 && (said.length > SV_SAID_CLIP_CHARS || said.split("\n").length > SV_SAID_CLIP_LINES);
-};
-
-const svSaidClip = (text) => svSaidClips(text) ? { more: phrase("Show full message"), less: phrase("Show less") } : null;
+function svConvStopped(e) {
+  const ask = e.conv.blocks.findLast((one) => one.kind === "bubble" && one.at);
+  const took = ask ? workedFor((e.at || Date.now()) - Number(ask.at)) : "";
+  const text = took ? phrase("You stopped after {d}", { d: took }) : phrase("You stopped this response");
+  return svConvPush(e, { key: svConvKey(e), kind: "meta", cls: "sv-meta sv-stopped", text });
+}
 
 function svConvLine(e, cls, text) {
   if (!/(^|\s)sv-user(\s|$)/.test(cls)) return svConvPush(e, { key: svConvKey(e), kind: "meta", cls, text });
+  const bubble = svConvPush(e, { key: svConvKey(e), kind: "bubble", body: svConvBubbleBody(text, e), text: String(text ?? ""), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "", editing: null });
+  svConvAnchor(e, bubble);
+  return bubble;
+}
+
+function fillMarked(el, words) {
+  const box = el.ownerDocument.createElement("div");
+  box.className = "sv-said-md md";
+  box.innerHTML = renderMarkdown(words);
+  el.textContent = "";
+  el.append(box);
+  return el;
+}
+
+const fillWords = (el, words) => (markedSaid(words) ? fillMarked(el, words) : fillSaid(el, words, paintSaidCommand));
+
+const quoteLetters = (text) => String(text ?? "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+
+const SV_CONV_UNCOPIED = "button, svg, .md-codehead, .md-tablebar, .sv-stamp, .tx-cf, .mshots, .uatts";
+
+function svConvCopyText(block) {
+  const hold = document.createElement("template");
+  hold.innerHTML = block.kind === "bubble" ? block.body || "" : (block.parts || []).join("");
+  for (const kept of hold.content.querySelectorAll("[data-md-copy]")) kept.replaceWith(kept.dataset.mdCopy);
+  for (const hidden of hold.content.querySelectorAll(SV_CONV_UNCOPIED)) hidden.remove();
+  return hold.content.textContent;
+}
+
+function svConvRunAround(blocks, block) {
+  const at = blocks.indexOf(block);
+  const run = [block];
+  for (const step of [-1, 1]) {
+    for (let i = at + step; i >= 0 && i < blocks.length; i += step) {
+      const one = blocks[i];
+      if (SV_CONV_QUIET.includes(one.kind)) continue;
+      if ((one.kind !== "said" && one.kind !== "bubble") || svConvSayKind(one) !== svConvSayKind(block)) break;
+      if (step < 0) run.unshift(one);
+      else run.push(one);
+    }
+  }
+  return run;
+}
+
+function svConvQuotesPart(e, said) {
+  const blocks = e?.conv?.blocks || [];
+  const source = quotedBlock(blocks, blocks.length, needleOf(quoteLines(said)));
+  if (!source) return false;
+  const quoted = quoteLetters(said);
+  return !!quoted && quoted !== quoteLetters(svConvRunAround(blocks, source).map(svConvCopyText).join(" "));
+}
+
+function svConvQuoteCards(e, text, split) {
+  const cards = document.createElement("div");
+  cards.className = "sv-said-quotes";
+  cards.dataset.mdCopy = text.slice(0, text.length - split.rest.length).replace(/\n$/, "");
+  for (const quoted of split.quotes) cards.appendChild(svQuoteCard(quoted, svConvQuotesPart(e, quoted)));
+  return cards;
+}
+
+function svConvBubbleBody(text, e) {
   const hold = document.createElement("div");
   const split = splitLeadingQuotes(text);
-  const said = (el, words) => (hasPasted(words) ? fillWithPastes(el, words, (part, piece) => paintSaidChips(fillSaid(part, piece, paintSaidCommand))) : paintSaidChips(fillSaid(el, words, paintSaidCommand)));
+  const said = (el, words) => (hasPasted(words) ? fillWithPastes(el, words, (part, piece) => paintSaidChips(fillWords(part, piece))) : paintSaidChips(fillWords(el, words)));
   if (!split) {
     said(hold, text);
   } else {
-    for (const quoted of split.quotes) hold.appendChild(svQuoteCard(quoted));
+    hold.appendChild(svConvQuoteCards(e, String(text), split));
     if (split.rest) {
       const body = document.createElement("div");
       body.className = "sv-said-body";
@@ -290,7 +475,7 @@ function svConvLine(e, cls, text) {
       hold.appendChild(body);
     }
   }
-  return svConvPush(e, { key: svConvKey(e), kind: "bubble", body: hold.innerHTML, text, clip: svSaidClip(text), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "", editing: null });
+  return hold.innerHTML;
 }
 
 const svConvBubbleAt = (e, uuid) => (uuid ? e.conv.blocks.findIndex((one) => one.kind === "bubble" && one.dataset?.uuid === uuid) : -1);
@@ -322,7 +507,8 @@ function svConvEditing(e, block, change = null) {
 function svConvRewind(e, uuid) {
   const at = svConvBubbleAt(e, uuid);
   if (at < 0) return false;
-  e.conv.run = null;
+  e.conv.thinking = null;
+  e.conv.retrying = null;
   e.conv.blocks.splice(at);
   svConvShow(e);
   return true;
@@ -377,19 +563,130 @@ function svConvSaid(e, text) {
   return block;
 }
 
+function svConvSettle(e, text) {
+  const block = e.draft?.block;
+  if (!block || e.draft.raw.trim() !== String(text).trim() || !e.conv.blocks.includes(block)) return null;
+  block.streaming = false;
+  block.parts = renderMarkdownBlocks(text);
+  svConvStamp(e, block);
+  svConvShots(e, block, shotsOfSaid(text));
+  svConvShow(e);
+  return block;
+}
+
 function svConvThink(e, body, dur) {
+  e.conv.thinking = null;
   return svConvPush(e, { key: svConvKey(e), kind: "think", thinking: phrase("thinking"), thought: phrase("thought"), dur, body });
+}
+
+function svConvThinking(e, text, fresh = false) {
+  if (fresh || !e.conv.thinking) e.conv.thinking = { text: "" };
+  e.conv.thinking.text += String(text || "");
+  svConvShow(e);
+}
+
+function svConvRetryLabel(block) {
+  const n = block.attempt;
+  if (block.state === "recovered") return n === 1 ? phrase("Recovered after 1 retry") : phrase("Recovered after {n} retries", { n });
+  if (block.state === "failed") return n === 1 ? phrase("Gave up after 1 retry") : phrase("Gave up after {n} retries", { n });
+  const d = tookLabel(block.delay);
+  return block.max ? phrase("Retrying ({n}/{max}) in {d}", { n, max: block.max, d }) : phrase("Retrying ({n}) in {d}", { n, d });
+}
+
+function svConvRetry(e, ev) {
+  let block = e.conv.retrying;
+  if (!block) block = e.conv.retrying = svConvPush(e, { key: svConvKey(e), kind: "retry", state: "retrying", attempt: 0, max: 0, delay: 0, why: "", label: "" });
+  block.attempt = Number(ev.attempt) || block.attempt + 1;
+  block.max = Number(ev.max_retries) || 0;
+  block.delay = Math.max(0, Number(ev.retry_delay_ms) || 0);
+  block.why = ev.error_status ? String(ev.error_status) : ev.error && ev.error !== "unknown" ? String(ev.error) : "";
+  block.label = svConvRetryLabel(block);
+  svConvShow(e);
+  return block;
+}
+
+function svConvRecovered(e, failed = false) {
+  const block = e.conv.retrying;
+  if (!block) return;
+  e.conv.retrying = null;
+  block.state = failed ? "failed" : "recovered";
+  block.label = svConvRetryLabel(block);
+  svConvShow(e);
+}
+
+function svConvTurnEnded(e, failed = false) {
+  e.conv.thinking = null;
+  svConvRecovered(e, failed);
+  svConvShow(e);
+}
+
+function svConvTurnStart(e) {
+  const blocks = e.conv.blocks;
+  const at = blocks.findLastIndex((one) => one.kind === "bubble" && !one.peer);
+  if (at < 0 || blocks[at].turnStart || blocks.slice(at + 1).some((one) => one.kind === "said" || one.kind === "tool")) return;
+  blocks[at].turnStart = true;
+  svConvShow(e);
+}
+
+function svConvSteer(e, cid) {
+  if (!cid) return;
+  e.conv.steers.add(cid);
+  svConvShow(e);
+}
+
+function svConvDispatched(e, cid) {
+  if (!cid) return;
+  const list = e.conv.blocks;
+  const at = list.findLastIndex((one) => one.kind === "bubble" && one.dataset?.cid === cid);
+  if (at < 0 || at === list.length - 1) return;
+  const [bubble] = list.splice(at, 1);
+  list.push(bubble);
+  bubble.stamped = false;
+  svConvStamp(e, bubble);
+  svConvAnchor(e, bubble);
+  svConvShow(e);
 }
 
 function svConvNote(e, label, body) {
   return svConvPush(e, { key: svConvKey(e), kind: "think", label, body });
 }
 
-function svConvPeer(e, from, consumed) {
+function svConvPeer(e, from, consumed, seat = from) {
   return svConvPush(e, {
-    key: svConvKey(e), kind: "peer", from: `${phrase("from")} `, name: from,
+    key: svConvKey(e), kind: "peer", from: `${phrase("from")} `, name: from, seat,
     says: phrase(consumed ? "answering what this chat asked" : "another chat wrote to this one")
   });
+}
+
+const titleOf = (word) => (word ? word[0].toUpperCase() + word.slice(1) : "");
+
+function switchSays(from, to, nameOf) {
+  const model = nameOf(from.model) !== nameOf(to.model);
+  const effort = (from.effort || "") !== (to.effort || "");
+  if (!model && !effort) return null;
+  const level = (one) => (one ? titleOf(one) : model ? "" : phrase("Default"));
+  const side = (one) => [model ? nameOf(one.model) : "", effort ? level(one.effort) : ""].filter(Boolean).join(" ");
+  return { from: side(from), to: side(to) };
+}
+
+function svConvSwitch(e, before, after, nameOf) {
+  const last = e.conv.blocks.at(-1);
+  const held = last?.kind === "switch" ? last : null;
+  const from = held ? held.before : before;
+  const said = switchSays(from, after, nameOf);
+  if (!said) {
+    if (held) {
+      e.conv.blocks.pop();
+      svConvShow(e);
+    }
+    return null;
+  }
+  if (held) {
+    Object.assign(held, { after, ...said });
+    svConvShow(e);
+    return held;
+  }
+  return svConvPush(e, { key: svConvKey(e), kind: "switch", before: from, after, ...said });
 }
 
 function svConvStream(e, chunk) {
@@ -416,18 +713,20 @@ function svConvDraftPaint(e) {
 }
 
 function svConvCards(e) {
-  const cards = [];
-  for (const one of e.conv.blocks) {
-    if (one.kind === "tool") cards.push(one);
-    if (one.kind === "work") for (const held of one.items) if (held.kind === "tool") cards.push(held);
-  }
-  return cards;
+  return e.conv.blocks.filter((one) => one.kind === "tool");
 }
 
 function svConvDraftDrop(e) {
   const at = e.conv.blocks.indexOf(e.draft.block);
   if (at >= 0) e.conv.blocks.splice(at, 1);
   svConvShow(e);
+}
+
+function svConvFavicon(e, block) {
+  if (!isBrowserTool(block.name)) return "";
+  const page = pageOfInput(block.input);
+  if (page) e.browserPage = page;
+  return faviconOf(page || e.browserPage || "");
 }
 
 function svConvTool(e, block, live) {
@@ -437,8 +736,18 @@ function svConvTool(e, block, live) {
     face: face.kind, tool: String(block.name || ""), glyph: face.glyph,
     name: face.label, server: face.server, arg: toolArg(block.name, block.input).slice(0, 300),
     title: toolTitle(block.name, block.input), t0: live ? String(Date.now()) : "", ms: "",
-    shot: shotOfInput(block.input) || "", link: null, took: "", stat: "", failed: "", body: "", diff: null, shots: []
+    cmd: /^bash$/i.test(String(block.name || "")) ? String(block.input?.command || "") : "", out: null, exit: null, cut: false,
+    use: String(block.id || ""), whole: true, loading: false, loadError: "",
+    at: String(svConvNow(e)), done: "",
+    shot: shotOfInput(block.input) || "", link: null, took: "", stat: "", failed: "", body: "", diff: null, shots: [],
+    edit: editOf(block.name, block.input),
+    args: toolArgs(face.kind, block.input, face.server, face.label), json: "", web: null,
+    hive: hiveCallOf(face.server, face.label, block.input),
+    favicon: svConvFavicon(e, block)
   };
+  card.diff = card.edit?.lines || null;
+  const pr = prToolSummary(block.name, block.input, { state: "running" }, phrase);
+  if (pr) Object.assign(card, { glyph: "i-pr", name: pr.label, arg: pr.repository, prInput: block.input });
   e.skillCard = SKILL_TOOL.test(String(block.name || "")) ? card : null;
   e.tools.set(block.id, card);
   svConvPush(e, card);
@@ -467,22 +776,36 @@ function svConvToolLanded(e, block, live) {
   if (!card) return;
   if (card.kind !== "tool") return svArtLanded(e, card, block, live);
   card.running = false;
+  card.done = String(svConvNow(e));
   card.stat = block.is_error ? "bad" : "ok";
   card.failed = block.is_error ? phrase("failed") : "";
+  if (card.hive?.kind === "spawn" && !block.is_error) card.hive.made = chatsOpenedIn(resultText(block.content), card.hive.made);
   if (card.t0) {
     const spent = Date.now() - Number(card.t0);
     card.ms = String(spent);
-    card.took = tookLabel(spent);
+    card.took = spent >= TOOK_SHOWN_FROM_MS ? tookLabel(spent) : "";
   }
   const text = resultText(block.content);
   const shown = trimBody(text);
   card.body = shown;
+  const pr = prToolSummary(card.tool, card.prInput, { state: block.is_error ? "failed" : "done", output: text }, phrase);
+  if (pr) Object.assign(card, { name: pr.label, arg: pr.repository || card.arg });
+  if (card.cmd) {
+    const ran = commandResult(text, !!block.is_error);
+    card.cut = ran.out.length > OUT_CAP;
+    card.out = card.cut ? ran.out.slice(-OUT_CAP) : ran.out;
+    card.exit = ran.exit;
+    card.whole = !/^\s*<persisted-output>/.test(ran.out);
+  }
   if (e.subs?.has(block.tool_use_id)) {
     if (!block.is_error && ASYNC_LAUNCH.test(text.trim())) svSubAsync(e, block.tool_use_id);
     else svSubUnpin(e, block.tool_use_id);
   }
-  card.diff = svConvDiff(shown);
+  card.edit = editLanded(card.edit, { failed: !!block.is_error, text });
+  card.diff = svConvDiff(shown) || card.edit?.lines || null;
   card.link = svConvToolLink(card, text);
+  card.web = /^websearch$/i.test(card.tool) && !block.is_error ? webResults(text) : null;
+  card.json = card.web || card.cmd ? "" : prettyJson(text);
   if (!block.is_error) {
     const shots = shotsOfTool(card.shot || "", shown, block.content);
     card.body = withoutImageNotes(shown, shots, block.content);
@@ -491,10 +814,30 @@ function svConvToolLanded(e, block, live) {
   svConvShow(e);
 }
 
+async function svConvWholeOutput(e, key) {
+  const card = e.conv.blocks.find((one) => one.key === key);
+  if (!card?.use || card.whole || card.loading) return;
+  card.loading = true;
+  card.loadError = "";
+  svConvShow(e);
+  let said = null;
+  try {
+    said = await (await fetch(`/api/seat/tool-output?name=${encodeURIComponent(e.name)}&where=${e.where}&id=${encodeURIComponent(card.use)}`)).json();
+  } catch (wrong) {
+    said = { error: String(wrong?.message || wrong) };
+  }
+  card.loading = false;
+  if (said?.ok && typeof said.output === "string") {
+    card.out = said.output;
+    card.cut = !!said.cut;
+    card.whole = true;
+  } else card.loadError = said?.error || phrase("the server did not answer for this seat");
+  svConvShow(e);
+}
+
 function svConvShotOf(e, shown) {
   for (const block of e.conv.blocks) {
-    const held = block.kind === "said" ? block.shots : block.kind === "work" ? block.items.flatMap((one) => one.shots || []) : block.shots;
-    const found = (held || []).find((one) => one.key === shown.key);
+    const found = (block.shots || []).find((one) => one.key === shown.key);
     if (found) return found;
   }
   return null;
@@ -630,8 +973,10 @@ function svConvActions(e) {
       wireMdShots(e, root);
       wireLinks(e.name, root);
       wireChips(root);
+      enrichMarkdown(root, { seat: e });
+      markFileDrags(e, root);
     },
-    shot: (path) => openShot(path, e.where, e.name),
+    shot: (path, from) => openShotFrom(from, path, e.where, e.name),
     shotSeen: (img) => {
       const card = img.closest(".sv-tool");
       const body = card?.querySelector(".tbody");
@@ -667,15 +1012,20 @@ function svConvActions(e) {
       svConvShow(e);
       return kept;
     },
-    editCancel: (shown) => svConvEditing(e, e.conv.blocks.find((one) => one.key === shown.key)),
-    editSave: (shown, text) => saveEdit(e, e.conv.blocks.find((one) => one.key === shown.key), text),
     art: (row) => openArtifact(e, row),
     memory: (id) => openMemoryAt(id),
     memoryScope: (shown, item, scope) => memoryTurnScope(e, shown, item, scope),
     memoryDrop: (shown, item) => memoryTurnDrop(e, shown, item),
     memoryUndo: (shown, item) => memoryTurnUndo(e, shown, item),
+    editCancel: (shown) => svConvEditing(e, e.conv.blocks.find((one) => one.key === shown.key)),
+    editSave: (shown, text, revert) => saveEdit(e, e.conv.blocks.find((one) => one.key === shown.key), text, revert),
     seat: (name) => { if (focusSeat(name)) render(); },
-    turn: (key) => svConvTurnToggle(e, key)
+    openSeat: (name) => goTo(name),
+    toggle: (set, key) => svConvToggle(e, set, key),
+    files: (hit) => timelineHook?.files?.(e, hit),
+    output: (block) => svConvWholeOutput(e, block.key),
+    status: (act) => timelineHook?.status?.(e, act) ?? marksStatusAct(e.name, act),
+    quote: (card) => jumpToQuote(e, card)
   };
 }
 
@@ -684,8 +1034,14 @@ function svConvMount(e) {
   e.conv = svConvSeed();
   e.convView = convSolid.mountConversation(e.scroll, svConvActions(e));
   e.subsView = convSolid.mountSubs(e.host.querySelector(".sv-subs .sublist"));
+  e.scroll.addEventListener("beforematch", (ev) => {
+    const fold = ev.target.closest?.("[data-fold]")?.dataset.fold;
+    if (!fold || svConvUi(e).unfolded.has(fold)) return;
+    svConvUi(e).unfolded.add(fold);
+    svConvShowNow(e);
+  });
 }
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { SV_CONV_QUIET, SV_CONV_WORK, convSolid, svConvActions, svConvAppend, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDraftDrop, svConvDraftPaint, svConvDrain, svConvEdit, svConvEditing, svConvFold, svConvHasBar, svConvKey, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvSaySub, svConvSeal, svConvSeed, svConvShots, svConvShow, svConvShowNow, svConvFlush, svConvFlushAll, svConvShowSubs, svConvShown, svConvShownAt, svConvStamp, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTally, svConvThink, svConvThumb, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnDone, svConvTurnStarts, svConvTurnToggle, svConvTurnsBehind, svConvUnsay, svConvWrap, svSaidClips, svTurnTook };
+export { switchSays, convSolid, FOLLOW_SLACK, SV_CONV_QUIET, svConvActions, svConvAnchor, svConvAppend, svConvAppendAfter, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDispatched, svConvDraftDrop, svConvDraftPaint, svConvEdit, svConvEditing, svConvElements, svConvEndPill, svConvFlush, svConvFlushAll, svConvHasBar, svConvKey, svConvLetGo, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRecovered, svConvRestore, svConvRetry, svConvRewind, svConvRowEls, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvSaySub, svConvScrolled, svConvSeed, svConvSettle, svConvShots, svConvShow, svConvShown, svConvShownAt, svConvShowNow, svConvShowSubs, svConvStamp, svConvSteer, svConvStick, svConvStopped, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubs, svConvSubStep, svConvSubUnpin, svConvSwitch, svConvTally, svConvThink, svConvThinking, svConvThumb, svConvTimeline, svConvTimelineOn, svConvToggle, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnEnded, svConvTurnsBehind, svConvTurnStart, svConvTurnStarts, svConvUi, svConvUnsay, workedFor };

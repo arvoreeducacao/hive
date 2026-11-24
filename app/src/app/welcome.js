@@ -40,7 +40,9 @@ function wDone(id, s = wb.s) {
   return false;
 }
 
-const wReachable = (id) => !wSkipped(id) && !wLocked(id);
+const W_ON_THE_PAGE = ["machine", "setup"];
+
+const wReachable = (id) => !W_ON_THE_PAGE.includes(id) && !wSkipped(id) && !wLocked(id);
 
 function wLocked(id) {
   const i = W_STEPS.findIndex((x) => x.id === id);
@@ -327,4 +329,4 @@ function paintBrandAvatar() {
   followPointer(slot, me);
 }
 
-export { HEX, ICON, W_ESSENTIAL, W_SERVER_STEPS, W_STEPS, WEAR_SLOT_WORD, WEAR_WORD, brandKey, cfgFaceSolid, check, copyBox, dressedKey, faceChoiceKey, facePicker, facePickerViewModel, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, paintSettingsFace, rollAvatar, settingsFaceViewModel, toggleSettingsFace, wAct, wAllEssential, wAutoAdvance, wAvatar, wDone, wDressed, wFetch, wFirstOpen, wGo, wLocked, wNext, wPrev, wPull, wReachable, wSkipped, wWear, wb, welcomeOn };
+export { HEX, ICON, W_ESSENTIAL, W_ON_THE_PAGE, W_SERVER_STEPS, W_STEPS, WEAR_SLOT_WORD, WEAR_WORD, brandKey, cfgFaceSolid, check, copyBox, dressedKey, faceChoiceKey, facePicker, facePickerViewModel, icon, myFaceSvg, ownerOfSlot, paintAvatar, paintBrandAvatar, paintSettingsFace, rollAvatar, settingsFaceViewModel, toggleSettingsFace, wAct, wAllEssential, wAutoAdvance, wAvatar, wDone, wDressed, wFetch, wFirstOpen, wGo, wLocked, wNext, wPrev, wPull, wReachable, wSkipped, wWear, wb, welcomeOn };

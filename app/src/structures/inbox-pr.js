@@ -1,6 +1,7 @@
 import { esc, phrase, renderMarkdown, st } from "../app/core.js";
 import { ago } from "../app/pod.js";
-import { commits, deleteBranch, diffs, hidePr, mergePr, mergeState, pullCommits, pullDiff, pullPrs, pullTalk, talks } from "../app/thread.js";
+import { applyPrView, commits, deleteBranch, diffs, hidePr, mergePr, mergeState, openPrs, prFilterSay, pullCommits, pullDiff, pullPrs, pullTalk, talks } from "../app/thread.js";
+import { closePrViews, prViewsTriggerHtml, togglePrViews } from "../app/pr-views.js";
 import { toClipboard } from "../app/terminal-history.js";
 
 const TABS = [
@@ -28,9 +29,21 @@ function openPrSide(key) {
 }
 
 function closePrSide() {
+  closePrViews(false);
   side.key = "";
   side.menu = false;
 }
+
+const inboxPrViews = (repaint) => ({
+  key: "inbox-pr",
+  trigger: () => document.querySelector(".tx-prside [data-pr-views]"),
+  apply: (view) => {
+    applyPrView(view);
+    openPrs();
+  },
+  closed: repaint,
+  suggest: () => prFilterSay()
+});
 
 function askForTab(p, repaint) {
   if (!p || p.error) return;
@@ -75,6 +88,7 @@ function headHtml(p, icon) {
   return `<div class="tp-strip">
       <span class="tp-tab">${icon("pr")}<span>#${esc(p.number)}</span></span>
       <span class="tp-fill"></span>
+      ${prViewsTriggerHtml("tp-views")}
       <button type="button" class="tp-ib" data-act="pr-close" title="${esc(phrase("Close"))}">${icon("x")}</button>
     </div>
     <div class="tp-head">
@@ -249,6 +263,7 @@ function prSideAct(hit, repaint) {
   else if (act === "pr-sort") side.newest = !side.newest;
   else if (act === "pr-menu") side.menu = !side.menu;
   else if (act === "pr-copy") { toClipboard(hit.dataset.copy || ""); hit.classList.add("copied"); return; }
+  else if (act === "pr-views") { side.menu = false; return togglePrViews(inboxPrViews(repaint)); }
   else if (act === "pr-file") {
     const path = hit.dataset.path;
     if (side.files.has(path)) side.files.delete(path);

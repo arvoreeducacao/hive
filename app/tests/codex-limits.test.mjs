@@ -13,8 +13,8 @@ const SAID = { rateLimits: { primary: { usedPercent: 89, windowDurationMins: 100
 test("codex's windows read as the same rows claude's do", () => {
   const iso = (seconds) => new Date(seconds * 1000).toISOString();
   assert.deepEqual(codexLimitsFromRateLimits(SAID), [
-    { kind: "weekly_all", model: "", percent: 89, severity: "warning", resets_at: iso(1788804170), window: "primary" },
-    { kind: "session", model: "", percent: 12, severity: "normal", resets_at: iso(1788704170), window: "secondary" },
+    { kind: "weekly_all", model: "", percent: 89, severity: "warning", resets_at: iso(1788804170), window: "primary", window_minutes: 10080 },
+    { kind: "session", model: "", percent: 12, severity: "normal", resets_at: iso(1788704170), window: "secondary", window_minutes: 300 },
   ]);
   assert.deepEqual(codexLimitsFromRateLimits({ rateLimits: { primary: null, secondary: null } }), []);
   assert.deepEqual(codexLimitsFromRateLimits(null), []);

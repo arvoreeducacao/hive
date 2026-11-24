@@ -140,7 +140,7 @@ test("without the flag the question card is the one main has: no later, no wake,
 });
 
 test("with the flag, a seat that starts asking gets a card in the corner until it stops asking", () => withFlag(() => {
-  const asks = seat({ state: "needs", now: "Parou e pergunta: OC ou SKU?" });
+  const asks = seat({ state: "needs", now: "Parou e pergunta: OC ou SKU?", asks: [{ id: "q1", questions: ONE }] });
   hive([{ ...asks, state: "working" }]);
   previousState.clear();
   notices.announceChange();
@@ -149,7 +149,9 @@ test("with the flag, a seat that starts asking gets a card in the corner until i
   const card = document.querySelector("#canopyNotices .cn-seat-card");
   assert.ok(card, "the seat that needs you said so only outside the app");
   assert.ok(card.classList.contains("needs"));
-  assert.equal(card.querySelector(".cn-say").textContent, asks.now);
+  assert.equal(card.querySelector(".cn-name").textContent, "Input needed");
+  assert.equal(card.querySelector(".cn-say").textContent, asks.title);
+  assert.match(card.querySelector(".cn-go").textContent, /Open thread/);
   st.data = { ...st.data, sessions: [{ ...asks, state: "working" }] };
   notices.announceChange();
   assert.ok(card.classList.contains("going"));
@@ -163,10 +165,14 @@ test("with the flag, the next-one key opens the newest seat card, answered ones 
   previousState.clear();
   notices.announceChange();
   st.data = { ...st.data, sessions: [answers] };
-  notices.announceChange();
+  const at = Date.now();
+  notices.announceChange(at);
+  assert.equal(document.querySelector("#canopyNotices .cn-seat-card"), null, "the end spoke before the grace");
+  notices.announceChange(at + notices.WORKING_EXIT_GRACE_MS);
   st.answeredAlert = false;
   const card = document.querySelector("#canopyNotices .cn-seat-card");
   assert.ok(card, "the answer left no card in the corner");
+  assert.equal(card.querySelector(".cn-name").textContent, "Thread completed");
   assert.match(card.querySelector(".cn-go").textContent, /Open/);
   assert.equal(notices.openNewestSeatNotice(), true);
   assert.ok(card.classList.contains("going"));
@@ -184,9 +190,12 @@ test("without the flag a seat that starts asking puts no card in the app", () =>
   assert.equal(document.querySelector("#canopyNotices .cn-seat-card"), null);
 });
 
-test("an answer's card is neutral and says who answered", () => {
+test("an answer's card is neutral and says which chat completed", () => {
   const model = notices.seatNoticeModel(seat({ title: "validar editoras", state: "answered", summary: "O PR põe na OC o livro." }));
-  assert.equal(model.title, "validar editoras answered");
+  assert.equal(model.title, "Thread completed");
+  assert.equal(model.say, "validar editoras");
+  assert.equal(model.go, "Open thread");
+  assert.equal(model.kind, "completion");
   assert.equal(model.stays, true);
   assert.doesNotMatch(sheet, /\.cn-seat-card(?!\.needs)[^{]*\{[^}]*--signal/, "the signal colour leaked into the neutral cards");
 });
@@ -212,12 +221,12 @@ test("without the flag the seat menu keeps its rows and its model keeps its shap
 
 test("with the flag the palette writes each seat's state beside its name and details the picked one", () => withFlag(() => {
   hive([seat({ state: "needs", model: "Opus 5.5" })]);
-  const rows = palModel("");
+  const rows = palModel("valores");
   const row = rows.find((r) => r.id === "seat:q1");
   assert.equal(row.state, "needs");
   assert.equal(row.badge, "b1");
   assert.equal(row.icon, "i-claude");
-  assert.match(rows.find((r) => r.sec === phrase("go to")).note, /1/);
+  assert.match(rows.find((r) => r.sec === phrase("chats")).note, /1/);
   st.palRows = rows;
   st.palSel = rows.filter((r) => !r.sec).indexOf(row);
   st.palMode = "";
@@ -253,7 +262,7 @@ test("with the flag the palette details a seat by its state, model, branch and P
 
 test("without the flag the palette rows and its preview are main's", () => {
   hive([seat({ state: "needs" })]);
-  const row = palModel("").find((r) => r.id === "seat:q1");
+  const row = palModel("valores").find((r) => r.id === "seat:q1");
   assert.equal(row.state, undefined);
   assert.equal(row.icon, "i-local");
   st.palMode = "";

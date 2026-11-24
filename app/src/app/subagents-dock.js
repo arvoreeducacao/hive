@@ -2,11 +2,13 @@ import { artifactTabOf, closeBrowser, openArtifactTab, showingArtifact } from ".
 import { svConvCards, svConvDiff, svConvShow, svConvShowSubs, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTool, svConvToolLanded } from "./conversation-model.js";
 import { esc, phrase, raycastOn, st } from "./core.js";
 import { openTile } from "./focus-navigation.js";
+import { isPageTool, svPageLanded, svPageRow } from "./html-pages.js";
 import { liveOf } from "./leader-key.js";
 import { shotOfInput } from "./session-images.js";
 import { pullShelf, shelfTabsOf, shelfVersionsOf } from "./shelf.js";
 import { structPool, svAppend } from "./structured-seats.js";
 import { SKILL_TOOL, artifactLink, oneLine, toolArg, toolFace, toolTitle } from "./tool-face.js";
+import { clockOptions } from "./clock-format.js";
 
 const AGENT_TOOL = /^(agent|task)$/i;
 
@@ -91,6 +93,7 @@ function paintSubs(e) {
 }
 
 function svToolCard(e, block, live) {
+  if (isPageTool(block.name)) return svPageRow(e, block, live);
   if (artifactPublish(block.name, block.input)) return svArtRow(e, block, live);
   return svConvTool(e, block, live);
   const card = document.createElement("details");
@@ -118,6 +121,8 @@ function svToolCard(e, block, live) {
 }
 
 function svToolResult(e, block, live) {
+  const row = e.tools.get(block.tool_use_id);
+  if (row?.dataset?.page) return svPageLanded(e, row, block);
   return svConvToolLanded(e, block, live);
 }
 
@@ -304,7 +309,7 @@ function liveListModel(s) {
   const since = Date.parse(s.liveSince || "");
   return {
     title: phrase("live in this seat"),
-    since: Number.isFinite(since) ? phrase("since {t}", { t: new Date(since).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }) : "",
+    since: Number.isFinite(since) ? phrase("since {t}", { t: new Date(since).toLocaleTimeString([], clockOptions({ hour: "2-digit", minute: "2-digit" })) }) : "",
     rows: liveOf(s).map((one) => ({ glyph: LIVE_SHELL.test(one.kind) ? "i-term" : "i-agent", said: one.said || one.kind || phrase("a task") })),
     open: phrase("opens in the dock"),
     close: phrase("closes")

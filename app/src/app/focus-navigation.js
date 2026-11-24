@@ -1,21 +1,26 @@
 import { render } from "./arrange.js";
-import { activeItems, attachSeat, bringSeatIn, blocksOf, detached, landOnBlock, moveToNewBlock, saveBlockAt, saveSpaceAt, spaceAt } from "./blocks.js";
+import { activeItems, attachSeat, bringSeatIn, bringShelvedIn, blocksOf, detached, landOnBlock, moveToNewBlock, saveBlockAt, saveBlocks, saveSpaceAt, spaceAt } from "./blocks.js";
 import { reloadConfig } from "./brand-face.js";
 import { driveBrowsers, openBrowser, openCockpit, openDevice, stopDeviceFrames } from "./chat-and-panes.js";
 import { keepStructuredUp, soakDrafts } from "./chat-stretches.js";
 import { announceCanopy, announceChange } from "./chimes-and-notices.js";
 import { $, GLYPH, LABEL, ORDER, PILL_LABEL, apiGet, batch, markFinishSeen, paneOfSeat, perf, phrase, raycastOn, st } from "./core.js";
+import { takePagePreviews } from "./html-pages.js";
 import { disarmLeader, markSeatRead, pool, receiving, stateOf, tiles } from "./leader-key.js";
 import { paintLimitChip } from "./limit-chip.js";
+import { noteOpen } from "./palette-search.js";
 import { calmly } from "./pure-helpers.js";
 import { inARow, inAStrip, inFocusMode } from "./seat-layout.js";
+import { isShelved, seenSeat } from "./seat-marks.js";
 import { markSeatLandedSeen, threadsOfChat } from "./seat-menu.js";
 import { takeShelfThumbs } from "./shelf-thumbs.js";
 import { stepAcrossLanes } from "./strip.js";
 import { structPool } from "./structured-seats.js";
 import { keepTerminalsUp } from "./terminal-history.js";
-import { exitReview, openThreadOf, reviewInChat } from "./thread.js";
+import { exitReview, openThreadOf, pullPrs, reviewInChat } from "./thread.js";
 import { swapSeats } from "./tiles.js";
+import { clockOptions } from "./clock-format.js";
+import { followFocusedChat } from "./screen-reader.js";
 
 const RAYCAST_CLOCK = { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" };
 
@@ -143,9 +148,13 @@ function reclaimSeat(name) {
 }
 
 function goTo(name) {
+  st.peek = isShelved(name) ? name : "";
+  if (st.peek) bringShelvedIn(name);
+  seenSeat(name);
   let i = st.blocks.findIndex((b) => b.keys.includes(name));
   if (i < 0 && (reclaimSeat(name) || bringSeatIn(name))) i = st.blocks.findIndex((b) => b.keys.includes(name));
   if (i < 0) return;
+  noteOpen(globalThis.localStorage, name, Date.now(), "");
   releaseKeyboard();
   st.mirrorDev = "";
   if (st.blocks[i].ws !== st.space) { st.space = st.blocks[i].ws; saveSpaceAt(); }
@@ -161,6 +170,25 @@ function goTo(name) {
   }
   render();
 }
+
+function openBeside(name) {
+  const here = st.blocks[st.block];
+  if (!here || here.ws !== st.space) return goTo(name);
+  if (here.keys.includes(name)) return render();
+  const roomy = here.keys.length < st.LIMIT;
+  if (!roomy) return goTo(name);
+  for (const b of st.blocks) {
+    const at = b.keys.indexOf(name);
+    if (at >= 0) b.keys.splice(at, 1);
+  }
+  if (isShelved(name)) st.peek = name;
+  seenSeat(name);
+  here.keys.splice(Math.min(st.focus + 1, here.keys.length), 0, name);
+  saveBlocks();
+  render();
+}
+
+const openFromList = (name, { beside = st.threadRules.listClick === "beside" } = {}) => (beside ? openBeside(name) : goTo(name));
 
 function goToBlockAt(i) {
   const mine = blocksOf(st.space);
@@ -360,14 +388,16 @@ async function pull() {
       st.seatsKnown = true;
     });
     soakDrafts();
+    if (prLinksMoved(raw.sessions)) pullPrs();
     takeShelfThumbs(raw.thumbs);
+    takePagePreviews(raw.renderShots);
     if (raw.configAt !== undefined && raw.configAt !== st.cfgStamp && !st.capturing) {
       const first = st.cfgStamp === "";
       st.cfgStamp = raw.configAt;
       if (!first) reloadConfig();
     }
     if (!document.hidden) {
-      $("clock").textContent = new Date().toLocaleTimeString(undefined, raycastOn() ? RAYCAST_CLOCK : { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      $("clock").textContent = new Date().toLocaleTimeString(undefined, clockOptions(raycastOn() ? RAYCAST_CLOCK : { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
       driveBrowsers();
       const seen = pollKey(raw, Date.now());
       if (seen === pollSeen) perf.skip("poll");
@@ -379,12 +409,22 @@ async function pull() {
     }
     announceChange();
     announceCanopy();
+    followFocusedChat();
   } catch { $("clock").textContent = phrase("no connection"); }
   keepTerminalsUp();
   keepStructuredUp();
 }
 
 let pollSeen = "";
+
+let prLinksSeen = null;
+
+function prLinksMoved(sessions) {
+  const now = sessions.filter((one) => one.prLink).map((one) => `${one.name}=${one.prLink}`).sort().join("|");
+  const moved = prLinksSeen !== null && now !== prLinksSeen;
+  prLinksSeen = now;
+  return moved;
+}
 
 let hiveShape = "";
 
@@ -397,4 +437,4 @@ function pollKey(raw, now) {
   return `${Math.floor(now / beat)}|${JSON.stringify(withoutClock(raw))}`;
 }
 
-export { GRID_ROWS, POLL_STILL, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, scrollFocusedChat, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };
+export { GRID_ROWS, POLL_STILL, prLinksMoved, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, openBeside, openFromList, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, scrollFocusedChat, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };

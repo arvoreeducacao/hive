@@ -4,7 +4,7 @@ const { execFileSync } = require("node:child_process");
 const { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
-const { pickRepo, runsFromBundle, bundleOf, builtBundle, swapScript, appImageOf, swapAppImage, rpmInstallOf, swapRpm, shaOfTag, numberOf, notesOf, quietOf, updateFromReleases, updatePicked, releasesQuery, releaseOf, notesBetween, downloadScript, verifyScript, unpackScript, unpackedBundle } = require("../main/update.js");
+const { pickRepo, runsFromBundle, bundleOf, builtBundle, swapScript, appImageOf, swapAppImage, rpmInstallOf, swapRpm, shaOfTag, numberOf, notesOf, quietOf, updateFromReleases, updatePicked, releasesQuery, releaseOf, downloadScript, verifyScript, unpackScript, unpackedBundle } = require("../main/update.js");
 
 const isRepo = (dirs) => (dir) => dirs.includes(dir);
 
@@ -471,33 +471,6 @@ test("the number of a release is the run that built it, and a release from befor
     "Hive-arm64.zip"
   );
   assert.equal(numbered.number, 97);
-});
-
-test("what landed is read between the build you had and the one you are running", () => {
-  const releases = [
-    grouped("hive-2026.08.20-cccccccc", "2026-08-20T12:00:00Z"),
-    release("hive-2026.08.19-bbbbbbbb", ["second"], ["Hive-arm64.zip"], "2026-08-19T12:00:00Z"),
-    release("hive-2026.08.18-aaaaaaaa", ["first"], ["Hive-arm64.zip"], "2026-08-18T12:00:00Z")
-  ];
-  const landed = notesBetween(releases, "aaaaaaaa1111", "cccccccc1111");
-  assert.equal(landed.tag, "hive-2026.08.20-cccccccc");
-  assert.equal(landed.from, "hive-2026.08.18-aaaaaaaa");
-  assert.equal(landed.releases, 2);
-  assert.deepEqual(landed.notes.map((note) => note.text), [
-    "The app updates itself now — no rebuild, no checkout.",
-    "The newest release is the one published last.",
-    "A busy driver gets 30s to ack.",
-    "second"
-  ]);
-});
-
-test("a build nobody published has nothing to show, and one nobody remembers shows only itself", () => {
-  const releases = [grouped("hive-2026.08.20-cccccccc", "2026-08-20T12:00:00Z")];
-  assert.equal(notesBetween(releases, "aaaaaaaa", "dddddddd"), null);
-  const alone = notesBetween(releases, "aaaaaaaa", "cccccccc1111");
-  assert.equal(alone.from, "");
-  assert.equal(alone.releases, 1);
-  assert.equal(alone.notes.length, 3);
 });
 
 const { installedExeOf, installerArgs } = require("../main/update.js");

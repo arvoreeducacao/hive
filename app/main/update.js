@@ -236,25 +236,6 @@ function releaseOf(releases, mine) {
   return found ? { tag: found.tag_name, number: numberOf(found), at: found.published_at || found.created_at || "" } : null;
 }
 
-function notesBetween(releases, from, to) {
-  const live = liveReleases(releases);
-  const toAt = live.findIndex((r) => sameCommit(shaOfTag(r.tag_name), to));
-  if (toAt < 0) return null;
-  const fromAt = live.findIndex((r) => sameCommit(shaOfTag(r.tag_name), from));
-  const span = fromAt > toAt ? live.slice(toAt, fromAt) : [live[toAt]];
-  const { notes, quiet } = readSpan(span);
-  return {
-    tag: live[toAt].tag_name,
-    number: numberOf(live[toAt]),
-    from: fromAt > toAt ? live[fromAt].tag_name : "",
-    fromNumber: fromAt > toAt ? numberOf(live[fromAt]) : 0,
-    at: live[toAt].published_at || live[toAt].created_at || "",
-    releases: span.length,
-    notes: notes.slice(0, 40),
-    quiet
-  };
-}
-
 function downloadScript({ url, zip }) {
   return [
     `mkdir -p ${quoted(dirname(zip))}`,
@@ -334,4 +315,4 @@ function unpackedBundle(dir, entries, exists) {
   return builtBundle(dir, entries, exists);
 }
 
-module.exports = { pickRepo, runsFromBundle, bundleOf, builtBundle, swapScript, appImageOf, swapAppImage, rpmInstallOf, swapRpm, installedExeOf, installerArgs, shaOfTag, sameCommit, numberOf, kindOf, sentence, prOf, mergedPr, noteOf, notesFromSubjects, writeNotes, notesOf, quietOf, updateFromReleases, updatePicked, releasesQuery, releaseOf, notesBetween, downloadScript, verifyScript, unpackScript, unpackedBundle };
+module.exports = { pickRepo, runsFromBundle, bundleOf, builtBundle, swapScript, appImageOf, swapAppImage, rpmInstallOf, swapRpm, installedExeOf, installerArgs, shaOfTag, sameCommit, numberOf, kindOf, sentence, prOf, mergedPr, noteOf, notesFromSubjects, writeNotes, notesOf, quietOf, updateFromReleases, updatePicked, releasesQuery, releaseOf, downloadScript, verifyScript, unpackScript, unpackedBundle };

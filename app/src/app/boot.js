@@ -1,4 +1,5 @@
 import { reloadConfig } from "./brand-face.js";
+import { arriveOnADraft } from "./draft-seat.js";
 import { flushDrafts } from "./kept-drafts.js";
 import { PAGE_BEAT, openPopupTab, pullPages } from "./chat-and-panes.js";
 import { DEFAULT_SOUNDS, SWITCHED, VOLUME_DEFAULT, ensureAudio, flipNotice, playSound, setAnswered, setKnocks, setSound, setSounds, setVolume } from "./chimes-and-notices.js";
@@ -21,7 +22,6 @@ import { ART_WEBVIEW } from "./subagents-dock.js";
 import { KNOCKS_TICK, paceTeam, pullKnocks, pullTeam } from "./team.js";
 import { PR_BEAT_AWAY, pullPrs } from "./thread.js";
 import { bootWelcome, pullUpdate } from "./tour.js";
-import { bootWhatsNew } from "./whats-new.js";
 
 window.__hiveSeats = () => structPool;
 
@@ -46,7 +46,7 @@ for (const kind of SWITCHED) {
 }
 $("t-knocks").addEventListener("click", () => setKnocks(!st.teamKnocks));
 
-bootWelcome().then(bootWhatsNew);
+bootWelcome();
 
 window.hiveGoTo = goTo;
 
@@ -80,7 +80,7 @@ window.addEventListener("blur", disarmLeader);
 
 reloadConfig();
 
-pull();
+pull().then(() => arriveOnADraft());
 
 every("hive", 2500, pull, { background: true });
 

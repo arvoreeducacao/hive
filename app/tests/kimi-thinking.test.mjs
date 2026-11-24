@@ -94,7 +94,8 @@ test("the effort command also displays Kimi's resolved level instead of the requ
     connect(d);
     await runNativeCommand(d.e, "effort", "on");
     assert.equal(d.e.effort, "high");
-    assert.equal(d.e.conv.blocks.at(-1).text, "thinking → high");
+    assert.equal(d.e.host.querySelector(".sv-pill-effort .txt").textContent, "High");
+    assert.equal(d.e.conv.blocks.some((one) => /\bon\b/.test(one.text || "")), false, "the alias never reaches the chat; the divider comes from the level the driver reports");
     assert.equal(d.e.catalog[0].efforts.length, 3);
   } finally { closeSeatPicker(d.e); d.e.host.remove(); }
 });

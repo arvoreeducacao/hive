@@ -32,7 +32,7 @@ function serve(statuses = {}) {
   posted = [];
   globalThis.fetch = async (path, init = {}) => {
     const sent = JSON.parse(init.body || "{}");
-    posted.push({ path, body: sent });
+    if (!/^\/api\/(tasks|secrets\/pending)(\?|$)/.test(String(path))) posted.push({ path, body: sent });
     if (path === "/api/memories/mine/status") return { ok: true, status: 200, json: async () => ({ state: "ok", memories: Object.fromEntries(sent.ids.map((id) => [id, statuses[id] || { gone: false }])) }) };
     if (path === "/api/memories/mine/delete") return { ok: true, status: 200, json: async () => ({ state: "ok", entry: "1-a" }) };
     return { ok: true, status: 200, json: async () => ({ state: "ok" }) };

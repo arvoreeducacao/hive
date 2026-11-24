@@ -6,7 +6,7 @@ function Seat(props) {
   return (
     <div class="item" classList={{ here: props.seat.here, naming: props.seat.naming, anon: props.seat.anon }} data-name={props.seat.name} data-state={props.seat.state} title={props.seat.hint}>
       <svg style={{ color: props.seat.colour }} aria-hidden="true"><use href={`#${props.seat.glyph}`} /></svg>
-      <span class="name">{props.seat.naming ? "" : props.seat.title}</span>
+      <span class="name" classList={{ "title-regenerating": !!props.seat.regenerating }} aria-busy={props.seat.regenerating ? "true" : undefined}>{props.seat.naming ? "" : props.seat.title}</span>
       <span class="rtail">
         <Show when={props.seat.live}>
           <span class="rlive" title={props.seat.liveTitle}><svg aria-hidden="true"><use href="#i-clock" /></svg>{props.seat.live}</span>
@@ -91,7 +91,8 @@ function RaycastSeat(props) {
   return (
     <div
       class="item"
-      classList={{ sel: props.seat.sel, cursor: props.seat.cursor, naming: props.seat.naming, off: !!props.seat.why }}
+      classList={{ sel: props.seat.sel, cursor: props.seat.cursor, naming: props.seat.naming, off: !!props.seat.why, quiet: !!props.seat.quiet, picked: !!props.seat.picked }}
+      aria-selected={props.seat.picked ? "true" : undefined}
       tabindex="-1"
       data-name={props.seat.name}
       data-state={props.seat.state}
@@ -101,16 +102,37 @@ function RaycastSeat(props) {
       <i class={`rc-dot ${props.seat.state}`} aria-hidden="true"></i>
       <Show
         when={props.seat.why}
-        fallback={<span class="name">{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>}
+        fallback={<span class="name" classList={{ "title-regenerating": !!props.seat.regenerating }} aria-busy={props.seat.regenerating ? "true" : undefined}>{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>}
       >
         <span class="col">
-          <span class="name">{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>
-          <span class="why">{props.seat.why}</span>
+          <span class="name" classList={{ "title-regenerating": !!props.seat.regenerating }} aria-busy={props.seat.regenerating ? "true" : undefined}>{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>
+          <span class="why"><Show when={props.seat.whyParts} fallback={props.seat.why}>{(parts) => <Found parts={parts()} />}</Show></span>
         </span>
       </Show>
       <Show when={props.seat.away}><span class="away" aria-hidden="true">↗</span></Show>
+      <Show when={props.seat.pinned}>
+        <button type="button" class="rpin" data-unpin={props.seat.name} title={props.seat.pinSay} aria-label={props.seat.pinSay}>
+          <svg class="on" aria-hidden="true"><use href="#i-pin" /></svg><svg class="off" aria-hidden="true"><use href="#i-unpin" /></svg>
+        </button>
+      </Show>
+      <Show when={props.seat.draft}>
+        <button type="button" class="rdraft" data-discard={props.seat.name} title={props.seat.draftSay} aria-label={props.seat.draftSay}>
+          <svg class="on" aria-hidden="true"><use href="#i-pen" /></svg><svg class="off" aria-hidden="true"><use href="#i-x" /></svg>
+        </button>
+      </Show>
+      <Show when={props.seat.pr}>{(pr) => (
+        <button type="button" class={`rpr pr-${pr().state}`} data-pr-url={pr().url} data-of={props.seat.name} title={pr().list}>
+          <svg aria-hidden="true"><use href="#i-pr" /></svg>{pr().say}
+        </button>
+      )}</Show>
+      <Show when={props.seat.tag}>{(tag) => <span class={`rtag ${tag().tone}`}>{tag().say}</span>}</Show>
       <span class="meta" classList={{ t: props.seat.tone === "t", need: props.seat.tone === "need" }}>{props.seat.meta}</span>
-      <span class="hint">{props.seat.open}<Show when={props.seat.openKey}><span class="rc-key">{props.seat.openKey}</span></Show></span>
+      <Show
+        when={props.seat.act}
+        fallback={<span class="hint">{props.seat.open}<Show when={props.seat.openKey}><span class="rc-key">{props.seat.openKey}</span></Show></span>}
+      >
+        {(act) => <button type="button" class="ract" data-shelf-act={act().act} data-of={props.seat.name}>{act().say}</button>}
+      </Show>
     </div>
   );
 }
@@ -129,13 +151,25 @@ function RaycastGroup(props) {
         }
       >
         {(fold) => (
-          <div class="group-title parked" data-hidden-toggle tabindex="-1" role="button" aria-expanded={fold().open ? "true" : "false"}>
+          <div
+            class="group-title parked"
+            classList={{ shelf: !!props.group.shelf, folder: !!props.group.folder }}
+            data-hidden-toggle={props.group.shelf || props.group.folder ? undefined : ""}
+            data-shelf={props.group.shelf || undefined}
+            data-folder={props.group.folder || undefined}
+            tabindex="-1"
+            role="button"
+            aria-expanded={fold().open ? "true" : "false"}
+          >
             <svg classList={{ caret: true, shut: !fold().open }} aria-hidden="true"><use href="#i-chev" /></svg>
-            <span>{props.group.label}</span><b>{fold().count}</b>
+            <span>{props.group.label}</span>
+            <Show when={fold().needs}><i class="fold-needs" aria-label={props.group.needsSaid} /></Show>
+            <b>{fold().count}</b>
           </div>
         )}
       </Show>
       <For each={props.group.items}>{(seat) => <RaycastSeat seat={seat} />}</For>
+      <Show when={props.group.more}><div class="rail-more" data-shelf-more role="button" tabindex="-1">{props.group.more}</div></Show>
     </div>
   );
 }
@@ -153,13 +187,16 @@ function RaycastHead(props) {
               )}</For>
             </div>
             <button type="button" class="rail-ico" data-rail-search title={props.rail.searchHint} aria-label={props.rail.searchHint}><svg aria-hidden="true"><use href="#i-mag" /></svg></button>
+            <button type="button" class="rail-new" data-rail-new title={props.rail.newHint} aria-label={props.rail.newSaid}><svg aria-hidden="true"><use href="#i-pen" /></svg><span class="lb">{props.rail.newSaid}</span><kbd>{props.rail.newKey}</kbd></button>
           </>
         }
       >
         <label class="rail-q">
           <svg aria-hidden="true"><use href="#i-mag" /></svg>
           <input id="rail-q" type="text" spellcheck={false} autocomplete="off" value={props.rail.query} placeholder={props.rail.searchSaid} aria-label={props.rail.searchSaid} />
-          <span class="rc-key">esc</span>
+          <Show when={props.rail.query} fallback={<span class="rc-key">esc</span>}>
+            <button type="button" class="rail-clear" data-rail-clear aria-label={props.rail.clearSaid} title={props.rail.clearSaid}>×</button>
+          </Show>
         </label>
       </Show>
     </div>
@@ -204,10 +241,23 @@ function RaycastSnoozed(props) {
   );
 }
 
+function RailSelection(props) {
+  return (
+    <div class="rail-sel" role="toolbar" aria-label={props.selection.say}>
+      <span class="sel-n">{props.selection.say}</span>
+      <For each={props.selection.actions}>{(one) => (
+        <button type="button" classList={{ danger: !!one.danger }} data-pick-act={one.act} aria-haspopup={one.more ? "menu" : undefined}>{one.say}</button>
+      )}</For>
+      <button type="button" class="sel-x" data-pick-act="clear" aria-label={props.selection.clearSay} title={props.selection.clearSay}>×</button>
+    </div>
+  );
+}
+
 function RaycastRail(props) {
   return (
     <>
       <RaycastHead rail={props.rail} />
+      <Show when={props.rail.selection}>{(selection) => <RailSelection selection={selection()} />}</Show>
       <Show when={props.rail.found}>
         <div class="rail-found"><span>{props.rail.found}</span><span class="go">{props.rail.openSaid}<span class="rc-key">↵</span></span></div>
       </Show>

@@ -522,4 +522,4 @@ solidMounts.push((hive) => {
   infoView = hive.mountInfoColumn;
 });
 
-export { acceptFile, changes, changesModel, closeDiff, diffViewModel, diffs, infoActions, infoViewModel, openDiff, paintDiffOfChat, paintInfoOfChat, pullChanges, pullDiff, stepDiff };
+export { acceptFile, changes, changesModel, closeDiff, diffViewModel, diffs, infoActions, infoViewModel, openDiff, openInMachineEditor, paintDiffOfChat, paintInfoOfChat, pullChanges, pullDiff, stepDiff };

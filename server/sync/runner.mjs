@@ -1,6 +1,7 @@
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sayWithShot } from "../shot.mjs";
+import { pagePathOf, readRenderAnswer } from "../peer/html-pages.mjs";
 
 export const POLL_MS = 1000;
 export const FLEET_MS = 5000;
@@ -9,6 +10,8 @@ export const FIRST_TURNS = 8;
 export const FIRST_EVENTS = 400;
 export const TEXT_CEILING = 6000;
 export const SHOT_CEILING = 4 * 1024 * 1024;
+export const PAGE_CEILING = 4 * 1024 * 1024;
+export const PAGE_TOOL = /^(mcp__)?hive(__|:)html_render$/i;
 export const INTENT_FRESH_MS = 10 * 60 * 1000;
 export const SERVICE_BIRTH_FRESH_MS = 24 * 60 * 60 * 1000;
 export const MISSION_CEILING = 20000;
@@ -36,13 +39,17 @@ export function targetOf(name, input = {}) {
   return cut(input.path || input.file_path || input.query || input.url || input.prompt || "", 80);
 }
 
+const resultTextOf = (content) => (typeof content === "string"
+  ? content
+  : (Array.isArray(content) ? content : []).map((part) => (part?.type === "text" ? part.text : "")).join("\n"));
+
 const blocksOf = (event) => {
   const content = event?.message?.content;
   if (typeof content === "string") return [{ type: "text", text: content }];
   return Array.isArray(content) ? content : [];
 };
 
-export function slim(event) {
+export function slim(event, pageCalls = new Set()) {
   if (!event || typeof event !== "object" || event.hive_ping || event.type === "stream_event") return [];
   const head = { hiveSeq: Number(event.seq) || 0, ts: event.ts || "" };
   if (event.type === "system" && event.subtype === "init") {
@@ -75,6 +82,7 @@ export function slim(event) {
     for (const block of blocksOf(event)) {
       if (block.type === "text" && block.text?.trim()) out.push({ ...head, type: "assistant", text: cut(block.text) });
       if (block.type === "tool_use") out.push({ ...head, type: "tool", name: block.name, target: targetOf(block.name, block.input || {}) });
+      if (block.type === "tool_use" && block.id && PAGE_TOOL.test(String(block.name || ""))) pageCalls.add(block.id);
     }
     return out;
   }
@@ -83,6 +91,10 @@ export function slim(event) {
     const out = [];
     for (const block of blocksOf(event)) {
       if (block.type === "image" && typeof block.path === "string") out.push({ ...head, type: "shot", path: block.path });
+      if (block.type === "tool_result" && pageCalls.delete(block.tool_use_id) && !block.is_error) {
+        const page = readRenderAnswer(resultTextOf(block.content));
+        if (page) out.push({ ...head, type: "page", id: page.id, title: page.title, height: page.height });
+      }
       if (block.type !== "tool_result" || !Array.isArray(block.content)) continue;
       for (const piece of block.content) {
         if (piece?.type === "image" && typeof piece.path === "string") out.push({ ...head, type: "shot", path: piece.path });
@@ -149,6 +161,15 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
     } catch { return null; }
   }
 
+  async function shipPage(seat, id) {
+    try {
+      const file = pagePathOf(base, seat, id);
+      if (!existsSync(file)) return { gone: "missing" };
+      if (statSync(file).size > PAGE_CEILING) return { gone: "big" };
+      return { blob: await device.putBlob(seat, new Uint8Array(readFileSync(file))) };
+    } catch { return { gone: "missing" }; }
+  }
+
   async function openIfNew(seat) {
     const known = followed.get(seat.name);
     if (known) {
@@ -160,7 +181,7 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
     }
     const file = eventsFile(seat.name);
     if (!existsSync(file)) return null;
-    const held = { name: seat.name, file, offset: 0, rest: "", queue: Promise.resolve(), title: seat.title || seat.name, lastSeq: 0, catchingUp: true, said: "", asked: "" };
+    const held = { name: seat.name, file, offset: 0, rest: "", queue: Promise.resolve(), title: seat.title || seat.name, lastSeq: 0, catchingUp: true, said: "", asked: "", pageCalls: new Set() };
     const size = statSync(file).size;
     const onBroker = device.seats.get(seat.name);
     if (!onBroker || onBroker.closedAt || !device.keyFor(seat.name, onBroker.keyId)) {
@@ -236,6 +257,10 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
       if (!shipped) return null;
       return device.write(held.name, { ...one, path: undefined, blob: shipped.id, mime: shipped.mime, name: one.path.split("/").pop() });
     }
+    if (one.type === "page") {
+      const shipped = await shipPage(held.name, one.id);
+      return device.write(held.name, { hiveSeq: one.hiveSeq, ts: one.ts, type: "page", title: one.title, height: one.height, ...shipped });
+    }
     return device.write(held.name, one, sending || {});
   }
 
@@ -246,6 +271,7 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
       held.offset = 0;
       held.rest = "";
       held.lastSeq = 0;
+      held.pageCalls.clear();
       held.catchingUp = true;
       await device.openSeat({ id: held.name, title: held.title, fresh: true });
       intentFloor.set(held.name, 0);
@@ -273,7 +299,7 @@ export function createRunner({ device, base, seats, say, spawn = null, answer = 
       try { event = JSON.parse(line); } catch { continue; }
       if (Number.isFinite(event.seq) && event.seq <= held.lastSeq) continue;
       if (Number.isFinite(event.seq)) held.lastSeq = event.seq;
-      ones.push(...slim(event));
+      ones.push(...slim(event, held.pageCalls));
     }
     const wake = wakeOfPass(held, ones, catchingUp);
     const carrier = wake ? carrierOf(ones, wake) : null;

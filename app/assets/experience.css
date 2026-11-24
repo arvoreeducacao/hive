@@ -64,18 +64,17 @@ body.experience-next { --cc-image: var(--accent); --cc-path: var(--txt-2); --cc-
 body.experience-next .ctx-chip { height: 1.6em; }
 body.experience-next .ctx-chip[data-kind=image] { --cc: var(--cc-image) !important; }
 body.experience-next .sv-user:not(.peer) .ctx-chip { --cc-base: #111111; --cc-edge: var(--line-2); }
-body.experience-next .sv-user .sv-said-quote { --quote-hue: #3a403b; align-items: center; gap: 8px; margin-bottom: 8px; padding: 2px 0 2px 8px; border-left-color: var(--quote-hue); color: var(--quote-hue); font-size: 12px; }
-body.experience-next .sv-user .sv-said-quote .qi { margin-top: 0; color: var(--quote-hue); }
+body.experience-next .sv-user .sv-said-quote { --quote-box: rgb(0 0 0 / .1); --quote-box-hover: rgb(0 0 0 / .14); --quote-ink: #3a403b; --quote-mark-ink: #111111; font-size: 12px; }
 body.experience-next .sv-user.peer { background: var(--panel-2); color: var(--txt); border: 1px solid var(--blue); }
 body.experience-next .sv-user.peer a { color: var(--blue); }
 body.experience-next .sv-user.peer :is(.said-img, .said-cmd) { color: var(--accent-hi); }
-body.experience-next .sv-user.peer .sv-said-quote { --quote-hue: var(--txt-2); }
+body.experience-next .sv-user.peer .sv-said-quote { --quote-box: rgb(0 0 0 / .35); --quote-box-hover: rgb(0 0 0 / .5); --quote-ink: var(--txt-2); --quote-mark-ink: var(--txt); }
 body.experience-next .sv-tool { background: var(--panel); border: 1px solid var(--line); }
 body.experience-next .sv-tool .tname { color: var(--txt); }
 body.experience-next .sv-tool .tstat { color: var(--green); }
 body.experience-next .sv-tool.running { border-color: #80502e; }
-body.experience-next :is(.sv-quote-pop, .sv-attach .att.quote .qi, .sv-said-quote .qi) svg { width: 12px; height: 12px; background: currentColor; -webkit-mask: var(--px-quote) center / 12px 12px no-repeat; mask: var(--px-quote) center / 12px 12px no-repeat; }
-body.experience-next :is(.sv-quote-pop, .sv-attach .att.quote .qi, .sv-said-quote .qi) svg > * { display: none; }
+body.experience-next :is(.sv-quote-pop, .sv-attach .att.quote .qi) svg { width: 12px; height: 12px; background: currentColor; -webkit-mask: var(--px-quote) center / 12px 12px no-repeat; mask: var(--px-quote) center / 12px 12px no-repeat; }
+body.experience-next :is(.sv-quote-pop, .sv-attach .att.quote .qi) svg > * { display: none; }
 body.experience-next .sv-quote-pop { gap: 6px; height: 26px; padding: 0 10px 0 8px; border: 1px solid var(--line-2); background: var(--panel-2); color: var(--txt); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; box-shadow: none; }
 body.experience-next .sv-quote-pop:hover { background: var(--line-3); border-color: var(--line-3); color: var(--bg); }
 body.experience-next .sv-quote-pop:focus-visible { outline: 1px solid var(--blue); outline-offset: 2px; }
@@ -163,7 +162,6 @@ body.experience-next :is(.sv-jump, .w-bar) { background: var(--panel); }
 body.experience-next .sv-jump-anchor { grid-row: 1; align-self: end; }
 body.experience-next .sv-jump { bottom: 12px; padding: 6px 12px; font: 11px/14px var(--mono); letter-spacing: 0; color: var(--txt); border-color: var(--line-2); }
 body.experience-next .sv-jump:hover { color: var(--accent); border-color: var(--accent); }
-body.experience-next .wn-list { background: var(--well); }
 body.experience-next :is(#confirm.at, .pal-scrim) { background: rgba(8, 8, 8, .82); }
 body.experience-next #nudge-scrim { background: rgba(6, 6, 6, .86); }
 body.experience-next #arrange { background: rgba(6, 6, 6, .96); }

@@ -22,6 +22,8 @@
 .ctx-chip:is(a, [data-kind=chat], [data-kind=image][data-path]) { cursor: pointer; }
 .ctx-chip:is(a, [data-kind=chat], [data-kind=image][data-path]):hover { border-color: color-mix(in oklab, var(--cc) 48%, var(--cc-edge)); background: color-mix(in oklab, var(--cc) 17%, transparent); color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); text-decoration: none; }
 .ctx-chip:focus-visible { outline: 2px solid var(--cc-base); outline-offset: -2px; }
+.ctx-chip.md-chip { cursor: pointer; }
+.ctx-chip.md-chip:hover { border-color: color-mix(in oklab, var(--cc) 48%, var(--cc-edge)); background: color-mix(in oklab, var(--cc) 17%, transparent); }
 
 .ctx-chip[data-kind=image] { --cc: var(--cc-image); }
 .ctx-chip[data-kind=chat] { --cc: var(--cc-chat); }

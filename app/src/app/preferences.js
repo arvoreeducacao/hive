@@ -9,6 +9,11 @@ import { LAYOUTS, LAYOUT_NAMES } from "./seat-layout.js";
 import { paintStructureChoices } from "./structure.js";
 import { paintThemes } from "./themes.js";
 import { paintBrandAvatar } from "./welcome.js";
+import { svConvShow } from "./conversation-model.js";
+import { structPool } from "./structured-seats.js";
+import { paintTitleInstructions } from "./title-instructions.js";
+import { TIME_FORMATS, chooseTimeFormat } from "./clock-format.js";
+import { SCREEN_READER_DEFAULT, followFocusedChat } from "./screen-reader.js";
 
 const LANG_KEY = "hive.lang";
 
@@ -31,6 +36,21 @@ const GAZE_KEY = "hive.gaze";
 const GAZE_DEFAULT = "screen";
 
 const GAZE_NAMES = { off: "no, let it be", window: "inside this window", screen: "anywhere on the screen" };
+
+const TOOL_CALLS_DEFAULT = "all";
+
+const TOOL_CALLS_NAMES = { all: "Show all", failed: "Hide successful", none: "Hide all", zen: "Zen" };
+
+st.toolCalls = TOOL_CALLS_DEFAULT;
+
+const TIME_FORMAT_NAMES = { system: "System default", "12h": "12-hour", "24h": "24-hour" };
+
+st.timeFormat = "system";
+const SCREEN_READER_NAMES = { status: "Status only", messages: "Status and messages", everything: "Everything" };
+
+st.screenReaderAnnouncements = SCREEN_READER_DEFAULT;
+
+st.screenReaderWindowTitle = false;
 
 const PET_SWITCH = [
   { on: true, name: "the little you, on" },
@@ -76,6 +96,67 @@ function setBrandFace(choice, quiet) {
   paintChoices();
   if (quiet) return;
   saveConfig({ brandFace }).catch(() => {});
+}
+
+function setToolCalls(choice, quiet) {
+  const wanted = TOOL_CALLS_NAMES[choice] ? choice : TOOL_CALLS_DEFAULT;
+  const changed = wanted !== st.toolCalls;
+  st.toolCalls = wanted;
+  paintChoices();
+  if (changed) for (const e of structPool.values()) svConvShow(e);
+  if (quiet) return;
+  saveConfig({ toolCalls: wanted }).catch(() => {});
+}
+
+function adoptToolCalls(r) {
+  setToolCalls(r.config?.toolCalls, true);
+}
+
+function setTimeFormat(choice, quiet) {
+  const wanted = chooseTimeFormat(choice);
+  const changed = wanted !== st.timeFormat;
+  st.timeFormat = wanted;
+  paintChoices();
+  if (changed) {
+    for (const e of structPool.values()) svConvShow(e);
+    render();
+  }
+  if (quiet) return;
+  saveConfig({ timeFormat: wanted }).catch(() => {});
+}
+
+function adoptTimeFormat(r) {
+  setTimeFormat(r.config?.timeFormat, true);
+}
+
+function setScreenReaderAnnouncements(choice, quiet) {
+  st.screenReaderAnnouncements = SCREEN_READER_NAMES[choice] ? choice : SCREEN_READER_DEFAULT;
+  paintChoices();
+  followFocusedChat();
+  if (quiet) return;
+  saveConfig({ screenReaderAnnouncements: st.screenReaderAnnouncements }).catch(() => {});
+}
+
+function setScreenReaderWindowTitle(on, quiet) {
+  st.screenReaderWindowTitle = !!on;
+  paintChoices();
+  followFocusedChat();
+  if (quiet) return;
+  saveConfig({ screenReaderWindowTitle: st.screenReaderWindowTitle }).catch(() => {});
+}
+
+function adoptScreenReader(r) {
+  setScreenReaderAnnouncements(r.config?.screenReaderAnnouncements, true);
+  setScreenReaderWindowTitle(r.config?.screenReaderWindowTitle === true, true);
+}
+
+function paintScreenReaderTitle(on) {
+  const flip = $("t-sr-title");
+  if (!flip) return;
+  flip.textContent = on ? "on" : "off";
+  flip.classList.toggle("on", on);
+  flip.setAttribute("aria-pressed", on ? "true" : "false");
+  $("s-sr-title-say").textContent = on ? phrase("the window title starts with the chat's status and name") : phrase("the window title says only Hive");
 }
 
 const LOOK_DEFAULT = "classic";
@@ -174,6 +255,7 @@ function repaintEverything() {
   paintCalm();
   paintThemes();
   paintChoices();
+  paintTitleInstructions();
   render();
 }
 
@@ -242,6 +324,13 @@ function paintChoices() {
   $("f-gaze").disabled = said.gazeOff;
   choiceSolids.layout.show({ options: said.layout });
   $("f-layout").value = said.layoutWorn;
+  choiceSolids.tools.show({ options: said.tools });
+  $("f-tools").value = said.toolsWorn;
+  choiceSolids.clock.show({ options: said.clock });
+  $("f-clock").value = said.clockWorn;
+  choiceSolids.readers.show({ options: said.readers });
+  $("f-sr-say").value = said.readersWorn;
+  paintScreenReaderTitle(said.titleOn);
   const size = $("f-size");
   if (size && size !== document.activeElement) size.value = said.size;
   paintStructureChoices();
@@ -267,6 +356,13 @@ function choicesViewModel() {
     gazeWorn: st.gazeMode,
     gazeOff: st.petChoice === PET_OFF,
     layoutWorn: st.seatLayout,
+    tools: named(TOOL_CALLS_NAMES),
+    toolsWorn: st.toolCalls,
+    clock: TIME_FORMATS.map((id) => ({ key: id, value: id, label: phrase(TIME_FORMAT_NAMES[id]) })),
+    clockWorn: st.timeFormat,
+    readers: named(SCREEN_READER_NAMES),
+    readersWorn: st.screenReaderAnnouncements,
+    titleOn: !!st.screenReaderWindowTitle,
     size: st.LIMIT
   };
 }
@@ -276,10 +372,14 @@ solidMounts.push((hive) => {
   document.fonts?.ready?.then(placeWindowButtons);
   const bar = $("top");
   if (IS_MAC && bar) new ResizeObserver(placeWindowButtons).observe(bar);
-  const hosts = { look: $("f-look"), visual: $("f-visual"), lang: $("f-lang"), pet: $("f-pet"), brand: $("f-brand"), gaze: $("f-gaze"), layout: $("f-layout") };
+  const hosts = { look: $("f-look"), visual: $("f-visual"), lang: $("f-lang"), pet: $("f-pet"), brand: $("f-brand"), gaze: $("f-gaze"), layout: $("f-layout"), tools: $("f-tools"), clock: $("f-clock"), readers: $("f-sr-say") };
   if (Object.values(hosts).some((one) => !one)) return;
   choiceSolids = Object.fromEntries(Object.entries(hosts).map(([which, host]) => [which, hive.mountOptions(host)]));
   paintChoices();
+  hosts.tools.addEventListener("change", (ev) => setToolCalls(ev.target.value));
+  hosts.clock.addEventListener("change", (ev) => setTimeFormat(ev.target.value));
+  hosts.readers.addEventListener("change", (ev) => setScreenReaderAnnouncements(ev.target.value));
+  $("t-sr-title")?.addEventListener("click", () => setScreenReaderWindowTitle(!st.screenReaderWindowTitle));
 });
 
-export { BRAND_DEFAULT, BRAND_KEY, BRAND_NAMES, GAZE_DEFAULT, GAZE_KEY, GAZE_NAMES, LANG_KEY, LOOK_DEFAULT, LOOK_NAMES, VISUAL_NAMES, PET_KEY, PET_NAMES, PET_OFF, PET_ON, PET_SWITCH, adoptBrandFace, adoptLook, adoptGaze, adoptLanguage, adoptPet, bootBrandFace, bootGaze, bootLanguage, bootPet, brandFace, brandWanted, choiceSolids, choicesViewModel, farAt, gazeReach, paintChoices, placeWindowButtons, raycastButtonsSpot, windowButtonsMovable, repaintEverything, setBrandFace, setGaze, setLook, setLanguage, setPet, watchFarCursor, windowButtonsSpot };
+export { TIME_FORMAT_NAMES, adoptTimeFormat, setTimeFormat, TOOL_CALLS_DEFAULT, TOOL_CALLS_NAMES, adoptToolCalls, setToolCalls, BRAND_DEFAULT, BRAND_KEY, BRAND_NAMES, GAZE_DEFAULT, GAZE_KEY, GAZE_NAMES, LANG_KEY, LOOK_DEFAULT, LOOK_NAMES, VISUAL_NAMES, PET_KEY, PET_NAMES, PET_OFF, PET_ON, PET_SWITCH, adoptBrandFace, adoptLook, adoptGaze, adoptLanguage, adoptPet, bootBrandFace, bootGaze, bootLanguage, bootPet, brandFace, brandWanted, choiceSolids, choicesViewModel, farAt, gazeReach, paintChoices, placeWindowButtons, raycastButtonsSpot, windowButtonsMovable, repaintEverything, setBrandFace, setGaze, setLook, setLanguage, setPet, watchFarCursor, windowButtonsSpot, SCREEN_READER_NAMES, adoptScreenReader, setScreenReaderAnnouncements, setScreenReaderWindowTitle };

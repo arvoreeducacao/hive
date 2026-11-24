@@ -3,6 +3,7 @@ import { phrase, raycastOn, st } from "./core.js";
 import { draftItem, drafts } from "./draft-seat.js";
 import { editors } from "./files-editor.js";
 import { jobName, justCreated } from "./leader-key.js";
+import { isShelved, sweepSeatMarks } from "./seat-marks.js";
 import { swapSeats } from "./tiles.js";
 
 let seq = 0;
@@ -131,6 +132,12 @@ function hideParked() {
 }
 
 const hiddenUntil = (key) => hidden.get(key)?.until || "";
+
+const shelvedFrom = new Map();
+
+st.peek = "";
+
+const shelvedAway = (key) => key !== st.peek && isShelved(key);
 
 function hideSeat(key, until = "works") {
   if (soloSeat) return false;
@@ -418,6 +425,17 @@ function bringSeatIn(key) {
   return true;
 }
 
+function bringShelvedIn(key) {
+  if (st.blocks.some((b) => b.keys.includes(key))) return;
+  landHome(key, shelvedFrom.get(key));
+  if (!st.blocks.some((b) => b.keys.includes(key))) {
+    const room = blockWithRoom() || st.blocks.find((b) => b.ws === st.space && b.keys.length < st.LIMIT);
+    if (!room) return void bringSeatIn(key);
+    room.keys.push(key);
+  }
+  saveBlocks();
+}
+
 function tidy() {
   if (soloSeat) {
     const here = st.data.sessions.some((s) => s.name === soloSeat);
@@ -433,6 +451,8 @@ function tidy() {
   if (shed) saveDetached();
   hideParked();
   wakeHidden();
+  sweepSeatMarks();
+  if (st.peek && !isShelved(st.peek)) st.peek = "";
   const jobs = new Map((st.data.spawning || []).map((j) => [j.id, j]));
   for (const j of jobs.values()) if (j.name && j.settled) jobName.set(j.id, j.name);
   for (const [id, at] of justCreated) if (jobs.has(id) || Date.now() - at > 20000) justCreated.delete(id);
@@ -459,6 +479,9 @@ function tidy() {
         if (!editors.has(c.slice(5))) continue;
       } else if (c.startsWith("draft:")) {
         if (!drafts.has(c.slice(6))) continue;
+      } else if (shelvedAway(c)) {
+        shelvedFrom.set(c, b.id);
+        continue;
       } else if (leftForGood(c, alive) || detached.has(c) || hidden.has(c)) continue;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -468,7 +491,13 @@ function tidy() {
   }
 
   const loose = [];
-  for (const s of st.data.sessions) if (!seen.has(s.name) && !detached.has(s.name) && !hidden.has(s.name) && !s.by) loose.push(s.name);
+  for (const s of st.data.sessions) {
+    if (seen.has(s.name) || detached.has(s.name) || hidden.has(s.name) || s.by || shelvedAway(s.name)) continue;
+    const from = shelvedFrom.get(s.name);
+    shelvedFrom.delete(s.name);
+    landHome(s.name, from);
+    if (!st.blocks.some((b) => b.keys.includes(s.name))) loose.push(s.name);
+  }
   for (const j of jobs.values()) {
     if (seen.has(`job:${j.id}`)) continue;
     if (j.name && seen.has(j.name)) continue;
@@ -525,4 +554,4 @@ function blockTitle(b, items) {
     : phrase("{name} and {n} more seats: {names}", { name: head, n: rest.length, names: rest.join(", ") });
 }
 
-export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, hideSeat, hidden, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };
+export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, bringShelvedIn, hideSeat, hidden, hiddenUntil, isHidden, shelvedAway, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };

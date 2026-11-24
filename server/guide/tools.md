@@ -6,11 +6,11 @@ The seat's browser and phone, tasks, routines, secrets, PRs and the other workin
 
 Every tool in this topic is a tool of the `hive` MCP server that each seat gets. Each tool needs a ceiling, and a chat only sees the tools its ceiling allows (see the "seats" topic for how a ceiling is set).
 
-- `read`: `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`.
-- `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`.
-- `full`: `browser_set_cookie` (plus `spawn` and `publish`).
+- `read`: `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`, `html_preview`, `html_render`, `pull_request_read`, `pull_request_list`, `ci_logs`.
+- `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`, `pull_request_create`, `pull_request_update`, `pull_request_respond`, `ci_rerun`.
+- `full`: `browser_set_cookie` and `pull_request_merge` (plus `spawn` and `publish`).
 
-A call above the ceiling fails with "this chat runs with a "<ceiling>" ceiling". The browser, device, task, secret, buzz and Slack tools also need a chat with a seat name; an agent outside the Hive (a plain terminal) gets an error that it has no seat. They talk to the Hive app on the same machine, so the app must be open there: otherwise the error is "no hive answering on this machine".
+A call above the ceiling fails with "this chat runs with a "<ceiling>" ceiling". The browser, device, task, secret, buzz, Slack and pull request tools also need a chat with a seat name; an agent outside the Hive (a plain terminal) gets an error that it has no seat. They talk to the Hive app on the same machine, so the app must be open there: otherwise the error is "no hive answering on this machine".
 
 ## The seat's browser: what it is
 
@@ -276,7 +276,33 @@ The PR panel follows the pull requests of the Hive's chats, with CI, diff, revie
 - Review notes: "leave a note on this line", then "send the notes" to a chat you pick ("which chat gets the notes"), or "copy the batch". "Review in the chat" opens the review inside the chat.
 - "Comment, approve or ask for changes" posts a GitHub review. GitHub does not let you approve your own PR.
 - Merge: "Merge" (a merge commit), "merge when CI passes" (auto-merge) or "Force merge" (admin, over red or running CI). After the PR closes, "Delete the branch" removes it, except for a branch in a fork.
+- Views: "Views" in the panel's top bar keeps the filter and the search of the list under a name. "Save current view…" asks for the name (up to 80 characters, one name per view). Choosing a saved view brings back its filter and search. After a change the button shows `*` and the menu adds "Update saved view"; "Rename view…" and "Delete view" act on the chosen view. Enter or Space opens the menu, the arrows move in it, and Esc or Tab closes it and puts the focus back on the button.
+- The Inbox PR panel has the same "Views" button. A view chosen there opens the PR list with that filter and search.
+- The views live in the settings file under `prViews`, so every window of the Hive on this machine sees them.
 - The list is kept in `<hub>/.hive/prs.json` and the notes in `<hub>/.hive/pr-notes.json`.
+
+## Pull request and CI tools for a chat
+
+A chat reads, opens, updates, answers and merges GitHub pull requests, reads failing CI logs and re-runs checks with these `hive` tools. They run `gh` in the Hive app with the person's own GitHub login, so `gh` must be installed and logged in on this machine and the app must be open. GitLab is not supported.
+
+Which PR a tool acts on:
+
+- With `number` and `repository` (`owner/name`): that PR. With `number` only: that number in the repository of the chat's checkout.
+- With neither: the chat's PR. That is the PR of the branch checked out in the chat's latest worktree, else the one PR the PR list links to this chat. With several linked PRs the tool asks for `number`; with none it says "This chat's branch has no known PR".
+- The chat's worktree is the last repository folder it worked in (its working directory if it never left it). A chat on the server has no local checkout here, so it must pass `number` and `repository`.
+
+The tools:
+
+- `pull_request_read(number?, repository?, include?, includeResolved?, cursor?)`: title, state, draft, author, branches, `headSha`, mergeability, how far behind the base it is, auto-merge, check counts (passed, pending, failed names) and the count of unresolved review threads. `include` adds `body`, `checks` (every check run), `threads` (unresolved review threads with their comments and ids; `includeResolved:true` adds the resolved ones), `comments` (comments and reviews) and `diff`. Long conversations and diffs come in pages of about 32,000 characters; pass `nextCursor` as `cursor` for the next page of the same section.
+- `pull_request_list(repository?, state?, involvement?, query?, limit?, cursor?)`: the repository's PRs, recently updated first. `state` is `open` (default), `closed`, `merged` or `all`; `involvement` is `all`, `reviewing` (asks for your review) or `authored` (yours); `query` takes GitHub search words; `limit` is 1 to 100 (30). The rows carry no PR link, so listing does not add PRs to the PR list.
+- `pull_request_create(title, body, base?, draft?)`: pushes the chat's branch to `origin`, then opens its PR, or returns the PR already open for that branch (`created:false`). The PR is linked to the chat on the PR list. It refuses a detached HEAD and the repository's default branch. `private:true` fails: GitHub has no private PRs.
+- `pull_request_update(number?, repository?, title?, body?, ready?, state?, addLabels?, removeLabels?, requestReviewers?)`: edits the title, body, labels and reviewers (`org/team` for a team), `ready:false` turns it back into a draft, `state` closes or reopens it.
+- `pull_request_respond(number?, repository?, reviewThreadId?, body?, resolved?)`: without `reviewThreadId`, a comment on the PR. With it, a reply in that review thread and, with `resolved`, resolving or reopening the thread. If the reply lands and the resolve fails, the error says so: retry without `body`.
+- `pull_request_merge(number?, repository?, expectedHeadSha, method?, auto?)`: merges (`merge` by default, or `squash`, `rebase`). It refuses when the PR's head is no longer `expectedHeadSha` (the `headSha` from `pull_request_read`), and GitHub checks the same head again at the merge. `auto:true` turns on auto-merge, so the answer says `state: "open"` until GitHub merges it. It never uses admin rights, so branch protection and required checks hold; a blocked merge comes back as an error.
+- `ci_logs(number?, repository?, check?, tailLines?)`: the last `tailLines` lines (200 by default, at most 2000) of each failing or cancelled check's log, timestamps and colours removed. Only the first 5 failing checks are read; the rest say "Ask for this check by name". `check` reads that one check by name, failed or not. A check that is not a GitHub Actions job has no log here.
+- `ci_rerun(number?, repository?, check?)`: re-runs the failing jobs of each workflow run, or the one named check. Each check comes back with `rerun` true or false and the reason.
+
+The answers are JSON. In the conversation each call shows as one line, such as "Read PR #12", "Merged PR #12" or "Re-ran CI on PR #12".
 
 ## Usage and plan limits
 
@@ -292,6 +318,28 @@ The doctor checks this machine's setup and suggests fixes.
 - Each finding has "fix it" (runs the fix, up to 3 minutes), "Solve in a chat" (opens a local chat with the finding as its mission) and "check again". A fix that needs the person at the keyboard shows a command to copy instead.
 - "ignore it for 7 days" hides a failure for a week; "ignore it for good" hides a warning for good. Ignored checks are kept in `~/.hive/doctor-ignored.json`. "don't warn me until this changes" silences a finding until its state changes.
 - Some warnings heal themselves: the Hive runs their fix on its own and tries again after 30 minutes.
+
+## Pages in the chat: html_render and html_preview
+
+A chat can show a finished HTML page (a chart, a diagram, a mockup, a table) inside the conversation, above its final reply.
+
+- `html_render(title, height, html | path)` keeps the page under `~/.hive/renders/<seat>/<id>.html` (on the pod, under `/workspace/hive/renders/`) and the chat draws it in a sandboxed frame. The frame fits its height to the page, up to 20000 px. The button in the top right corner opens it full screen; Esc or "Close" leaves.
+- `html_preview(html | path, width, appearance)` draws the page off screen in the Hive app and returns a PNG, the content height and the console messages, so the chat can check the page before it shows it. It needs the Hive app open and on screen on the same machine. A cloud chat cannot preview: the error says so, and `html_render` still works there.
+- The page must be self-contained: inline `<style>` and `<script>`, at most 512000 bytes. Local images given as absolute paths in `src` are inlined (up to 5 MB each, 8 MB for the whole page once inlined); remote `https` addresses load as they are.
+- The page cannot reach the Hive, this machine or its network: only public `https` and `wss` addresses load; `http`, `hive:`, `localhost`, private and link-local addresses are cancelled before the request leaves. It cannot navigate, open windows, submit forms or embed other pages, so a link inside it does nothing. Any frame the page adds (`iframe`, `frame`, `object`, `embed`) is removed at once, the page has no WebRTC, and `document.write`, `setHTMLUnsafe`, `Document.parseHTMLUnsafe` and declarative shadow roots (`shadowrootmode`) are switched off.
+- The Hive gives the page the theme variables of the chat (`--background`, `--foreground`, `--muted`, `--card`, `--border`, `--primary`, `--accent`, `--destructive`, `--warning`, `--success`, `--info`, `--code-background`, `--chart-1` to `--chart-6`, `--radius`, `--font-sans`, `--font-mono`) and an 8 px gutter on `html`.
+- A page that sizes with `vh` units or sets `height:100%` on `html` or `body` (in a style sheet or in their `style`) is refused, because the frame grows with the page. A page that still keeps growing with its frame is held at its height.
+- On the phone the page arrives sealed with the chat's key, like a picture, up to 4 MB; a bigger one shows a note to open it on the computer. The phone draws it at the phone's width in the phone's colours, in a sandboxed frame with an opaque origin, so it cannot reach the phone's keys, open windows or submit forms. On the phone the page reaches no network at all: no `https` scripts, styles, images, fonts or requests and no WebRTC, only what is inline or in `data:` and `blob:` addresses, so a page for the phone inlines its libraries and pictures. A page that navigates away is closed. "full screen" opens it on a screen of its own.
+
+## MCP apps in a Claude chat
+
+An MCP tool can come with an app: a `ui://` page its server declares in the tool's `_meta.ui.resourceUri` (the MCP Apps standard). When a Claude chat calls such a tool, the Hive reads the page from the server and shows it in the conversation right below the call.
+
+- The app runs in a sandboxed frame with no origin of its own, under the same frame shield as `html_render`. It reaches only the `https` and `wss` domains its server declared, and none of this machine or its network.
+- The app can call tools of its own server and read its resources. A tool not marked read-only waits for the person to allow it ("Allow <server> to run <tool>?"), and so does a message the app wants to post in the chat. Links open only from a click inside the app.
+- The button in the corner, or a request from the app after a click inside it, opens the app full screen; the same button or Esc brings it back.
+- Using the app needs the chat's agent running: a chat that went to sleep wakes when the app calls a tool. Other agents show these calls as ordinary tool calls. An MCP server reached only through the hub's `mcp_call` shows no app.
+- Do not describe the app in the reply; the person sees it.
 
 ## Attachments and pictures in a chat
 
@@ -310,7 +358,16 @@ The doctor checks this machine's setup and suggests fixes.
 
 - `server/peer/peer-tools.mjs`
 - `server/peer/peer.mjs`
+- `app/lib/pr-tools.mjs`
+- `app/src/app/pr-views.js`
+- `app/assets/pr-views.mjs`
+- `app/lib/pr-checks.mjs`
+- `app/routes/prs.mjs`
 - `app/routes/browser.mjs`
+- `server/peer/html-pages.mjs`
+- `app/routes/render.mjs`
+- `app/src/app/html-pages.js`
+- `app/main/page-guard.js`
 - `app/src/app/chat-and-panes.js`
 - `app/main/seat-preload.js`
 - `app/main.js`

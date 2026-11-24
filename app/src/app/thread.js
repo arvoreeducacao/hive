@@ -13,6 +13,7 @@ import { CI_LABEL, LINE_CAP, MINUTE_CAP, REVIEW_LABEL, pullThreads } from "./prs
 import { capsOf, copyWithWord, dressHost, followRaycast, footModel, keysHtml, leavePanel, openActions, panelOf, registerPanel, runAction, undressHost } from "./panel-window.js";
 import { CHANNEL_GLYPH, MERGE_ARMED_LONG, branchTrouble, MERGE_BUSY, MERGE_LANDING_WAIT, SPINNER, chatOfPr, freshOf, markThreadSeen, mergeTrouble, merging, paintPrButton, paintPrPop, prIsGone, prOfChat, prPopOpen, prsOfChat, prsWorthShowing, threadOfChat, threadsOfChat } from "./seat-menu.js";
 import { run } from "./themes.js";
+import { closePrViews, onPrViews, paintPrViewsTrigger, togglePrViews } from "./pr-views.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
 
 st.threadChat = null;
@@ -659,6 +660,26 @@ function prMatches(p, query) {
   if (!q || prLinkOf(q)) return true;
   return `${p.title || ""} ${p.repo} #${p.number} ${p.author || ""} ${p.branch || ""}`.toLowerCase().includes(q);
 }
+
+function prFilterSay(filter = st.prFilter || "all") {
+  const said = PR_FILTERS.find(([key]) => key === filter);
+  return said && said[0] !== "all" ? phrase(said[1]) : "";
+}
+
+function applyPrView(view) {
+  st.prFilter = view.filter;
+  st.prQuery = view.query;
+  const search = $("pr-url");
+  if (search) search.value = view.query;
+  if (!prsOnScreen() || !raycastOn()) return;
+  const first = prsShown()[0];
+  if (first && !prsShown().some((one) => one.key === st.openPr)) { st.openPr = first.key; st.openFile = null; st.openCheck = ""; }
+  paintPrs();
+}
+
+const PR_LIST_VIEWS = { key: "pr-list", trigger: () => $("pr-views"), apply: applyPrView, closed: () => paintPrChrome(), suggest: () => prFilterSay() };
+
+onPrViews(() => { if (prsOnScreen()) paintPrChrome(); });
 
 function prKept(p) {
   const filter = st.prFilter || "all";
@@ -1655,6 +1676,7 @@ function forgetPrPanels() {
 }
 
 function closePrs() {
+  closePrViews(false);
   if (raycastOn()) leavePanel($("prs"));
   $("prs").hidden = true;
   forgetPrPanels();
@@ -1795,6 +1817,7 @@ function dressPrs() {
       <span class="pw-vsep"></span>
       <label class="pw-search">${svgIcon("i-mag")}<input data-pw-keep="pr-url" placeholder="${say("Search by title, repo or author — or paste a PR url")}" aria-label="${say("Search by title, repo or author — or paste a PR url")}"></label>
       <label class="pw-drop"><select id="pr-filter" aria-label="${say("which PRs")}"></select></label>
+      <button type="button" class="pv-trigger pw-views" id="pr-views" data-pr-views aria-haspopup="menu" aria-expanded="false"></button>
       <span class="pw-vsep"></span>
       <span class="pw-hint">${keys("↑", "↓")}PR</span>
       <span class="pw-hint">${keys(IS_MAC ? "⌥" : "Alt", "↵")}${say("detail")}</span>
@@ -1807,6 +1830,7 @@ function dressPrs() {
     <footer class="pw-foot" id="pr-foot" data-no-t></footer>`, {
     on: (dressed) => {
       dressed.querySelector("#pr-close").addEventListener("click", () => closePrs());
+      dressed.querySelector("#pr-views").addEventListener("click", () => togglePrViews(PR_LIST_VIEWS));
       dressed.querySelector("#pr-filter").addEventListener("change", (e) => {
         st.prFilter = e.target.value;
         const first = prsShown()[0];
@@ -1848,6 +1872,8 @@ function paintPrChrome() {
     const n = key === "all" ? st.prs.length : key === "failing" ? st.prs.filter((one) => one.ci === "failed").length : st.prs.filter((one) => prSection(one) === key).length;
     return `<option value="${key}" ${key === (st.prFilter || "all") ? "selected" : ""}>${esc(phrase(say))} · ${n}</option>`;
   }).join("");
+  $("pr-filter").value = st.prFilter || "all";
+  paintPrViewsTrigger($("pr-views"));
   const gauge = prGaugeModel();
   prFootSolid?.show(footModel(panelOf("prs"), {
     icon: "i-pr", title: phrase("PRs"),
@@ -1872,4 +1898,4 @@ followRaycast((on) => {
   if (prListSolid && prsOnScreen()) paintPrs();
 });
 
-export { deleteBranch, MERGE_KEY, PR_FILTERS, PR_SECTIONS, mergeAsk, paintPrChrome, pickPr, prEmptyModel, prKvHtml, prLinkOf, prListWindowModel, prMidWindowModel, prPanelActions, prQueueModel, prSection, prStatus, prsShown, refreshPrs, registerPr, CHECK_MARK, CI_DOT, CLOCK, DAY_NAME, HANDY, MODE, PR_BEAT_AWAY, PR_BEAT_OPEN, PR_BEAT_RUNNING, PR_TABS, SHOT_SIDES, VERDICT_CLASS, askForTab, checksHtml, chosenCheck, closePrs, closeThreadPanel, commits, commitsHtml, diffHtml, diffs, exitReview, faceOf, filesHtml, filesOfPr, forceButton, forgetPrPanels, forgetWhatMoved, hidePr, keepPrBeat, lastPainted, linesThisSession, logHtml, logKey, logs, markCurrent, markMd, mergeButton, mergePr, mergeState, messageRow, movePrPanel, moveThreadPanel, openPrs, openShell, openThreadOf, paintDiff, paintFile, paintMerging, paintPrList, paintPrMid, paintPrTrouble, paintPrs, paintThread, paintThreadActions, passToChat, pickPrTab, pickerHtml, pinToEnd, prDetailPanel, prFileModel, prGaugeModel, prListSolid, prListViewModel, prMidPanel, prMidSolid, prMidViewModel, prMoved, prRowModel, prSeatModel, prVisible, prsOnScreen, pullCommits, pullDiff, pullLog, pullPrs, pullTalk, react, reactionsHtml, readSeen, rerunChecks, reviewHtml, reviewInChat, reviewPr, saveSeen, seen, seenOf, sendToThread, shotSrc, shotsHtml, stepCheck, stepFile, stepPr, tabCount, tabsHtml, talkHtml, talks, tellHive, threadDrafts, threadPanel, threadVisible, toggleSeen, tookSays, toolsHtml, unmarkLast, waitForLanding, wasSeen, whole, wireChecks, wireDiff, wirePrTabs, wireReview, wireTalk, notes, notesOf, pullNotes, noteTargets, notesBarHtml, noteRowHtml, sendNotes, attribution, attributionSay, pullAttribution };
+export { applyPrView, deleteBranch, MERGE_KEY, PR_FILTERS, prFilterSay, PR_SECTIONS, mergeAsk, paintPrChrome, pickPr, prEmptyModel, prKvHtml, prLinkOf, prListWindowModel, prMidWindowModel, prPanelActions, prQueueModel, prSection, prStatus, prsShown, refreshPrs, registerPr, CHECK_MARK, CI_DOT, CLOCK, DAY_NAME, HANDY, MODE, PR_BEAT_AWAY, PR_BEAT_OPEN, PR_BEAT_RUNNING, PR_TABS, SHOT_SIDES, VERDICT_CLASS, askForTab, checksHtml, chosenCheck, closePrs, closeThreadPanel, commits, commitsHtml, diffHtml, diffs, exitReview, faceOf, filesHtml, filesOfPr, forceButton, forgetPrPanels, forgetWhatMoved, hidePr, keepPrBeat, lastPainted, linesThisSession, logHtml, logKey, logs, markCurrent, markMd, mergeButton, mergePr, mergeState, messageRow, movePrPanel, moveThreadPanel, openPrs, openShell, openThreadOf, paintDiff, paintFile, paintMerging, paintPrList, paintPrMid, paintPrTrouble, paintPrs, paintThread, paintThreadActions, passToChat, pickPrTab, pickerHtml, pinToEnd, prDetailPanel, prFileModel, prGaugeModel, prListSolid, prListViewModel, prMidPanel, prMidSolid, prMidViewModel, prMoved, prRowModel, prSeatModel, prVisible, prsOnScreen, pullCommits, pullDiff, pullLog, pullPrs, pullTalk, react, reactionsHtml, readSeen, rerunChecks, reviewHtml, reviewInChat, reviewPr, saveSeen, seen, seenOf, sendToThread, shotSrc, shotsHtml, stepCheck, stepFile, stepPr, tabCount, tabsHtml, talkHtml, talks, tellHive, threadDrafts, threadPanel, threadVisible, toggleSeen, tookSays, toolsHtml, unmarkLast, waitForLanding, wasSeen, whole, wireChecks, wireDiff, wirePrTabs, wireReview, wireTalk, notes, notesOf, pullNotes, noteTargets, notesBarHtml, noteRowHtml, sendNotes, attribution, attributionSay, pullAttribution };

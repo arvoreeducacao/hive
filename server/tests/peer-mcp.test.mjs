@@ -91,7 +91,7 @@ test("the peer tools introduce themselves the way an mcp server has to", async (
     assert.equal(hello.result.serverInfo.name, "hive");
     assert.ok(hello.result.capabilities.tools);
     const list = (await client.call("tools/list", {})).result.tools.map((t) => t.name);
-    assert.deepEqual(list, ["peers", "message", "ask", "peek", "guide", "publish", "reply_on_page", "browser_navigate", "browser_screenshot", "browser_profile", "browser_set_cookie", "browser_cookies", "browser_resize", "browser_eval", "browser_snapshot", "browser_click", "browser_hover", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for", "browser_tabs", "browser_back", "browser_forward", "browser_reload", "browser_upload", "browser_network", "browser_console", "device_open", "device_screenshot", "device_tap", "device_swipe", "device_type", "device_key", "device_tree", "device_logs", "device_close", "spawn", "close", "rename", "park", "task", "buzz", "reply_on_slack", "request_secret", "ask_person"]);
+    assert.deepEqual(list, ["peers", "message", "ask", "peek", "read_chat", "guide", "publish", "reply_on_page", "html_preview", "html_render", "browser_navigate", "browser_screenshot", "browser_profile", "browser_set_cookie", "browser_cookies", "browser_resize", "browser_eval", "browser_snapshot", "browser_click", "browser_hover", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for", "browser_tabs", "browser_back", "browser_forward", "browser_reload", "browser_upload", "browser_network", "browser_console", "device_open", "device_screenshot", "device_tap", "device_swipe", "device_type", "device_key", "device_tree", "device_logs", "device_close", "spawn", "close", "rename", "link_pr", "unlink_pr", "park", "task", "buzz", "reply_on_slack", "request_secret", "ask_person", "pull_request_read", "pull_request_list", "pull_request_create", "pull_request_update", "pull_request_respond", "pull_request_merge", "ci_logs", "ci_rerun"]);
   } finally {
     client.stop();
     await rm(base, { recursive: true, force: true });
@@ -274,6 +274,74 @@ test("buzz asks the hive to ring, and refuses to ring about nothing", async () =
     assert.equal(asked[0].body.seat, "asker");
     assert.equal(asked[0].body.text, "o deploy caiu em prod");
     assert.equal(asked[0].body.where, "local");
+  } finally {
+    client.stop();
+    door.close();
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+async function appDoor(base, answer) {
+  const asked = [];
+  const door = createHttpServer((req, res) => {
+    let buf = "";
+    req.on("data", (piece) => { buf += piece; });
+    req.on("end", () => {
+      const body = JSON.parse(buf || "{}");
+      asked.push({ path: req.url, body });
+      const [status, said] = answer(req.url, body);
+      res.writeHead(status, { "content-type": "application/json" });
+      res.end(JSON.stringify(said));
+    });
+  });
+  await new Promise((up) => door.listen(socketPathFor({ home: base }), up));
+  return { asked, close: () => door.close() };
+}
+
+test("rename without a title asks the hive for a new title for this chat and says what it reads now", async () => {
+  const base = await hive();
+  let hand = false;
+  const door = await appDoor(base, () => (hand
+    ? [409, { ok: false, held: true, error: "the person named this chat by hand, so its title stays theirs; ask them before changing it" }]
+    : [200, { ok: true, title: "Retry da cadência com backoff" }]));
+  const client = mcp(base, "asker");
+  try {
+    const out = said(await client.call("tools/call", { name: "rename", arguments: {} }));
+    assert.match(out, /now reads "Retry da cadência com backoff"/);
+    assert.deepEqual(door.asked, [{ path: "/api/retitle", body: { name: "asker", where: "local", by: "agent" } }]);
+    hand = true;
+    const kept = said(await client.call("tools/call", { name: "rename", arguments: {} }));
+    assert.match(kept, /named this chat by hand/);
+    assert.equal(door.asked.length, 2);
+  } finally {
+    client.stop();
+    door.close();
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("link_pr and unlink_pr go through the same hive route the chat menu uses", async () => {
+  const base = await hive();
+  const door = await appDoor(base, (path, body) => (path === "/api/prs/link"
+    ? [200, { ok: true, key: "o/lead-engine#2648", linked: "o/lead-engine#2648" }]
+    : body.url && body.url !== "o/lead-engine#2648" ? [409, { error: "o/r#1 is not the pull request linked to this chat; o/lead-engine#2648 is" }] : [200, { ok: true, key: "o/lead-engine#2648", linked: "" }]));
+  const client = mcp(base, "asker");
+  try {
+    const empty = await client.call("tools/call", { name: "link_pr", arguments: { pr: "  " } });
+    assert.equal(empty.result.isError, true);
+    assert.equal(door.asked.length, 0);
+
+    const linked = said(await client.call("tools/call", { name: "link_pr", arguments: { pr: "https://github.com/o/lead-engine/pull/2648" } }));
+    assert.match(linked, /o\/lead-engine#2648 is linked to this chat/);
+    assert.deepEqual(door.asked.at(-1), { path: "/api/prs/link", body: { name: "asker", where: "local", url: "https://github.com/o/lead-engine/pull/2648" } });
+
+    const wrong = await client.call("tools/call", { name: "unlink_pr", arguments: { pr: "o/r#1" } });
+    assert.equal(wrong.result.isError, true);
+    assert.match(said(wrong), /not the pull request linked to this chat/);
+
+    const unlinked = said(await client.call("tools/call", { name: "unlink_pr", arguments: {} }));
+    assert.match(unlinked, /no longer linked to this chat/);
+    assert.deepEqual(door.asked.at(-1), { path: "/api/prs/unlink", body: { name: "asker", where: "local", url: "" } });
   } finally {
     client.stop();
     door.close();

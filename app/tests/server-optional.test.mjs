@@ -124,7 +124,7 @@ test("after the key a local-only setup goes straight to the first flight, and ba
   wb.step = "setup";
   assert.equal(wNext(), "flight", "Continue walked into the server steps of a machine that has no server");
   wb.step = "flight";
-  assert.equal(wPrev(), "setup", "Back walked into the server steps of a machine that has no server");
+  assert.equal(wPrev(), "hello", "Back walked into the server steps of a machine that has no server, or into a step the first page holds now");
   assert.equal(wFirstOpen(), "flight");
   wGo("server");
   assert.equal(wb.step, "flight", "a skipped step was opened anyway");
@@ -160,11 +160,11 @@ test("the rail draws no step the person can never finish", () => {
   wb.s = { wantsServer: false, machine: machine(), setup: { ok: true }, sandbox: false };
   wPaint();
   const shown = [...$("w-dots").querySelectorAll("button")].map((one) => one.dataset.id);
-  assert.deepEqual(shown, ["hello", "machine", "setup", "flight"]);
+  assert.deepEqual(shown, ["hello", "flight"], "the machine and the key are on the first page");
   wb.s = { ...wb.s, wantsServer: true };
   wPaint();
   const withServer = [...$("w-dots").querySelectorAll("button")].map((one) => one.dataset.id);
-  assert.deepEqual(withServer, ["hello", "machine", "setup", "server", "authorize", "login", "flight"]);
+  assert.deepEqual(withServer, ["hello", "server", "authorize", "login", "flight"]);
   $("welcome").hidden = true;
 });
 

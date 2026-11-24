@@ -1,3 +1,4 @@
+import { retitlingNamed } from "../app/chat-name.js";
 import { st } from "../state.js";
 
 const GROUP_OF = { needs: "needs", working: "working", stalled: "working", opening: "working" };
@@ -97,7 +98,7 @@ function rowHtml(row, on, ctx) {
   const acc = row.kind === "seat"
     ? `<span class="acc${accent}">${esc(row.acc || "")}${on ? cap("↵", esc) : ""}</span>`
     : `<span class="acc">${row.keys ? cap(row.keys, esc) : ""}</span>`;
-  return `<button type="button" class="lx-row${on ? " sel" : ""}${row.quiet ? " quiet" : ""}" role="option" aria-selected="${on}" data-id="${esc(row.id)}">${icon}<span class="t">${esc(row.name)}</span><span class="s">${esc(row.line || "")}</span>${acc}</button>`;
+  return `<button type="button" class="lx-row${on ? " sel" : ""}${row.quiet ? " quiet" : ""}" role="option" aria-selected="${on}" data-id="${esc(row.id)}">${icon}<span class="t${row.kind === "seat" && retitlingNamed(row.key) ? " title-regenerating" : ""}"${row.kind === "seat" && retitlingNamed(row.key) ? ' aria-busy="true"' : ""}>${esc(row.name)}</span><span class="s">${esc(row.line || "")}</span>${acc}</button>`;
 }
 
 function listHtml(model, ctx) {

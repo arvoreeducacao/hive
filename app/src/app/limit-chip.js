@@ -1,6 +1,8 @@
 import { spokenNow } from "/assets/i18n.mjs";
 import { $, apiGet, phrase, raycastOn, solidMounts, st } from "./core.js";
-import { paintUsage, usageOnScreen } from "./usage.js";
+import { evenPacePercent, paceOf, paceRemainingPercent, resetOf, spanSaid } from "./limit-pace.js";
+import { openUsageAt, paintUsage, usageOnScreen } from "./usage.js";
+import { clockOptions } from "./clock-format.js";
 
 const LIMIT_BEAT = 120000;
 
@@ -56,7 +58,7 @@ function accountSaid(row) {
 function limitWhen(iso) {
   const at = iso ? new Date(iso) : null;
   return at && !Number.isNaN(at.getTime())
-    ? at.toLocaleString(undefined, { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    ? at.toLocaleString(undefined, clockOptions({ weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }))
     : "";
 }
 
@@ -95,7 +97,7 @@ const SOON = 20 * 60 * 60 * 1000;
 
 const weekdayOf = (at) => at.toLocaleDateString(spokenNow(), { weekday: "short" }).replace(/\.$/, "");
 
-const clockOf = (at) => at.toLocaleTimeString(spokenNow(), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const clockOf = (at) => at.toLocaleTimeString(spokenNow(), clockOptions({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }));
 
 function renewsAt(iso, now = Date.now()) {
   const at = iso ? new Date(iso) : null;
@@ -121,6 +123,18 @@ function limitResets(rows) {
 
 const trackWidth = (percent) => `${Math.max(0, Math.min(100, percent))}%`;
 
+const PACE_SAID = { ahead: "Ahead of pace", on: "On pace", under: "Under pace" };
+
+function limitPace(one, now = Date.now()) {
+  const pace = paceOf(one, now);
+  const reset = resetOf(one);
+  return {
+    tick: pace ? `${evenPacePercent(one, now)}%` : "",
+    pace: pace ? `${phrase(PACE_SAID[pace])} · ${phrase("{n}% of the window left", { n: paceRemainingPercent(one, now) })}` : "",
+    resets: reset !== null && reset > now ? phrase("Resets in {duration} · {time}", { duration: spanSaid(reset - now), time: renewsAt(one.resets_at, now) }) : ""
+  };
+}
+
 function accountMeterModel(row, rows) {
   const windows = limitsThatCount(row);
   return {
@@ -135,7 +149,8 @@ function accountMeterModel(row, rows) {
         k: windowWord(one),
         heat: limitHeat(one.percent),
         pct: `${one.percent}%`,
-        width: trackWidth(one.percent)
+        width: trackWidth(one.percent),
+        tick: limitPace(one).tick
       }))
       : [{ key: "quiet", k: "", heat: "", pct: "—", width: "0%" }]
   };
@@ -187,26 +202,24 @@ function paintLimPop() {
 
 let limPopSolid = null;
 
-function limPopViewModel() {
+function limPopViewModel(now = Date.now()) {
   const rows = accountsOnTheBar();
-  if (!rows.length) return { key: "limpop", empty: phrase("no login is signed in on this machine"), accounts: [] };
+  const opensSay = phrase("Open usage");
+  if (!rows.length) return { key: "limpop", empty: phrase("no login is signed in on this machine"), opensSay, accounts: [] };
   return {
-    key: "limpop", empty: "",
+    key: "limpop", empty: "", opensSay,
     accounts: rows.map((row) => ({
       key: `${providerOf(row)}/${row.account}`, account: accountTag(row, rows), named: rows.length > 1,
       note: limitsShown(row).length
         ? (row.stale ? phrase("last answer {n}", { n: momentOf(row.stale) }) : "")
         : quietSaid(row),
-      limits: limitsShown(row).map((one) => {
-        const when = limitWhen(one.resets_at);
-        return {
-          key: `${one.kind}/${one.model || ""}`, label: limitLabel(one), heat: limitHeat(one.percent),
-          sub: insideTheWeek(one),
-          pct: phrase("{percent}% used", { percent: one.percent }),
-          width: `${Math.min(100, one.percent)}%`,
-          resets: when ? phrase("resets {n}", { n: when }) : ""
-        };
-      })
+      limits: limitsShown(row).map((one) => ({
+        key: `${one.kind}/${one.model || ""}`, label: limitLabel(one), heat: limitHeat(one.percent),
+        sub: insideTheWeek(one),
+        pct: phrase("{percent}% used", { percent: one.percent }),
+        width: `${Math.min(100, one.percent)}%`,
+        ...limitPace(one, now)
+      }))
     }))
   };
 }
@@ -214,7 +227,7 @@ function limPopViewModel() {
 solidMounts.push((hive) => {
   limitChipSolid = hive.mountLimitChip($("btn-lim"));
   limitResetsMount = hive.mountLimitResets;
-  limPopSolid = hive.mountLimPop($("limpop"));
+  limPopSolid = hive.mountLimPop($("limpop"), { actions: { open: openUsageFromPop } });
 });
 
 function openLimPop() {
@@ -227,10 +240,17 @@ function openLimPop() {
 
 document.addEventListener("hive:screen", () => closeLimPop());
 
+function openUsageFromPop(key) {
+  closeLimPop();
+  openUsageAt(key);
+}
+
 function closeLimPop() {
+  const held = $("limpop").contains(document.activeElement);
   $("limpop").hidden = true;
   $("limpop").style.left = "";
   $("btn-lim").setAttribute("aria-expanded", "false");
+  if (held) $("btn-lim").focus();
 }
 
 function toggleLimPop() {
@@ -248,4 +268,4 @@ async function pullLimits(force) {
   if (usageOnScreen() && st.usage) paintUsage({});
 }
 
-export { LIMIT_BEAT, SOON, accountMeterModel, accountSaid, accountTag, accountsOnTheBar, closeLimPop, insideTheWeek, limPopOpen, limPopSolid, limPopViewModel, limitChipSolid, limitAge, limitChipTitle, limitChipViewModel, limitHeat, limitLabel, limitResets, limitWhen, limitsShown, limitsThatCount, openLimPop, paintLimPop, paintLimitChip, placeLimPop, pullLimits, renewsAt, toggleLimPop, windowWord };
+export { LIMIT_BEAT, SOON, accountMeterModel, accountSaid, accountTag, accountsOnTheBar, closeLimPop, insideTheWeek, limPopOpen, limPopSolid, limPopViewModel, limitChipSolid, limitAge, limitChipTitle, limitChipViewModel, limitHeat, limitLabel, limitPace, limitResets, limitWhen, limitsShown, limitsThatCount, openLimPop, openUsageFromPop, paintLimPop, paintLimitChip, placeLimPop, pullLimits, renewsAt, toggleLimPop, windowWord };

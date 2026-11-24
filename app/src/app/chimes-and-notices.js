@@ -2,11 +2,13 @@ import { render } from "./arrange.js";
 import { mugPlay } from "./avatars.js";
 import { saveConfig } from "./brand-face.js";
 import { frameUrlOf, openCockpit, tabsSaid } from "./chat-and-panes.js";
-import { blockNumber } from "./blocks.js";
+import { activeItems, blockNumber, soloSeat } from "./blocks.js";
 import { $, LABEL, esc, phrase, raycastOn, st } from "./core.js";
 import { focusSeat, goTo } from "./focus-navigation.js";
-import { keyCaps, keyHint, previousState } from "./leader-key.js";
+import { keyCaps, keyHint, markSeatRead, pool, previousState, readMark, seatMark } from "./leader-key.js";
+import { ASKS_FOR_YOU, WORKING_EXIT_GRACE_MS, createNoticeGate, mutedBy, observationOf, titleOf, waitsForYou } from "./notice-gate.js";
 import { agentIcon } from "./palette.js";
+import { structPool } from "./structured-seats.js";
 
 const SOUNDS = [
   { id: "chime", say: "chime — the rising one, the hive default", steps: [{ wave: "triangle", from: 660, to: 988, at: 0, dur: 0.16, peak: 1 }] },
@@ -77,22 +79,6 @@ function levelOf(loudness, step) {
   return Math.max(0.0002, (loudness / 100) * LOUDEST * step.peak);
 }
 
-function turnedInto(sessions, seen, state) {
-  const turned = [];
-  for (const s of sessions) {
-    const before = seen.get(s.name);
-    if (before && before !== state && s.state === state) turned.push(s);
-  }
-  return turned;
-}
-
-function noticeOfAnswer(s) {
-  return {
-    title: `${s.title || s.name} answered`,
-    body: s.summary || s.now || phrase("it finished its turn and is waiting for you")
-  };
-}
-
 function ensureAudio() {
   if (!st.audio) st.audio = new (window.AudioContext || window.webkitAudioContext)();
   if (st.audio.state === "suspended") st.audio.resume();
@@ -156,14 +142,17 @@ async function askForNotices() {
 }
 
 function showNotice(title, body, seat, go) {
-  if (!noticesAllowed()) return;
+  if (!noticesAllowed()) return null;
   const notice = new Notification(title, { body, tag: `hive-${seat || "fleet"}`, silent: true });
   notice.onclick = () => {
+    notice.close();
+    window.hiveDock?.reveal?.();
     window.focus();
     if (go) go();
     else if (seat) focusSeat(seat);
     render();
   };
+  return notice;
 }
 
 const ACTION_OF_NOTICE = { needs: "sound", answered: "answered" };
@@ -248,50 +237,146 @@ function setAnswered(v, quiet) {
   askForNotices();
 }
 
-function announceChange() {
-  const asking = turnedInto(st.data.sessions, previousState, "needs");
-  const answered = turnedInto(st.data.sessions, previousState, "answered");
-  for (const s of st.data.sessions) previousState.set(s.name, s.state);
-  if (raycastOn()) {
-    settleSeatNotices();
-    for (const s of asking) if (st.typing !== s.name) pinSeatNotice(s);
-  }
-  if (asking.length && st.sound) earcon("needs");
-  if (!answered.length || !st.answeredAlert) return;
-  if (raycastOn()) for (const s of answered.slice(0, NOTICES_AT_ONCE)) if (st.typing !== s.name) pinSeatNotice(s);
-  earcon("answered");
-  if (answered.length > NOTICES_AT_ONCE) return showNotice(`${answered.length} seats answered`, answered.map((s) => s.title || s.name).join(", "));
-  for (const s of answered) {
-    const said = noticeOfAnswer(s);
-    showNotice(said.title, said.body, s.name);
-  }
-}
+const sessionNamed = (name) => (st.data?.sessions || []).find((s) => s.name === name) || null;
 
-const SEAT_NOTICE_STAYS = 14000;
-
-function seatNoticeModel(s) {
-  const bi = st.blocks.findIndex((b) => b.keys.includes(s.name));
-  const needs = s.state === "needs";
+function noticeExtras(s) {
   return {
-    seat: s.name,
-    state: s.state,
-    icon: agentIcon(s),
-    name: s.title || s.name,
-    title: needs ? s.title || s.name : phrase("{name} answered", { name: s.title || s.name }),
-    at: [bi >= 0 ? `b${blockNumber(bi)}` : "", phrase("now")].filter(Boolean).join(" · "),
-    say: String(s.now || s.summary || (needs ? phrase("it stopped to ask you something") : phrase("it finished its turn and is waiting for you"))).slice(0, 220),
-    go: needs ? phrase("Answer") : phrase("Open"),
-    keys: keyHint("calls"),
-    stays: !needs
+    secret: (st.secretAsks || []).find((one) => one.seat === s.name) || null,
+    limitedUntil: structPool.get(s.name)?.limitedUntil || pool.get(s.name)?.limitedUntil || 0
   };
 }
 
-function seatNoticeOf(s) {
-  const said = seatNoticeModel(s);
+const lookOf = (s) => observationOf(s, noticeExtras(s));
+
+const appFocused = () => document.visibilityState === "visible" && document.hasFocus();
+
+const seatInView = () => st.open || activeItems()[st.focus]?.key || "";
+
+function chatOnScreen(name) {
+  const host = structPool.get(name)?.host;
+  if (!host?.isConnected) return false;
+  const box = host.getBoundingClientRect();
+  return box.width > 0 && box.height > 0 && box.bottom > 0 && box.right > 0 && box.top < window.innerHeight && box.left < window.innerWidth;
+}
+
+function lookingAt(name) {
+  if (st.typing === name || st.open === name) return true;
+  return seatInView() === name && chatOnScreen(name);
+}
+
+const archivedNow = (name) => (st.data?.archived || []).some((one) => one.name === name);
+
+const quietFor = (name, now) => archivedNow(name) || mutedBy(st.data?.marks?.[name], now);
+
+const mainNotifies = (status) => !!window.hiveWindow && !window.hiveDock && (status === "input" || status === "approval");
+
+function openChatFromNotice(name) {
+  markSeatRead(name);
+  goTo(name);
+}
+
+let heard = [];
+
+const delivered = new Map();
+
+let noticeGate = null;
+
+const gateOf = () => (noticeGate ||= createNoticeGate((name, kind, look) => heard.push({ name, kind, look }), { seen: previousState }));
+
+function presentNotice({ name, kind, look }, chimes) {
+  const s = sessionNamed(name);
+  if (!s) return;
+  const completed = kind === "completion";
+  if (completed && !st.answeredAlert) return;
+  if (completed) chimes.add("answered");
+  else if (st.sound) chimes.add("needs");
+  const focused = appFocused();
+  if (focused && lookingAt(name)) return;
+  if (focused && raycastOn()) return pinSeatNotice(s, kind, look);
+  if (mainNotifies(look.status)) return;
+  const notice = showNotice(phrase(titleOf(kind, look.status)), s.title || s.name, name, () => openChatFromNotice(name));
+  if (notice) delivered.set(name, notice);
+}
+
+function readWhatYouSee() {
+  if (!appFocused()) return;
+  const s = sessionNamed(seatInView());
+  if (s?.state === "answered" && chatOnScreen(s.name)) markSeatRead(s.name);
+}
+
+function announceChange(now = Date.now()) {
+  if (soloSeat) return;
+  const sessions = st.data?.sessions || [];
+  heard = [];
+  const gate = gateOf();
+  gate.retain(new Set(sessions.map((s) => s.name)));
+  for (const s of sessions) gate.observe(s.name, lookOf(s), { muted: quietFor(s.name, now), now });
+  if (raycastOn()) settleSeatNotices();
+  const chimes = new Set();
+  for (const one of heard) presentNotice(one, chimes);
+  for (const kind of chimes) earcon(kind);
+  readWhatYouSee();
+  paintBadge(now);
+}
+
+const unreadSeat = (s) => s.state === "answered" || (s.state === "done" && readMark.has(s.name) && readMark.get(s.name) !== seatMark(s));
+
+function waitingCount(now = Date.now()) {
+  const marks = st.data?.marks || {};
+  const focused = appFocused();
+  return (st.data?.sessions || []).filter((s) => !archivedNow(s.name) && !(focused && lookingAt(s.name)) && waitsForYou(lookOf(s), marks[s.name], now, unreadSeat(s))).length;
+}
+
+let badgeSaid = -1;
+
+function paintBadge(now = Date.now()) {
+  if (soloSeat || !window.hiveDock?.badge) return;
+  const count = waitingCount(now);
+  if (count === badgeSaid) return;
+  badgeSaid = count;
+  window.hiveDock.badge(count);
+}
+
+function forgetDelivered() {
+  for (const notice of delivered.values()) notice.close();
+  delivered.clear();
+}
+
+window.addEventListener("focus", () => { forgetDelivered(); paintBadge(); });
+
+window.addEventListener("blur", () => paintBadge());
+
+const SEAT_NOTICE_STAYS = 14000;
+
+function seatNoticeModel(s, kind = s.state === "needs" ? "attention" : "completion", look = lookOf(s)) {
+  const bi = st.blocks.findIndex((b) => b.keys.includes(s.name));
+  const attention = kind !== "completion";
+  return {
+    seat: s.name,
+    state: s.state,
+    kind: attention ? "attention" : "completion",
+    status: attention ? look.status || "input" : "completion",
+    watch: attention ? look.attention || "" : s.state,
+    icon: agentIcon(s),
+    name: s.title || s.name,
+    title: phrase(titleOf(kind, look.status)),
+    at: [bi >= 0 ? `b${blockNumber(bi)}` : "", phrase("now")].filter(Boolean).join(" · "),
+    say: s.title || s.name,
+    go: phrase("Open thread"),
+    keys: keyHint("calls"),
+    stays: !(attention && ASKS_FOR_YOU.has(look.status || "input"))
+  };
+}
+
+function seatNoticeOf(s, kind, look) {
+  const said = seatNoticeModel(s, kind, look);
   const card = document.createElement("div");
-  card.className = `cn cn-seat-card${said.state === "needs" ? " needs" : ""}`;
+  card.className = `cn cn-seat-card${said.kind === "attention" ? " needs" : ""}`;
   card.dataset.seat = said.seat;
   card.dataset.state = said.state;
+  card.dataset.kind = said.kind;
+  card.dataset.status = said.status;
+  card.dataset.watch = said.watch;
   card.setAttribute("role", "status");
   card.innerHTML = `
     <span class="cn-ic"><svg aria-hidden="true"><use href="#${esc(said.icon)}"/></svg><i class="rc-dot ${esc(said.state)}" aria-hidden="true"></i></span>
@@ -301,7 +386,7 @@ function seatNoticeOf(s) {
       <div class="cn-acts"><button type="button" class="cn-go">${esc(said.go)}${keyCaps(said.keys)}</button><button type="button" class="cn-later">${esc(phrase("Later"))}</button></div>
     </div>`;
   card.title = phrase(LABEL[said.state] || "idle");
-  const go = (ev) => { ev.stopPropagation(); goTo(said.seat); dropCanopyNotice(card); };
+  const go = (ev) => { ev.stopPropagation(); openChatFromNotice(said.seat); dropCanopyNotice(card); };
   card.addEventListener("click", go);
   card.querySelector(".cn-go").addEventListener("click", go);
   card.querySelector(".cn-later").addEventListener("click", (ev) => { ev.stopPropagation(); dropCanopyNotice(card); });
@@ -309,25 +394,26 @@ function seatNoticeOf(s) {
   return card;
 }
 
-function pinSeatNotice(s) {
+function pinSeatNotice(s, kind, look) {
   const stack = $("canopyNotices");
   for (const old of stack.querySelectorAll(`.cn-seat-card[data-seat="${CSS.escape(s.name)}"]`)) old.remove();
-  stack.appendChild(seatNoticeOf(s));
+  stack.appendChild(seatNoticeOf(s, kind, look));
   while (stack.children.length > CANOPY_NOTICES_AT_ONCE) stack.firstElementChild.remove();
 }
 
 function openNewestSeatNotice() {
   const card = [...$("canopyNotices").querySelectorAll(".cn-seat-card:not(.going)")].pop();
   if (!card) return false;
-  goTo(card.dataset.seat);
+  openChatFromNotice(card.dataset.seat);
   dropCanopyNotice(card);
   return true;
 }
 
 function settleSeatNotices() {
-  const now = new Map(st.data.sessions.map((s) => [s.name, s.state]));
   for (const card of $("canopyNotices").querySelectorAll(".cn-seat-card")) {
-    if (now.get(card.dataset.seat) !== card.dataset.state) dropCanopyNotice(card);
+    const s = sessionNamed(card.dataset.seat);
+    const now = !s ? "" : card.dataset.kind === "attention" ? lookOf(s).attention || "" : s.state;
+    if (now !== card.dataset.watch) dropCanopyNotice(card);
   }
 }
 
@@ -398,4 +484,4 @@ function announceCanopy() {
   if (st.answeredAlert) earcon("answered");
 }
 
-export { openNewestSeatNotice, pinSeatNotice, seatNoticeModel, seatNoticeOf, settleSeatNotices, ACTION_OF_NOTICE, CANOPY_NOTICES_AT_ONCE, CANOPY_NOTICE_STAYS, DEFAULT_SOUNDS, LOUDEST, NOTICES_AT_ONCE, NOTICE_KINDS, SOUNDS, SOUND_IDS, SWITCHED, VOLUME_DEFAULT, adoptNotices, announceCanopy, announceChange, askForNotices, canopyNoticeOf, dropCanopyNotice, earcon, ensureAudio, flipNotice, levelOf, noticeIsOn, noticeOfAnswer, noticesAllowed, openedTabs, paintNotices, pickedSounds, playSample, playSound, previousTabs, sampleOf, samples, setAnswered, setKnocks, setSound, setSounds, setVolume, showNotice, soundOf, turnedInto };
+export { openNewestSeatNotice, pinSeatNotice, seatNoticeModel, seatNoticeOf, settleSeatNotices, ACTION_OF_NOTICE, WORKING_EXIT_GRACE_MS, lookingAt, openChatFromNotice, paintBadge, waitingCount, CANOPY_NOTICES_AT_ONCE, CANOPY_NOTICE_STAYS, DEFAULT_SOUNDS, LOUDEST, NOTICES_AT_ONCE, NOTICE_KINDS, SOUNDS, SOUND_IDS, SWITCHED, VOLUME_DEFAULT, adoptNotices, announceCanopy, announceChange, askForNotices, canopyNoticeOf, dropCanopyNotice, earcon, ensureAudio, flipNotice, levelOf, noticeIsOn, noticesAllowed, openedTabs, paintNotices, pickedSounds, playSample, playSound, previousTabs, sampleOf, samples, setAnswered, setKnocks, setSound, setSounds, setVolume, showNotice, soundOf };

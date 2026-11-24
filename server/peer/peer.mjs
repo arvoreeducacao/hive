@@ -1,7 +1,8 @@
 import { readFile, readdir, stat, mkdir, writeFile, rename } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { createReadStream, existsSync } from "node:fs";
 import { createConnection } from "node:net";
 import { execFile } from "node:child_process";
+import { createInterface } from "node:readline";
 import { randomUUID } from "node:crypto";
 import { homedir } from "node:os";
 import { join, basename, dirname } from "node:path";
@@ -11,6 +12,7 @@ import { PROVIDER_IDS } from "../engine/providers.mjs";
 import { socketPathFor, canonicalLabel, shelfPageUrl, shelfDeepLink } from "../door.mjs";
 
 import { stateDir, sideOf, tmuxSession, seatSockPath, isSeatNamedPipe } from "../engine/paths.mjs";
+import { transcriptEntry } from "../provider-transfer.mjs";
 export { stateDir, sideOf, tmuxSession };
 
 export function readNow(text) {
@@ -95,7 +97,7 @@ export function seatRoster(seats, closedMax = ROSTER_CLOSED_MAX) {
 export function peerHandle(seat, me) {
   const lines = [
     `[hive] peer: ${seatLine(seat)}`,
-    "[hive] reach it: message(seat, text) · ask(seat, question) · peek(seat)",
+    "[hive] reach it: message(seat, text) · ask(seat, question) · peek(seat) · read_chat(seat)",
   ];
   if (me?.name) lines.push(`[hive] you are: ${me.name}${me.side ? ` (${me.side})` : ""} — it answers you by this name`);
   return lines.join("\n");
@@ -279,6 +281,48 @@ export async function peekSeat(seat, lines = 30, env = process.env) {
   return screen.out.split("\n").filter((l) => l.trim()).slice(-lines).join("\n");
 }
 
+export const READ_CHAT_PAGE_CHARS = 30000;
+const READ_CHAT_ENTRY_CHARS = 4000;
+
+function chatEntry(event) {
+  const entry = transcriptEntry(event);
+  if (!entry) return "";
+  const named = event.from && entry.startsWith("USER\n") ? `MESSAGE FROM ${event.from}\n${entry.slice(5)}` : entry;
+  return named.length > READ_CHAT_ENTRY_CHARS ? `${named.slice(0, READ_CHAT_ENTRY_CHARS)}\n[cut]\n\n` : named;
+}
+
+export async function readChat(seat, after = 0, env = process.env) {
+  const base = stateDir(env);
+  const file = join(base, "events", `${seat.name}.ndjson`);
+  const from = Math.max(0, Math.floor(Number(after) || 0));
+  if (seat.kind === "classic" || !existsSync(file)) {
+    const screen = await run("tmux", ["capture-pane", "-t", `${tmuxSession(sideOf(base))}:${seat.name}`, "-p", "-S", "-2000"]);
+    return { text: screen.out.split("\n").filter((l) => l.trim()).join("\n"), from: 0, to: 0, total: 0, terminal: true };
+  }
+  const page = [];
+  let size = 0;
+  let total = 0;
+  let to = from;
+  let full = false;
+  const lines = createInterface({ input: createReadStream(file), crlfDelay: Infinity });
+  for await (const line of lines) {
+    let event;
+    try { event = JSON.parse(line); } catch { continue; }
+    const entry = chatEntry(event);
+    if (!entry) continue;
+    total += 1;
+    if (total <= from || full) continue;
+    if (page.length && size + entry.length > READ_CHAT_PAGE_CHARS) {
+      full = true;
+      continue;
+    }
+    page.push(entry);
+    size += entry.length;
+    to = total;
+  }
+  return { text: page.join("").trim(), from, to, total, terminal: false };
+}
+
 function compactSaid(event) {
   if (event?.type === "user" && event.subtype === "say") {
     const text = event.message?.content?.[0]?.text || "";
@@ -327,16 +371,9 @@ export function statusWith(had, { title = "", now = "", clock = "" } = {}) {
   return body ? `${body}\n` : "";
 }
 
-export async function renameSeat({ title, now = "", env = process.env, at = new Date() } = {}) {
-  const self = await me(env);
-  if (!self.name) return { error: "this seat has no name in the hive yet — there is nothing to rename" };
-  const line = seatTitle(title);
-  if (!line) return { error: "a title with nothing in it would leave the seat showing its slug" };
+const RETITLE_WAIT_MS = 200000;
 
-  const said = await socketCommand(self.base, self.name, { type: "control", op: "setTitle", title: line });
-  if (!said.ok) return { error: said.error || "the driver would not take the title" };
-
-  const doing = String(now || "").replace(/\s+/g, " ").trim().slice(0, SEAT_NOW_CEILING);
+async function writtenTitle(self, line, doing, at) {
   const file = join(self.base, "status", `${self.name}.md`);
   let had = "";
   try { had = await readFile(file, "utf8"); } catch {}
@@ -348,6 +385,52 @@ export async function renameSeat({ title, now = "", env = process.env, at = new 
     return { name: self.name, title: line, now: doing, partial: String(wrong?.message || wrong) };
   }
   return { name: self.name, title: line, now: doing };
+}
+
+async function regeneratedTitle(self, doing, { ask, at }) {
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the chat is" };
+  const done = await ask(door, "POST", "/api/retitle", { name: self.name, where: self.side, by: "agent" }, { timeout: RETITLE_WAIT_MS });
+  if (!done.ok) return { error: done.error || "the hive did not regenerate the title" };
+  const line = String(done.said?.title || "");
+  if (!line) return { name: self.name, title: "", now: doing, regenerated: true };
+  return { ...(await writtenTitle(self, line, doing, at)), regenerated: true };
+}
+
+export async function renameSeat({ title, now = "", env = process.env, at = new Date(), ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this seat has no name in the hive yet — there is nothing to rename" };
+  const doing = String(now || "").replace(/\s+/g, " ").trim().slice(0, SEAT_NOW_CEILING);
+  if (title === undefined || title === null) return regeneratedTitle(self, doing, { ask, at });
+  const line = seatTitle(title);
+  if (!line) return { error: "a title with nothing in it would leave the seat showing its slug" };
+
+  const said = await socketCommand(self.base, self.name, { type: "control", op: "setTitle", title: line });
+  if (!said.ok) return { error: said.error || "the driver would not take the title" };
+
+  return writtenTitle(self, line, doing, at);
+}
+
+export async function linkPr({ pr, env = process.env, ask = askTheApp } = {}) {
+  const link = String(pr || "").trim();
+  if (!link) return { error: "say which pull request: its url or owner/repo#number" };
+  const self = await me(env);
+  if (!self.name) return { error: "this seat has no name in the hive yet — there is no chat to link it to" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the chat is" };
+  const done = await ask(door, "POST", "/api/prs/link", { name: self.name, where: self.side, url: link });
+  if (!done.ok) return { error: done.error || "the hive did not link the pull request" };
+  return { name: self.name, key: String(done.said?.key || "") };
+}
+
+export async function unlinkPr({ pr = "", env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this seat has no name in the hive yet — there is no chat to unlink" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the chat is" };
+  const done = await ask(door, "POST", "/api/prs/unlink", { name: self.name, where: self.side, url: String(pr || "").trim() });
+  if (!done.ok) return { error: done.error || "the hive did not unlink the pull request" };
+  return { name: self.name, key: String(done.said?.key || "") };
 }
 
 export async function buzzPhone(line, { env = process.env, ask = askTheApp } = {}) {
@@ -444,6 +527,16 @@ export async function browserShoot({ env = process.env, ask = askTheApp } = {}) 
   if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the pane is" };
   const done = await ask(door, "POST", "/api/browser/shoot", { name: self.name, where: self.side });
   return done && done.ok ? (done.said || {}) : { error: (done && done.error) || "the shot did not come back" };
+}
+
+export async function pagePreview({ html, width, appearance, env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this session has no seat — preview a page from a chat in the hive" };
+  if (self.side === "cloud") return { error: "html_preview needs the Hive app on the machine where the chat runs, and a cloud chat has none — call html_render with your best height" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open to preview a page" };
+  const done = await ask(door, "POST", "/api/render/preview", { name: self.name, html, width, appearance }, { timeout: 75000 });
+  return done && done.ok ? (done.said || {}) : { error: (done && done.error) || "the preview did not come back" };
 }
 
 export async function browserMap({ env = process.env, ask = askTheApp } = {}) {
@@ -554,6 +647,17 @@ export async function deviceCall({ path, payload = {}, timeout, env = process.en
   if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the pane is" };
   const done = await ask(door, "POST", `/api/device/${path}`, { name: self.name, where: self.side, ...payload }, timeout ? { timeout } : undefined);
   return done && done.ok ? done : { error: (done && done.error) || `the device ${path} did not come back` };
+}
+
+export const PR_TOOL_WAIT = 300000;
+
+export async function prTool({ tool, args = {}, env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (!self.name) return { error: "this session has no seat — use the PR tools from a chat in the hive" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open where the chat runs" };
+  const done = await ask(door, "POST", "/api/prs/tool", { name: self.name, where: self.side, tool, args }, { timeout: PR_TOOL_WAIT });
+  return done && done.ok ? { result: done.said?.result ?? null } : { error: (done && done.error) || `${tool} did not come back` };
 }
 
 export async function browserNavigate({ url, env = process.env, ask = askTheApp } = {}) {

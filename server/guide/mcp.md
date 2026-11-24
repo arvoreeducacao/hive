@@ -259,23 +259,25 @@ The state dir is `HIVE_STATE_DIR`, else `HIVE_HOME`, else `/workspace/hive` when
 
 Each tool and its ceiling (the "tools" topic describes each one):
 
-- **Other chats:** `peers` and `peek` (read); `message` and `ask` (operate).
+- **Other chats:** `peers`, `peek` and `read_chat` (read); `message` and `ask` (operate).
 - **Opening and closing chats:** `spawn` (full), `close` (operate; only chats you opened, or this chat), `rename` (operate), `park` (operate; this chat only).
+- **This chat's pull request:** `link_pr` and `unlink_pr` (operate).
 - **Pages on the team's shelf:** `publish` (full), `reply_on_page` (operate).
 - **Browser pane:** `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network` (read); `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload` (operate); `browser_set_cookie` (full).
 - **Device pane:** `device_screenshot`, `device_tree`, `device_logs` (read); `device_open`, `device_tap`, `device_swipe`, `device_type`, `device_key`, `device_close` (operate).
 - **The person:** `task`, `buzz`, `reply_on_slack`, `request_secret`, `ask_person` (operate).
+- **Pull requests and CI:** `pull_request_read`, `pull_request_list`, `ci_logs` (read); `pull_request_create`, `pull_request_update`, `pull_request_respond`, `ci_rerun` (operate); `pull_request_merge` (full).
 - **This guide:** `guide` (read). No argument lists the topics, `topic` reads one, and `search` returns the sections that match a few words.
 
-The browser, device, secret and task tools work only in a chat of this Hive, with the app open on the same machine.
+The browser, device, secret, task and pull request tools work only in a chat of this Hive, with the app open on the same machine.
 
 ## Ceilings: read, operate, full
 
 A ceiling limits which `hive` tools a chat may use. Each level includes the ones below it.
 
-- **read:** look only. `peers`, `peek`, `guide`, `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`.
-- **operate:** also talk, browse and act. `message`, `ask`, `close`, `rename`, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`, `reply_on_page`, the other `browser_*` tools except `browser_set_cookie`, and the other `device_*` tools.
-- **full:** also `spawn`, `publish` and `browser_set_cookie`.
+- **read:** look only. `peers`, `peek`, `read_chat`, `guide`, `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`, `pull_request_read`, `pull_request_list`, `ci_logs`.
+- **operate:** also talk, browse and act. `message`, `ask`, `close`, `rename`, `link_pr`, `unlink_pr`, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`, `reply_on_page`, the other `browser_*` tools except `browser_set_cookie`, the other `device_*` tools, `pull_request_create`, `pull_request_update`, `pull_request_respond` and `ci_rerun`.
+- **full:** also `spawn`, `publish`, `browser_set_cookie` and `pull_request_merge`.
 
 How a chat gets its ceiling:
 
@@ -309,7 +311,7 @@ The variables:
 - `HIVE_STATE_DIR`: the Hive's state dir (`~/.hive` on a desktop).
 - Do not set `HIVE_SEAT`: with it, the client acts as that chat, with that chat's ceiling. A client with neither `HIVE_SEAT` nor `HIVE_CLIENT` gets `full`, so always set `HIVE_CLIENT`.
 
-What works from outside: `peers`, `peek` and `guide` with `read`; also `message` with `operate`. `ask` sends the question but cannot wait for the answer. The other tools act for a chat and answer that the session has no seat.
+What works from outside: `peers`, `peek`, `read_chat` and `guide` with `read`; also `message` with `operate`. `ask` sends the question but cannot wait for the answer. The other tools act for a chat and answer that the session has no seat.
 
 
 ## Check a chat's MCP servers and find a missing one

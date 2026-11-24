@@ -105,7 +105,6 @@ The state folder is `~/.hive` (`%USERPROFILE%\.hive` on Windows). Set `HIVE_HOME
 | `transfers/<chat>/` | the record of each change of provider |
 | `js/` | JavaScript updates that were taken, and `current.json` (the one in use) |
 | `updates/` | downloads of full releases, before they replace the app |
-| `seen-release.json` | the last release whose notes you saw |
 | `doctor-ignored.json` | the doctor checks you chose to ignore |
 | `traces/` | `traces.ndjson`, rotated at 10 MB, 5 files kept |
 | `stt/` | the speech-to-text model, after you turn dictation on |

@@ -64,7 +64,7 @@ test("a title is asked for at spawn, looked at once more only when the model was
   assert.match(refine, /refineLater\.delete\(key\);/);
   assert.ok(refine.indexOf("refineLater.delete(key)") < refine.indexOf("retitle("), "the refinement is spent before it is asked, so it runs once");
   assert.match(refine, /if \(mine \|\| label !== asked\.title\) return;/);
-  const background = slice("function titleInTheBackground(name, where, prompt, agent) {", "async function chatSoFar");
+  const background = slice('function titleInTheBackground(name, where, prompt, agent, project = "") {', "async function chatSoFar");
   assert.match(background, /landed && \(!guess \|\| said\.needsRefinement\)/, "a title the model never gave is looked at again after the first turn");
 });
 
@@ -72,4 +72,22 @@ test("a name written by hand keeps the hand's words, number or no number", () =>
   const h = hive();
   h.renameSeat("capas-cinza-audiolivros", "local", "Capas do Laruchi");
   assert.equal(h.myTitle("capas-cinza-audiolivros", "local"), "Capas do Laruchi");
+});
+
+test("a chat asking for its own new title leaves a name the person wrote by hand alone", async () => {
+  const regenerate = (hand) => new Function("myTitle", "seatRecord", "collect", "retitle", "renameSeat", `
+    ${slice("async function regenerateSeatTitle(name, where", "async function runAnonymousJob")}
+    return regenerateSeatTitle;
+  `)(
+    () => hand,
+    () => ({ agent: "claude" }),
+    async () => ({ sessions: [{ name: "a", where: "local", title: hand || "a" }] }),
+    async () => "Título novo",
+    () => {}
+  );
+  const held = await regenerate("Do jeito que eu chamei")("a", "local", { keepHand: true });
+  assert.equal(held.ok, false);
+  assert.equal(held.held, true);
+  assert.deepEqual(await regenerate("")("a", "local", { keepHand: true }), { ok: true, title: "Título novo" });
+  assert.deepEqual(await regenerate("Do jeito que eu chamei")("a", "local"), { ok: true, title: "Título novo" }, "the person's own button still regenerates");
 });

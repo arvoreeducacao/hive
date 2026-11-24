@@ -10,10 +10,23 @@ const markHome = mkdtempSync(join(tmpdir(), "hive-inbox-structure-"));
 const marksSent = [];
 const archived = [];
 let hive = null;
+let kept = null;
+let subs = [];
+const SUB_EVENTS = [
+  { type: "user", message: { role: "user", content: "revise o diff do recebimento" } },
+  { type: "assistant", message: { role: "assistant", content: [{ type: "text", text: "Achei dois problemas no diff." }] } }
+];
+const asked = [];
 const answered = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
 const realFetch = globalThis.fetch;
 globalThis.fetch = (url, init) => {
   if (String(url).includes("/api/seat/archive")) archived.push(JSON.parse(init.body).name);
+  if (String(url).includes("/api/checkpoints") && kept) {
+    asked.push(String(url));
+    return Promise.resolve(answered(String(url).includes("/diff") ? { patch: kept.patch } : { turns: kept.turns }));
+  }
+  if (String(url).includes("/api/subagents/events")) return Promise.resolve(answered({ events: SUB_EVENTS }));
+  if (String(url).includes("/api/subagents")) return Promise.resolve(answered({ agents: subs }));
   if (String(url).includes("/api/hive") && hive) return Promise.resolve(answered(JSON.parse(JSON.stringify(hive.data))));
   if (String(url).includes("/api/inbox/marks")) {
     const body = JSON.parse(init.body);
@@ -36,6 +49,10 @@ const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { tiles } = await app("leader-key");
 const { setStructure, structureWorn } = await app("structure");
+const { structPool } = await app("structured-seats");
+const conv = await app("conversation-model");
+const { svReset } = await app("chat-stretches");
+const { svEvent } = await app("chat-and-panes");
 const { inbox } = await import(new URL("../src/structures/inbox.js", import.meta.url).href);
 
 bootSolid();
@@ -51,8 +68,8 @@ const ago = (min) => new Date(Date.now() - min * 60000).toISOString();
 
 const SEATS = {
   quiet: { state: "idle", title: "revisor diario", finish: { seq: 1, at: ago(60 * 30), text: "Retro de ontem enviada no Hive.\n\nVolto às 19h." } },
-  asks: { state: "needs", title: "sessao crm expirada", trees: [{ repo: "crm-web", branch: "jonas/sessao-expirada" }], finish: { seq: 2, at: ago(2), text: "Achei por que a **sessão** cai.\n\n- item 1\n- item 2\n\nJá posso abrir PR do item 1 no `crm-web`?" } },
-  busy: { state: "working", title: "hive raycast visual", now: "Integração bate com o canvas nos dois visuais.", verb: "Bash", measure: "15ms", liveSince: ago(0) },
+  asks: { state: "needs", title: "sessao crm expirada", trees: [{ repo: "crm-web", branch: "jonas/sessao-expirada", main: true }], finish: { seq: 2, at: ago(2), text: "Achei por que a **sessão** cai.\n\n- item 1\n- item 2\n\nJá posso abrir PR do item 1 no `crm-web`?" } },
+  busy: { state: "working", title: "hive raycast visual", now: "Integração bate com o canvas nos dois visuais.", verb: "Bash", measure: "15ms", turnSince: ago(83 / 60) },
   back: { state: "done", title: "valores incoerentes", trees: [{ repo: "oms-web", branch: "jonas/valores-lote" }], finish: { seq: 3, at: ago(6), text: "Não é bug de cálculo: o Pipeline soma o prometido.\n\nOs outros dois lotes batem." } }
 };
 
@@ -72,7 +89,8 @@ function lay() {
   st.planeOn = false;
   st.mirrorDev = "";
   st.prs = [{ session: "back", repo: "acme/oms-web", number: 35, ci: "failed", url: "https://github.com/acme/oms-web/pull/35", key: "pr35" }];
-  st.team = { me: "juno", devs: [{ dev: "juno", key: "k-me", seats: [] }, { dev: "mees", key: "k-mees", up: true, seats: [{ name: "x", title: "fila do time", state: "working", now: "rodando a suíte" }] }] };
+  st.team = { me: "jonas", devs: [{ dev: "jonas", key: "k-me", seats: [] }, { dev: "mees", key: "k-mees", up: true, seats: [{ name: "x", title: "fila do time", state: "working", now: "rodando a suíte" }] }] };
+  st.threadRules = { ...st.threadRules, workingSection: false };
   render();
 }
 
@@ -126,22 +144,6 @@ test("the status follows T3: a question is input, a stop without one is approval
   assert.equal(inbox.statusOf({ state: "working" }, {}, false, true), "working");
 });
 
-test("a chat is snoozed until its time, then settled, then pinned, else active", () => {
-  const now = 1000;
-  assert.equal(inbox.sectionOf({ snoozeUntil: 2000, pinnedAt: 1 }, now), "snoozed");
-  assert.equal(inbox.sectionOf({ snoozeUntil: 500 }, now), "active");
-  assert.equal(inbox.sectionOf({ settledAt: 1, pinnedAt: 1 }, now), "settled");
-  assert.equal(inbox.sectionOf({ pinnedAt: 1 }, now), "pinned");
-  assert.equal(inbox.sectionOf({}, now), "active");
-});
-
-test("a snooze that ran out wakes the chat, and new words from a settled chat bring it back", () => {
-  const seats = [{ key: "a", state: "idle" }, { key: "b", state: "needs", finish: { at: new Date(5000).toISOString() } }];
-  const kept = { a: { snoozeUntil: 900, at: 1 }, b: { settledAt: 4000, at: 1 } };
-  assert.deepEqual(inbox.settleMarks(kept, seats, 1000), ["a", "b"]);
-  assert.deepEqual(kept, { a: { wokeAt: 1000, at: 1000 }, b: { at: 1000 } }, "each change carries its moment, so a stale copy cannot undo it");
-});
-
 test("entering wears the T3 sidebar: one card per chat, newest first, with project, title, branch and the status in the corner", () => {
   setStructure("inbox", { quiet: true });
   assert.equal(structureWorn(), "inbox");
@@ -152,12 +154,49 @@ test("entering wears the T3 sidebar: one card per chat, newest first, with proje
   assert.equal(ask.querySelector(".tx-title").textContent, "sessao crm expirada");
   assert.match(ask.querySelector(".tx-br").textContent, /jonas\/sessao-expirada/);
   assert.match(ask.querySelector(".tx-st").textContent, /Approval/);
-  assert.equal(ask.hasAttribute("title"), false, "the last words live in the hover card, not in a native tooltip on top of it");
-  assert.match(rowEl("busy").querySelector(".tx-st").textContent, /Working\d+s/);
+  assert.equal(ask.getAttribute("aria-label"), "sessao crm expirada");
+  assert.equal(ask.title, "", "the hover card replaces the native tooltip");
+  assert.match(rowEl("busy").querySelector(".tx-st").textContent, /Working1m/);
   assert.ok(rowEl("busy").querySelector(".tx-dur[data-t0]"));
   assert.match(rowEl("back").querySelector(".tx-st").textContent, /Finished/);
-  assert.match(rowEl("back").querySelector(".tx-prb.fail").textContent, /#35/);
+  assert.equal(rowEl("back").querySelector(".tx-prb").textContent, "35", "like T3, the number goes without # and the badge carries no CI tint");
   assert.match(rowEl("quiet").querySelector(".tx-st").textContent, /^\d+d$/);
+  assert.equal(root().querySelector(".tx-row .tx-diff"), null, "T3 keeps the diff off the card");
+  assert.equal(ask.querySelector(".tx-wt"), null, "the main checkout is not a worktree");
+  assert.ok(rowEl("back").querySelector(".tx-wt"));
+});
+
+test("a long branch is cut in the middle like T3: the last segment stays whole and the cut snaps to a word", () => {
+  assert.deepEqual(inbox.splitMiddle("jonas-costa/-/sem-agents-md"), { head: "jonas-costa/-/", tail: "sem-agents-md" });
+  assert.deepEqual(inbox.splitMiddle("feat/a-very-long-segment-that-runs-on"), { head: "feat/a-very-long-segment-that-", tail: "runs-on" });
+  assert.equal(inbox.splitMiddle("main"), null, "a short name is left whole");
+  assert.equal(rowEl("back").querySelector(".tx-mid-tail").textContent, "valores-lote");
+});
+
+test("several pull requests fold into one badge that counts them, in the colour of the one still open", () => {
+  st.prs.push({ session: "back", repo: "acme/oms-web", number: 36, state: "merged", url: "https://github.com/acme/oms-web/pull/36", key: "pr36" });
+  render();
+  const badge = rowEl("back").querySelector(".tx-prb");
+  assert.equal(badge.textContent, "+2");
+  assert.ok(badge.classList.contains("pr-open"));
+  st.prs.pop();
+  render();
+  assert.equal(rowEl("back").querySelector(".tx-prb").textContent, "35");
+});
+
+test("resting on a chat opens T3's hover card beside it, with project, machine, branch, model and its pull requests", async () => {
+  rowEl("back").dispatchEvent(new Event("pointerover", { bubbles: true }));
+  assert.equal(root().querySelector(".tx-tip"), null, "the card waits before it opens");
+  await new Promise((go) => setTimeout(go, 650));
+  const tip = root().querySelector(".tx-tip");
+  assert.ok(tip);
+  assert.match(tip.querySelector(".tx-tip-title").textContent, /valores incoerentes/);
+  assert.match(tip.textContent, /oms-web/);
+  assert.match(tip.textContent, /jonas\/valores-lote/);
+  assert.match(tip.textContent, /Opus 5\.5/);
+  assert.match(tip.querySelector(".tx-tip-foot").textContent, /#35/);
+  root().querySelector(".tx-scroll").dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  assert.equal(root().querySelector(".tx-tip"), null, "a click puts it away");
 });
 
 test("the focused seat is read in the middle, with its real tile, and the details sit on the right", () => {
@@ -170,6 +209,239 @@ test("the focused seat is read in the middle, with its real tile, and the detail
   const details = root().querySelector(".tx-details");
   assert.equal(details.hidden, false);
   assert.match(details.textContent, /Opus 5\.5/);
+});
+
+test("the details list the chat's subagents like T3: the running ones on top, the rest folded under Previous agents", async () => {
+  const t0 = Date.now() - 125000;
+  subs = [
+    { id: "live1", title: "Mapear o contrato", status: "running", startedAt: t0, endedAt: 0, model: "claude-sonnet-5-5" },
+    { id: "done1", title: "Thermo: qualidade", status: "done", startedAt: t0 - 600000, endedAt: t0 - 60000, model: "claude-opus-5-5" },
+    { id: "cut1", title: "Construir a página", status: "stopped", startedAt: t0 - 900000, endedAt: t0 - 700000, model: "claude-opus-5-5" }
+  ];
+  const toggle = () => root().querySelector('.tx-head [data-act="details"]').click();
+  toggle();
+  toggle();
+  await new Promise((go) => setTimeout(go, 20));
+  const details = root().querySelector(".tx-details");
+  const rowsIn = () => [...details.querySelectorAll(".tx-sub")].map((el) => el.dataset.id);
+  assert.deepEqual(rowsIn(), ["live1"], "only the running one shows before the fold opens");
+  assert.ok(details.querySelector('.tx-sub[data-id="live1"] .tx-sub-dot.st-running'));
+  assert.match(details.querySelector('.tx-sub[data-id="live1"] .tx-sub-ms').textContent, /^2m$/);
+  const fold = details.querySelector('[data-act="subs-fold"]');
+  assert.match(fold.textContent, /Previous agents\s*2/);
+  fold.click();
+  assert.deepEqual(rowsIn(), ["live1", "done1", "cut1"]);
+  assert.match(details.querySelector('.tx-sub[data-id="done1"] .tx-sub-ms').textContent, /^9m$/);
+});
+
+test("a subagent opens as its own read-only chat, with T3's bar in place of the composer, and Open parent goes back", async () => {
+  root().querySelector('.tx-details .tx-sub[data-id="done1"]').click();
+  await new Promise((go) => setTimeout(go, 30));
+  const host = root().querySelector(".tx-host:not(.tx-subhost)");
+  const sub = root().querySelector(".tx-subhost");
+  assert.equal(host.hidden, true, "the parent steps aside");
+  assert.equal(sub.hidden, false);
+  assert.match(sub.querySelector(".sv-scroll").textContent, /revise o diff do recebimento/);
+  assert.match(sub.querySelector(".sv-scroll").textContent, /Achei dois problemas no diff/);
+  const bar = sub.querySelector(".tx-subbar").textContent;
+  assert.match(bar, /Opus 5\.5/);
+  assert.match(bar, /Finished in 9m/);
+  assert.match(bar, /Runs on its own/);
+  assert.match(root().querySelector(".tx-head").textContent, /revisor diario.*Thermo: qualidade/s, "the crumbs walk from the parent to the subagent");
+  assert.equal(selected(), "quiet", "the sidebar keeps the parent selected");
+  sub.querySelector('.tx-subbar [data-act="sub-close"]').click();
+  assert.equal(sub.hidden, true);
+  assert.equal(host.hidden, false);
+  root().querySelector('.tx-details .tx-sub[data-id="live1"]').click();
+  await new Promise((go) => setTimeout(go, 30));
+  assert.match(sub.querySelector(".tx-subbar").textContent, /Working for 2m/);
+  press("Escape");
+  assert.equal(sub.hidden, true, "Esc goes back to the parent too");
+  subs = [];
+  render();
+});
+
+test("an open chat gets T3's attach button, and the checkout strip stays with new chats only", async () => {
+  await new Promise((go) => setTimeout(go, 0));
+  const host = root().querySelector(".tx-host");
+  assert.ok(host.querySelector(".sv-btns > .tx-clip"));
+  assert.equal(host.querySelector(".tx-ctx"), null);
+});
+
+const at = (e, ms) => { e.heardAt = Date.now(); e.at = ms; };
+const landedTool = (e, id, name, input) => {
+  const card = conv.svConvTool(e, { id, name, input }, false);
+  card.running = false;
+  card.stat = "ok";
+  return card;
+};
+const settle = () => new Promise((go) => setTimeout(go, 50));
+
+test("a settled turn folds its work behind one line that says how long it took, and opens on click", async () => {
+  const e = structPool.get("quiet");
+  svReset(e);
+  at(e, 1000);
+  conv.svConvLine(e, "sv-user", "arruma o build");
+  landedTool(e, "w1", "Read", { file_path: "/tmp/a.js" });
+  at(e, 5000);
+  conv.svConvSaid(e, "achei o erro");
+  landedTool(e, "w2", "Bash", { command: "npm test" });
+  at(e, 39000);
+  conv.svConvSaid(e, "pronto");
+  await settle();
+  const scroll = root().querySelector(".tx-host .sv-scroll");
+  const fold = scroll.querySelector(":scope > .tl-fold");
+  assert.ok(fold, "the line sits right under the ask");
+  assert.equal(fold.previousElementSibling.classList.contains("sv-user"), true);
+  assert.match(fold.textContent, /Worked for 38s/);
+  assert.equal(scroll.querySelectorAll(":scope > .sv-tool").length, 0, "the calls are folded away");
+  const end = [...scroll.querySelectorAll(":scope > .sv-msg")].at(-1);
+  assert.equal(end.hidden, false);
+  assert.match(end.textContent, /pronto/);
+  assert.match(end.querySelector(":scope > .sv-stamp .tx-clock")?.textContent || "", /\d:\d\d/, "the footer says the clock time, like T3");
+  fold.querySelector("button").click();
+  await settle();
+  assert.equal(scroll.querySelector(".tl-fold button").getAttribute("aria-expanded"), "true");
+  assert.equal(scroll.querySelectorAll(":scope > .sv-tool").length, 2, "open, every call is back in its place");
+  scroll.querySelector(".tl-fold button").click();
+  await settle();
+  assert.equal(scroll.querySelectorAll(":scope > .sv-tool").length, 0);
+  svReset(e);
+});
+
+test("a settled answer carries the files its turn changed, as T3's card, and a file opens that turn's diff on it", async () => {
+  const quiet = st.data.sessions.find((one) => one.name === "quiet");
+  quiet.trees = [{ repo: "hive", branch: "ana/-/x", path: "/w/hive" }];
+  const paths = [{ path: "app/src/a.js", added: 3, removed: 1 }, { path: "app/src/b.js", added: 1, removed: 0 }, { path: "README.md", added: 2, removed: 2 }];
+  kept = {
+    turns: [{ ordinal: 1, at: 0, baseline: true, files: 0, added: 0, removed: 0 }, { ordinal: 2, at: 20000, files: 3, added: 6, removed: 3, paths }],
+    patch: "diff --git a/README.md b/README.md\n--- a/README.md\n+++ b/README.md\n@@ -1 +1 @@\n-old\n+new\ndiff --git a/app/src/a.js b/app/src/a.js\n@@ -1 +1 @@\n-x\n+y"
+  };
+  const e = structPool.get("quiet");
+  svReset(e);
+  at(e, 10000);
+  conv.svConvLine(e, "sv-user", "muda os arquivos");
+  at(e, 19000);
+  conv.svConvSaid(e, "mudei");
+  render();
+  await settle();
+  const scroll = root().querySelector(".tx-host .sv-scroll");
+  const end = () => [...scroll.querySelectorAll(":scope > .sv-msg")].at(-1);
+  const card = end().querySelector(":scope > .tx-cf");
+  assert.ok(card, "the answer of the turn carries the card");
+  assert.match(card.querySelector(".tx-cf-sum").textContent, /3 changed files\+6-3/);
+  assert.equal(root().querySelector(".tx-files"), null, "no strip above the composer: T3 keeps the files with each answer");
+  card.querySelector('[data-act="cf-dir"]').click();
+  await settle();
+  assert.deepEqual([...end().querySelectorAll(".tx-cf-row .tx-cf-name")].map((one) => one.textContent), ["app/src", "a.js", "b.js", "README.md"]);
+  [...end().querySelectorAll(".tx-cf-row")].find((one) => one.dataset.file === "app/src/a.js").click();
+  await new Promise((go) => setTimeout(go, 20));
+  assert.match(asked.at(-1), /\/api\/checkpoints\/diff\?name=quiet&ordinal=2/);
+  const patch = root().querySelector(".tx-patch");
+  assert.ok(patch, "the diff of the turn opens");
+  assert.equal(patch.querySelector('[data-file="app/src/a.js"]')?.textContent, "diff --git a/app/src/a.js b/app/src/a.js");
+  patch.querySelector('[data-act="patch-close"]').click();
+  svReset(e);
+  delete quiet.trees;
+  kept = null;
+  render();
+});
+
+test("a chat at work says how long the turn has run right under what was asked, and the line leaves when it stops", async () => {
+  rowEl("busy").click();
+  await settle();
+  const e = structPool.get("busy");
+  svReset(e);
+  at(e, Date.now() - 83000);
+  conv.svConvLine(e, "sv-user", "roda tudo");
+  e.turnOpen = true;
+  conv.svConvShow(e);
+  await settle();
+  const scroll = root().querySelector(".tx-host .sv-scroll");
+  const line = scroll.querySelector(":scope > .tl-working");
+  assert.ok(line, "the working line opens the turn, under the ask");
+  assert.equal(line.previousElementSibling.classList.contains("sv-user"), true);
+  assert.match(line.textContent, /Working for 1m \d+s/, "past a minute it keeps the seconds, like T3");
+  assert.ok(scroll.querySelector(":scope > .tl-live"), "the tail says it is thinking while nothing else moves");
+  svEvent(e, { type: "result" });
+  await settle();
+  assert.equal(scroll.querySelector(".tl-working"), null);
+  assert.equal(scroll.querySelector(".tl-live"), null);
+  svReset(e);
+  rowEl("quiet").click();
+});
+
+test("a turn the person stopped folds under the line that says when, instead of how long it worked", async () => {
+  const e = structPool.get("quiet");
+  svReset(e);
+  at(e, 1000);
+  conv.svConvLine(e, "sv-user", "faz");
+  landedTool(e, "s1", "Bash", { command: "sleep 30" });
+  at(e, 13000);
+  conv.svConvSaid(e, "comecei");
+  conv.svConvStopped(e);
+  await settle();
+  const scroll = root().querySelector(".tx-host .sv-scroll");
+  const fold = scroll.querySelector(":scope > .tl-fold");
+  assert.match(fold.textContent, /You stopped after 12s/);
+  assert.equal(scroll.querySelector(":scope > .sv-stopped"), null, "the stop line does not repeat under its own fold");
+  assert.equal(scroll.querySelectorAll(":scope > .sv-tool").length, 0);
+  svReset(e);
+});
+
+test("the end of the timeline says the chat is snoozed or settled, with the way back on the line", async () => {
+  const e = structPool.get("quiet");
+  svReset(e);
+  at(e, 1000);
+  conv.svConvLine(e, "sv-user", "oi");
+  at(e, 2000);
+  conv.svConvSaid(e, "olá");
+  rowEl("quiet").click();
+  press("s");
+  ctxOf().focusSeat("quiet");
+  await settle();
+  const line = root().querySelector(".tx-host .sv-scroll > .tl-status");
+  assert.ok(line, "a settled chat says so at the end of its timeline");
+  assert.match(line.textContent, /Settled/);
+  line.querySelector(".tl-inline").click();
+  await settle();
+  assert.equal(root().querySelector(".tx-host .sv-scroll > .tl-status"), null, "Un-settle puts it back and the line goes");
+  svReset(e);
+});
+
+test("the composer of a Claude chat has T3's Build and Plan switch, on a click and on shift+tab", async () => {
+  await new Promise((go) => setTimeout(go, 0));
+  const e = structPool.get("quiet");
+  const asked = [];
+  e.ws = { readyState: 1, send(text) {
+    const cmd = JSON.parse(text);
+    asked.push(cmd.mode);
+    const done = e.pending.get(cmd.cid);
+    e.pending.delete(cmd.cid);
+    done?.({ ok: true, data: { mode: cmd.mode === "plan" ? "plan" : "default" } });
+  } };
+  const toggle = () => root().querySelector(".tx-host .sv-pick > .tx-mode");
+  assert.equal(toggle().textContent, "Build");
+  assert.equal(toggle().getAttribute("aria-pressed"), "false");
+  toggle().click();
+  await new Promise((go) => setTimeout(go, 10));
+  assert.deepEqual(asked, ["plan"]);
+  assert.equal(e.mode, "plan");
+  assert.equal(toggle().textContent, "Plan");
+  assert.equal(toggle().getAttribute("aria-pressed"), "true");
+  const box = root().querySelector(".tx-host .sv-composer textarea");
+  box.focus();
+  press("Tab", { shiftKey: true, target: box });
+  await new Promise((go) => setTimeout(go, 10));
+  assert.deepEqual(asked, ["plan", "normal"]);
+  assert.equal(toggle().textContent, "Build");
+  box.blur();
+  e.agent = "codex";
+  ctxOf().render();
+  await new Promise((go) => setTimeout(go, 10));
+  assert.equal(toggle(), null, "an agent without plan mode gets no switch");
+  delete e.agent;
+  e.ws = null;
 });
 
 test("clicking a card reads that seat, from any block, and the same tile moves", () => {
@@ -298,7 +570,7 @@ test("settle moves the chat to the Settled shelf, which opens on a click and giv
   assert.ok(marks().back.settledAt);
   assert.ok(!rows().includes("back"));
   assert.notEqual(selected(), "back");
-  assert.match(shelf("settled").textContent, /Settled \(1\)/);
+  assert.match(shelf("settled").textContent, /^Settled1$/);
   shelf("settled").click();
   assert.ok(rows().includes("back"));
   rowEl("back").querySelector('[data-act="unsettle"]').click();
@@ -315,11 +587,11 @@ test("a chat whose PRs all landed settles by itself, and giving it back keeps it
   render();
   if (shelf("settled").classList.contains("open")) shelf("settled").click();
   assert.ok(!rows().includes("back"));
-  assert.match(shelf("settled").textContent, /Settled \(1\)/);
+  assert.match(shelf("settled").textContent, /^Settled1$/);
   shelf("settled").click();
   assert.ok(rowEl("back").classList.contains("compact"), "a settled chat reads as one compact line, as in T3");
   rowEl("back").querySelector('[data-act="unsettle"]').click();
-  assert.equal(marks().back.stayActive, true);
+  assert.ok(marks().back.stayActive > 0, "giving it back keeps it out of the automatic settle");
   assert.ok(rows().includes("back"));
   st.prs[0].state = "open";
   st.data.sessions.find((one) => one.name === "back").state = "done";
@@ -362,15 +634,64 @@ test("the marks live in the hive: a pin made in another window arrives with the 
 
 test("snoozing from the card menu hides the chat until its time, under its own shelf", () => {
   rowEl("asks").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 40 }));
-  const item = root().querySelector('.tx-menu [data-mi="snooze:1h"]');
+  const item = root().querySelector('.tx-menu [data-mi="snooze:o0"]');
   assert.ok(item, "the menu offers the snooze presets");
   item.click();
   assert.ok(marks().asks.snoozeUntil > Date.now());
   assert.ok(!rows().includes("asks"));
-  assert.match(shelf("snoozed").textContent, /Snoozed \(1\)/);
+  assert.match(shelf("snoozed").textContent, /^Snoozed1$/);
   shelf("snoozed").click();
   rowEl("asks").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 40 }));
   root().querySelector('.tx-menu [data-mi="unsnooze"]').click();
+  assert.equal(marks().asks, undefined);
+  assert.ok(rows().includes("asks"));
+});
+
+test("Custom… opens T3's dialog: a date and time, or a duration, and the chat sleeps until then", () => {
+  rowEl("asks").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 40 }));
+  const presets = [...root().querySelectorAll('.tx-menu [data-mi^="snooze:"]')];
+  assert.ok(presets.every((one) => one.dataset.mi === "snooze:custom" || one.querySelector(".tx-mhint")?.textContent), "each preset shows when it wakes");
+  root().querySelector('.tx-menu [data-mi="snooze:custom"]').click();
+  const dialog = root().querySelector(".snz-dialog");
+  assert.ok(dialog);
+  assert.match(dialog.textContent, /Custom snooze/);
+  same(document.activeElement, dialog.querySelector('input[name="date"]'), "the date takes the focus");
+  dialog.querySelector('input[name="time"]').value = "00:00";
+  dialog.querySelector('input[name="date"]').value = "2020-01-01";
+  dialog.querySelector(".snz-btn.primary").click();
+  assert.match(dialog.querySelector(".snz-err").textContent, /valid date and time in the future/);
+  assert.equal(dialog.querySelector(".snz-err").hidden, false);
+  assert.ok(rows().includes("asks"), "a refused date snoozes nothing");
+  dialog.querySelector('[data-mode="duration"]').click();
+  assert.equal(dialog.querySelector('[data-for="date"]').hidden, true);
+  assert.equal(dialog.querySelector(".snz-err").hidden, true);
+  dialog.querySelector('input[name="amount"]').value = "3";
+  dialog.querySelector('select[name="unit"]').value = "days";
+  const before = Date.now();
+  dialog.querySelector(".snz-btn.primary").click();
+  assert.equal(root().querySelector(".snz-dialog"), null);
+  const until = marks().asks.snoozeUntil;
+  assert.ok(until >= before + 3 * 86400000 && until <= Date.now() + 3 * 86400000);
+  assert.match(shelf("snoozed").textContent, /^Snoozed1$/);
+  assert.ok(!rows().includes("asks") || rowEl("asks").closest(".tx-shelves"), "it left the active list");
+  const opened = shelf("snoozed").classList.contains("open");
+  if (!opened) shelf("snoozed").click();
+  rowEl("asks").querySelector('[data-act="unsnooze"]').click();
+  assert.equal(marks().asks, undefined);
+  if (!opened) shelf("snoozed")?.click();
+});
+
+test("Escape and Cancel close the custom snooze without snoozing", () => {
+  rowEl("asks").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 40 }));
+  root().querySelector('.tx-menu [data-mi="snooze:custom"]').click();
+  const box = root().querySelector('.snz-dialog input[name="date"]');
+  assert.ok(press("Escape", { target: box }).defaultPrevented);
+  assert.equal(root().querySelector(".snz-dialog"), null);
+  rowEl("asks").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 40, clientY: 40 }));
+  root().querySelector('.tx-menu [data-mi="snooze:custom"]').click();
+  assert.equal(press("j", { target: root().querySelector('.snz-dialog [data-mode="date"]') }).defaultPrevented, false, "keys belong to the dialog while it is open");
+  root().querySelector('.snz-dialog [data-snz="cancel"]').click();
+  assert.equal(root().querySelector(".snz-dialog"), null);
   assert.equal(marks().asks, undefined);
   assert.ok(rows().includes("asks"));
 });
@@ -414,6 +735,25 @@ test("with nothing written, the combination is left to the app", () => {
   assert.equal(selected(), "back");
 });
 
+test("on a new chat, mod+enter belongs to the draft: it is not taken as reply and go to the next", async () => {
+  const { discardDraft, openDraft } = await app("draft-seat");
+  const d = openDraft();
+  const box = d.e.host.querySelector("textarea");
+  let sent = 0;
+  const count = () => { sent += 1; };
+  box.closest("form").addEventListener("submit", count);
+  box.value = "conserta o retry";
+  const taken = inbox.keydown(new KeyboardEvent("keydown", { key: "Enter", metaKey: IS_MAC, ctrlKey: !IS_MAC }), ctxOf());
+  box.closest("form").removeEventListener("submit", count);
+  box.value = "";
+  assert.equal(taken, false);
+  assert.equal(sent, 0, "the inbox sent the draft as a plain reply, so it could never start in the background");
+  assert.equal(selected(), d.key);
+  box.blur();
+  discardDraft(d);
+  lay();
+});
+
 test("e archives the seat being read with the archive that already exists, and the next one is read", async () => {
   rowEl("back").click();
   archived.length = 0;
@@ -435,7 +775,7 @@ test("a seat of the team is read as a card that opens their hive", () => {
 test("the archived chats sit on their own shelf, and reopen through the archive that already exists", async () => {
   st.data.archived = [{ name: "velho", where: "local", title: "chat antigo", model: "opus", cwd: "/x/oms-web", archivedAt: Date.now() - 3600000 }];
   render();
-  assert.match(shelf("archived").textContent, /Archived \(1\)/);
+  assert.match(shelf("archived").textContent, /^Archived1$/);
   shelf("archived").click();
   const row = root().querySelector('.tx-row.compact[data-arch="velho"]');
   assert.match(row.textContent, /chat antigo/);
@@ -468,7 +808,7 @@ test("leaving gives every tile back to the classic", () => {
 test("the first load moves the marks this browser held to the hive, keeps what the hive already had, and clears the browser only after the hive took them", async () => {
   rmSync(join(markHome, "inbox-marks.json"), { force: true });
   forgetMarksCache();
-  keepMarks(markHome, { asks: { pinnedAt: 5, at: 5 } });
+  keepMarks(markHome, { asks: { pinnedAt: 5, at: Date.now() + 60000 } });
   localStorage.setItem("hive.inbox.marks", JSON.stringify({ quiet: { pinnedAt: 2 }, asks: { settledAt: 9 }, back: {} }));
   st.data = { ...st.data, marks: readMarks(markHome) };
   setStructure("inbox", { quiet: true });
@@ -494,6 +834,7 @@ test("a hive that keeps no marks leaves them in this browser, and the browser ke
   const sent = marksSent.length;
   setStructure("inbox", { quiet: true });
   rowEl("quiet").click();
+  if (rowEl("quiet").querySelector(".tx-unpin")) press("p");
   press("p");
   assert.equal(marksSent.length, sent);
   assert.ok(JSON.parse(localStorage.getItem("hive.inbox.marks")).quiet.pinnedAt);
@@ -509,5 +850,20 @@ test("a hive that keeps no marks leaves them in this browser, and the browser ke
   await new Promise((go) => setTimeout(go, 0));
   assert.equal(localStorage.getItem("hive.inbox.marks"), null, "the next word from the hive tries the move again");
   assert.ok(marks().quiet.pinnedAt);
+  setStructure("classic", { quiet: true });
+});
+
+test("with the Working section on, a chat at work waits in its own shelf and comes back when it stops", () => {
+  setStructure("inbox", { quiet: true });
+  st.threadRules = { ...st.threadRules, workingSection: true };
+  render();
+  assert.ok(!rows().includes("busy"), "the busy chat leaves the active list");
+  assert.match(shelf("working").textContent, /^Working1$/);
+  st.data.sessions.find((one) => one.name === "busy").state = "done";
+  render();
+  assert.ok(rows().includes("busy"));
+  assert.equal(shelf("working"), null);
+  st.data.sessions.find((one) => one.name === "busy").state = "working";
+  st.threadRules = { ...st.threadRules, workingSection: false };
   setStructure("classic", { quiet: true });
 });

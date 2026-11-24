@@ -1,18 +1,27 @@
 import { arrangeOn, canArrange, closeArrange, openArrange, paintArrange, render } from "./arrange.js";
-import { activeItems, blockNumber, blockTitle, blocksOf, detached, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, ofBlock, seatsToTradeOn, soloSeat, spaceName, spaceOf } from "./blocks.js";
+import { activeItems, blockNumber, blockTitle, blocksOf, detached, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, ofBlock, seatsToTradeOn, shelvedAway, soloSeat, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { svEvent } from "./chat-and-panes.js";
 import { svReset } from "./chat-stretches.js";
 import { svConvShow } from "./conversation-model.js";
 import { $, GLYPH, LABEL, esc, every, experienceNext, phrase, raycastOn, saveUnfolded, solidMounts, st, stateColor, stopBeat, unfolded } from "./core.js";
-import { closeTile, goTo, goToBlock, goToSpace, pull } from "./focus-navigation.js";
-import { drafts } from "./draft-seat.js";
+import { retitlingNow } from "./chat-name.js";
+import { closeTile, goTo, goToBlock, goToSpace, openFromList, pull } from "./focus-navigation.js";
+import { askNewChat, drafts } from "./draft-seat.js";
 import { keyHint, liveOf, liveTitle, sawWorking } from "./leader-key.js";
-import { ago } from "./pod.js";
+import { ago, ask } from "./pod.js";
 import { openBlockMenu, openSeatMenu, openSpaceMenu, openTeamMenu } from "./seat-menu.js";
+import { asksBefore, seatMark, seatSection, togglePinSeat, unsettleSeats, wakeSaid, wakeSeats } from "./seat-marks.js";
+import { hudUndo } from "./hud.js";
+import { isPicked, pickClick, selectionModel } from "./seat-selection.js";
+import { discardDraft, hasDraft } from "./draft-marks.js";
+import { findInChats, hitSays, messageHit } from "./seat-find.js";
+import { paintRailPill } from "./agent-updates.js";
+import { openPrLink } from "./chat-and-panes.js";
 import { forgetStruct, structPool, svLine } from "./structured-seats.js";
 import { avatar, goToTeam, leaveMirror, mirrorRow, paintKnocks, paintNudge, pullTeam } from "./team.js";
 import { paintWorktreeRail } from "./worktrees.js";
+import { clockOptions } from "./clock-format.js";
 
 const MIRROR_LIVE_TICK = 2000;
 
@@ -160,13 +169,16 @@ function setHiddenOpen(on) {
 function parkWhen(ms, now = new Date()) {
   const at = new Date(ms);
   if (!Number.isFinite(at.getTime())) return "";
-  const time = at.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const time = at.toLocaleTimeString([], clockOptions({ hour: "2-digit", minute: "2-digit" }));
   if (at.toDateString() === now.toDateString()) return time;
   if (at - now < 6 * 24 * 60 * 60 * 1000) return `${at.toLocaleDateString([], { weekday: "short" })} ${time}`;
   return `${at.toLocaleDateString([], { day: "numeric", month: "short" })} ${time}`;
 }
 
 function offScreenWhy(name) {
+  const section = seatSection(name);
+  if (section === "snoozed") return phrase("snoozed till {when}", { when: wakeSaid(seatMark(name).snoozeUntil) });
+  if (section === "settled") return phrase("settled");
   const until = hiddenUntil(name);
   const parked = st.data.sessions.find((one) => one.name === name)?.parked;
   if (until === "parked" && parked) return phrase("parked till {when}", { when: parkWhen(parked.until) });
@@ -179,7 +191,7 @@ function offScreenWhy(name) {
 }
 
 function snoozedRailModel() {
-  const all = st.data.sessions.filter((s) => isHidden(s.name));
+  const all = st.data.sessions.filter((s) => isHidden(s.name) || shelvedAway(s.name));
   if (!all.length) return null;
   return {
     count: all.length, open: st.hiddenOpen, label: phrase("off screen"),
@@ -253,8 +265,9 @@ document.addEventListener("hive:parked", (ev) => {
   sayOnRail(phrase("{title} parked itself till {when}", { title, when: parkWhen(until) }));
 });
 
-async function archiveSeatNow(s) {
+async function archiveSeatNow(s, { confirmed = false } = {}) {
   if (!s) return;
+  if (!confirmed && asksBefore("archive") && !(await ask(phrase("Archive “{title}”?", { title: s.title || s.name }), phrase("The chat closes and waits in Archived, where it comes back with its whole conversation."), phrase("archive")))) return;
   unfolded.delete(s.name);
   saveUnfolded();
   try {
@@ -267,6 +280,7 @@ async function archiveSeatNow(s) {
     return void sayOnRail(phrase("could not archive it") + (wrong?.message ? ` — ${wrong.message}` : ""));
   }
   if (st.open === s.name) closeTile();
+  hudUndo({ icon: "i-clock", text: phrase("Archived “{title}”", { title: s.title || s.name }), run: () => { reviveArchived(s.name, s.where === "cloud" ? "cloud" : "local"); } });
   pull();
 }
 
@@ -274,6 +288,7 @@ function paintRail() {
   railShown = railViewModel();
   railSolid.show(railShown);
   paintWorktreeRail();
+  paintRailPill();
   paintTeamRail();
   paintKnocks();
   paintNudge();
@@ -347,13 +362,115 @@ function seatRailItem(s, now) {
   const said = phrase(LABEL[s.state]);
   const live = liveTitle(s);
   return {
-    key: s.name, name: s.name, where: s.where, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon,
+    key: s.name, name: s.name, where: s.where, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon, regenerating: retitlingNow(s),
     hint: `${s.anon ? phrase("anonymous") : s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : said}${live ? ` · ${live}` : ""}`,
     said, meta: meta.said, tone: meta.tone, away
   };
 }
 
-function railGroups(rows, picked) {
+const SHELVES_KEY = "hive.railShelves";
+
+const SETTLED_SHOWN = 5;
+
+st.railShelves = { snoozed: true, settled: true, working: false, more: false };
+
+const WORKING_STATES = new Set(["working", "stalled"]);
+
+try { Object.assign(st.railShelves, JSON.parse(localStorage.getItem(SHELVES_KEY) || "{}")); } catch {}
+
+function setRailShelf(id, on) {
+  st.railShelves[id] = !!on;
+  try { localStorage.setItem(SHELVES_KEY, JSON.stringify(st.railShelves)); } catch {}
+  paintRail();
+}
+
+function markTag(name) {
+  const mark = seatMark(name);
+  if (mark.wokeEarly) return { say: phrase("back early"), tone: "early" };
+  if (mark.wokeAt) return { say: phrase("Woke"), tone: "woke" };
+  return null;
+}
+
+const PR_ORDER = ["open", "draft", "merged", "closed"];
+
+const PR_STATE_SAYS = { open: "PR open", draft: "draft", merged: "merged", closed: "closed" };
+
+function prBadgeOf(name) {
+  const prs = (st.prs || []).filter((pr) => pr.session === name && pr.url);
+  if (!prs.length) return null;
+  const state = PR_ORDER.find((one) => prs.some((pr) => (pr.state || "open") === one)) || "open";
+  const first = prs.find((pr) => (pr.state || "open") === state);
+  return {
+    url: first.url, state,
+    say: prs.length === 1 ? `#${first.number}` : `#${first.number} +${prs.length - 1}`,
+    list: prs.map((pr) => `#${pr.number} ${pr.title || ""} · ${phrase(PR_STATE_SAYS[pr.state || "open"] || "PR open")}`).join("\n")
+  };
+}
+
+function markedRow(row) {
+  const pinned = seatSection(row.key) === "pinned";
+  return {
+    ...row, tag: markTag(row.key), pinned, pinSay: pinned ? phrase("Unpin") : "", picked: isPicked(row.key),
+    pr: prBadgeOf(row.key), draft: hasDraft(row.key), draftSay: phrase("Discard draft")
+  };
+}
+
+function shelfGroup(id, rows, picked, q) {
+  if (!rows.length) return null;
+  const open = st.railShelves[id] || !!q;
+  const snoozed = id === "snoozed";
+  const all = snoozed
+    ? rows.sort((a, b) => seatMark(a.key).snoozeUntil - seatMark(b.key).snoozeUntil)
+    : rows.sort((a, b) => (seatMark(b.key).settledAt || 0) - (seatMark(a.key).settledAt || 0));
+  const shown = !open ? [] : snoozed || st.railShelves.more || q ? all : all.slice(0, SETTLED_SHOWN);
+  return {
+    key: `shelf-${id}`, i: -1, here: false, label: phrase(snoozed ? "Snoozed" : "Settled"), hereSaid: "", keys: "", shelf: id,
+    fold: { open, count: rows.length },
+    items: shown.map((row) => {
+      const mark = seatMark(row.key);
+      return {
+        ...row, sel: row.key === picked, quiet: true, picked: isPicked(row.key),
+        why: snoozed ? phrase("back {when}", { when: wakeSaid(mark.snoozeUntil) }) : phrase("settled {when}", { when: ago(new Date(mark.settledAt || Date.now()).toISOString()) }),
+        open: phrase("open"), openKey: "",
+        act: snoozed ? { act: "wake", say: phrase("Wake") } : { act: "unsettle", say: phrase("Reopen") }
+      };
+    }),
+    more: open && shown.length < all.length ? phrase("Show {n} more", { n: all.length - shown.length }) : ""
+  };
+}
+
+const FOLDERS_SHUT_KEY = "hive.railFoldersShut";
+
+st.railFoldersShut = new Set();
+
+try { st.railFoldersShut = new Set(JSON.parse(localStorage.getItem(FOLDERS_SHUT_KEY) || "[]")); } catch {}
+
+function toggleRailFolder(repo) {
+  if (st.railFoldersShut.has(repo)) st.railFoldersShut.delete(repo);
+  else st.railFoldersShut.add(repo);
+  try { localStorage.setItem(FOLDERS_SHUT_KEY, JSON.stringify([...st.railFoldersShut])); } catch {}
+  paintRail();
+}
+
+const opened = (picked) => (row) => ({ ...row, sel: row.key === picked, open: phrase("open"), openKey: "" });
+
+function projectOf(name) {
+  const seat = st.data.sessions.find((one) => one.name === name);
+  const repo = (seat?.trees || []).find((tree) => tree?.repo)?.repo;
+  if (repo) return repo;
+  const cwd = String(seat?.cwd || "").replace(/\/+$/, "");
+  return !cwd || cwd === st.data.hub ? phrase("no project") : cwd.split("/").pop();
+}
+
+function pinnedGroup(pinned, picked) {
+  if (!pinned.length) return [];
+  return [{
+    key: "pinned", i: -1, here: false, label: phrase("Pinned"), hereSaid: "", keys: "",
+    items: pinned.sort((a, b) => seatMark(a.key).pinnedAt - seatMark(b.key).pinnedAt).map(opened(picked))
+  }];
+}
+
+function blockGroups(rows, picked) {
   const lanes = st.blocks.map((b, i) => ({ b, i, mine: b.ws === st.space }));
   const groups = [];
   for (const { b, i, mine } of [...lanes.filter((one) => one.mine), ...lanes.filter((one) => !one.mine)]) {
@@ -389,6 +506,49 @@ function railGroups(rows, picked) {
   return groups;
 }
 
+function projectGroups(rows, picked) {
+  const folders = new Map();
+  for (const row of rows) {
+    const repo = projectOf(row.key);
+    if (!folders.has(repo)) folders.set(repo, []);
+    folders.get(repo).push(row);
+  }
+  const q = st.railQuery.trim();
+  return [...folders].sort(([a], [b]) => a.localeCompare(b)).map(([repo, list]) => {
+    const open = !st.railFoldersShut.has(repo) || !!q;
+    return {
+      key: `project-${repo}`, i: -1, here: false, label: repo, hereSaid: "", keys: "", folder: repo, needsSaid: phrase("a chat here needs you"),
+      fold: { open, count: list.length, needs: list.some((row) => row.state === "needs") },
+      items: open ? list.map(opened(picked)) : []
+    };
+  });
+}
+
+function workingGroup(working, picked) {
+  if (!working.length) return [];
+  const open = st.railShelves.working || !!st.railQuery.trim();
+  const since = (row) => Date.parse(st.data.sessions.find((one) => one.name === row.key)?.turnSince || "") || 0;
+  return [{
+    key: "shelf-working", i: -1, here: false, label: phrase("Working"), hereSaid: "", keys: "", shelf: "working",
+    fold: { open, count: working.length },
+    items: open ? working.sort((a, b) => since(b) - since(a)).map(opened(picked)) : []
+  }];
+}
+
+function railGroups(rows, picked) {
+  const q = st.railQuery.trim();
+  const shelved = (id) => rows.filter((row) => seatSection(row.key) === id);
+  const shelves = [shelfGroup("snoozed", shelved("snoozed"), picked, q), shelfGroup("settled", shelved("settled"), picked, q)].filter(Boolean);
+  const kept = new Set(shelves.flatMap((g) => shelved(g.shelf).map((row) => row.key)));
+  const marked = rows.filter((row) => !kept.has(row.key)).map(markedRow);
+  const pinned = marked.filter((row) => row.pinned);
+  const unpinned = marked.filter((row) => !row.pinned);
+  const working = st.threadRules.workingSection ? unpinned.filter((row) => WORKING_STATES.has(row.state)) : [];
+  const rest = unpinned.filter((row) => !working.includes(row));
+  const middle = st.threadRules.groupByProject ? projectGroups(rest, picked) : blockGroups(rest, picked);
+  return [...pinnedGroup(pinned, picked), ...middle, ...workingGroup(working, picked), ...shelves];
+}
+
 function railEmpty(q) {
   if (q) return { icon: "i-mag", said: phrase("nothing with “{q}”", { q: st.railQuery.trim() }), act: phrase("palette"), key: keyLabel(st.keys.palette) };
   const cloud = st.railShows === "cloud";
@@ -417,16 +577,32 @@ function parkedRailModel(q, now) {
   };
 }
 
+function treeHit(name, q) {
+  const trees = st.data.sessions.find((one) => one.name === name)?.trees || [];
+  for (const tree of trees) {
+    if (String(tree.branch || "").toLowerCase().includes(q)) return phrase("branch {branch}", { branch: tree.branch });
+    if (String(tree.repo || "").toLowerCase().includes(q)) return phrase("project {repo}", { repo: tree.repo });
+  }
+  return "";
+}
+
 function raycastRailViewModel() {
   const now = Date.now();
   const q = st.railQuery.trim().toLowerCase();
   const all = [...raycastDraftItems(), ...st.data.sessions.map((s) => seatRailItem(s, now))];
   const tally = (where) => all.filter((row) => where === "all" || row.where === where).length;
   const shown = all.filter((row) => st.railShows === "all" || row.where === st.railShows);
+  if (q) findInChats(st.railQuery);
   const found = shown.flatMap((row) => {
     const parts = hitOf(row.title, q);
     if (!q) return [{ ...row, parts: whole(row.title) }];
-    return parts || row.name.toLowerCase().includes(q) ? [{ ...row, parts: parts || whole(row.title) }] : [];
+    if (parts || row.name.toLowerCase().includes(q)) return [{ ...row, parts: parts || whole(row.title) }];
+    const tree = treeHit(row.key, q);
+    if (tree) return [{ ...row, parts: whole(row.title), why: tree, whyParts: hitOf(tree, q) }];
+    const said = messageHit(row.key, st.railQuery);
+    if (!said) return [];
+    const why = hitSays(said);
+    return [{ ...row, parts: whole(row.title), why, whyParts: hitOf(why, q) }];
   });
   const picked = st.mirrorDev ? "" : st.open || activeItems()[st.focus]?.key || "";
   const groups = railGroups(found, picked);
@@ -440,12 +616,13 @@ function raycastRailViewModel() {
     shows: Object.entries(RAIL_SHOWS).map(([key, label]) => ({ key, label: phrase(label), count: tally(key), on: st.railShows === key })),
     showsSaid: phrase("which machine"),
     searching: st.railSearching || !!q, query: st.railQuery,
-    searchSaid: phrase("search a seat"), searchHint: phrase("search a seat ({k})", { k: "/" }),
+    searchSaid: phrase("search a seat"), searchHint: phrase("search a seat ({k})", { k: "/" }), clearSaid: phrase("Clear the search"),
+    newSaid: phrase("New chat"), newKey: keyHint("new"), newHint: phrase("New chat ({k}) — shift-click starts it in the project you are in", { k: keyHint("new") || "⌘N" }),
     found: q ? phrase("{n} of {m} seats", { n: found.length, m: shown.length }) : "", openSaid: phrase("open"),
     loading: loading ? `${phrase("block {n}", { n: 1 })} · ${phrase("loading…")}` : "",
     groups,
     empty: !loading && !found.length && !(q && (parked || teamFound(q))) ? railEmpty(q) : null,
-    snoozed: null, parked, note: st.archNote || ""
+    snoozed: null, parked, note: st.archNote || "", selection: selectionModel()
   };
 }
 
@@ -502,7 +679,7 @@ function openRailCursor() {
   goTo(key);
 }
 
-const railRows = () => [...$("rail-list").querySelectorAll(".item, [data-arch-toggle], [data-hidden-toggle]")].filter((one) => one.offsetParent !== null);
+const railRows = () => [...$("rail-list").querySelectorAll(".item, [data-arch-toggle], [data-hidden-toggle], [data-shelf], [data-folder]")].filter((one) => one.offsetParent !== null);
 
 function stepRailFocus(from, by) {
   const rows = railRows();
@@ -575,7 +752,7 @@ function railViewModel() {
     { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
     { key: "local", label: phrase("local · your machine"), icon: "i-local" }
   ]) {
-    const ofGroup = st.data.sessions.filter((s) => s.where === g.key && !isHidden(s.name));
+    const ofGroup = st.data.sessions.filter((s) => s.where === g.key && !isHidden(s.name) && !shelvedAway(s.name));
     if (!ofGroup.length && g.key === "cloud" && !st.data.pod.up) continue;
     groups.push({
       key: g.key, label: g.label, icon: g.icon, count: ofGroup.length, emptyLabel: phrase("no sessions here"),
@@ -583,7 +760,7 @@ function railViewModel() {
         const bi = st.blocks.findIndex((b) => b.keys.includes(s.name));
         const away = detached.has(s.name);
         return {
-          key: s.name, name: s.name, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon,
+          key: s.name, name: s.name, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon, regenerating: retitlingNow(s),
           hint: `${s.anon ? phrase("anonymous") : s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : phrase(LABEL[s.state])}`,
           colour: stateColor(s.state), glyph: s.anon ? "i-anon" : GLYPH[s.state], here: bi === st.block,
           live: liveOf(s).length, liveTitle: liveTitle(s), tag: away ? "↗" : bi >= 0 ? "b" + (bi + 1) : ""
@@ -627,9 +804,27 @@ $("rail-sessions").addEventListener("click", (e) => {
   if (raycastOn()) {
     const show = e.target.closest("[data-show]");
     if (show) return showOnRail(show.dataset.show);
+    if (e.target.closest("[data-rail-clear]")) {
+      searchRail("");
+      return void $("rail-q")?.focus();
+    }
     if (e.target.closest("[data-rail-search]")) return openRailSearch();
+    if (e.target.closest("[data-rail-new]")) return askNewChat({ here: e.shiftKey });
   }
   if (e.target.closest("[data-arch-toggle]")) return setArchOpen(!st.archOpen);
+  const folder = e.target.closest("[data-folder]");
+  if (folder) return toggleRailFolder(folder.dataset.folder);
+  const shelf = e.target.closest("[data-shelf]");
+  if (shelf) return setRailShelf(shelf.dataset.shelf, !st.railShelves[shelf.dataset.shelf]);
+  if (e.target.closest("[data-shelf-more]")) return setRailShelf("more", true);
+  const shelfAct = e.target.closest("[data-shelf-act]");
+  if (shelfAct) return shelfAct.dataset.shelfAct === "wake" ? wakeSeats([shelfAct.dataset.of]) : unsettleSeats([shelfAct.dataset.of]);
+  const unpin = e.target.closest("[data-unpin]");
+  if (unpin) return togglePinSeat(unpin.dataset.unpin);
+  const pr = e.target.closest("[data-pr-url]");
+  if (pr) return void openPrLink(pr.dataset.of, pr.dataset.prUrl);
+  const discard = e.target.closest("[data-discard]");
+  if (discard) return discardDraft(discard.dataset.discard);
   if (e.target.closest("[data-hidden-toggle]")) return setHiddenOpen(!st.hiddenOpen);
   if (raycastOn()) {
     const block = e.target.closest(".group-title[data-i]");
@@ -639,9 +834,15 @@ $("rail-sessions").addEventListener("click", (e) => {
   if (parked) return reviveArchived(parked.dataset.arch, parked.dataset.where);
   const item = e.target.closest(".item");
   if (!item || !item.dataset.name) return;
+  if (raycastOn() && pickClick(e, item.dataset.name, railKeys())) return;
   if (raycastOn() && st.railQuery) closeRailSearch();
   leaveMirror();
-  goTo(item.dataset.name);
+  openFromList(item.dataset.name);
+});
+
+document.addEventListener("hive:marks", () => {
+  render();
+  if (railSolid) paintRail();
 });
 
 $("rail-sessions").addEventListener("input", (e) => {
@@ -657,7 +858,7 @@ const RAIL_KEYS = ["Escape", "ArrowDown", "ArrowUp", "Enter"];
 $("rail-list").addEventListener("keydown", (e) => {
   if (!raycastOn() || e.altKey || e.ctrlKey || e.metaKey || !RAIL_KEYS.includes(e.key)) return;
   const typing = e.target.id === "rail-q";
-  const row = typing ? null : e.target.closest(".item, [data-arch-toggle], [data-hidden-toggle]");
+  const row = typing ? null : e.target.closest(".item, [data-arch-toggle], [data-hidden-toggle], [data-shelf], [data-folder]");
   if (!typing && !row) return;
   e.preventDefault();
   e.stopPropagation();

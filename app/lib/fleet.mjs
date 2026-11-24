@@ -1,7 +1,8 @@
 import { join } from "node:path";
 import { REPO_FOLDER } from "./env.mjs";
 import { hiveShellExec } from "../../server/engine/hive-shell.mjs";
-import { carriedEnv } from "../../server/engine/seat-command.mjs";
+import { carriedEnv, quoteForShell } from "../../server/engine/seat-command.mjs";
+import { hubClaudeArgs } from "../../server/engine/hub-settings.mjs";
 import { providerEnv } from "../../server/engine/providers.mjs";
 import { accountDir } from "../../server/engine/accounts.mjs";
 import { driverFileFor } from "../../server/sessions.mjs";
@@ -168,7 +169,7 @@ export function localRestoreScript(seats, { hub, hiveHome, shell = "bash", remot
         `${account}HIVE_SEAT=${seat.name} HIVE_SIDE=local HIVE_STATE_DIR=${hiveHome} ${tuiContinueCmd(seat)}`;
     } else {
       cmd = `cd ${seat.cwd || hub} 2>/dev/null || cd ${hub}; ` +
-        `${account}FORCE_HYPERLINK=1 claude --resume ${seat.id} ${claudeFlags(seat, remoteControl, autocompact)}`;
+        `${account}FORCE_HYPERLINK=1 claude --resume ${seat.id} ${claudeFlags(seat, remoteControl, autocompact)}${hubClaudeArgs(seat.cwd || hub, hub, hiveHome).map((one) => ` ${quoteForShell(one)}`).join("")}`;
     }
     lines.push(`${WINDOW_MISSING("hive-local", seat.name)} && tmux new-window -d -t hive-local -n ${seat.name} "${cmd}"`);
     if (seat.kind === "shell") lines.push(`tmux set-window-option -t "hive-local:=${seat.name}" remain-on-exit on`);

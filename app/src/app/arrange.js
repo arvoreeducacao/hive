@@ -22,6 +22,7 @@ import { forgetStruct, structPool } from "./structured-seats.js";
 import { mirrorRow } from "./team.js";
 import { movePrPanel, moveThreadPanel } from "./thread.js";
 import { emptyWallModel, swapSeats } from "./tiles.js";
+import { followFocusedChat } from "./screen-reader.js";
 
 st.arrangeCursor = { i: 0, j: 0 };
 
@@ -717,6 +718,7 @@ function render({ animate = true } = {}) {
     });
   }
   finally { perf.end("render", from); }
+  followFocusedChat();
 }
 
 let layoutSeen = "";
@@ -833,8 +835,9 @@ function paintEverything({ animate = true } = {}) {
     });
     if (!onPlane) {
       const inCanvas = placed.size ? shown.filter(({ it: i }) => !placed.has(i.key)) : shown;
-      const onScreen = [...c.children].filter((x) => x.dataset.key).map((x) => x.dataset.key).join(",");
-      if (onScreen !== inCanvas.map(({ it: i }) => i.key).join(",")) inCanvas.forEach(({ it: i }) => c.appendChild(tiles.get(i.key)));
+      const wanted = inCanvas.map(({ it: i }) => tiles.get(i.key));
+      const onScreen = [...c.children].filter((x) => x.dataset.key && !x.dataset.gone);
+      if (wanted.length !== onScreen.length || wanted.some((el, at) => el !== onScreen[at])) wanted.forEach((el) => c.appendChild(el));
     }
   }
 

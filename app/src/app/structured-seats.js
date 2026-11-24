@@ -2,11 +2,13 @@ import { paintMentions, paintPills, svEvent, svUserThumb } from "./chat-and-pane
 import { svCmd } from "./chat-stretches.js";
 import { svConvAppend, svConvLine } from "./conversation-model.js";
 import { commandOf, every, isNativeCommand, phrase, raycastOn } from "./core.js";
+import { fullTimeOf } from "./timeline-rows.js";
+import { spokenNow } from "/assets/i18n.mjs";
 import { ago } from "./pod.js";
 import { splitPeerHandle } from "./pure-helpers.js";
 import { paintSubs } from "./subagents-dock.js";
+import { screenReaderHeard } from "./screen-reader.js";
 import { blockText, toClipboard } from "./terminal-history.js";
-import { spokenNow } from "/assets/i18n.mjs";
 
 const structPool = new Map();
 
@@ -23,6 +25,7 @@ function svActivity(e, verb) {
   if (!verb) e.activitySince = 0;
   else if (changed || !e.activitySince) e.activitySince = Date.now();
   paintActivity(e);
+  screenReaderHeard(e);
 }
 
 function paintActivity(e) {
@@ -128,7 +131,7 @@ function svDequeue(e, held) {
     item.dataset.gone = "1";
     const bubble = svLine(e, "sv-user", splitPeerHandle(item.dataset.text || item.textContent).body);
     paintMentions(bubble);
-    if (item.dataset.uuid) bubble.dataset.uuid = item.dataset.uuid;
+    if (item.dataset.cid) bubble.dataset.cid = item.dataset.cid;
     for (const path of JSON.parse(item.dataset.images || "[]")) svUserThumb(e, bubble, path);
     item.remove();
   }
@@ -169,7 +172,7 @@ function workSummary(cards) {
   return `${said.slice(0, -1).join(", ")} ${phrase("and")} ${said[said.length - 1]}`;
 }
 
-const SAY_QUIET = ".sv-think, .sv-work, .sv-tool";
+const SAY_QUIET = ".sv-think, .sv-work, .sv-tool, .tl-quiet";
 
 const sayKind = (block) => (block.classList.contains("sv-user") ? "sv-user" : "sv-msg");
 
@@ -196,39 +199,20 @@ function svRunText(block) {
   return said.join("\n\n");
 }
 
-const stampLocale = () => (spokenNow() === "en" ? undefined : spokenNow());
-
-const dayStart = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-
-function stampClock(at, now = Date.now()) {
-  const date = new Date(at);
-  if (Number.isNaN(date.getTime())) return "";
-  const time = new Intl.DateTimeFormat(stampLocale(), { hour: "numeric", minute: "2-digit" }).format(date);
-  const today = new Date(now);
-  const days = Math.round((dayStart(today) - dayStart(date)) / 86400000);
-  if (days <= 0) return time;
-  if (days === 1) return phrase("yesterday at {time}", { time });
-  const year = date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" };
-  return `${new Intl.DateTimeFormat(stampLocale(), { month: "numeric", day: "numeric", ...year }).format(date)} ${time}`;
-}
-
-const stampDate = (at) => new Intl.DateTimeFormat(stampLocale(), { dateStyle: "full", timeStyle: "short" }).format(new Date(at));
-
 function paintStamp(block) {
   let stamp = block.querySelector(":scope > .sv-stamp");
   if (!stamp) stamp = growStamp(block);
   const at = Number(block.dataset.said || block.dataset.at || 0);
   if (!at) return;
   const when = stamp.querySelector(".st-when");
-  when.querySelector(".st-ago").textContent = phrase("{when} ago", { when: ago(new Date(at).toISOString()) });
-  when.querySelector(".st-clock").textContent = stampClock(at);
-  when.title = stampDate(at);
+  when.textContent = phrase("{when} ago", { when: ago(new Date(at).toISOString()) });
+  when.title = fullTimeOf(at, spokenNow());
 }
 
 function growStamp(block) {
   const stamp = document.createElement("div");
   stamp.className = "sv-stamp";
-  stamp.innerHTML = `<span class="st-when"><span class="st-ago"></span><span class="st-clock"></span></span><button type="button" class="st-copy" title="${phrase("copy this block")}"><svg class="mark" aria-hidden="true"><use href="#i-copy"/></svg><svg class="tick" aria-hidden="true"><use href="#i-check"/></svg></button>`;
+  stamp.innerHTML = `<span class="st-when"></span><button type="button" class="st-copy" title="${phrase("copy this block")}"><svg class="mark" aria-hidden="true"><use href="#i-copy"/></svg><svg class="tick" aria-hidden="true"><use href="#i-check"/></svg></button>`;
   stamp.querySelector(".st-copy").addEventListener("click", async (ev) => {
     ev.stopPropagation();
     const button = ev.currentTarget;
@@ -282,11 +266,32 @@ function splitLeadingQuotes(text) {
   return { quotes, rest: lines.slice(i).join("\n") };
 }
 
-function svQuoteCard(said) {
+const QUOTE_LABEL_MAX = 64;
+
+function quoteLabel(said) {
+  const flat = String(said ?? "").replace(/\s+/g, " ").trim();
+  const chars = [...flat];
+  return chars.length <= QUOTE_LABEL_MAX ? flat : `${chars.slice(0, QUOTE_LABEL_MAX).join("")}…`;
+}
+
+function svQuoteCard(said, fragment = false) {
   const card = document.createElement("blockquote");
   card.className = "sv-said-quote";
-  card.innerHTML = `<span class="qi"><svg aria-hidden="true"><use href="#i-quote"/></svg></span><span class="qt"></span>`;
-  card.querySelector(".qt").textContent = said;
+  card.setAttribute("role", "button");
+  card.tabIndex = 0;
+  card.title = phrase("Go to the original answer");
+  card.setAttribute("aria-label", phrase("Go to the quoted response: {quote}", { quote: quoteLabel(said) }));
+  const text = document.createElement("span");
+  text.className = "qt";
+  text.dir = "auto";
+  if (fragment) {
+    const mark = document.createElement("mark");
+    mark.textContent = said;
+    text.append(mark);
+  } else {
+    text.textContent = said;
+  }
+  card.append(text);
   return card;
 }
 
@@ -294,4 +299,4 @@ function svLine(e, cls, text) {
   return svConvLine(e, cls, text);
 }
 
-export { MENU_MARK, SAY_QUIET, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, WORK_KINDS, growStamp, paintActivity, paintSaidCommand, stampClock, stampDate, paintStamp, refreshContext, refreshDriverState, sayKind, slashFamily, splitLeadingQuotes, forgetStruct, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine, svQueueRefused, svQuoteCard, svRunTail, svRunText, svSaidNear, svWasDequeuedEarly, workSummary, workVerb };
+export { MENU_MARK, SAY_QUIET, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, WORK_KINDS, growStamp, paintActivity, paintSaidCommand, paintStamp, refreshContext, refreshDriverState, sayKind, slashFamily, splitLeadingQuotes, forgetStruct, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine, svQueueRefused, svQuoteCard, svRunTail, svRunText, svSaidNear, svWasDequeuedEarly, workSummary, workVerb };

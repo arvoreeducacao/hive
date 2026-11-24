@@ -5,14 +5,18 @@ import { $, BLOB_FACE, CODE_NAME, chordKeys, IS_MAC, WEAR, nearestFree, override
 import { literalOf, paintKeys } from "./leader-key.js";
 import { paintRail } from "./mirror.js";
 import { adoptExperience } from "./experience.js";
-import { adoptBrandFace, adoptGaze, adoptLanguage, adoptLook, adoptPet } from "./preferences.js";
+import { adoptBrandFace, adoptGaze, adoptLanguage, adoptLook, adoptPet, adoptScreenReader, adoptTimeFormat, adoptToolCalls } from "./preferences.js";
+import { adoptQuitShortcut } from "./quit-hint.js";
 import { adoptStructure } from "./structure.js";
-import { adoptAutoUpdateAgents, adoptAutocompact, adoptCalm, adoptContextUsage, adoptDiaryDays, adoptPrefs, adoptQuietDays } from "./pure-helpers.js";
+import { adoptAutoUpdateAgents, adoptAutocompact, adoptKeepAwake, adoptCalm, adoptContextUsage, adoptDiaryDays, adoptPrefs, adoptQuietDays } from "./pure-helpers.js";
 import { adoptBlockSize, adoptLayout } from "./seat-layout.js";
 import { adoptTerminalEngine } from "./terminal-pool.js";
+import { adoptTitleInstructions } from "./title-instructions.js";
+import { adoptPrViews } from "./pr-views.js";
 import { adoptAvatar, adoptTheme, applyBindings, applyFonts, migrateStoredSound } from "./shared.js";
 import { takenSlots } from "./team.js";
 import { facePickerViewModel, myFaceSvg, ownerOfSlot, paintAvatar, rollAvatar, wAvatar } from "./welcome.js";
+import { adoptThreadSettings } from "./thread-settings.js";
 
 st.faceAsked = false;
 
@@ -155,15 +159,23 @@ async function reloadConfig() {
     adoptCalm(r);
     adoptAutocompact(r);
     adoptContextUsage(r);
+    adoptToolCalls(r);
+    adoptTitleInstructions(r);
+    adoptTimeFormat(r);
+    adoptQuitShortcut(r);
+    adoptScreenReader(r);
     adoptAutoUpdateAgents(r);
+    adoptKeepAwake(r);
     adoptQuietDays(r);
     adoptDiaryDays(r);
     adoptTheme(r);
     adoptLanguage(r);
+    adoptThreadSettings(r);
     adoptPet(r);
     adoptBrandFace(r);
     adoptGaze(r);
     adoptAvatar(r);
+    adoptPrViews(r);
     paintKeys();
     paintFonts();
     render();

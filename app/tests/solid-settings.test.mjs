@@ -172,8 +172,18 @@ test("every dropdown in the settings offers what the app knows and marks what is
     LOOK_NAMES: { classic: "classic, as it was", dimension: "dimension, the new one" }, LOOK_DEFAULT: "classic",
     VISUAL_NAMES: { lean: "lean: nothing moves, no blur", full: "full: motion and blur, costs memory and battery" }, visualWorn: () => "full",
     PET_ON: "blob", PET_OFF: "off", brandFace: "auto",
-    st: { language: "pt-BR", petChoice: "blob", gazeMode: "screen", seatLayout: "row", LIMIT: 4 }
+    TOOL_CALLS_NAMES: { all: "Show all", failed: "Hide successful", none: "Hide all", zen: "Zen" },
+    TIME_FORMATS: ["system", "12h", "24h"], TIME_FORMAT_NAMES: { system: "System default", "12h": "12-hour", "24h": "24-hour" },
+    SCREEN_READER_NAMES: { status: "Status only", messages: "Status and messages", everything: "Everything" },
+    st: { language: "pt-BR", petChoice: "blob", gazeMode: "screen", seatLayout: "row", LIMIT: 4, toolCalls: "zen", timeFormat: "24h", screenReaderAnnouncements: "messages", screenReaderWindowTitle: true }
   }, choices, "choicesViewModel")();
+  assert.deepEqual(model.clock.map((one) => one.value), ["system", "12h", "24h"]);
+  assert.equal(model.clockWorn, "24h");
+  assert.deepEqual(model.tools.map((one) => one.value), ["all", "failed", "none", "zen"]);
+  assert.equal(model.toolsWorn, "zen");
+  assert.deepEqual(model.readers.map((one) => one.label), ["Status only", "Status and messages", "Everything"]);
+  assert.equal(model.readersWorn, "messages");
+  assert.equal(model.titleOn, true);
   assert.deepEqual(model.lang[0], { key: "en", value: "en", label: "EN · english" });
   assert.deepEqual(model.pet.map((one) => one.value), ["blob", "off"]);
   assert.equal(model.langWorn, "pt-BR");
@@ -188,7 +198,7 @@ test("the eyes cannot be aimed when there is nobody to aim them", () => {
   const model = run({
     LANGUAGES: [], PET_NAMES: {}, BRAND_NAMES: {}, GAZE_NAMES: {}, LAYOUTS: [], LAYOUT_NAMES: {},
     LOOK_NAMES: {}, LOOK_DEFAULT: "classic", VISUAL_NAMES: {}, visualWorn: () => "lean",
-    PET_ON: "blob", PET_OFF: "off", brandFace: "auto",
+    PET_ON: "blob", PET_OFF: "off", brandFace: "auto", TOOL_CALLS_NAMES: {}, TIME_FORMATS: [], TIME_FORMAT_NAMES: {}, SCREEN_READER_NAMES: {},
     st: { language: "en", petChoice: "off", gazeMode: "screen", seatLayout: "grid", LIMIT: 4 }
   }, choices, "choicesViewModel")();
   assert.equal(model.gazeOff, true);
@@ -336,9 +346,13 @@ const keysPanel = slice("leader-key", "let keysGridSolid = null;");
 function keysWorld(over = {}) {
   const ACTION_GROUPS = [["chats", "chats and seats", ["new"]], ["moving", "moving around", ["seat"]]];
   const ACTION_SAID = { new: "opens a chat", seat: "goes to seat {limit}" };
+  const ACTION_NAMES = { new: "New chat", seat: "Jump to a seat" };
   return {
     ACTION_GROUPS,
     ACTION_SAID,
+    ACTION_NAMES,
+    DEFAULT_KEYS: { new: { code: "KeyN", ctrl: true }, seat: { code: "Digit", ctrl: true } },
+    formatKey: (b) => (b ? `${b.ctrl ? "ctrl+" : ""}${b.code}` : ""),
     ACTIONS: ACTION_GROUPS.flatMap(([, , actions]) => actions.map((a) => [a, ACTION_SAID[a]])),
     st: {
       LIMIT: 4,
@@ -379,9 +393,12 @@ test("every action sits in its group with its direct key, and the second column 
   assert.deepEqual(rows.map((one) => one.action), ["new", "seat"]);
   assert.equal(rows[0].label, "KeyN");
   assert.equal(rows[0].chord.label, "KeyC");
-  assert.equal(rows[1].chord.label, "—");
+  assert.equal(rows[1].chord.label, "Unassigned");
   assert.equal(rows[1].chord.unset, true);
   assert.equal(rows[1].desc, "goes to seat 4");
+  assert.equal(rows[0].name, "New chat", "each row leads with the short name of the action");
+  assert.equal(rows[0].custom, false);
+  assert.equal(rows[1].custom, true, "a key other than the default is marked, so the menu can offer it back");
   assert.deepEqual(model.head, { action: "what it does", direct: "shortcut", chord: "after KeyB" });
   const bare = run(keysWorld({ leader: null }), keysPanel, "keysGridModel")();
   assert.equal(rowsOf(bare)[0].chord, null);
@@ -391,13 +408,13 @@ test("every action sits in its group with its direct key, and the second column 
 test("a key being captured says so in its own cell, and a silenced one says why it is grey", () => {
   const model = run(keysWorld({ capturing: "new", silenced: true }), keysPanel, "keysGridModel")();
   const rows = rowsOf(model);
-  assert.equal(rows[0].label, "press…");
+  assert.equal(rows[0].label, "Press shortcut");
   assert.equal(rows[0].capturing, "direct");
   assert.equal(rows[0].muted, true);
   assert.equal(rows[0].title, "off while the leader is on");
-  assert.equal(rows[1].title, "click to change");
+  assert.equal(rows[1].title, "Edit shortcut");
   const chord = run(keysWorld({ capturing: "chord:seat" }), keysPanel, "keysGridModel")();
-  assert.equal(rowsOf(chord)[1].chord.label, "press…");
+  assert.equal(rowsOf(chord)[1].chord.label, "Press shortcut");
   assert.equal(rowsOf(chord)[1].capturing, "chord");
 });
 
@@ -407,7 +424,8 @@ test("an action with no key yet says so on the cell, so the click is an offer an
   world.st.chords.new = null;
   const model = run(world, keysPanel, "keysGridModel")();
   assert.equal(rowsOf(model)[0].unset, true);
-  assert.equal(rowsOf(model)[0].title, "no shortcut yet — click to set one");
+  assert.equal(rowsOf(model)[0].title, "Set a shortcut");
+  assert.equal(rowsOf(model)[0].label, "Unassigned");
   assert.equal(model.summary, "1 of 2 actions answer a key — the rest are one click from having one");
 });
 
@@ -418,7 +436,7 @@ test("the search narrows the list by what it does or by the key, and says so whe
   assert.deepEqual(rowsOf(byKey).map((row) => row.action), ["new"]);
   const none = run(keysWorld({ filter: "zzz" }), keysPanel, "keysGridModel")();
   assert.deepEqual(none.groups, []);
-  assert.equal(none.empty, "nothing here answers to that");
+  assert.equal(none.empty, "No keybindings match your search.");
 });
 
 test("the five combinations the app does not let you change close the list", () => {
@@ -501,44 +519,6 @@ test("the housekeeping left out of the list is counted at the foot of it", () =>
   const state = { behind: 2, tag: "t", number: 9, via: "release", packaged: true, quiet: 3, notes: [note("a")] };
   const model = run(notesWorld({ state }), relnotes, "relnotesViewModel")();
   assert.match(model.sub, /3 housekeeping commits stayed out of this list\./);
-});
-
-const whatsNew = slice("whats-new", "let whatsNewSolid = null;");
-
-test("what landed leads with the news and groups the rest by what kind of change it was", () => {
-  const model = run({
-    releasesUrl: () => "https://github.com/x/y/releases",
-    versionOf: (tag, number) => (number > 0 ? `#${number}` : String(tag || "")),
-    plural: (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`,
-    NOTE_TAG: { new: "new", fixed: "fix" },
-    NOTE_GROUP: [["new", "new"], ["fixed", "fixed"], ["", "also"]]
-  }, whatsNew, "whatsNewViewModel")({
-    tag: "t", number: 9, from: "old", fromNumber: 7, releases: 2, quiet: 1,
-    notes: [{ kind: "fixed", text: "a fix", pr: "#1" }, { kind: "new", text: "a thing", pr: "" }, { kind: "", text: "loose", pr: "" }]
-  });
-  assert.equal(model.lead.title, "a thing");
-  assert.equal(model.lead.tag, "new");
-  assert.match(model.lead.body, /It came in with 2 builds that went out while this app was on #7\./);
-  assert.deepEqual(model.groups.map((one) => one.key), ["fixed", ""]);
-  assert.deepEqual(model.groups[0].items.map((one) => one.text), ["a fix"]);
-  assert.equal(model.groups[0].items[0].delay, "420ms");
-  assert.equal(model.groups[0].count, 1);
-  assert.match(model.chip, /<s>#7<\/s><em>→<\/em>#9/);
-  assert.match(model.quiet, /1 housekeeping commit stayed out of this list\./);
-  assert.match(model.quiet, /See the whole release/);
-});
-
-test("one change landed is one change, and a hive with no releases page links nowhere", () => {
-  const model = run({
-    releasesUrl: () => "",
-    versionOf: (tag) => String(tag),
-    plural: (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`,
-    NOTE_TAG: {}, NOTE_GROUP: [["", "also"]]
-  }, whatsNew, "whatsNewViewModel")({ tag: "t", notes: [{ kind: "", text: "only one", pr: "" }] });
-  assert.equal(model.headline, "change landed while you were working");
-  assert.equal(model.quiet, "");
-  assert.equal(model.lead.tag, "change");
-  assert.deepEqual(model.groups, [], "the only note is the lead, so no group is left to draw");
 });
 
 /* ── the tour ── */
@@ -666,7 +646,6 @@ test("every painter in this region paints through its solid view", () => {
     ["face-door", "function paintFaceSheet() {", /faceSheetSolid\.show\(faceSheetViewModel\(\)\);/],
     ["leader-key", "function paintKeys() {", /keysGridSolid\.show\(said\.grid\);/],
     ["tour", "function paintRelnotes() {", /relnotesSolid\.show\(/],
-    ["whats-new", "function paintWhatsNew(d) {", /whatsNewSolid\.show\(/],
     ["tour", "function paintTour() {", /tourSolid\.show\(tourViewModel\(\)\);/],
     ["plane", "function paintPlaneBar() {", /planeBarSolid\.show\(planeBarViewModel\(id, one\)\)/],
     ["plane", "function paintPlaneMap() {", /planeMapSolid\.show\(/],
@@ -692,7 +671,6 @@ test("each view of this region is mounted on the element the painter writes into
     ["leader-key", /hive\.mountKeysGrid\(grid\)/],
     ["leader-key", /hive\.mountKeysLeader\(lead\)/],
     ["tour", /hive\.mountRelnotes\(list\)/],
-    ["whats-new", /hive\.mountWhatsNewGroups\(groups\)/],
     ["tour", /hive\.mountTourPop\(pop\)/],
     ["plane", /hive\.mountPlaneBar\(bar, \{/],
     ["plane", /hive\.mountPlaneMap\(in_\)/],
@@ -719,10 +697,10 @@ test("the region builds into the one bundle, with every mount it promises", { sk
     const { errors } = await buildApp({ outdir, minify: false });
     assert.deepEqual(errors, []);
     const built = await readFile(join(outdir, "hive.mjs"), "utf8");
-    for (const name of ["mountMenu", "mountMirror", "mountThemes", "mountOptions", "mountGate", "mountFacePicker", "mountFaceSheet", "mountKeysGrid", "mountKeysLeader", "mountRelnotes", "mountWhatsNewGroups", "mountTourPop", "mountPlaneBar", "mountPlaneMap", "mountPlaneCard"]) {
+    for (const name of ["mountMenu", "mountMirror", "mountThemes", "mountOptions", "mountGate", "mountFacePicker", "mountFaceSheet", "mountKeysGrid", "mountKeysLeader", "mountRelnotes", "mountTourPop", "mountPlaneBar", "mountPlaneMap", "mountPlaneCard"]) {
       assert.ok(built.includes(name), `the bundle does not carry ${name}`);
     }
-    for (const piece of ["kb-bar", "mirror-talk", "mirror-send", "well structured", "thm-prev", "facepick", "fg-page", "fs-top", "wn-group", "pc-chips", "data-tour", "i-thumb-up", "data-tint"]) {
+    for (const piece of ["kb-bar", "mirror-talk", "mirror-send", "well structured", "thm-prev", "facepick", "fg-page", "fs-top", "pc-chips", "data-tour", "i-thumb-up", "data-tint"]) {
       assert.ok(built.includes(piece), `the built region lost ${piece}`);
     }
   } finally {
