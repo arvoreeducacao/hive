@@ -544,8 +544,7 @@ function railGroups(rows, picked) {
   const pinned = marked.filter((row) => row.pinned);
   const unpinned = marked.filter((row) => !row.pinned);
   const working = st.threadRules.workingSection ? unpinned.filter((row) => WORKING_STATES.has(row.state)) : [];
-  const rest = unpinned.filter((row) => !working.includes(row));
-  const middle = st.threadRules.groupByProject ? projectGroups(rest, picked) : blockGroups(rest, picked);
+  const middle = st.threadRules.groupByProject ? projectGroups(unpinned, picked) : blockGroups(unpinned, picked);
   return [...pinnedGroup(pinned, picked), ...middle, ...workingGroup(working, picked), ...shelves];
 }
 

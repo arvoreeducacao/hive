@@ -92,12 +92,12 @@ test("a plain click clears the picks and opens the chat, and Escape clears them 
   assert.equal(selection.pickedKeys().length, 0);
 });
 
-test("with the Working section on, the chat at work leaves its block group for Working, at the foot", () => {
+test("with the Working section on, the chat at work keeps its place in its block and also shows in Working, at the foot", () => {
   lay({ workingSection: true });
   const all = groups();
   const working = all.find((g) => g.shelf === "working");
   assert.equal(working.fold.count, 1);
-  assert.ok(!all.find((g) => g.key === "b0").items.some((one) => one.key === "b"));
+  assert.ok(all.find((g) => g.key === "b0").items.some((one) => one.key === "b"));
   lay();
 });
 
