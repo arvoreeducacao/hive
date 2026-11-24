@@ -2,8 +2,8 @@ import { render } from "./arrange.js";
 import { activeItems, blockWithRoom, openBlock, saveBlocks, soloSeat } from "./blocks.js";
 import { AGENT_NAMES, artifactTabOf, draftCarriesEffort, openSeatPicker, paintPills, paintWebOfChat, refreshCatalog, seatAgent, shelfLinkOf, weaveHandles, webOfSeat } from "./chat-and-panes.js";
 import { SV_FLOOR, continueListOnShiftEnter, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
-import { COMPOSER_MIN, IS_MAC, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
-import { BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, openPlaceMenu, paintPlace, placeMarkup, projectItems, projectNamed, projectOfRepo, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu } from "./draft-place.js";
+import { COMPOSER_MIN, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
+import { BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, isBehindKey, openPlaceMenu, paintPlace, placeMarkup, projectItems, projectNamed, projectOfRepo, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu } from "./draft-place.js";
 import { closeTile, focusSeat, goTo, pull, releaseKeyboard } from "./focus-navigation.js";
 import { hud } from "./hud.js";
 import { jobName, justCreated } from "./leader-key.js";
@@ -49,7 +49,8 @@ const draftPlaced = (d) => !draftIsAnonymous(d) && d.where !== "cloud";
 function placeOfDraft(d) {
   if (!draftPlaced(d) || !d.project) return {};
   if (d.tree) return { project: d.project, tree: d.tree };
-  return { project: d.project, ...(d.base ? { base: d.base } : {}), ...(d.worktree ? { worktree: true } : {}) };
+  if (!d.worktree) return { project: d.project };
+  return { project: d.project, ...(d.base ? { base: d.base } : {}), worktree: true };
 }
 
 function draftChoices(kept) {
@@ -152,7 +153,8 @@ function draftHost(d) {
         </span>
         <span class="sv-btns">
           <button type="button" class="sv-talk" hidden aria-pressed="false" aria-label="${phrase("talk instead of typing")}"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#i-mic"/></svg></button>
-          <button type="submit" class="sv-send" title="${phrase("open the chat (enter) — {key} starts it in the background", { key: BEHIND_KEY })}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12.6V3.8M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button type="button" class="sv-behind" title="${phrase("start it in the background ({key})", { key: BEHIND_KEY })}" aria-label="${phrase("start it in the background")}">${svgIcon("i-send")}</button>
+          <button type="submit" class="sv-send" title="${phrase("open the chat (enter)")}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12.6V3.8M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </span>
       </div>
     </form>`;
@@ -183,11 +185,13 @@ function draftHost(d) {
     grow: autosize
   });
   host.querySelector(".sv-composer").addEventListener("submit", (ev) => { ev.preventDefault(); sendDraft(d, textarea.value); });
+  host.querySelector(".sv-behind").addEventListener("click", () => sendDraft(d, textarea.value, true));
   textarea.addEventListener("keydown", (kev) => {
     kev.stopPropagation();
     if (menu.key(kev)) return;
+    if (isBehindKey(kev)) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value, true); }
     if (continueListOnShiftEnter(kev, textarea)) return;
-    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value, !kev.altKey && (IS_MAC ? kev.metaKey : kev.ctrlKey)); }
+    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value); }
     if (kev.key === "Escape") {
       kev.preventDefault();
       if (!textarea.value.trim()) return void discardDraft(d);
@@ -261,13 +265,13 @@ function projectInFocus() {
   return projectOfSeat((st.data?.sessions || []).find((one) => one.name === key));
 }
 
-function placeDraft(d, { repo = NO_PROJECT, branch = "", tree = "", main = false, worktree = true } = {}) {
+function placeDraft(d, { repo = NO_PROJECT, branch = "", tree = "", main = false, worktree = false } = {}) {
   d.project = String(repo || "");
   d.tree = d.project && tree ? String(tree) : "";
   d.treeBranch = d.tree ? String(branch || "") : "";
   d.treeMain = !!d.tree && !!main;
   d.base = d.project && !d.tree ? String(branch || "") : "";
-  d.worktree = !!d.project && !d.tree && worktree !== false;
+  d.worktree = !!d.project && !d.tree && !!worktree;
   if (d.project && !d.tree) pullBranches(d.project).then(() => repaintDraft(d));
   repaintDraft(d);
 }
@@ -292,6 +296,11 @@ function openPlaceMenuOf(d, kind) {
   const anchor = d.e.host.querySelector(`.sv-place-pick[data-place="${kind}"]`);
   if (!anchor || anchor.hidden || anchor.disabled) return;
   const refocus = () => focusDraftComposer(d);
+  if (kind === "mode") {
+    closePlaceMenu();
+    placeDraft(d, { repo: d.project, branch: d.base, worktree: !d.worktree });
+    return void refocus();
+  }
   if (kind === "project") {
     const recent = recentProject();
     openPlaceMenu(anchor, {
@@ -314,7 +323,7 @@ function openPlaceMenuOf(d, kind) {
   pullBranches(d.project).then(() => repaintPlaceMenu("base", { loading: false }));
 }
 
-function openDraftIn({ repo = NO_PROJECT, branch = "", tree = "", main = false, worktree = true, seed = "" } = {}) {
+function openDraftIn({ repo = NO_PROJECT, branch = "", tree = "", main = false, worktree = false, seed = "" } = {}) {
   const d = openDraft(seed);
   placeDraft(d, { repo, branch, tree, main, worktree });
   pullProjects().then(() => {
@@ -328,7 +337,7 @@ function askNewChat({ here = false } = {}) {
   if (here) return openDraftIn({ repo: projectInFocus() });
   const scoped = projectOfRepo(listScope());
   if (scoped) return openDraftIn({ repo: scoped });
-  return openDraftIn({ repo: recentProject() });
+  return openDraftIn();
 }
 
 function openDraftOnBranchOf(seat) {
@@ -355,7 +364,7 @@ function arriveOnADraft(tries = 0) {
   }
   arrived = true;
   render({ animate: false });
-  if (nothingInFocus()) openDraftIn({ repo: recentProject() });
+  if (nothingInFocus()) openDraftIn();
 }
 
 function newDraft() {
@@ -589,6 +598,7 @@ function paintDraftHost(d) {
   const textarea = host.querySelector("textarea");
   textarea.disabled = !!d.sending;
   host.querySelector(".sv-send").disabled = !!d.sending;
+  host.querySelector(".sv-behind").disabled = !!d.sending;
   host.classList.toggle("sending", !!d.sending);
   d.e.draftKind = d.kind;
   paintPills(d.e);

@@ -11,6 +11,7 @@ const { render } = await app("arrange");
 const { webOfSeat } = await app("chat-and-panes");
 const { openPageInASeat } = await app("page-in-a-seat");
 const { drafts, placeDraft, sendDraft } = await app("draft-seat");
+const { IS_MAC } = await app("core");
 
 const SHELF = {
   repo: "https://github.com/acme/artifacts",
@@ -96,20 +97,45 @@ test("a link the person already pasted is not pasted twice", async () => {
   assert.equal(spawned.prompt, "me explica hive://shelf/guarda-roupa-do-avatar-do-hive?tab=documento");
 });
 
-test("in any structure, enter opens the new chat and mod+enter leaves it behind a clean draft", async () => {
+test("in any structure, enter opens the new chat and a start in the background leaves it behind a clean draft", async () => {
   hive();
   await sendDraft(await pageDraft(), "me explica esse rfc");
   assert.equal(st.open, "job:n1", "plain enter left the person on the empty draft instead of the chat");
   hive();
   await sendDraft(await pageDraft(), "me explica esse rfc", true);
-  assert.notEqual(st.open, "job:n1", "mod+enter took the person into the chat it should have left behind");
-  assert.equal(drafts.size, 1, "mod+enter should hand back a clean draft");
+  assert.notEqual(st.open, "job:n1", "the start in the background took the person into the chat it should have left behind");
+  assert.equal(drafts.size, 1, "the start in the background should hand back a clean draft");
 });
 
-test("the clean draft mod+enter hands back starts in the same project and from the same branch", async () => {
+const settle = async () => { for (let n = 0; n < 8; n++) await new Promise((done) => setTimeout(done, 5)); };
+const mod = IS_MAC ? { metaKey: true } : { ctrlKey: true };
+const pressEnter = (el, extra) => el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true, ...extra }));
+
+async function typedDraft() {
   hive();
   const d = await pageDraft();
-  placeDraft(d, { repo: "lead-engine", branch: "develop" });
+  d.e.host.querySelector("textarea").value = "me explica esse rfc";
+  return d;
+}
+
+test("in the draft, mod+enter opens the chat like enter; only alt+mod+enter or the button start it in the background", async () => {
+  pressEnter((await typedDraft()).e.host.querySelector("textarea"), mod);
+  await settle();
+  assert.equal(st.open, "job:n1", "mod+enter left the chat behind instead of opening it");
+  pressEnter((await typedDraft()).e.host.querySelector("textarea"), { ...mod, altKey: true });
+  await settle();
+  assert.notEqual(st.open, "job:n1", "alt+mod+enter opened the chat instead of starting it in the background");
+  assert.equal(drafts.size, 1, "alt+mod+enter did not hand back a clean draft");
+  (await typedDraft()).e.host.querySelector(".sv-behind").click();
+  await settle();
+  assert.notEqual(st.open, "job:n1", "the button opened the chat instead of starting it in the background");
+  assert.equal(drafts.size, 1, "the button did not hand back a clean draft");
+});
+
+test("the clean draft a start in the background hands back starts in the same project and from the same branch", async () => {
+  hive();
+  const d = await pageDraft();
+  placeDraft(d, { repo: "lead-engine", branch: "develop", worktree: true });
   await sendDraft(d, "conserta o retry", true);
   assert.equal(spawned.project, "lead-engine");
   assert.equal(spawned.base, "develop");

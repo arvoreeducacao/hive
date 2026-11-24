@@ -58,25 +58,27 @@ const menuOf = (d) => d.e.host.querySelector(".sv-place-menu");
 const clickProject = async (d) => { d.e.host.querySelector('[data-place="project"]').click(); await settle(); };
 const press = (el, key, extra = {}) => el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...extra }));
 
-test("New chat lands in the message, on the most recent project, and the project menu waits for a click", async () => {
+test("New chat lands in the message, in the hub, and the project menu waits for a click", async () => {
   hive({ recent: "lead-engine" });
   askNewChat();
   await settle();
   const d = onlyDraft();
-  assert.equal(d.project, "lead-engine");
-  assert.equal(d.worktree, true, "a project chat gets a worktree of its own unless asked otherwise");
+  assert.equal(d.project, "", "a new chat is born in the hub unless a project is asked for");
+  assert.equal(d.worktree, false);
   assert.equal(menuOf(d), null, "the project menu opened on its own");
   assert.ok(document.activeElement === d.e.host.querySelector("textarea"), "the keyboard is not in the message");
-  assert.equal(d.e.host.querySelector('[data-place="project"] .v').textContent, "lead-engine");
+  assert.equal(d.e.host.querySelector('[data-place="project"] .v').textContent, "acme-hub");
+  assert.ok(d.e.host.querySelector('[data-place="mode"]').hidden, "a chat in the hub has no worktree to choose");
+  assert.ok(d.e.host.querySelector('[data-place="base"]').hidden);
+  assert.equal(spawnPayloadOf(d, "x").project, undefined);
   await clickProject(d);
   const menu = menuOf(d);
   assert.ok(menu, "a click did not open the project menu");
   assert.equal(menu.dataset.kind, "project");
   assert.ok(document.activeElement === menu.querySelector("input"), "the keyboard is not in the project search");
   const ticked = [...menu.querySelectorAll("button.on .l")].map((el) => el.textContent);
-  assert.deepEqual(ticked, ["lead-engine"]);
-  assert.equal(menu.querySelector("button .l").textContent, "lead-engine", "the last project used comes first");
-  assert.match(menu.textContent, new RegExp(phrase("No project")));
+  assert.deepEqual(ticked, ["acme-hub"]);
+  assert.deepEqual([...menu.querySelectorAll("button .l")].map((el) => el.textContent), ["acme-hub", "lead-engine", "api-acme"], "the hub comes first, then the last project used");
 });
 
 test("typing filters the menu, enter picks the project and hands the keyboard to the composer", async () => {
@@ -92,6 +94,7 @@ test("typing filters the menu, enter picks the project and hands the keyboard to
   press(input, "Enter");
   await settle();
   assert.equal(d.project, "api-acme");
+  assert.equal(d.worktree, false, "a project picked runs in its own checkout unless a worktree is asked for");
   assert.equal(menuOf(d), null);
   assert.ok(document.activeElement === d.e.host.querySelector("textarea"), "the composer did not get the keyboard back");
   assert.equal(d.e.host.querySelector('[data-place="project"] .v').textContent, "api-acme");
@@ -106,15 +109,14 @@ test("escape leaves the project as it was and puts the cursor in the composer", 
   press(menuOf(d).querySelector("input"), "ArrowDown");
   press(menuOf(d).querySelector("input"), "Escape");
   assert.equal(menuOf(d), null);
-  assert.equal(d.project, "lead-engine");
+  assert.equal(d.project, "");
   assert.ok(document.activeElement === d.e.host.querySelector("textarea"));
 });
 
-test("picking No project puts the chat back in the hub, with no branch to choose", async () => {
+test("picking the hub puts the chat back in the hub, with no branch to choose", async () => {
   hive({ recent: "lead-engine" });
-  askNewChat();
+  const d = openDraftIn({ repo: "lead-engine", worktree: true });
   await settle();
-  const d = onlyDraft();
   await clickProject(d);
   const input = menuOf(d).querySelector("input");
   press(input, "ArrowUp");
@@ -123,7 +125,36 @@ test("picking No project puts the chat back in the hub, with no branch to choose
   assert.equal(d.project, "");
   assert.equal(d.worktree, false);
   assert.ok(d.e.host.querySelector('[data-place="base"]').hidden);
+  assert.ok(d.e.host.querySelector('[data-place="mode"]').hidden);
   assert.deepEqual(spawnPayloadOf(d, "x").project, undefined);
+});
+
+test("a project runs in its checkout, and the worktree button switches to a new worktree and back", async () => {
+  hive();
+  const d = openDraftIn({ repo: "lead-engine" });
+  await settle();
+  const mode = d.e.host.querySelector('[data-place="mode"]');
+  const base = d.e.host.querySelector('[data-place="base"]');
+  assert.equal(mode.hidden, false);
+  assert.equal(mode.getAttribute("aria-pressed"), "false");
+  assert.equal(mode.querySelector(".v").textContent, phrase("in its checkout"));
+  assert.ok(base.disabled, "the checkout's branch is not a choice");
+  const checkout = spawnPayloadOf(d, "x");
+  assert.equal(checkout.project, "lead-engine");
+  assert.equal(checkout.worktree, undefined);
+  assert.equal(checkout.base, undefined);
+  mode.click();
+  await settle();
+  assert.equal(d.worktree, true);
+  assert.equal(mode.getAttribute("aria-pressed"), "true");
+  assert.equal(mode.querySelector(".v").textContent, phrase("in a new worktree"));
+  assert.equal(base.disabled, false, "the branch a new worktree starts from is a choice");
+  assert.equal(spawnPayloadOf(d, "x").worktree, true);
+  assert.ok(document.activeElement === d.e.host.querySelector("textarea"), "the composer did not get the keyboard back");
+  mode.click();
+  await settle();
+  assert.equal(d.worktree, false);
+  assert.equal(spawnPayloadOf(d, "x").worktree, undefined);
 });
 
 test("shift-click starts in the project of the chat in focus, without asking", async () => {
@@ -145,7 +176,7 @@ test("shift-click on a chat that lives in the hub starts with no project", async
   assert.equal(onlyDraft().project, "");
 });
 
-test("with the list filtered to a project, the chat is born there; the hub is no filter, so the recent project wins", async () => {
+test("with the list filtered to a project, the chat is born there; a filter on the hub leaves it in the hub", async () => {
   hive();
   scopeNewChatsBy(() => "api-acme");
   try {
@@ -158,7 +189,7 @@ test("with the list filtered to a project, the chat is born there; the hub is no
     scopeNewChatsBy(() => "acme-hub");
     askNewChat();
     await settle();
-    assert.equal(onlyDraft().project, "lead-engine", "a filter on the hub itself is not a project");
+    assert.equal(onlyDraft().project, "", "a filter on the hub itself is not a project");
     assert.equal(menuOf(onlyDraft()), null);
   } finally {
     scopeNewChatsBy(null);
@@ -167,7 +198,7 @@ test("with the list filtered to a project, the chat is born there; the hub is no
 
 test("the base branch menu lists the project's branches with the default first", async () => {
   hive();
-  const d = openDraftIn({ repo: "lead-engine" });
+  const d = openDraftIn({ repo: "lead-engine", worktree: true });
   await settle();
   d.e.host.querySelector('[data-place="base"]').click();
   await settle();
@@ -223,7 +254,7 @@ test("the app opens on a draft only when no chat is in focus", async () => {
   arriveOnADraft();
   await settle();
   const d = onlyDraft();
-  assert.equal(d.project, "api-acme");
+  assert.equal(d.project, "", "the app opens on a draft in the hub");
   assert.equal(menuOf(d), null, "opening the app does not ask for the project");
   arriveOnADraft();
   assert.equal(drafts.size, 1, "the app lands on a draft once, at boot");
@@ -267,7 +298,7 @@ test("a tile still leaving the wall does not make the wall move the others, so t
 
 test("while the first message is on its way the place cannot change, and a refused send gives it back", async () => {
   hive();
-  const d = openDraftIn({ repo: "lead-engine" });
+  const d = openDraftIn({ repo: "lead-engine", worktree: true });
   await settle();
   const realSpawn = globalThis.fetch;
   let release = null;
@@ -281,6 +312,7 @@ test("while the first message is on its way the place cannot change, and a refus
     release();
     await sending;
     assert.equal(d.e.host.querySelector('[data-place="project"]').disabled, false);
+    assert.equal(d.e.host.querySelector('[data-place="mode"]').disabled, false);
     assert.equal(d.e.host.querySelector('[data-place="base"]').disabled, false);
   } finally {
     globalThis.fetch = realSpawn;
