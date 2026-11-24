@@ -92,6 +92,18 @@ jobs:
             "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${arch}"
           chmod +x "$HOME/.docker/cli-plugins/docker-compose"
           docker compose version
+      - name: the base image comes from a mirror when the registry refuses the shared runner ip
+        working-directory: infra/docker
+        run: |
+          base=$(sed -n '1s/^FROM //p' workspace.Dockerfile)
+          for source in "$base" "mirror.gcr.io/library/${base##*/}"; do
+            if docker pull -q "$source"; then
+              [ "$source" = "$base" ] || docker tag "$source" "$base"
+              echo "the base image came from $source"
+              exit 0
+            fi
+          done
+          echo "no registry handed over the base image, so the build asks again on its own"
       - name: the shared runner ip gets rate-limited by the registry, so the build waits it out
         working-directory: infra/docker
         run: |
