@@ -263,9 +263,13 @@ test("the door reads the answer, and refuses the halves of one",
     assert.equal(gone.code, 400);
     assert.match(gone.said, /not alive/, "the door never reached the delivery");
   } finally {
+    const dead = hive.exitCode !== null || hive.signalCode !== null
+      ? Promise.resolve()
+      : new Promise((done) => hive.once("exit", done));
     hive.kill("SIGKILL");
-    await rm(home, { recursive: true, force: true });
-    await rm(hub, { recursive: true, force: true });
+    await dead;
+    await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    await rm(hub, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 });
 
