@@ -95,10 +95,28 @@ function folderListing(entries, folder) {
   return [...seen.values()].sort((a, b) => (Number(b.folder) - Number(a.folder)) || a.path.localeCompare(b.path));
 }
 
-async function inflateRaw(packed) {
+async function inflateRaw(packed, ceiling) {
   if (typeof DecompressionStream !== "function") throw new ArchiveError("damaged");
-  const stream = new Blob([packed]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const reader = new Blob([packed]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
+  const parts = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > ceiling) {
+      await reader.cancel().catch(() => {});
+      throw new ArchiveError("damaged");
+    }
+    parts.push(value);
+  }
+  const out = new Uint8Array(total);
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.byteLength;
+  }
+  return out;
 }
 
 async function readEntry(archive, path) {
@@ -111,7 +129,7 @@ async function readEntry(archive, path) {
   const begin = entry.offset + 30 + view.getUint16(entry.offset + 26, true) + view.getUint16(entry.offset + 28, true);
   const packed = bytes.subarray(begin, begin + entry.packed);
   if (entry.method === 0) return packed.slice();
-  if (entry.method === 8) return inflateRaw(packed);
+  if (entry.method === 8) return inflateRaw(packed, entry.size);
   throw new ArchiveError("unsupported-entry");
 }
 

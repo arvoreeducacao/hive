@@ -65,6 +65,8 @@ test("a link is refused with the reason when it is too long, only hidden, missin
   assert.deepEqual(text.parsePromptLink("hive://new?repo=a/b"), { ok: false, error: "missing-prompt" });
   assert.deepEqual(text.parsePromptLink(link({ prompt: "x", repo: "not a repo" })), { ok: false, error: "unreadable-repository" });
   assert.deepEqual(text.parsePromptLink(link({ pr: "owner/name/0" })), { ok: false, error: "unreadable-pull-request" });
+  assert.equal(text.parsePromptLink("hive://seat/%zz?prompt=hi"), null, "a broken escape in the path is not a link");
+  assert.equal(text.parsePromptLink("hive://new/%E0%A4?prompt=hi"), null);
   assert.match(text.promptLinkErrorText("prompt-only-hidden"), /may be malicious/);
 });
 

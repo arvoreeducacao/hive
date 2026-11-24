@@ -107,18 +107,24 @@ function prEmptyText({ error, available, query }) {
 
 const lists = new Map();
 
+const LIST_FRESH_MS = 60_000;
+
 async function searchPullRequests({ name, where }, query) {
   if (!name) return { available: false, prs: [] };
   const q = String(query || "").trim();
   const key = `${where}|${name}|${DIGITS.test(q) ? "" : q.toLowerCase()}|${DIGITS.test(q) ? q : ""}`;
   const held = lists.get(key);
-  if (held && Date.now() - held.at < 60_000) return held.said;
+  if (held && Date.now() - held.at < LIST_FRESH_MS) return held.said;
   const params = new URLSearchParams({ name, where: where || "local" });
   if (q && !DIGITS.test(q)) params.set("q", q);
   if (q && DIGITS.test(q)) params.set("number", q);
   const said = await fetch(`/api/prs/search?${params}`).then((r) => r.json()).catch(() => ({ error: "unreachable", available: true, prs: [] }));
   const shaped = { available: said?.available !== false, error: said?.error || "", repo: said?.repo || "", searched: !!said?.searched, prs: Array.isArray(said?.prs) ? said.prs : [] };
-  if (!shaped.error) lists.set(key, { at: Date.now(), said: shaped });
+  if (!shaped.error) {
+    const now = Date.now();
+    for (const [stale, kept] of lists) if (now - kept.at >= LIST_FRESH_MS) lists.delete(stale);
+    lists.set(key, { at: now, said: shaped });
+  }
   return shaped;
 }
 

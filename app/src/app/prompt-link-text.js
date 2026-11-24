@@ -89,22 +89,28 @@ function urlOf(raw) {
 }
 
 function linkPath(url) {
-  return decodeURIComponent(String(url.pathname || "").replace(/^\/+|\/+$/g, ""));
+  try {
+    return decodeURIComponent(String(url.pathname || "").replace(/^\/+|\/+$/g, ""));
+  } catch {
+    return null;
+  }
 }
 
 function parsePromptLink(raw) {
   const url = urlOf(raw);
   if (!url || url.protocol !== PROMPT_LINK_SCHEME) return null;
+  const path = linkPath(url);
+  if (path === null) return null;
   const params = url.searchParams;
   if (url.hostname === "seat") {
-    const seat = linkPath(url);
+    const seat = path;
     if (!SEAT_NAME.test(seat) || /^\.+$/.test(seat) || !params.has("prompt")) return null;
     const read = readLinkPrompt(params);
     if (!read.ok) return read;
     if (!read.prompt) return { ok: false, error: "missing-prompt" };
     return { ok: true, kind: "seat", seat, prompt: read.prompt, repo: null, pr: null, provider: "", model: "" };
   }
-  if (url.hostname !== "new" || linkPath(url)) return null;
+  if (url.hostname !== "new" || path) return null;
   const read = readLinkPrompt(params);
   if (!read.ok) return read;
   const prSaid = params.get("pr");
