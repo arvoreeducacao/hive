@@ -263,7 +263,7 @@ test("the door reads the answer, and refuses the halves of one",
     assert.equal(gone.code, 400);
     assert.match(gone.said, /not alive/, "the door never reached the delivery");
   } finally {
-    const dead = hive.exitCode !== null || hive.signalCode !== null
+    const dead = hive.pid === undefined || hive.exitCode !== null || hive.signalCode !== null
       ? Promise.resolve()
       : new Promise((done) => hive.once("exit", done));
     hive.kill("SIGKILL");
