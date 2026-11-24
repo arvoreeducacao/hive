@@ -131,7 +131,7 @@ test("rename, the worktrees, the themes, the doctor and the window of its own bi
   assert.equal(whichAction(ev("KeyT", { ctrl: true, shift: true })).action, "themes");
   assert.equal(whichAction(ev("KeyG", { ctrl: true, shift: true })).action, "doctor");
   assert.equal(whichAction(ev("KeyI", { ctrl: true, shift: true })).action, "detach");
-  assert.deepEqual(overrides(), file);
+  assert.deepEqual(overrides(), { ...file, newChat: "off" }, "the default of a new chat steps aside for the key the file gave the worktrees");
   apply({ leader: "on" });
   assert.equal(whichChord(ev("KeyK")).action, "worktrees");
   assert.equal(whichChord(ev("KeyT", { shift: true })).action, "themes");

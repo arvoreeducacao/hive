@@ -2,6 +2,8 @@
 :where(body.experience-raycast) #top > * { flex: none; }
 :where(body.experience-raycast) #top .lights { width: 52px; height: 12px; margin-right: 6px; }
 :where(body.experience-raycast) #top .lights[hidden] { display: none; }
+body.experience-raycast:not([data-structure="atmosphere"]) #top:has(> .lights:not([hidden])) { --mac-lights: 16px; }
+body.experience-raycast:where(html.fullscreen > *) #top .lights { display: none; }
 :where(body.experience-raycast) #top .rc-key { box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 4px; border: 0; border-radius: 5px; background: var(--panel-3); box-shadow: var(--keycap); font: 400 10px/1 var(--mono); color: var(--txt-2); }
 :where(body.experience-raycast) .brand .mug { width: 24px; height: 24px; border-radius: var(--r1); }
 

@@ -4,12 +4,41 @@ import { spawn, spawnSync } from "node:child_process";
 import { closeSync, existsSync, fstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { followEvents, oneshot, slimEvent, tailWindow, trimForPhone, humanWindow } from "./bridge.mjs";
-import { readHistory } from "./events-tail.mjs";
+import { linesBackward, readHistory } from "./events-tail.mjs";
 import { sideOf, tmuxSession, seatSockPath, isSeatNamedPipe } from "./engine/paths.mjs";
 import { reapSeat } from "./engine/leftovers.mjs";
 import { runShellLine } from "./shell-line.mjs";
 
 export const SEAT_NAME = /^[a-z0-9][a-z0-9_-]{0,79}$/i;
+
+export const TOOL_OUTPUT_CAP = 512 * 1024;
+
+const KEPT_OUTPUT = /[\\/]tool-results[\\/][^\\/]+\.txt$/;
+
+export function toolOutputOf(ran, read = readFileSync) {
+  let text = [ran?.stdout, ran?.stderr].filter((one) => typeof one === "string" && one).join("\n");
+  let whole = !ran?.persistedOutputPath;
+  if (typeof ran?.persistedOutputPath === "string" && KEPT_OUTPUT.test(ran.persistedOutputPath)) {
+    try {
+      text = String(read(ran.persistedOutputPath, "utf8"));
+      whole = true;
+    } catch {}
+  }
+  const cut = text.length > TOOL_OUTPUT_CAP;
+  return { ok: true, output: cut ? text.slice(-TOOL_OUTPUT_CAP) : text, cut, whole };
+}
+
+export function toolOutputIn(file, id, lines = linesBackward) {
+  const needle = `"tool_use_id":"${id}"`;
+  for (const line of lines(file)) {
+    if (!line.includes(needle) || !line.includes('"tool_use_result"')) continue;
+    let event = null;
+    try { event = JSON.parse(line); } catch { continue; }
+    const ran = event?.tool_use_result;
+    if (ran && typeof ran === "object") return toolOutputOf(ran);
+  }
+  return { error: "that call left no output in the history" };
+}
 export const HOLD_THE_SESSION = "sleep 2147483647";
 export const COMMAND_TIMEOUT = 30000;
 export const WINDOW_TIMEOUT = 15000;
@@ -49,7 +78,8 @@ const AMBIENT_EVENTS = new Set(["stream_event", "system", "rate_limit_event", "m
 const TURNLESS_DRIVER_NOTES = new Set([
   "provider_changed", "started_fresh", "shell", "started", "presence", "mcp_gateway", "mcp_peer", "mcp_routed",
   "claude_binary", "woke", "warning", "model_changed", "effort_changed", "mode_changed", "title_changed",
-  "edit_failed", "interrupt_failed", "stale_interrupt_dropped", "unsaid", "windowed", "diary_reset"
+  "edit_failed", "interrupt_failed", "stale_interrupt_dropped", "unsaid", "windowed", "diary_reset",
+  "rewound", "forked", "mcp_app"
 ]);
 const RECONNECT_TIMEOUT = 20000;
 
@@ -222,6 +252,7 @@ export function createSessions({
     const tail = followEvents(eventsFileOf(name), 0, (line) => {
       let event = null;
       try { event = JSON.parse(line); } catch { return; }
+      if (event.type === "driver" && event.subtype === "rewound") historyTotals.delete(eventsFileOf(name));
       if (Number.isFinite(event.seq)) held.seq = Math.max(held.seq, event.seq);
       if (marksTurn(event)) held.last = event;
       onEvent(name, event);
@@ -452,6 +483,14 @@ export function createSessions({
       const swept = await reapSeat(name, { hive: base }).catch(() => ({ asked: [], forced: [] }));
       const leftovers = { stopped: swept.asked.length, forced: swept.forced.length };
       return said?.ok ? { ok: true, leftovers } : { ok: true, forced: true, leftovers };
+    },
+
+    toolOutput(name, id) {
+      if (!isSeatName(name)) return { error: "that is not a name a seat can have" };
+      if (!/^[\w-]{4,120}$/.test(String(id || ""))) return { error: "that is not a tool call id" };
+      const file = eventsFileOf(name);
+      if (!existsSync(file)) return { error: "this seat has no history" };
+      return toolOutputIn(file, id);
     },
 
     history(name, from = 0, { window = "all", turns = 0, before = 0 } = {}) {

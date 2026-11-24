@@ -92,7 +92,8 @@ function chipHtml(span) {
   }
   if (span.kind === "chat") {
     const seat = span.seat;
-    return `<span class="ctx-chip" data-kind="chat" data-seat="${esc(seat.name)}" title="${esc(`${phrase(seatSays(seat).state)} · ${phrase("go to this chat")}`)}">${glyph("chat")}${chipLabel(seatLabel(seat))}</span>`;
+    const said = `${phrase(seatSays(seat).state)} · ${phrase("go to this chat")}`;
+    return `<span class="ctx-chip" data-kind="chat" data-seat="${esc(seat.name)}" role="link" tabindex="0" aria-label="${esc(`${seatLabel(seat)} · ${said}`)}" title="${esc(said)}">${glyph("chat")}${chipLabel(seatLabel(seat))}</span>`;
   }
   const row = span.person;
   return `<span class="ctx-chip" data-kind="person" data-dev="${esc(row.dev)}" title="${esc(`${phrase(personSays(row).state)} · ${phrase("this is their hive, not yours")}`)}">${glyph("person")}${chipLabel(row.dev)}</span>`;
@@ -110,7 +111,7 @@ function paintSaidChips(el, ctx) {
   }
   const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT);
   const texts = [];
-  for (let node = walker.nextNode(); node; node = walker.nextNode()) if (!node.parentElement?.closest(".ctx-chip, a")) texts.push(node);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) if (!node.parentElement?.closest(".ctx-chip, a, code, pre")) texts.push(node);
   for (const node of texts) {
     const said = node.nodeValue;
     const spans = chipSpans(said, ctx).filter((span) => span.kind !== "pr");

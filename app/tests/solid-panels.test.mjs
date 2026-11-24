@@ -22,7 +22,7 @@ const { worktreesViewModel } = await app("worktrees");
 const { portariaViewModel, ptLeft, workspaceViewModel } = await app("pod");
 const { historyViewModel, shortDir, syncAgo, syncStripViewModel } = await app("history");
 const { localHour, usageViewModel } = await app("usage");
-const { limitHeat, limitLabel, limitWhen } = await app("limit-chip");
+const { limitHeat, limitLabel } = await app("limit-chip");
 const { providersViewModel } = await app("providers");
 const { palPreviewViewModel } = await app("palette");
 const { artClock } = await app("subagents-dock");
@@ -849,7 +849,8 @@ test("a meter carries its heat, how full it is and when it resets", () => {
   assert.equal(one.meters[0].name, limitLabel({ name: "weekly", percent: 95 }));
   assert.equal(one.meters[0].pct, "95% used");
   assert.equal(one.meters[0].fill, 95);
-  assert.equal(one.meters[0].resets, `resets ${limitWhen(resets)}`);
+  assert.match(one.meters[0].resets, /^Resets in 1h 59m · \d{2}:\d{2}$|^Resets in 2h 0m · \d{2}:\d{2}$/);
+  assert.equal(one.meters[0].pace, "", "a window of no known kind has no pace to tell");
 });
 
 test("the week of a single model is a meter of its own, hanging off the week above it", () => {

@@ -130,7 +130,6 @@ html > body:where(.experience-raycast.look-dimension) kbd.rc-key { border: 0; bo
 :where(body.experience-raycast) #btn-update.upd.held { border-color: color-mix(in srgb, var(--yellow) 42%, transparent); background: color-mix(in srgb, var(--yellow) 10%, transparent); }
 :where(body.experience-raycast) #btn-update.upd.held:hover { background: color-mix(in srgb, var(--yellow) 17%, transparent); }
 :where(body.experience-raycast) .relpop .rp-why { background: color-mix(in srgb, var(--yellow) 7%, transparent); border: 1px solid color-mix(in srgb, var(--yellow) 26%, transparent); }
-:where(body.experience-raycast) .wn-lead .tag { border: 1px solid color-mix(in srgb, var(--green) 34%, transparent); }
 :where(body.experience-raycast) .pal-row .rn em { background: color-mix(in srgb, var(--accent) 16%, transparent); }
 :where(body.experience-raycast) .pal-row .tag { border: 1px solid color-mix(in srgb, var(--blue) 30%, var(--panel)); background: color-mix(in srgb, var(--blue) 8%, var(--panel)); }
 :where(body.experience-raycast) .pal-row .rn mark { background: color-mix(in srgb, var(--accent) 22%, transparent); }

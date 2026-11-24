@@ -88,13 +88,16 @@ const seat = (topOfCut = 0) => {
     name: "rafa", tag: "t", where: "local", at: Date.now(), atBottom: true, firstSeq: 0, earlier: null,
     scroll, host: document.createElement("div"),
     tools: new Map(), subs: new Map(), conv: hive.svConvSeed(), subsView: null,
-    convView: { show(next) { painted.push(next); mirror(next.blocks); }, painted }
+    convView: { show(next) { painted.push(next); mirror(next.rows); }, painted }
   };
 };
 
 const talk = (e, turns) => { for (let i = 0; i < turns; i++) { hive.svConvLine(e, "sv-user", `pergunta ${i}`); hive.svConvSaid(e, `resposta ${i}`); } };
 
-const onScreen = (e) => (svConvFlushAll(), e.convView).painted.at(-1).blocks.map((one) => one.key);
+const onScreen = (e) => {
+  const blocks = new Set(e.conv.blocks.map((one) => one.key));
+  return (svConvFlushAll(), e.convView).painted.at(-1).rows.map((one) => one.key).filter((key) => blocks.has(key));
+};
 
 test("a chat that keeps talking folds the turns before the last eight under the bar, and the bar counts them", () => {
   const e = seat();
@@ -196,9 +199,9 @@ test("turns brought back from memory fold again once the reader is back at the b
 test("the jump button and the scroll that reaches the bottom both fold the chat back", () => {
   const wiring = between('scroll.addEventListener("scroll", () => {', "const subsHead =");
   assert.match(wiring, /const wasBottom = e\.atBottom;/);
-  assert.match(wiring, /if \(e\.settling\) e\.settling = false;\s*else if \(y < \(e\.lastScrollY \|\| 0\)\) e\.atBottom = bottom;/, "the scroll an unfold makes to hold the page still is swallowed once");
+  assert.match(wiring, /if \(e\.settling\) e\.settling = false;\s*else if \(svConvTimelineOn\(e\)\) svConvScrolled\(e\);\s*else if \(y < \(e\.lastScrollY \|\| 0\)\) e\.atBottom = bottom;/, "the scroll an unfold makes to hold the page still is swallowed once");
   assert.match(wiring, /if \(e\.atBottom && !wasBottom\) svTrimTurns\(e\);/, "reaching the bottom folds");
-  assert.match(wiring, /jump\.addEventListener\("click", \(\) => \{\s*e\.atBottom = true;\s*scroll\.scrollTop = scroll\.scrollHeight;\s*paintJump\(\);\s*svTrimTurns\(e\);/, "the jump button folds");
+  assert.match(wiring, /jump\.addEventListener\("click", \(\) => \{\s*e\.atBottom = true;\s*e\.anchor = null;\s*svConvStick\(e\);\s*paintJump\(\);\s*svTrimTurns\(e\);/, "the jump button folds");
   const restores = modules.match(/svConvShowNow\(e\);\s*e\.settling = true;\s*e\.scroll\.scrollTop = y \+ \(e\.scroll\.scrollHeight - tall\);/g) || [];
   assert.equal(restores.length, 2, "both the unfold from memory and the page from the server settle the scroll before the listener sees it");
 });
@@ -238,6 +241,7 @@ test("a windowed event on a chat that already folded turns reuses the bar instea
 });
 
 test("every paint, the streaming frame included, goes through the blocks on screen and not the whole chat", () => {
-  assert.match(modules, /e\.convView\.show\(\{ key: e\.name, blocks: svConvShown\(e\.conv\)\.map\(svConvSay\) \}\);/);
+  assert.match(modules, /const blocks = svConvShown\(e\.conv\)\.map\(svConvSay\);/);
+  assert.match(modules, /e\.convView\.show\(\{ key: e\.name, rows \}\);/);
   assert.match(modules, /const isHumanTurnContent = \(content\) => Array\.isArray\(content\) && content\.some\(\(b\) => b\.type === "text"\) && !content\.some\(\(b\) => b\.type === "tool_result"\);/);
 });

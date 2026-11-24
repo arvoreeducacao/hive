@@ -38,6 +38,24 @@ contextBridge.exposeInMainWorld("hiveAway", {
   hear: (heard) => ipcRenderer.on("hive:away", (_event, away) => heard(!!away))
 });
 
+contextBridge.exposeInMainWorld("hiveDock", {
+  badge: (count) => ipcRenderer.send("hive:badge", Math.max(0, Math.floor(Number(count)) || 0)),
+  reveal: () => ipcRenderer.send("hive:reveal")
+});
+
+contextBridge.exposeInMainWorld("hiveQuit", {
+  hear: (heard) => ipcRenderer.on("hive:quit-hint", (_event, hint) => heard(hint))
+});
+
+contextBridge.exposeInMainWorld("hiveMenu", {
+  words: (said) => ipcRenderer.send("hive:menu-words", said),
+  hear: (heard) => ipcRenderer.on("hive:menu", (_event, what) => heard(String(what)))
+});
+
+contextBridge.exposeInMainWorld("hiveFiles", {
+  drag: (ask) => ipcRenderer.invoke("hive:file-drag", { name: String(ask?.name || ""), path: String(ask?.path || "") })
+});
+
 contextBridge.exposeInMainWorld("hiveSystemSound", {
   arm: () => ipcRenderer.invoke("hive:system-sound")
 });

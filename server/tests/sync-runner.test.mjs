@@ -362,3 +362,65 @@ test("what the chat already said does not ring the phone, and a turn rings it on
   broker.close();
   rmSync(root, { recursive: true, force: true });
 });
+
+const PAGE_A = "0b5c2a8e-4f1d-4a6b-9c3e-7d2f1a0b9c8d";
+const PAGE_B = "1c6d3b9f-5a2e-4b7c-8d4f-8e3a2b1c0d9e";
+const PAGE_C = "2d7e4c0a-6b3f-4c8d-9e5a-9f4b3c2d1e0f";
+const renderCall = (id) => ({ type: "assistant", message: { content: [{ type: "tool_use", id, name: "mcp__hive__html_render", input: { title: "x", height: 300 } }] } });
+const renderResult = (id, page, extra = {}) => ({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: id, content: [{ type: "text", text: JSON.stringify({ render: page, message: "The page is on screen above your reply." }) }], ...extra }] } });
+
+test("a page from html_render becomes a page event only when it answers an html_render call that did not fail", () => {
+  const calls = new Set();
+  assert.deepEqual(slim(renderCall("tu-1"), calls).map((one) => one.type), ["tool"]);
+  assert.ok(calls.has("tu-1"));
+  assert.deepEqual(slim(renderResult("tu-1", { id: PAGE_A, title: "  o   funil  ", height: 99999 }), calls), [{ hiveSeq: 0, ts: "", type: "page", id: PAGE_A, title: "o funil", height: 2000 }]);
+  assert.equal(calls.size, 0, "the call is forgotten once its result came");
+  assert.deepEqual(slim(renderResult("tu-1", { id: PAGE_A, title: "de novo", height: 300 }), calls), [], "a second result for the same call is not a second page");
+  assert.deepEqual(slim(renderResult("tu-9", { id: PAGE_A, title: "eco", height: 300 }), calls), [], "a tool that only echoes a render answer is not a page");
+  slim({ type: "assistant", message: { content: [{ type: "tool_use", id: "tu-2", name: "Bash", input: {} }] } }, calls);
+  assert.deepEqual(slim(renderResult("tu-2", { id: PAGE_A, title: "bash", height: 300 }), calls), []);
+  slim(renderCall("tu-3"), calls);
+  assert.deepEqual(slim(renderResult("tu-3", { id: PAGE_A, title: "falhou", height: 300 }, { is_error: true }), calls), []);
+  slim(renderCall("tu-4"), calls);
+  assert.deepEqual(slim(renderResult("tu-4", { id: "../../etc/passwd", title: "fuga", height: 300 }), calls), [], "an id that is not a page id never reaches the disk");
+  slim({ type: "assistant", message: { content: [{ type: "tool_use", id: "tu-5", name: "hive:html_render", input: {} }] } }, calls);
+  assert.equal(slim({ type: "user", message: { content: [{ type: "tool_result", tool_use_id: "tu-5", content: JSON.stringify({ render: { id: PAGE_B, title: "texto", height: 200 } }) }] } }, calls)[0].id, PAGE_B);
+});
+
+test("the page an html_render call drew travels to the phone sealed as a blob, and one too big or gone travels as a note", async () => {
+  const { root, base, mac, broker, fetchImpl } = stage();
+  const events = join(base, "events", "funil.ndjson");
+  writeFileSync(events, line(1, { type: "user", subtype: "say", message: { content: [{ type: "text", text: "desenha o funil" }] } }));
+  mkdirSync(join(base, "renders", "funil"), { recursive: true });
+  const html = "<h1>funil</h1><script>document.body.dataset.ok = 1</script>";
+  writeFileSync(join(base, "renders", "funil", `${PAGE_A}.html`), html);
+  writeFileSync(join(base, "renders", "funil", `${PAGE_B}.html`), "x".repeat(4 * 1024 * 1024 + 1));
+  const device = await Device.fromIdentity({ name: "mac", secret: mac.secret, publicSsh: mac.publicSsh, store: fileStore(join(root, "mac-store")), fetchImpl, lean: true });
+  await device.enroll("http://sync/sync");
+  const runner = createRunner({ device, base, seats: async () => [{ name: "funil", title: "funil" }], say: async () => ({ ok: true }), pollMs: 50, fleetMs: 100 });
+  await runner.start();
+  const phone = await Device.create({ name: "phone", fetchImpl });
+  await phone.pair("http://sync/sync", (await device.openCode()).code);
+  phone.listen(() => {});
+  await waitFor(() => phone.seats.has("funil"));
+  await phone.sync();
+
+  appendFileSync(events, line(2, renderCall("tu-a")) + line(3, renderResult("tu-a", { id: PAGE_A, title: "o funil", height: 420 })));
+  appendFileSync(events, line(4, renderCall("tu-b")) + line(5, renderResult("tu-b", { id: PAGE_B, title: "grande", height: 300 })));
+  appendFileSync(events, line(6, renderCall("tu-c")) + line(7, renderResult("tu-c", { id: PAGE_C, title: "sumiu", height: 300 })));
+  const kept = phone.replica.get("funil");
+  await waitFor(() => kept.events.filter((one) => one.value?.type === "page").length === 3);
+  const [drawn, big, gone] = kept.events.filter((one) => one.value?.type === "page").map((one) => one.value);
+  assert.deepEqual({ title: drawn.title, height: drawn.height, gone: drawn.gone }, { title: "o funil", height: 420, gone: undefined });
+  assert.equal(drawn.id, undefined, "the page id stays on the computer");
+  assert.equal(textOf(await phone.getBlob("funil", drawn.blob)), html);
+  assert.deepEqual({ blob: big.blob, gone: big.gone }, { blob: undefined, gone: "big" });
+  assert.deepEqual({ blob: gone.blob, gone: gone.gone }, { blob: undefined, gone: "missing" });
+  const blobs = readdirSync(join(root, "broker", "blobs", "funil")).map((one) => readFileSync(join(root, "broker", "blobs", "funil", one), "utf8"));
+  assert.ok(blobs.length === 1 && !blobs[0].includes("funil</h1>"), "the hive in the middle keeps the page sealed");
+
+  runner.stop();
+  phone.stream?.stop();
+  broker.close();
+  rmSync(root, { recursive: true, force: true });
+});

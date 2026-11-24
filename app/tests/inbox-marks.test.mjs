@@ -79,13 +79,28 @@ test("the inbox route keeps what is sent and gives back what it holds", async ()
   assert.equal(answers.at(-1).status, 400);
 
   await post.fn({ body: { marks: { quiet: { pinnedAt: 3 } } } }, {}, null, json);
-  assert.deepEqual(answers.at(-1).value, { ok: true, taken: ["quiet"], marks: { quiet: { pinnedAt: 3, at: 4000 } } });
+  assert.deepEqual(answers.at(-1).value, { ok: true, taken: ["quiet"], settled: [], marks: { quiet: { pinnedAt: 3, at: 4000 } } });
 
   await post.fn({ body: { marks: { quiet: { settledAt: 9 } }, moving: true } }, {}, null, json);
   assert.deepEqual(answers.at(-1).value.taken, [], "a browser moving its old marks never overwrites the hive");
 
   await get.fn({}, {}, null, json);
   assert.deepEqual(answers.at(-1).value, { marks: { quiet: { pinnedAt: 3, at: 4000 } } });
+  rmSync(home, { recursive: true, force: true });
+  forgetMarksCache();
+});
+
+test("a chat that just settled is told to the hive once, so its cleanup runs once", async () => {
+  const home = fresh("inbox-marks-settled");
+  const routes = [];
+  const told = [];
+  registerInboxRoutes((method, path, fn) => routes.push({ method, path, fn }), { bodyOf: async (req) => req.body, HIVE_HOME: home, now: () => 5000, settled: (keys) => told.push(keys) });
+  const post = routes.find((one) => one.method === "POST" && one.path === "/api/inbox/marks");
+  const json = (value) => value;
+  await post.fn({ body: { marks: { done: { settledAt: 4900, autoSettled: true, at: 4900 } } } }, {}, null, json);
+  await post.fn({ body: { marks: { done: { settledAt: 4900, autoSettled: true, neverSettles: true, at: 4950 } } } }, {}, null, json);
+  assert.deepEqual(told, [["done"]], "the second write keeps it settled and asks for nothing");
+  assert.deepEqual(readMarks(home).done, { settledAt: 4900, autoSettled: true, neverSettles: true, at: 4950 });
   rmSync(home, { recursive: true, force: true });
   forgetMarksCache();
 });

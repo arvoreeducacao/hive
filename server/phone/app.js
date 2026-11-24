@@ -1,6 +1,7 @@
 import { Device } from "/phone/device.mjs";
 import { avatarFor, avatarSvg, parseAvatar } from "/phone/avatar.mjs";
 import { renderMarkdown } from "/phone/markdown.mjs";
+import { PAGE_HEIGHT_MESSAGE, PAGE_HOST, PAGE_PING_MESSAGE, PAGE_POLICY, PAGE_READY_MESSAGE, PAGE_SHOWN_MESSAGE, PAGE_SOURCE_MESSAGE, dressPage, fitHeightOf, pageHeightOf, pageTitleOf } from "/phone/pages.mjs";
 
 const DB = "hive-phone";
 const HOST = `${location.origin}/sync`;
@@ -18,6 +19,10 @@ const PAGE_WAIT_MS = 25000;
 const PEOPLE_FRESH_MS = 60000;
 const SWIPE_EDGE = 32;
 const SWIPE_DONE = 90;
+const GROWTH_WINDOW_MS = 3000;
+const GROWTH_STEPS = 12;
+const PAGE_SOURCES_KEPT = 24;
+const PAGE_ANSWER_MS = 5000;
 
 const PT_BR = {
   "your chats, in your pocket, with nobody in between reading them": "seus chats, no bolso, sem ninguém no caminho lendo",
@@ -93,6 +98,15 @@ const PT_BR = {
   "the chat called: {t}": "o chat chamou: {t}",
   "you, from the computer": "você, pelo computador",
   "the chat showed": "o chat mostrou",
+  "the chat showed a page": "o chat mostrou uma página",
+  "showed a page": "mostrou uma página",
+  "full screen": "tela cheia",
+  "drawing the page…": "montando a página…",
+  "a page this device cannot open": "página que este aparelho não abre",
+  "this page is too big for the phone; open it on the computer": "esta página é grande demais pro celular; abra no computador",
+  "the page was no longer on the computer": "a página não estava mais no computador",
+  "the page tried to open another address and was closed": "a página tentou abrir outro endereço e foi fechada",
+  "show again": "mostrar de novo",
   "a picture this device cannot open": "imagem que este aparelho não abre",
   "question": "pergunta",
   "plan": "plano",
@@ -250,6 +264,9 @@ let stick = true;
 let seen = {};
 try { seen = JSON.parse(localStorage.getItem(SEEN_KEY) || "{}"); } catch {}
 const pictures = new Map();
+const pageSources = new Map();
+const pageFrames = new Map();
+const pageGrowth = new WeakMap();
 const wasIn = new Map();
 const WANTS_KEY = "hive.phone.notices";
 const NAMES_CACHE = "hive-phone-names";
@@ -292,6 +309,8 @@ function arrive(state) {
   if (state.screen === "settings") { paintSettings(); show("settingsScreen"); return; }
   if (state.screen === "draft") { shown = ""; paintDraft(); show("draftScreen"); return; }
   if (state.screen === "page" && state.slug) { shown = ""; openPage(state.slug, state.tab, state.v, { push: false }); return; }
+  if (state.screen === "render" && state.seat && state.blob && device?.seats.has(state.seat)) { openRenderedPage(state, { push: false }); return; }
+  dropRenderedPage();
   shown = "";
   pageShown = null;
   paintFleet();
@@ -363,16 +382,17 @@ function stateOf(seat, held) {
 
 function unreadOf(seat, held) {
   const floor = seen[seat.id] || 0;
-  return (held?.events || []).filter((one) => !one.locked && one.seq > floor && ["assistant", "question", "plan", "shot", "buzz"].includes(one.value?.type)).length;
+  return (held?.events || []).filter((one) => !one.locked && one.seq > floor && ["assistant", "question", "plan", "shot", "page", "buzz"].includes(one.value?.type)).length;
 }
 
 function lastLine(held) {
   const q = openQuestion(held);
   if (q?.type === "plan") return { text: t("a plan is waiting for you"), hot: true };
   if (q) return { text: t("question: {q}", { q: q.questions?.[0]?.question || "" }), hot: true };
-  const last = held?.events.filter((one) => !one.locked && ["assistant", "user", "shot", "buzz"].includes(one.value?.type)).at(-1);
+  const last = held?.events.filter((one) => !one.locked && ["assistant", "user", "shot", "page", "buzz"].includes(one.value?.type)).at(-1);
   if (!last) return { text: "", hot: false };
   if (last.value.type === "shot") return { text: t("sent a picture"), hot: false };
+  if (last.value.type === "page") return { text: `${t("showed a page")} · ${pageTitleOf(last.value.title)}`, hot: false };
   if (last.value.type === "buzz") return { text: last.value.text, hot: true };
   const plain = String(last.value.text || "").replace(/```[\s\S]*?```/g, " ").replace(/[*_`#>]+/g, "").replace(/\s+/g, " ").trim();
   return { text: `${last.value.type === "user" ? t("you: ") : ""}${plain.slice(0, 120)}`, hot: false };
@@ -788,6 +808,117 @@ async function pictureUrl(seatId, blobId, mime) {
   return job;
 }
 
+function pageSourceOf(seatId, blobId) {
+  const key = `${seatId}/${blobId}`;
+  if (pageSources.has(key)) return pageSources.get(key);
+  const job = device.getBlob(seatId, blobId).then((bytes) => (bytes ? new TextDecoder().decode(bytes) : "")).catch(() => "");
+  pageSources.set(key, job);
+  while (pageSources.size > PAGE_SOURCES_KEPT) pageSources.delete(pageSources.keys().next().value);
+  job.then((html) => { if (!html) pageSources.delete(key); });
+  return job;
+}
+
+function grewTooOften(frame, now) {
+  const steps = (pageGrowth.get(frame) || []).filter((at) => now - at < GROWTH_WINDOW_MS);
+  steps.push(now);
+  pageGrowth.set(frame, steps);
+  return steps.length > GROWTH_STEPS;
+}
+
+function fitPageFrame(frame, reported) {
+  const fitted = fitHeightOf(reported);
+  if (!fitted || frame.dataset.fit !== "1") return;
+  const was = parseFloat(frame.style.height) || 0;
+  if (fitted > was && grewTooOften(frame, Date.now())) { frame.dataset.fit = "held"; return; }
+  frame.style.height = `${fitted}px`;
+}
+
+const PAGE_MESSAGES = new Set([PAGE_READY_MESSAGE, PAGE_SHOWN_MESSAGE, PAGE_HEIGHT_MESSAGE]);
+
+function heardPage(event) {
+  const kind = event.data?.type;
+  if (!PAGE_MESSAGES.has(kind)) return;
+  for (const [frame, held] of [...pageFrames]) {
+    if (!frame.isConnected) { pageFrames.delete(frame); continue; }
+    if (!event.source || frame.contentWindow !== event.source) continue;
+    clearTimeout(held.waiting);
+    if (kind === PAGE_READY_MESSAGE) event.source.postMessage({ type: PAGE_SOURCE_MESSAGE, html: held.html }, "*");
+    if (kind === PAGE_HEIGHT_MESSAGE) fitPageFrame(frame, event.data.height);
+    return;
+  }
+}
+
+window.addEventListener("message", heardPage);
+
+function pageNoteInto(box, text, again = null) {
+  const note = document.createElement("div");
+  note.className = "pagewhy";
+  note.textContent = text;
+  if (again) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = t("show again");
+    button.onclick = again;
+    note.appendChild(button);
+  }
+  box.replaceChildren(note);
+}
+
+async function pageInto(box, { seat, blob, title, height = 0, fit = true, still = () => true }) {
+  pageNoteInto(box, t("drawing the page…"));
+  const html = await pageSourceOf(seat, blob);
+  if (!still()) return;
+  if (!html) return pageNoteInto(box, t("a page this device cannot open"));
+  const frame = document.createElement("iframe");
+  frame.className = "pageframe";
+  frame.title = title;
+  frame.setAttribute("sandbox", "allow-scripts");
+  frame.setAttribute("csp", PAGE_POLICY);
+  frame.setAttribute("referrerpolicy", "no-referrer");
+  frame.setAttribute("allow", "camera 'none'; microphone 'none'; geolocation 'none'; clipboard-read 'none'; clipboard-write 'none'");
+  frame.dataset.fit = fit ? "1" : "";
+  if (fit) frame.style.height = `${pageHeightOf(height)}px`;
+  const held = { html: dressPage(html, { report: fit }), waiting: 0 };
+  const left = () => {
+    if (pageFrames.get(frame) !== held) return;
+    pageFrames.delete(frame);
+    pageNoteInto(box, t("the page tried to open another address and was closed"), () => pageInto(box, { seat, blob, title, height, fit, still }));
+  };
+  frame.addEventListener("load", () => {
+    if (pageFrames.get(frame) !== held) return;
+    clearTimeout(held.waiting);
+    held.waiting = setTimeout(left, PAGE_ANSWER_MS);
+    try { frame.contentWindow?.postMessage({ type: PAGE_PING_MESSAGE }, "*"); } catch {}
+  });
+  pageFrames.set(frame, held);
+  frame.src = PAGE_HOST;
+  box.replaceChildren(frame);
+}
+
+function pageBubble(div, v, row) {
+  div.className = "pagebub";
+  const title = pageTitleOf(v.title);
+  const stage = document.createElement("div");
+  stage.className = "pagestage";
+  const foot = document.createElement("div");
+  foot.className = "pagefoot";
+  foot.appendChild(whoLine(`${t("the chat showed a page")} · ${title}`, row.at));
+  div.append(stage, foot);
+  if (!v.blob) {
+    pageNoteInto(stage, v.gone === "big" ? t("this page is too big for the phone; open it on the computer") : t("the page was no longer on the computer"));
+    return div;
+  }
+  const grow = document.createElement("button");
+  grow.type = "button";
+  grow.className = "grow";
+  grow.textContent = t("full screen");
+  grow.onclick = () => openRenderedPage({ screen: "render", seat: shown, blob: v.blob, title });
+  foot.appendChild(grow);
+  const seat = shown;
+  pageInto(stage, { seat, blob: v.blob, title, height: v.height, fit: true, still: () => div.isConnected || shown === seat });
+  return div;
+}
+
 const sameText = (a, b) => String(a || "").trim().replace(/\s+/g, " ") === String(b || "").trim().replace(/\s+/g, " ");
 const withoutShots = (text) => String(text || "").replace(/(\s\/\S+celular-\d+(?:-\d+)?\.\w+)+$/, "");
 const picturesOf = (intent) => [...(Array.isArray(intent?.images) ? intent.images : []), ...(intent?.image?.id ? [intent.image] : [])].filter((one) => one?.id);
@@ -943,6 +1074,7 @@ function renderNode(node) {
     div.appendChild(whoLine(`${t("the chat showed")}${v.name ? ` · ${v.name}` : ""}`, row.at));
     return div;
   }
+  if (v.type === "page") return pageBubble(div, v, row);
   if (v.type === "plan") {
     div.className = `qcard plan ${node.answered.has(v.id) ? "closed" : ""}`;
     const box = document.createElement("div");
@@ -1146,11 +1278,38 @@ function holdPage(id, html) {
   });
 }
 
+function dropRenderedPage() {
+  for (const box of document.querySelectorAll(".pagebox .pagefull")) box.remove();
+  $("pageFrame").hidden = false;
+}
+
+async function openRenderedPage(state, { push = true } = {}) {
+  const wanted = { screen: "render", seat: String(state.seat || ""), blob: String(state.blob || ""), title: pageTitleOf(state.title) };
+  if (!wanted.seat || !wanted.blob) return;
+  if (push) { rememberScroll(); land(wanted); }
+  pageShown = wanted;
+  shown = "";
+  $("pageTitle").textContent = wanted.title;
+  $("pageMeta").textContent = t("page");
+  $("pageNote").hidden = true;
+  const frame = $("pageFrame");
+  frame.removeAttribute("src");
+  frame.removeAttribute("srcdoc");
+  dropRenderedPage();
+  frame.hidden = true;
+  const box = document.createElement("div");
+  box.className = "pagefull";
+  frame.parentElement.appendChild(box);
+  show("pageScreen");
+  await pageInto(box, { seat: wanted.seat, blob: wanted.blob, title: wanted.title, fit: false, still: () => pageShown === wanted && box.isConnected });
+}
+
 async function openPage(slug, tab, v, { push = true } = {}) {
   const wanted = { screen: "page", slug: String(slug || ""), tab: String(tab || "documento"), v: Number(v) || 0 };
   if (push) land(wanted);
   pageShown = wanted;
   shown = "";
+  dropRenderedPage();
   $("pageTitle").textContent = wanted.slug.replace(/-/g, " ");
   $("pageMeta").textContent = `${t("page")} · ${wanted.tab}${wanted.v ? ` · v${wanted.v}` : ""}`;
   const note = $("pageNote");

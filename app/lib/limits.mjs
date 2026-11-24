@@ -174,6 +174,7 @@ export function codexLimitsFromRateLimits(said) {
       severity: percent >= 100 ? "exceeded" : percent >= 80 ? "warning" : "normal",
       resets_at: window.resetsAt ? new Date(Number(window.resetsAt) * 1000).toISOString() : "",
       window: name,
+      window_minutes: minutes,
     });
   }
   return rows;

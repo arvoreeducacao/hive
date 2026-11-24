@@ -9,7 +9,7 @@ function Icon(props) {
 function NextRailTop(props) {
   return (
     <>
-      <button type="button" class="nr-row nr-new" data-hud="new" title={props.model.newChat} aria-label={props.model.newChat} onClick={() => props.actions.newChat()}>
+      <button type="button" class="nr-row nr-new" data-hud="new" title={props.model.newChatHint} aria-label={props.model.newChat} onClick={(ev) => props.actions.newChat(ev)}>
         <span class="nr-cell"><Icon id="i-plus" /></span><span class="nr-lb">{props.model.newChat}</span><span class="nr-tail">⌘N</span>
       </button>
       <Show when={props.model.groups.length}>
@@ -131,7 +131,7 @@ export function mountNextRailHud(host, extras = {}) {
   return mountView(host, NextRailHud, { ...HUD_EMPTY }, extras);
 }
 
-const EMPTY = { key: "next-rail", newChat: "", groupsSaid: "", groups: [], shortcutsSaid: "", shortcuts: [], teamSaid: "", teamTally: "", team: [], teamScrolls: false, away: null, worktrees: null, health: { state: "ok", title: "", said: "", hint: "" }, toggleSaid: "", toggleLabel: "" };
+const EMPTY = { key: "next-rail", newChat: "", newChatHint: "", groupsSaid: "", groups: [], shortcutsSaid: "", shortcuts: [], teamSaid: "", teamTally: "", team: [], teamScrolls: false, away: null, worktrees: null, health: { state: "ok", title: "", said: "", hint: "" }, toggleSaid: "", toggleLabel: "" };
 
 export function mountNextRail(host, extras = {}) {
   return mountView(host, NextRailTop, { ...EMPTY }, extras);

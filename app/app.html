@@ -304,6 +304,63 @@
   #help .pref-pane { display: grid; gap: 14px; grid-auto-rows: max-content; }
   #help .pref-pane[hidden] { display: none; }
   #help .box > .foot { grid-column: 1 / -1; padding: 12px 22px; border-top: 1px solid var(--line); }
+  #help .pref-search { box-sizing: border-box; width: 100%; height: 30px; margin: 0 0 8px; padding: 0 10px; font-family: inherit; font-size: 12.5px; }
+  #help .pref-nav button.miss { opacity: .4; }
+  #help .pref-none { margin: 0; font-size: 12.5px; color: var(--txt-3); }
+  #help .pref-none[hidden] { display: none; }
+  #help .set-group { display: grid; gap: 8px; min-width: 0; }
+  #help .set-head { margin: 4px 0 0; padding: 0 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--txt-3); }
+  #help .set-card { display: grid; min-width: 0; border: 1px solid var(--line); border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 2%, transparent); }
+  #help .set-card[hidden] { display: none; }
+  #help .set-card > * + * { border-top: 1px solid var(--line); }
+  #help .set-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 24px; row-gap: 10px; min-width: 0; margin: 0; padding: 12px 14px; }
+  #help .set-row[hidden] { display: none; }
+  #help .set-row.wide, #help .set-row.info { grid-template-columns: minmax(0, 1fr); }
+  #help .set-row.fs-top { grid-template-columns: auto minmax(0, 1fr) auto; }
+  #help .set-text { display: grid; gap: 3px; min-width: 0; }
+  #help .set-title { display: block; margin: 0; font-size: 13px; font-weight: 560; letter-spacing: normal; text-transform: none; color: var(--txt); }
+  #help .set-title::first-letter { text-transform: uppercase; }
+  #help .set-says { display: block; margin: 0; font-size: 12px; line-height: 1.5; color: var(--txt-3); }
+  #help .set-state { margin: 4px 0 0; font-size: 12px; color: var(--txt-2); }
+  #help .set-more { font-size: 12px; color: var(--txt-3); }
+  #help .set-more > summary { width: max-content; cursor: pointer; list-style: none; color: var(--txt-2); text-decoration: underline dotted; text-underline-offset: 3px; }
+  #help .set-more > summary::-webkit-details-marker { display: none; }
+  #help .set-more > summary:hover { color: var(--txt); }
+  #help .set-more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  #help .set-more[open] > summary { margin-bottom: 6px; }
+  #help .set-more > .hint + .hint, #help .set-more > .hint + a { margin-top: 6px; }
+  #help .set-more a { display: inline-block; color: var(--accent); }
+  #help .set-ctl { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+  #help .set-ctl :is(select, input:not([type="range"])) { width: auto; min-width: 180px; max-width: 260px; }
+  #help .set-ctl input[type="number"] { min-width: 0; width: 96px; }
+  #help .set-ctl .unit-row input { width: 96px; }
+  #help .set-ctl .sound-row { display: flex; align-items: center; gap: 8px; }
+  #help .set-ctl .sound-row select { min-width: 150px; }
+  #help .set-ctl .sound-row:has(> .flip) > .fixed, #help .set-ctl .sound-row:has(> .flip:not(:disabled)) > .plain { display: none; }
+  #help .set-ctl .sound-row input[type="range"] { width: 160px; }
+  #help .set-ctl .stt-act { margin: 0; }
+  #help .set-row .flip { position: relative; display: inline-block; box-sizing: border-box; flex: none; cursor: pointer; width: 34px; height: 20px; padding: 0; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--txt) 18%, transparent); color: transparent; font-size: 0; transition: background-color 160ms var(--ease); }
+  #help .set-row .flip::before { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: var(--txt-2); transition: transform 160ms var(--ease), background-color 160ms var(--ease); }
+  #help .set-row .flip.on { background: var(--accent); border: 0; }
+  #help .set-row .flip.on::before { transform: translateX(14px); background: var(--bg); }
+  #help .set-row .flip:hover { border: 0; }
+  #help .set-row .flip:disabled { opacity: .45; cursor: default; }
+  #help .set-row .flip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #help .set-reset { all: unset; box-sizing: border-box; display: grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: var(--r1); color: var(--txt-3); cursor: pointer; }
+  #help .set-reset[hidden] { display: none; }
+  #help .set-reset svg { width: 13px; height: 13px; }
+  #help .set-reset:hover { color: var(--txt); background: var(--panel-3); }
+  #help .set-reset:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #help .set-row .stt-act { margin: 6px 0 0; }
+  #help .set-row.wide > .set-ctl { justify-content: stretch; }
+  #help .set-row.wide > .set-ctl > :not(.set-reset) { flex: 1; min-width: 0; }
+  #help .set-row #stt-state { margin-top: 2px; }
+  #help .set-row.wide .keys-panel, #help .set-row.wide .lead { min-width: 0; }
+  #help .pref-body.searching .pref-pane[hidden]:not(.miss) { display: grid; }
+  #help .pref-body.searching .pref-pane + .pref-pane { margin-top: 22px; }
+  #help .pref-body.searching :is(.pref-pane.miss, .set-group.miss, .set-row.miss, .pref-pane > h2, .pref-pane > p.hint, .thm-side > p.hint, .pane-more) { display: none; }
+  #help .pref-body.searching .pref-pane::before { content: attr(data-search-title); display: block; margin: 0 0 2px; font-size: 15px; font-weight: 620; color: var(--txt); }
+  @media (max-width: 640px) { #help .set-row { grid-template-columns: minmax(0, 1fr); } #help .set-ctl { justify-content: flex-start; flex-wrap: wrap; } #help .set-ctl :is(select, input:not([type="range"])) { min-width: 0; max-width: 100%; } }
   #btn-tasks b { color: var(--txt); font-family: var(--mono); font-size: 11.5px; font-weight: 600; }
   #btn-tasks .pip { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); display: none; }
   #btn-tasks.fresh .pip { display: inline-block; }
@@ -1016,6 +1073,11 @@
   .item.naming .name:empty::before { width: 9ch; height: .75em; }
   @keyframes nameShimmer { from { background-position: 120% 0; } to { background-position: -100% 0; } }
   @media (prefers-reduced-motion: reduce) { .t-name:empty::before, .item.naming .name:empty::before { animation: none; } }
+  .title-regenerating { color: var(--txt-3); background-image: linear-gradient(90deg, var(--txt-3) 0 44%, var(--txt) 50%, var(--txt-3) 56% 100%); background-size: 300% 100%; background-position: 100% 0; background-repeat: no-repeat; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: title-glimmer 2.2s steps(30) infinite; }
+  @keyframes title-glimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+  body.no-motion .title-regenerating { animation: title-glimmer 2.2s steps(30) infinite !important; }
+  body.no-motion.unwatched .title-regenerating { animation: none !important; }
+  @media (prefers-reduced-motion: reduce), (forced-colors: active) { .title-regenerating, body.no-motion .title-regenerating { animation: none !important; background: none; -webkit-text-fill-color: currentColor; } }
   .t-head[draggable] .t-name { width: max-content; max-width: 100%; cursor: text; }
   .t-head[draggable] .t-name:has(.t-rename) { width: 100%; }
   .t-sub { font-family: var(--mono); font-size: 10px; color: var(--txt-3); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1185,28 +1247,122 @@
   .md > :last-child { margin-bottom: 0; }
   .md code { font-family: var(--mono); font-size: 12.5px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
   .md .md-code { font-family: var(--mono); font-size: 12px; line-height: 1.5; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 9px 11px; margin: 0 0 8px; overflow-x: auto; white-space: pre; position: relative; }
-  .md .md-code[data-lang]:not([data-lang=""])::before { content: attr(data-lang); position: absolute; top: 4px; right: 8px; font-size: 9.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3); }
-  .md .md-codebox { position: relative; }
-  .md .md-copy { all: unset; position: absolute; top: 5px; right: 6px; z-index: 2; cursor: pointer; user-select: none; opacity: 0; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; transition: opacity .12s var(--ease); }
-  .md .md-codebox:hover .md-copy, .md .md-copy:focus-visible, .md .md-copy.said { opacity: 1; }
-  .md .md-copy:hover, .md .md-copy.said { color: var(--txt); }
-  .md .md-copy:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .md .md-codebox:hover .md-code[data-lang]:not([data-lang=""])::before { opacity: 0; }
-  .md .md-acts { position: absolute; top: 50%; right: 6px; transform: translateY(-50%); z-index: 2; display: flex; align-items: center; gap: 4px; }
-  .md .md-acts .md-copy { position: static; }
-  .md .md-run, .md .md-tochat { display: none; }
-  .sv:not(.sv-mirror) .md .md-run { all: unset; display: inline-block; cursor: pointer; user-select: none; font-family: var(--mono); font-size: 9.5px; color: var(--accent); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; transition: color .12s var(--ease), border-color .12s var(--ease); }
-  .sv:not(.sv-mirror) .md .md-run:hover, .sv:not(.sv-mirror) .md .md-run.said { color: var(--txt); border-color: var(--accent); }
-  .sv:not(.sv-mirror) .md .md-run:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .sv:not(.sv-mirror) .md .md-tochat { all: unset; display: inline-block; cursor: pointer; user-select: none; opacity: 0; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 4px; padding: 2px 7px; transition: opacity .12s var(--ease); }
-  .sv:not(.sv-mirror) .md .md-codebox:hover .md-tochat, .sv:not(.sv-mirror) .md .md-tochat:focus-visible { opacity: 1; }
-  .sv:not(.sv-mirror) .md .md-tochat:hover { color: var(--txt); }
-  .sv:not(.sv-mirror) .md .md-tochat:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-  .sv:not(.sv-mirror) .md .md-shellbox .md-code { padding-right: 52px; }
-  .sv:not(.sv-mirror) .md .md-shellbox .md-code[data-lang]::before { display: none; }
-  .sv-msg.streaming .md-run, .sv-msg.streaming .md-tochat { visibility: hidden; }
+  .md .md-codebox { margin: 0 0 8px; overflow: hidden; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  .md .md-codehead { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 0 11px; user-select: none; font: 10.5px/1.4 var(--mono); color: var(--txt-3); }
+  .md .md-codetitle { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .md .md-codename { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .md .md-codeacts, .md .md-tablebar { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+  .md :is(.md-codeacts, .md-tablebar) button { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; cursor: pointer; color: var(--txt-3); }
+  .md :is(.md-codeacts, .md-tablebar) button:hover { background: var(--panel-3); color: var(--txt); }
+  .md :is(.md-codeacts, .md-tablebar) button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+  .md .md-codeacts .md-wrap[aria-pressed="true"] { background: var(--panel-2); color: var(--txt-2); }
+  .md .md-codeacts :is(.md-run, .md-tochat) { display: none; }
+  .sv:not(.sv-mirror) .md .md-codeacts :is(.md-run, .md-tochat) { display: inline-grid; width: auto; padding: 0 7px; font: 10.5px/1 var(--mono); }
+  .sv:not(.sv-mirror) .md .md-codeacts .md-run { color: var(--accent); }
+  .sv:not(.sv-mirror) .md .md-codeacts .md-run.said { color: var(--txt); background: var(--panel-3); }
+  .md .md-i { display: block; flex: none; width: 12px; height: 12px; }
+  .md button .md-i-done, .md button.copied .md-i-copy { display: none; }
+  .md button.copied .md-i-done { display: block; }
+  .md .md-codebox > .md-code { margin: 0; border: 0; border-radius: 0; background: transparent; padding: 5px 11px 9px; }
+  .md .md-codebox[data-wrap="true"] > .md-code { white-space: pre-wrap; overflow-wrap: anywhere; }
   .md .md-code.md-diff { padding-inline: 0; }
   .md .md-diff span { display: block; box-sizing: border-box; width: max-content; min-width: 100%; padding: 0 11px; white-space: pre; }
+  .md .md-codebox[data-wrap="true"] .md-diff span { width: auto; white-space: pre-wrap; }
+  .md .md-codebox[data-view="diagram"] { background: transparent; border-color: transparent; }
+  .md .md-codebox[data-view="diagram"] .md-codehead { justify-content: flex-end; }
+  .md .md-codebox[data-view="diagram"] :is(.md-codetitle, .md-wrap), .md .md-codebox[data-view="diagram"] > .md-code, .md .md-codebox:not([data-view="diagram"]) > .md-mermaid { display: none; }
+  .md .md-codebox[data-view="loading"] > .md-code { visibility: hidden; }
+  .md .md-view .md-i-diagram, .md .md-codebox[data-view="code"] .md-view .md-i-code { display: none; }
+  .md .md-codebox[data-view="code"] .md-view .md-i-diagram { display: block; }
+  .md .md-mermaid { display: flex; justify-content: center; overflow-x: auto; padding: 4px 0 2px; }
+  .md .md-mermaid svg { max-width: 100%; height: auto; }
+  .md .md-mermaid-error { margin: 4px 11px 0; font-size: 12px; color: var(--red); }
+  .md .md-code .hljs-comment, .md .md-code .hljs-quote { color: var(--sx-comment, var(--txt-3)); font-style: var(--sx-comment-style, italic); }
+  .md .md-code :is(.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-link) { color: var(--sx-keyword, var(--violet)); }
+  .md .md-code :is(.hljs-string, .hljs-addition, .hljs-template-tag) { color: var(--sx-string, var(--green)); }
+  .md .md-code :is(.hljs-number, .hljs-literal) { color: var(--sx-number, var(--yellow)); }
+  .md .md-code :is(.hljs-title, .hljs-title.function_) { color: var(--sx-function, var(--blue)); }
+  .md .md-code :is(.hljs-type, .hljs-title.class_, .hljs-class .hljs-title) { color: var(--sx-type, var(--yellow)); }
+  .md .md-code :is(.hljs-built_in, .hljs-variable.language_) { color: var(--sx-builtin, var(--yellow)); }
+  .md .md-code :is(.hljs-variable, .hljs-template-variable, .hljs-property) { color: var(--sx-variable, color-mix(in srgb, var(--blue) 72%, var(--txt))); }
+  .md .md-code .hljs-params { color: var(--sx-param, inherit); }
+  .md .md-code :is(.hljs-attr, .hljs-section, .hljs-tag, .hljs-name, .hljs-bullet, .hljs-deletion) { color: var(--sx-tag, var(--accent)); }
+  .md .md-code :is(.hljs-attribute, .hljs-operator, .hljs-symbol, .hljs-selector-pseudo) { color: var(--sx-operator, var(--blue)); }
+  .md .md-code :is(.hljs-selector-class, .hljs-selector-attr) { color: var(--sx-attr, var(--green)); }
+  .md .md-code :is(.hljs-meta, .hljs-meta .hljs-keyword) { color: var(--sx-meta, var(--yellow)); }
+  .md .md-code .hljs-regexp { color: var(--sx-regexp, var(--green)); }
+  .md .md-code .hljs-char.escape_ { color: var(--sx-escape, var(--yellow)); }
+  .md .md-code .hljs-punctuation, .md .md-code .hljs-tag .hljs-punctuation { color: var(--sx-punct, var(--txt-3)); }
+  .md .md-code .hljs-strong { font-weight: 600; color: var(--sx-constant, inherit); }
+  .md .md-code .hljs-emphasis { font-style: italic; }
+  .md .md-math:not(.md-math-display) { display: inline-block; max-width: 100%; overflow-x: auto; overflow-y: hidden; vertical-align: middle; white-space: nowrap; }
+  .md .md-math-display { display: block; margin: 0 0 8px; overflow-x: auto; overflow-y: hidden; }
+  .md .md-math-scroll { display: block; min-width: max-content; padding: 3px 2px; }
+  .md .md-math-display .katex-display { margin: 0; }
+  .md .md-math-src { white-space: pre-wrap; font-family: var(--mono); font-size: 12.5px; color: var(--txt-2); }
+  .md .md-alert { --alert: rgb(59 130 246 / .7); --alert-ink: #60a5fa; margin: 4px 0 8px; padding-left: 12px; border-left: 2px solid var(--alert); }
+  .md .md-alert[data-alert="tip"] { --alert: rgb(16 185 129 / .7); --alert-ink: #34d399; }
+  .md .md-alert[data-alert="important"] { --alert: rgb(168 85 247 / .7); --alert-ink: #c084fc; }
+  .md .md-alert[data-alert="warning"] { --alert: rgb(245 158 11 / .7); --alert-ink: #f59e0b; }
+  .md .md-alert[data-alert="caution"] { --alert: rgb(239 68 68 / .7); --alert-ink: #f87171; }
+  .md .md-alert-title { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-weight: 500; color: var(--alert-ink); }
+  .md .md-alert[data-alert="insight"] { --alert: rgb(20 184 166 / .7); --alert-ink: #2dd4bf; }
+  .md .md-alert-title .md-i { width: 14px; height: 14px; }
+  .md li.md-task { list-style: none; }
+  .md .md-check { appearance: none; box-sizing: border-box; display: inline-grid; place-content: center; width: 14px; height: 14px; margin: 0 7px 0 -20px; vertical-align: -2px; border: 1px solid var(--line-3); border-radius: 4px; background: var(--panel-2); opacity: 1; cursor: default; }
+  .md .md-check:checked { border-color: var(--blue); background: var(--blue); }
+  .md .md-check:checked::before { content: ""; width: 8px; height: 8px; background: var(--bg); clip-path: polygon(14% 52%, 0 66%, 38% 100%, 100% 22%, 86% 8%, 38% 72%); }
+  .md .md-codetitle .md-lang { width: 14px; height: 14px; }
+  .md .md-lang[data-tone="green"] { color: var(--green); }
+  .md .md-lang[data-tone="yellow"] { color: var(--yellow); }
+  .md .md-lang[data-tone="blue"] { color: var(--blue); }
+  .md .md-lang[data-tone="red"] { color: var(--red); }
+  .md .md-lang[data-tone="violet"] { color: var(--violet); }
+  .md .md-lang[data-tone="accent"] { color: var(--accent); }
+  .md .md-lang-badge rect { fill: currentColor; }
+  .md .md-lang-badge text { fill: var(--bg); font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; letter-spacing: -.02em; }
+  .md .md-alert > :last-child, .md blockquote > :last-child, .md .md-details-body > :last-child, .md li > :last-child { margin-bottom: 0; }
+  .md .md-details { margin: 8px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .md .md-details > summary { display: flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; list-style: none; font-weight: 500; color: var(--txt); }
+  .md .md-details > summary::-webkit-details-marker { display: none; }
+  .md .md-details > summary .md-i { width: 16px; height: 16px; color: var(--txt-3); transition: transform .15s var(--ease); }
+  .md .md-details[open] > summary .md-i { transform: rotate(90deg); }
+  .md .md-details-body { padding: 0 0 12px 24px; }
+  .md-menu { position: fixed; z-index: 2147483000; display: grid; min-width: 150px; padding: 4px; border-radius: 8px; background: var(--panel-3); border: 1px solid var(--line-2); box-shadow: 0 12px 28px -12px rgb(0 0 0 / .6); font-size: 13px; }
+  .md-menu button { all: unset; padding: 5px 8px; border-radius: 5px; cursor: pointer; color: var(--txt); }
+  .md-menu button:is(:hover, :focus-visible) { background: var(--panel-2); }
+  .md-menu button:disabled { color: var(--txt-3); cursor: default; background: none; }
+  .md-menu button:has(.md-ctx-hint) { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+  .md-menu .md-ctx-hint { font-size: 11.5px; color: var(--txt-3); white-space: nowrap; }
+  .md-menu .md-ctx-sep { height: 1px; margin: 4px 2px; background: var(--line-2); }
+  .md-menu .md-ctx-note { max-width: 260px; margin: 4px 0 0; padding: 4px 8px; font-size: 12px; line-height: 1.4; color: var(--red); }
+  .pv-trigger { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; flex: none; max-width: 220px; height: 28px; padding: 0 8px 0 10px; border-radius: 6px; background: color-mix(in srgb, var(--txt) 5%, transparent); color: var(--txt); font: 500 13px var(--sans); cursor: pointer; }
+  .pv-trigger:hover, .pv-trigger[aria-expanded="true"] { background: color-mix(in srgb, var(--txt) 9%, transparent); }
+  .pv-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .pv-trigger .pv-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-trigger .pv-i { flex: none; width: 14px; height: 14px; color: var(--txt-2); }
+  .pv-trigger .pv-i:last-child { width: 12px; height: 12px; color: var(--txt-3); }
+  .pv-trigger .pv-mod { color: var(--accent); }
+  .pv-menu { min-width: 220px; max-width: 320px; gap: 1px; }
+  .pv-menu .pv-item { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .pv-menu .pv-item .pv-i { flex: none; width: 14px; height: 14px; color: var(--txt-2); }
+  .pv-menu .pv-item[aria-checked="true"] .pv-i { color: var(--accent); }
+  .pv-menu .pv-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pv-menu .pv-item.danger { color: var(--red); }
+  .pv-menu .pv-sep { height: 1px; margin: 4px 2px; background: var(--line-2); }
+  .pv-menu .pv-err { margin: 4px 0 0; padding: 4px 8px; font-size: 12px; line-height: 1.4; color: var(--red); }
+  .pv-menu .pv-err:empty { display: none; }
+  .pv-menu .pv-form { display: grid; gap: 8px; width: 280px; padding: 6px; }
+  .pv-menu .pv-title { margin: 0; font-weight: 600; color: var(--txt); }
+  .pv-menu .pv-desc { margin: 0; font-size: 12px; line-height: 1.4; color: var(--txt-3); }
+  .pv-menu .pv-field { display: grid; gap: 4px; margin: 0; font-size: 12px; letter-spacing: normal; text-transform: none; color: var(--txt-2); }
+  .pv-menu .pv-input { box-sizing: border-box; width: 100%; height: 30px; padding: 0 8px; border: 1px solid var(--line-2); border-radius: 6px; background: var(--panel-2); color: var(--txt); font: 13px var(--sans); outline: none; }
+  .pv-menu .pv-input:focus { border-color: var(--accent); }
+  .pv-menu .pv-input[aria-invalid="true"] { border-color: var(--red); }
+  .pv-menu .pv-row { display: flex; justify-content: flex-end; gap: 6px; }
+  .md-menu .pv-btn { padding: 5px 10px; border: 1px solid var(--line-2); }
+  .md-menu .pv-btn.primary { border-color: transparent; background: var(--accent); color: var(--bg); }
+  .md-menu .pv-btn:disabled { opacity: .5; cursor: default; }
   .md .md-diff .add { background: rgba(78,169,111,.11); color: #8FD3A7; }
   .md .md-diff .del { background: rgba(205,105,74,.1); color: #D99A83; }
   .md .md-diff .ctx { color: var(--txt-3); }
@@ -1217,25 +1373,42 @@
   .md .md-h4 { font-size: 13.5px; color: var(--txt-2); }
   .md ul, .md ol { margin: 0 0 8px; padding-left: 22px; }
   .md li { margin: 2px 0; }
-  .md li.deep { margin-left: 16px; list-style-type: circle; }
+  .md li > :is(ul, ol) { margin: 2px 0 0; }
+  .md ul ul { list-style-type: circle; }
+  .md ul ul ul { list-style-type: square; }
+  .md ol ol { list-style-type: lower-alpha; }
   .md blockquote { margin: 0 0 8px; padding: 2px 0 2px 10px; border-left: 2px solid var(--line-3); color: var(--txt-2); }
   .md hr { border: none; border-top: 1px solid var(--line); margin: 10px 0; }
   .md a { color: var(--blue); }
   .md a.md-shelf code { color: var(--blue); border-color: var(--line-3); }
-  .md .md-table { overflow-x: auto; margin: 0 0 8px; }
+  .md .md-table { margin: 0 0 8px; }
+  .md .md-table-scroll { overflow-x: auto; }
+  .md .md-tablebar { margin-top: 2px; }
+  .md :is(th, td)[data-align="center"] { text-align: center; }
+  .md :is(th, td)[data-align="right"] { text-align: right; }
   .md table { border-collapse: collapse; font-size: 13px; }
   .md th, .md td { border: 1px solid var(--line-2); padding: 4px 10px; text-align: left; overflow-wrap: break-word; }
   .md :is(th, td) :is(a, code) { overflow-wrap: anywhere; }
   .md th { color: var(--txt-2); font-weight: 620; background: var(--panel-2); }
   .sv-user { align-self: flex-end; max-width: min(80%, 560px); white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--chat-line, 1.5); color: var(--txt); background: var(--mine); border: 1px solid var(--mine-line); border-radius: 14px; padding: 9px 13px; }
-  .sv-user .sv-said-quote { display: flex; align-items: flex-start; gap: 6px; margin: 0 0 7px; padding: 3px 0 3px 8px; border-left: 2px solid var(--accent); color: var(--txt-2); font-size: 12.5px; line-height: 1.4; }
-  .sv-user .sv-said-quote:not(:first-child) { margin-top: -1px; }
-  .sv-user .sv-said-quote .qi { color: var(--txt-3); margin-top: 2px; flex: none; }
-  .sv-user .sv-said-quote .qi svg { width: 11px; height: 11px; display: block; }
+  .sv-user .sv-said-quotes { display: grid; gap: 6px; margin: 0 0 7px; white-space: normal; }
+  .sv-user .sv-said-quotes:last-child { margin-bottom: 0; }
+  .sv-user .sv-said-quote { --quote-box: rgb(0 0 0 / .35); --quote-box-hover: rgb(0 0 0 / .5); --quote-ink: var(--txt-2); --quote-mark-ink: var(--txt); display: block; min-width: 0; margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--quote-box); color: var(--quote-ink); font-size: 12.5px; line-height: 1.45; text-align: start; overflow-wrap: anywhere; cursor: pointer; transition: background-color 110ms var(--ease); }
+  .sv-user .sv-said-quote .qt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; white-space: normal; }
+  .sv-user .sv-said-quote mark { padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--quote-mark-ink) 12%, transparent); color: var(--quote-mark-ink); }
   .sv-user .sv-said-body { white-space: pre-wrap; overflow-wrap: anywhere; }
-  .sv-user .sv-said-clip:not(.open) { max-height: 11rem; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 1.75rem), transparent); }
-  .sv-user .sv-said-more { display: block; margin: 6px 0 0 -4px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: var(--txt-3); font: inherit; font-size: 12px; line-height: 16px; white-space: nowrap; cursor: pointer; }
-  .sv-user .sv-said-more:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 8%, transparent); }
+  .sv-user .sv-said-md { white-space: normal; }
+  .sv-user .sv-said-md .md-codebox, .sv-user .sv-said-md .md-table { margin: 6px 0; }
+  .sv-user .sv-said-md > :first-child { margin-top: 0; }
+  .sv-user .sv-said-md > :last-child { margin-bottom: 0; }
+  .sv-user .sv-said-md :is(code, .md-codebox) { background: color-mix(in srgb, var(--panel) 70%, transparent); }
+  .sv-user .sv-said-quote:hover { background: var(--quote-box-hover); }
+  .sv-user .sv-said-quote:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-user .sv-said-quote[data-missing] { cursor: default; opacity: .7; }
+  .sv-user .sv-said-quote[data-missing]:hover { background: var(--quote-box); }
+  .sv-quoted { animation: sv-quoted 2.2s var(--ease) 1; }
+  @keyframes sv-quoted { 0%, 60% { background: color-mix(in srgb, var(--blue) 18%, transparent); } 100% { background: transparent; } }
+  @media (prefers-reduced-motion: reduce) { .sv-quoted { animation: none; outline: 2px solid color-mix(in srgb, var(--blue) 50%, transparent); } }
   .sv-user .sv-said-part + .sv-said-part, .sv-user .sv-paste + .sv-said-part, .sv-user .sv-said-part + .sv-paste, .sv-user .sv-paste + .sv-paste { margin-top: 7px; }
   .sv-user .sv-paste { white-space: normal; border: 1px solid var(--mine-line); border-radius: 8px; background: color-mix(in srgb, var(--panel) 55%, transparent); }
   .sv-user .sv-paste > summary { display: flex; align-items: center; gap: 6px; padding: 4px 9px; list-style: none; cursor: pointer; user-select: none; color: var(--txt-2); font-size: 12.5px; }
@@ -1265,6 +1438,9 @@
   .sv-edit-row { display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
   .sv-edit-hint { margin-right: auto; font-size: 11.5px; line-height: 1.45; color: var(--txt-2); max-width: 340px; }
   .sv-edit-hint.bad { color: var(--red); }
+  .sv-edit-revert { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--txt-2); cursor: pointer; white-space: nowrap; }
+  .sv-edit-revert input { margin: 0; accent-color: var(--accent); }
+  .sv-edit-revert:has(input:checked) { color: var(--txt); }
   .sv-edit-row button { all: unset; cursor: pointer; font-size: 12px; padding: 6px 11px; border-radius: var(--r1); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
   .sv-edit-row button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
   .sv-edit-row kbd { font-family: var(--mono); font-size: 10px; opacity: .75; }
@@ -1278,7 +1454,6 @@
   .sv-think summary::before { content: ""; flex: none; align-self: center; width: 9px; height: 9px; background: currentColor; -webkit-mask: var(--chev-mask) center / contain no-repeat; mask: var(--chev-mask) center / contain no-repeat; transform: rotate(-90deg); transition: transform 140ms var(--ease); }
   .sv-think[open] summary::before { transform: none; }
   .sv-think .tk { white-space: pre-wrap; overflow-wrap: anywhere; line-height: var(--chat-line, 1.5); padding: 4px 0 2px 14px; }
-  .sv-turn { display: none; }
   .sv-work { border-radius: var(--r1); }
   .sv-work > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; min-height: 24px; padding: 3px 5px; font-size: 12.5px; color: var(--txt-3); border-radius: var(--r1); transition: background 140ms var(--ease), color 140ms var(--ease); }
   .sv-work > summary::-webkit-details-marker { display: none; }
@@ -1436,6 +1611,7 @@
   .sv-earlier button:hover { border-color: var(--accent); }
   .sv-earlier button[disabled] { cursor: default; opacity: .5; }
   .sv-earlier button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .sv-cmd { border: 1px solid var(--line-2); padding: 10px 12px; display: grid; gap: 8px; background: var(--panel); border-radius: var(--r2); box-shadow: var(--e1), var(--hair); }
   .sv-cmd .ch { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--blue); }
   .sv-cmd .body { display: grid; gap: 6px; }
@@ -1503,6 +1679,21 @@
   .sv-jump { position: absolute; bottom: 10px; left: 50%; transform: translateX(calc(-50% - var(--sv-bar) / 2)); z-index: 6; font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: var(--txt-2); background: color-mix(in srgb, #141413 78%, transparent); backdrop-filter: blur(18px) saturate(1.15); -webkit-backdrop-filter: blur(18px) saturate(1.15); border: 1px solid var(--float-line); border-radius: 999px; padding: 4px 12px; cursor: pointer; box-shadow: var(--float-e); }
   .sv-jump:hover { color: var(--txt); border-color: var(--line-3); }
   .sv-jump[hidden] { display: none; }
+  .sv-find { position: absolute; top: 12px; right: 12px; z-index: 8; box-sizing: border-box; display: flex; align-items: center; gap: 2px; width: min(17.5rem, calc(100% - 24px)); height: 36px; padding: 0 4px 0 12px; border: 1px solid var(--float-line); border-radius: 16px; background: color-mix(in srgb, var(--panel) 82%, transparent); backdrop-filter: blur(18px) saturate(1.15); -webkit-backdrop-filter: blur(18px) saturate(1.15); box-shadow: var(--float-e); color: var(--txt); font-size: 13px; }
+  .sv-find input { all: unset; flex: 1; min-width: 0; font: inherit; color: inherit; }
+  .sv-find input::placeholder { color: var(--txt-3); }
+  .sv-find input::-webkit-search-cancel-button { display: none; }
+  .sv-find-count { min-width: 40px; text-align: center; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--txt-3); }
+  .sv-find-count.none { color: var(--red); }
+  .sv-find button { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 999px; color: var(--txt-2); cursor: pointer; }
+  .sv-find button svg { width: 14px; height: 14px; }
+  .sv-find button:hover:not(:disabled) { background: color-mix(in srgb, var(--txt) 8%, transparent); color: var(--txt); }
+  .sv-find button:disabled { opacity: .4; cursor: default; }
+  .sv-find .sv-find-retry { width: auto; padding: 0 8px; font-size: 12px; }
+  .sv-find button[hidden] { display: none; }
+  ::highlight(hive-quote) { color: inherit; background-color: color-mix(in srgb, var(--blue) 38%, transparent); }
+  ::highlight(hive-find) { color: oklch(0.970151 0 0); background-color: oklch(0.55 0.1 85); }
+  ::highlight(hive-find-active) { color: oklch(0.216164 0.028283 77.423); background-color: oklch(0.774202 0.151946 74.331); }
   .sv-tool.running { border-color: var(--accent-d); }
   .sv-tool.running .tstat { color: var(--accent); animation: pulse 1.1s var(--ease) infinite; }
   .sv-queue { display: none; flex-direction: column; gap: 5px; margin: 0 calc(12px + var(--sv-bar)) 8px 12px; padding: 7px 11px; border: 1px solid var(--float-line); border-radius: 12px; background: var(--float-bg); backdrop-filter: blur(18px) saturate(1.15); -webkit-backdrop-filter: blur(18px) saturate(1.15); box-shadow: var(--float-e); max-height: 140px; overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; }
@@ -2264,14 +2455,22 @@
   .limit .top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 5px; }
   .limit .name { font-size: 11.5px; color: var(--txt-2); }
   .limit .pct { font-family: var(--mono); font-size: 11px; color: var(--txt); font-variant-numeric: tabular-nums; }
-  .limit .track { height: 8px; border-radius: 4px; background: #171717; overflow: hidden; }
+  .limit .track { display: block; position: relative; height: 8px; border-radius: 4px; background: #171717; }
   .limit .fill { display: block; height: 100%; border-radius: 4px; background: rgba(205,105,74,.55); }
   .limit.hot .fill { background: var(--yellow); }
   .limit.full .fill { background: var(--red); }
   .limit-account { display: grid; gap: 12px; }
   .limit-account h4 { margin: 0; font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: .06em; text-transform: uppercase; color: var(--txt-3); }
-  .limit .resets { margin-top: 4px; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); }
+  .limit .pace, .limit .resets { display: block; margin-top: 4px; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); }
+  .limit .pace + .resets { margin-top: 2px; }
   .limit.sub { margin-top: -5px; padding-left: 10px; border-left: 1px solid var(--line); }
+  .pace-tick { position: absolute; top: -3px; bottom: -3px; width: 1px; transform: translateX(-50%); background: color-mix(in srgb, var(--txt) 75%, transparent); pointer-events: none; }
+  .limpop button.limit { appearance: none; display: block; box-sizing: border-box; width: calc(100% + 16px); margin: -6px -8px; padding: 6px 8px; border: 0; border-radius: 6px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+  .limpop button.limit.sub { width: calc(100% + 8px); margin: -11px -8px -6px 0; padding-left: 10px; border-left: 1px solid var(--line); border-radius: 0 6px 6px 0; }
+  .limpop button.limit:hover, .limpop button.limit:focus-visible { background: color-mix(in srgb, var(--txt) 6%, transparent); }
+  .limpop button.limit:active { background: color-mix(in srgb, var(--txt) 10%, transparent); }
+  .limpop button.limit:focus-visible { outline: 2px solid var(--accent-d); outline-offset: -2px; }
+  .limpop button.limit:hover .name, .limpop button.limit:focus-visible .name { color: var(--txt); }
 
   .bars { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; align-items: end; height: 132px; border-bottom: 1px solid var(--line); }
   .bars .col { display: grid; align-items: end; height: 100%; position: relative; }
@@ -2966,6 +3165,9 @@
   .box textarea { min-height: 92px; line-height: 1.5; resize: vertical; }
   .box input:focus, .box textarea:focus, .box select:focus { border-color: var(--accent); }
   .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+  .title-rules-foot { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .title-rules-foot .hint { margin: 0; }
+  .title-rules-foot button { flex: none; }
   .pair.trio { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr); }
   .sound-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; }
   .sound-row.wide { grid-template-columns: minmax(0, 1fr) auto; }
@@ -3063,6 +3265,17 @@
   .shot-floor.full { place-items: start center; }
   .shot-floor.full img { max-width: none; max-height: none; cursor: zoom-out; }
   .shot-floor p { font-size: 12.5px; color: var(--txt-3); font-family: var(--mono); }
+  .shot-head .shot-at { margin-left: -6px; font-family: var(--mono); font-size: 12px; color: var(--txt-2); }
+  .shot-head .shot-at:empty { display: none; }
+  .shot-nav { position: absolute; top: 50%; z-index: 2; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; transform: translateY(-50%); border: 1px solid var(--line-2); border-radius: 999px; background: color-mix(in srgb, var(--panel) 88%, transparent); color: var(--txt); cursor: pointer; }
+  .shot-nav[hidden] { display: none; }
+  .shot-nav:hover { background: var(--panel-2, var(--panel)); border-color: var(--line-3); }
+  .shot-nav:focus-visible { outline: 2px solid color-mix(in srgb, var(--blue) 70%, transparent); outline-offset: 2px; }
+  .shot-nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  #shot-prev { left: 16px; }
+  #shot-next { right: 16px; }
+  .md .md-codebox[data-view="diagram"] > .md-mermaid { cursor: zoom-in; border-radius: 6px; }
+  .md .md-codebox[data-view="diagram"] > .md-mermaid:focus-visible { outline: 2px solid color-mix(in srgb, var(--blue) 70%, transparent); outline-offset: 2px; }
   .shot-tools, .x-split, .x-split-thread, .x-split-pane, .y-split { display: none; }
   .tile.open { position: relative; }
   body:not([data-experience-off~="resizeInfo"]) .tile.open:not(.folded:not(.arting)) { --open-side: var(--x-info-width, 380px); }
@@ -3167,6 +3380,53 @@
   .which-grid b { font-family: var(--mono); font-weight: 400; font-size: 11px; color: var(--accent); min-width: 32px; }
   #welcome { position: fixed; inset: 0; z-index: 65; background: radial-gradient(1200px 600px at 50% -10%, #1A1512 0%, var(--bg) 60%); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; }
   #welcome[hidden] { display: none; }
+  #welcome.one-page .w-bar { display: none; }
+  #welcome.one-page .w-stage { display: block; padding: 0; scrollbar-gutter: stable both-edges; }
+  #welcome .wp-page { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; max-width: 48rem; min-height: 100%; margin: 0 auto; padding: clamp(28px, 8vh, 80px) 24px 32px; }
+  #welcome .wp-title { margin: 0; font-size: 24px; font-weight: 620; line-height: 32px; letter-spacing: -0.015em; color: var(--txt); }
+  #welcome .wp-sub { margin: 6px 0 0; font-size: 14px; line-height: 20px; color: var(--txt-2); }
+  #welcome .wp-secs { margin-top: 36px; border-top: 1px solid var(--line); }
+  #welcome .wp-sec { display: grid; grid-template-columns: 6rem minmax(0, 1fr); column-gap: 40px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  #welcome .wp-label { margin: 0; font-size: 13px; font-weight: 500; line-height: 40px; color: var(--txt-2); }
+  #welcome .wp-body { min-width: 0; }
+  #welcome .wp-rows { margin: 0; padding: 0; list-style: none; }
+  #welcome .wp-row { display: flex; align-items: center; gap: 12px; min-height: 40px; font-size: 13.5px; line-height: 20px; }
+  #welcome .wp-dot { flex: none; width: 8px; height: 8px; margin: 0 6px; border-radius: 50%; background: color-mix(in srgb, var(--txt) 30%, transparent); }
+  #welcome .wp-dot[data-ready="true"] { background: var(--green); }
+  #welcome .wp-name { flex: none; min-width: 6rem; font-weight: 560; color: var(--txt); }
+  #welcome .wp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  #welcome .wp-says { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt-2); }
+  #welcome .wp-cmd { flex: none; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 11.5px; color: var(--txt-2); }
+  #welcome :is(.wp-copy, .wp-ghost, .wp-primary) { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border: 1px solid transparent; border-radius: var(--r2); font-size: 13px; font-weight: 500; cursor: pointer; }
+  #welcome .wp-copy { height: 28px; padding: 0 10px; border-color: var(--line-2); font-size: 12px; color: var(--txt); }
+  #welcome .wp-copy.said { color: var(--green); }
+  #welcome .wp-ghost { color: var(--txt-2); }
+  #welcome .wp-ghost:hover:not(:disabled) { background: var(--panel-3); color: var(--txt); }
+  #welcome .wp-primary { background: var(--accent); color: var(--bg); font-weight: 600; }
+  #welcome :is(.wp-copy, .wp-ghost, .wp-primary):disabled { opacity: .5; cursor: default; }
+  #welcome :is(.wp-copy, .wp-ghost, .wp-primary, .wp-field input, .wp-around input):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #welcome .wp-you { display: flex; align-items: flex-start; gap: 20px; }
+  #welcome .wp-face { display: grid; justify-items: center; gap: 6px; padding-top: 8px; }
+  #welcome .wp-face .mug { all: unset; width: 56px; height: 56px; cursor: pointer; border-radius: 50%; }
+  #welcome .wp-face .mug svg { width: 100%; height: 100%; display: block; }
+  #welcome .wp-face .mug:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #welcome .wp-face .wp-ghost { height: 24px; padding: 0 8px; font-size: 11.5px; }
+  #welcome .wp-fields { flex: 1; min-width: 0; }
+  #welcome .wp-field { display: grid; gap: 6px; padding: 8px 0; }
+  #welcome .wp-field label { margin: 0; font-size: 13.5px; font-weight: 560; letter-spacing: normal; text-transform: none; color: var(--txt); }
+  #welcome .wp-field label::first-letter { text-transform: uppercase; }
+  #welcome .wp-field input { box-sizing: border-box; width: 100%; max-width: 28rem; height: 32px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--well); font-family: var(--sans); font-size: 13.5px; color: var(--txt); outline: none; }
+  #welcome .wp-field input:focus { border-color: var(--accent); }
+  #welcome .wp-field input[aria-invalid="true"] { border-color: var(--red); }
+  #welcome .wp-note { margin: 0; font-size: 12px; line-height: 16px; color: var(--txt-2); }
+  #welcome .wp-note.bad, #welcome .wp-error { color: var(--red); }
+  #welcome .wp-error { margin: 8px 0 0; font-size: 12px; line-height: 16px; }
+  #welcome .wp-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+  #welcome :is(.wp-go, .wp-alt) { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  #welcome .wp-hint { font-size: 12px; line-height: 16px; color: var(--txt-2); }
+  #welcome .wp-around { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; letter-spacing: normal; text-transform: none; color: var(--txt-2); cursor: pointer; }
+  #welcome .wp-around input { margin: 0; accent-color: var(--accent); }
+  @media (max-width: 640px) { #welcome .wp-sec { grid-template-columns: minmax(0, 1fr); } #welcome .wp-label { line-height: 24px; } #welcome .wp-row { flex-wrap: wrap; } #welcome .wp-says { white-space: normal; } #welcome .wp-you { flex-direction: column; } }
   .w-top { display: flex; align-items: center; justify-content: space-between; padding: 18px 26px 0; }
   .w-top .w-mark { font-family: var(--mono); font-size: 11px; letter-spacing: .3em; color: var(--txt-3); display: flex; align-items: center; gap: 10px; }
   .w-top .w-mark svg { width: 14px; height: 14px; color: var(--accent); }
@@ -3415,73 +3675,6 @@
   .pv-update .nbtn { color: var(--accent); border-color: var(--accent-d); }
   .pv-update small { flex-basis: 100%; color: var(--txt-3); white-space: pre-line; }
 
-  #whatsnew { position: fixed; inset: 0; z-index: 66; background: radial-gradient(1200px 620px at 50% -12%, color-mix(in srgb, var(--accent) 12%, var(--bg)) 0%, var(--bg) 62%); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; animation: wnin 520ms var(--ease); }
-  #whatsnew[hidden] { display: none; }
-  @keyframes wnin { from { opacity: 0; } to { opacity: 1; } }
-  .wn-stage { overflow-y: auto; display: grid; justify-items: center; align-content: center; padding: 26px 24px; }
-  .wn-page { width: min(968px, 100%); display: grid; grid-template-columns: minmax(0, 322px) minmax(0, 1fr); gap: 44px; align-items: center; }
-  .wn-left { display: grid; gap: 15px; justify-items: start; }
-  .comb { width: 80px; height: 80px; }
-  .comb svg { width: 80px; height: 80px; display: block; }
-  .comb .hx { fill: color-mix(in srgb, var(--accent) 5%, transparent); stroke: var(--accent-d); stroke-width: 1.4; opacity: .35; animation: cellwake 3.6s var(--ease) infinite both; }
-  .comb .hx.core { animation: corewake 3.6s var(--ease) infinite both; }
-  @keyframes cellwake {
-    0% { opacity: .2; fill: color-mix(in srgb, var(--accent) 3%, transparent); stroke: var(--accent-d); }
-    16% { opacity: 1; fill: color-mix(in srgb, var(--accent) 30%, transparent); stroke: var(--accent-hi); }
-    46% { opacity: .55; fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent-d); }
-    100% { opacity: .3; fill: color-mix(in srgb, var(--accent) 5%, transparent); stroke: var(--accent-d); }
-  }
-  @keyframes corewake {
-    0% { opacity: .5; fill: color-mix(in srgb, var(--accent) 18%, transparent); }
-    20% { opacity: 1; fill: color-mix(in srgb, var(--accent) 72%, transparent); stroke: var(--accent-hi); }
-    60% { opacity: .9; fill: color-mix(in srgb, var(--accent) 50%, transparent); }
-    100% { opacity: .8; fill: color-mix(in srgb, var(--accent) 42%, transparent); }
-  }
-  .wn-kick { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--txt-3); display: flex; align-items: center; gap: 9px; }
-  .wn-kick .live { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.6s var(--ease) infinite; }
-  #whatsnew h2 { margin: 0; font-size: 29px; font-weight: 620; letter-spacing: -.026em; line-height: 1.16; color: var(--txt); }
-  #whatsnew h2 b { font-weight: 620; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .wn-chip { display: flex; align-items: center; gap: 9px; font-family: var(--mono); font-size: 10.5px; color: var(--txt-3); border: 1px solid var(--line); border-radius: 999px; padding: 5px 13px; background: color-mix(in srgb, var(--well) 60%, transparent); }
-  .wn-chip s { text-decoration: none; opacity: .5; }
-  .wn-chip em { font-style: normal; color: var(--line-3); }
-  .wn-quiet { margin: 4px 0 0; font-size: 11.5px; color: var(--txt-3); line-height: 1.7; }
-  .wn-quiet a { color: var(--txt-2); text-decoration: none; border-bottom: 1px solid var(--line-2); }
-  .wn-right { display: grid; gap: 16px; width: 100%; min-width: 0; }
-  #wn-groups { display: grid; gap: 16px; }
-  .wn-lead { position: relative; overflow: hidden; border: 1px solid var(--line-2); border-radius: var(--r3); padding: 16px 18px 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 6%, transparent), color-mix(in srgb, var(--well) 60%, transparent) 60%); box-shadow: var(--e2), var(--hair); animation: wnli 420ms var(--ease) 120ms both; }
-  .wn-lead[hidden] { display: none; }
-  .wn-lead::before { content: ""; position: absolute; top: 0; left: -40%; width: 40%; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-hi), transparent); animation: sweep 4.2s var(--ease) infinite; }
-  @keyframes sweep { 0% { left: -40%; } 55%, 100% { left: 100%; } }
-  .wn-lead .tag { display: inline-flex; align-items: center; font-family: var(--mono); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; color: var(--green); border: 1px solid rgba(78, 169, 111, .34); border-radius: 999px; padding: 2px 9px; margin-bottom: 9px; }
-  .wn-lead h3 { margin: 0 0 6px; font-size: 16px; font-weight: 620; letter-spacing: -.014em; }
-  .wn-lead p { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--txt-2); }
-  .pipe { display: flex; align-items: center; gap: 9px; margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--line); }
-  .pipe .st { font-family: var(--mono); font-size: 10px; color: var(--txt-3); white-space: nowrap; }
-  .pipe .st.done { color: var(--txt-2); }
-  .pipe .ar { position: relative; flex: 1; height: 1px; background: var(--line-2); }
-  .pipe .ar::after { content: ""; position: absolute; top: -2px; left: 0; width: 5px; height: 5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 90%, transparent); animation: flow 2.8s var(--ease) infinite; }
-  .pipe .ar + .st + .ar::after { animation-delay: .55s; }
-  @keyframes flow { 0% { left: 0; opacity: 0; } 10% { opacity: 1; } 62% { left: 100%; opacity: 1; } 63%, 100% { left: 100%; opacity: 0; } }
-  .pipe .pr { display: inline-flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 10px; color: var(--txt-3); border: 1px solid var(--line-2); border-radius: 5px; padding: 2px 7px; flex: none; }
-  .pipe .pr svg { width: 10px; height: 10px; }
-  .wn-group { width: 100%; }
-  .wn-group[hidden] { display: none; }
-  .wn-gh { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 9.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-3); margin-bottom: 8px; }
-  .wn-gh .ln { flex: 1; height: 1px; background: var(--line); }
-  .wn-gh b { color: var(--txt-2); font-weight: 400; }
-  .wn-list { list-style: none; margin: 0; padding: 0; display: grid; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: color-mix(in srgb, var(--well) 55%, transparent); }
-  .wn-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; color: var(--txt-2); line-height: 1.4; animation: wnli 340ms var(--ease) both; }
-  .wn-list li:first-child { border-top: 0; }
-  .wn-list li:hover { background: color-mix(in srgb, var(--txt) 3%, transparent); color: var(--txt); }
-  .wn-list li i { font-family: var(--mono); font-style: normal; font-size: 10px; color: var(--txt-3); }
-  @keyframes wnli { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  @media (max-width: 900px) {
-    .wn-page { grid-template-columns: minmax(0, 1fr); gap: 22px; }
-    .wn-left { justify-items: center; text-align: center; }
-    #whatsnew h2 { font-size: 24px; text-align: center; }
-    .wn-stage { align-content: start; }
-  }
-
   #coach { position: fixed; inset: 0; z-index: 68; pointer-events: none; }
   #coach[hidden] { display: none; }
   #coach .hole { position: absolute; border-radius: 6px; box-shadow: 0 0 0 9999px rgba(12,12,12,.78), 0 0 0 1px var(--accent); transition: all 220ms var(--ease); pointer-events: auto; }
@@ -3553,6 +3746,12 @@
   .pal-row .note { justify-self: end; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); }
   .pal-row .rn.mono { font-family: var(--mono); font-size: 12px; }
   .pal-row .rn mark { background: rgba(205, 105, 74, .22); color: var(--txt); border-radius: 2px; }
+  .pal-row .rc mark { background: rgba(205, 105, 74, .22); color: var(--txt-2); border-radius: 2px; }
+  .pal-row .pal-tail { justify-self: end; display: flex; align-items: center; gap: 8px; }
+  .pal-when { font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); white-space: nowrap; }
+  .pal-current { font-family: var(--sans); font-size: 10px; color: var(--txt-2); border: 1px solid var(--line-2); border-radius: var(--r1); padding: 0 5px; margin-right: 6px; }
+  .pal-swatches { display: inline-flex; gap: 3px; }
+  .pal-swatches i { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .18); }
   .pal-row.quiet { cursor: default; }
   .pv { font-family: var(--mono); font-size: 11.5px; line-height: 17px; padding: 8px 0 14px; }
   .pv-line { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 0 10px 0 0; white-space: pre; }
@@ -3625,7 +3824,6 @@
   .sv-user .sv-stamp { left: auto; right: 5px; bottom: -16px; justify-content: flex-end; }
   .sv-msg.stamped.lit .sv-stamp, .sv-user.stamped.lit .sv-stamp, .sv-stamp:focus-within { opacity: 1; }
   .sv-stamp .st-when { font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); white-space: nowrap; order: 2; }
-  .sv-stamp .st-clock { display: none; }
   .sv-user .sv-stamp .st-when { order: 0; }
   .sv-stamp .st-copy { all: unset; cursor: pointer; color: var(--txt-3); border-radius: 4px; padding: 1px; display: grid; place-items: center; order: 1; }
   .sv-stamp .st-copy svg { width: 12px; height: 12px; display: block; }
@@ -3633,11 +3831,15 @@
   .sv-stamp .st-copy.said .tick { display: block; color: var(--accent); }
   .sv-stamp .st-copy:hover { color: var(--txt); }
   .sv-stamp .st-copy:focus-visible { color: var(--txt); outline: 2px solid var(--blue); outline-offset: 1px; }
-  .sv-stamp .st-edit { all: unset; cursor: pointer; color: var(--txt-3); border-radius: 4px; padding: 1px; display: grid; place-items: center; order: 2; }
-  .sv-stamp .st-edit svg { width: 12px; height: 12px; display: block; }
-  .sv-stamp .st-edit:hover { color: var(--txt); }
-  .sv-stamp .st-edit:focus-visible { color: var(--txt); outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-stamp :is(.st-edit, .st-fork, .st-reply) { all: unset; cursor: pointer; color: var(--txt-3); border-radius: 4px; padding: 1px; display: grid; place-items: center; order: 2; }
+  .sv-stamp :is(.st-edit, .st-fork, .st-reply) svg { width: 12px; height: 12px; display: block; }
+  .sv-stamp :is(.st-edit, .st-fork, .st-reply):hover:not(:disabled) { color: var(--txt); }
+  .sv-stamp :is(.st-edit, .st-fork, .st-reply):focus-visible { color: var(--txt); outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-stamp .st-reply { order: 3; }
+  .sv-stamp .st-reply:disabled { opacity: .4; cursor: not-allowed; }
   .sv-stamp .st-edit.off { opacity: .4; cursor: not-allowed; }
+  .sv-stamp .st-fork.busy svg { animation: st-fork-pulse 2s cubic-bezier(.4, 0, .6, 1) infinite; }
+  @keyframes st-fork-pulse { 50% { opacity: .5; } }
   .sv-quote-pop { position: absolute; z-index: 7; display: none; align-items: center; gap: 5px; cursor: pointer; font-family: var(--mono); font-size: 10px; color: var(--txt-2); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 7px; padding: 3px 8px 3px 6px; box-shadow: 0 6px 18px -8px rgba(0,0,0,.9); }
   .sv-quote-pop.on { display: flex; }
   .sv-quote-pop:hover { color: var(--txt); border-color: var(--line-3); }
@@ -3669,6 +3871,8 @@
   #btn-lim .dot { color: var(--line-3); }
   #btn-lim .acc.quiet { opacity: .5; }
   #btn-lim .acc.quiet .track i { background: var(--line-3); }
+  #btn-lim .track { position: relative; }
+  #btn-lim .track .pace-tick { top: 0; bottom: 0; }
   #lim-again { padding: 3px 6px; color: var(--txt-3); opacity: .55; }
   #lim-again:hover, #lim-again:focus-visible { opacity: 1; color: var(--txt-2); }
   #lim-again svg { width: 11px; height: 11px; display: block; }
@@ -3874,9 +4078,9 @@
 
   @media (prefers-reduced-motion: reduce) { * { transition-duration: 1ms !important; } }
   body.no-motion * { transition-duration: 1ms !important; animation: none !important; }
-  body.lean .menu, body.lean #btrade, body.lean #arrange, body.lean #plane-hud, body.lean .plink-menu, body.lean .pbar, body.lean #plane-said, body.lean #plane-map, body.lean .sv-suggest::before, body.lean .sv-jump, body.lean .sv-queue, body.lean .sv-subs, body.lean .sv-menu, body.lean .modal, body.lean .box, body.lean #nudge-scrim, body.lean .w-bar, body.lean .pal-scrim, body.lean .pal-sheet, body.lean .relpop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  body.lean .menu, body.lean #btrade, body.lean #arrange, body.lean #plane-hud, body.lean .plink-menu, body.lean .pbar, body.lean #plane-said, body.lean #plane-map, body.lean .sv-suggest::before, body.lean .sv-jump, body.lean .sv-find, body.lean .sv-queue, body.lean .sv-subs, body.lean .sv-menu, body.lean .modal, body.lean .box, body.lean #nudge-scrim, body.lean .w-bar, body.lean .pal-scrim, body.lean .pal-sheet, body.lean .relpop { backdrop-filter: none; -webkit-backdrop-filter: none; }
   body.lean .menu, body.lean #btrade, body.lean .sv-menu, body.lean .box, body.lean .pal-sheet, body.lean .relpop, body.lean #plane-hud, body.lean .plink-menu, body.lean .pbar, body.lean #plane-said, body.lean #plane-map, body.lean .sv-queue, body.lean .sv-subs, body.lean .sv-suggest::before { background: var(--panel-2); }
-  body.lean .sv-jump, body.lean .w-bar { background: var(--panel); }
+  body.lean .sv-jump, body.lean .sv-find, body.lean .w-bar { background: var(--panel); }
   body.lean .wn-list { background: var(--well); }
   body.lean .modal, body.lean #confirm.at, body.lean .pal-scrim { background: rgba(8,8,8,.82); }
   body.lean #nudge-scrim { background: rgba(6,6,6,.86); }
@@ -4251,11 +4455,6 @@
   body.look-dimension .relpop .rp-why { border-radius: var(--r-card); }
   body.look-dimension .relpop .rp-why b { font-weight: 500; }
   body.look-dimension .relpop .rp-foot .go { border-radius: var(--r-card); font-weight: 500; }
-  body.look-dimension #whatsnew h2 { font-weight: 500; }
-  body.look-dimension #whatsnew h2 b { font-weight: 500; }
-  body.look-dimension .wn-lead h3 { font-weight: 500; }
-  body.look-dimension .pipe .pr { border-radius: var(--r-card); }
-  body.look-dimension .wn-list { border-radius: var(--r-card); }
   body.look-dimension #coach .hole { border-radius: var(--r-card); }
   body.look-dimension #coach .pop { border-radius: var(--r-card); }
   body.look-dimension #coach .pop h4 { font-weight: 500; }
@@ -4265,7 +4464,7 @@
   body.look-dimension .pal-row { border-radius: var(--r-card); }
   body.look-dimension .pal-row .rn em { border-radius: var(--r-row); }
   body.look-dimension .pal-row .rn mark { border-radius: var(--r-row); }
-  body.look-dimension .sv-stamp .st-copy, body.look-dimension .sv-stamp .st-edit { border-radius: var(--r-card); }
+  body.look-dimension .sv-stamp :is(.st-copy, .st-edit, .st-fork, .st-reply) { border-radius: var(--r-card); }
   body.look-dimension .sv-quote-pop { border-radius: var(--r-card); }
   body.look-dimension #btn-lim .track { border-radius: 4px; }
   body.look-dimension #btn-lim .track i { border-radius: 4px; }
@@ -4389,6 +4588,8 @@
   body.look-dimension .sv-user .uatt { border-color: var(--ln-2); box-shadow: none; background: var(--frost); }
   body.look-dimension .md code { font-family: var(--mono); font-size: 11px; color: var(--txt); background: color-mix(in srgb, var(--txt) 12%, transparent); border: 0; box-shadow: none; border-radius: 4px; padding: 1px 5px; }
   body.look-dimension .md .md-code { background: var(--frost-2); border: 1px solid var(--ln); box-shadow: none; border-radius: var(--r-card); font-size: 11px; }
+  body.look-dimension .md .md-codebox { background: var(--frost-2); border: 1px solid var(--ln); border-radius: var(--r-card); }
+  body.look-dimension .md .md-codebox > .md-code { background: transparent; border: 0; border-radius: 0; }
   body.look-dimension .sv-tool { border: 1px solid var(--ln); border-radius: var(--r-row); background: transparent; font-family: var(--mono); font-size: 11px; color: var(--txt-2); }
   body.look-dimension .sv-tool summary { padding: 5px 9px; gap: 8px; }
   body.look-dimension .sv-tool .tname { color: var(--txt-2); }
@@ -4437,11 +4638,10 @@
 
   body.look-dimension .box { border: 1px solid var(--ln-2); border-radius: var(--r-frame); background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: var(--nav-shadow); }
   body.look-dimension .relpop, body.look-dimension .sv-menu, body.look-dimension #btrade { border: 1px solid var(--ln-2); border-radius: var(--r-card); background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: var(--nav-shadow); }
-  body.look-dimension .wn-list { background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; border-color: var(--ln); }
   body.look-dimension .relpop::before { display: none; }
   body.look-dimension .sv-menu .rail { background: var(--frost-2); border-right-color: var(--ln); }
   body.look-dimension .sv-menu .q { border-bottom-color: var(--ln); }
-  body.look-dimension .sv-rail-btn:hover, body.look-dimension .sv-rail-btn.on, body.look-dimension .sv-rail-btn.away.on, body.look-dimension .sv-row:hover, body.look-dimension .sv-row.cursor, body.look-dimension .relpop li:hover, body.look-dimension .relpop .rp-more:hover, body.look-dimension .prpop li[data-key]:hover, body.look-dimension .wn-list li:hover { background: var(--frost); }
+  body.look-dimension .sv-rail-btn:hover, body.look-dimension .sv-rail-btn.on, body.look-dimension .sv-rail-btn.away.on, body.look-dimension .sv-row:hover, body.look-dimension .sv-row.cursor, body.look-dimension .relpop li:hover, body.look-dimension .relpop .rp-more:hover, body.look-dimension .prpop li[data-key]:hover { background: var(--frost); }
   body.look-dimension .sv-row { border-radius: var(--r-row); padding: 6px 10px; }
   body.look-dimension .sv-row.on .nm b { color: var(--txt); }
   body.look-dimension .sv-row .tick { color: var(--txt); }
@@ -4541,7 +4741,7 @@
   body.look-dimension #shell.rail-min .group-title { justify-content: center; padding: 12px 0 5px; }
   body.look-dimension #shell.rail-min .rail-wt { padding: 4px 0 10px; }
   body:not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) textarea:where(.look-dimension *) { font-size: 12.5px; min-height: calc(12.5px * var(--chat-line, 1.55) + 4px); height: calc(12.5px * var(--chat-line, 1.55) + 4px) !important; padding: 2px 0; }
-  body.look-dimension .relpop li, body.look-dimension .prpop li, body.look-dimension .wn-list li { border-radius: var(--r-row); }
+  body.look-dimension .relpop li, body.look-dimension .prpop li { border-radius: var(--r-row); }
   body.look-dimension .tile { position: relative; }
   body.look-dimension .tile[data-state="working"]::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; z-index: 6; pointer-events: none; background: linear-gradient(90deg, transparent 30%, color-mix(in srgb, var(--accent) 85%, transparent) 50%, transparent 70%); box-shadow: 0 2px 12px color-mix(in srgb, var(--accent) 45%, transparent); animation: look-wash 2.4s ease-in-out infinite; }
   @keyframes look-wash { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
@@ -4573,16 +4773,23 @@
 <link rel="stylesheet" href="/assets/raycast/panels.css">
 <link rel="stylesheet" href="/assets/raycast/browser.css">
 <link rel="stylesheet" href="/assets/raycast/micro.css">
+<link rel="stylesheet" href="/assets/timeline.css">
+<link rel="stylesheet" href="/assets/draft-place.css">
+<link rel="stylesheet" href="/assets/shortcuts.css">
 <link rel="stylesheet" href="/assets/raycast/structures.css">
 <link rel="stylesheet" href="/assets/structures/atmosphere.css">
 <link rel="stylesheet" href="/assets/structures/cockpit.css">
 <link rel="stylesheet" href="/assets/structures/ember.css">
 <link rel="stylesheet" href="/assets/structures/inbox.css">
+<link rel="stylesheet" href="/assets/html-pages.css">
 <link rel="stylesheet" href="/assets/structures/island.css">
 <link rel="stylesheet" href="/assets/structures/launcher.css">
 <link rel="stylesheet" href="/assets/structures/map.css">
 <link rel="stylesheet" href="/assets/structures/stage.css">
 <link rel="stylesheet" href="/assets/context-chips.css">
+<link rel="stylesheet" href="/assets/seat-marks.css">
+<link rel="stylesheet" href="/assets/chat-as-context.css">
+<link rel="stylesheet" href="/assets/seat-hover-card.css">
 </head>
 <body>
 <script>try {
@@ -4624,6 +4831,8 @@ try {
   <symbol id="i-chart" viewBox="0 0 16 16"><path d="M2.4 13.6V9M6.4 13.6V4.4M10.4 13.6V7M14 13.6V2.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
   <symbol id="i-answered" viewBox="0 0 16 16"><path d="M2.2 3.2h11.6v7.4H6.6L3.6 13.4v-2.8H2.2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5.6 6.9h4.8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
   <symbol id="i-sound" viewBox="0 0 16 16"><path d="M3 6.2h2.4L8.6 3.4v9.2L5.4 9.8H3Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M11 5.8a3.4 3.4 0 0 1 0 4.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-fork" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9"/><path d="M12 12v3"/></g></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 18v-2a4 4 0 0 0-4-4H4"/><path d="m9 17-5-5 5-5"/></g></symbol>
   <symbol id="i-pen" viewBox="0 0 16 16"><path d="M11.1 2.6 13.4 4.9 5.6 12.7 2.4 13.6l.9-3.2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9.6 4.1l2.3 2.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
   <symbol id="i-keys" viewBox="0 0 16 16"><rect x="1.6" y="4" width="12.8" height="8" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M4.2 6.6h.01M6.8 6.6h.01M9.4 6.6h.01M12 6.6h.01M5.2 9.4h5.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
   <symbol id="i-file" viewBox="0 0 16 16"><path d="M9.2 1.9H4.6a1.4 1.4 0 0 0-1.4 1.4v9.4a1.4 1.4 0 0 0 1.4 1.4h6.8a1.4 1.4 0 0 0 1.4-1.4V5.5Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M9.2 1.9v3.6h3.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
@@ -4654,6 +4863,10 @@ try {
   <symbol id="i-qback" viewBox="0 0 16 16"><path d="M12.6 3.6v2.6a2.9 2.9 0 0 1-2.9 2.9H3.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.7 6.2 3.7 9.1l3 2.9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.6" y="1.9" width="8.5" height="8.5" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M10.4 12.6v1.5H3.3a1.4 1.4 0 0 1-1.4-1.4V5.6h1.5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-check" viewBox="0 0 16 16"><path d="m3 8.4 3.2 3.2L13 4.8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16"><path d="M6 2h4l-.6 4 2.6 2.4H4L6.6 6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 8.4V14" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-unpin" viewBox="0 0 16 16"><path d="M6 2h4l-.6 4 2.6 2.4H4L6.6 6Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 8.4V14M2.4 2.4l11.2 11.2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-alarm" viewBox="0 0 16 16"><circle cx="8" cy="9" r="5" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 6.4V9l1.8 1.2M2.4 3.6 4.4 1.8M13.6 3.6l-2-1.8" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 16 16"><path d="M2.6 4.2h10.8M6.4 4.2V2.6h3.2v1.6M4 4.2l.7 9.4h6.6l.7-9.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
   <symbol id="i-quote" viewBox="0 0 16 16"><path d="M2.4 3.2v9.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5.8 5.2h7.8M5.8 8h7.8M5.8 10.8h4.6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
   <symbol id="i-camera" viewBox="0 0 16 16"><path d="M1.6 5.4a1.2 1.2 0 0 1 1.2-1.2h1.7l1-1.6h4.9l1 1.6h1.8a1.2 1.2 0 0 1 1.2 1.2v6.2a1.2 1.2 0 0 1-1.2 1.2H2.8a1.2 1.2 0 0 1-1.2-1.2Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><circle cx="8" cy="8.6" r="2.6" fill="none" stroke="currentColor" stroke-width="1.2"/></symbol>
   <symbol id="i-target" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="1.7" fill="currentColor"/><path d="M8 .9v2.3M8 12.8v2.3M.9 8h2.3M12.8 8h2.3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></symbol>
@@ -4978,6 +5191,7 @@ try {
 <div class="modal" id="help" data-t>
   <div class="box">
     <nav class="pref-nav" id="pref-nav" aria-label="settings sections">
+      <input type="search" class="pref-search" id="pref-search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
       <button type="button" data-pane="keyboard">Keyboard</button>
       <button type="button" data-pane="look">Look</button>
       <button type="button" data-pane="performance">Performance</button>
@@ -4988,82 +5202,126 @@ try {
       <button type="button" data-pane="notices">Notices</button>
       <button type="button" data-pane="screen">The screen</button>
       <button type="button" data-pane="conversation">The conversation</button>
+      <button type="button" data-pane="threads">Settle and snooze</button>
       <button type="button" data-pane="slack">Slack</button>
     </nav>
     <div class="pref-body" id="pref-body">
+    <p class="pref-none" id="pref-none" role="status" hidden>No setting matches your search.</p>
     <section class="pref-pane" data-pane="keyboard">
-    <h2>Who owns the keyboard</h2>
-    <p class="hint" id="help-hint"></p>
-    <h2>Shortcuts</h2>
-    <div class="lead" id="help-leader"></div>
-    <div class="keys-panel" id="help-keys"></div>
+    <h2>Keyboard</h2>
+    <div class="set-group">
+      <h3 class="set-head">Who owns the keyboard</h3>
+      <div class="set-card">
+        <div class="set-row info"><div class="set-text"><p class="set-says" id="help-hint"></p></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head">Shortcuts</h3>
+      <div class="set-card">
+        <div class="set-row wide"><div class="lead" id="help-leader"></div></div>
+        <div class="set-row wide"><div class="keys-panel" id="help-keys"></div></div>
+        <div class="set-row" id="quit-row" data-control="f-quit" data-search="quit sair cmd q" hidden><div class="set-text"><label class="set-title" for="f-quit">Quit shortcut</label><p class="set-says">Hold also quits on two quick presses.</p></div><div class="set-ctl"><select id="f-quit" data-default="hold"></select></div></div>
+      </div>
+    </div>
     </section>
     <section class="pref-pane" data-pane="look" hidden>
     <h2>Look</h2>
     <p class="hint">These live in <code id="cfg-path">~/.hive/config.jsonc</code>, together with the keyboard shortcuts. Edit the file by hand and the app follows it while it runs; change it here and the file changes, keeping your comments. Leave a field empty to go back to the default.</p>
     <p class="hint" id="cfg-ignored" hidden></p>
-    <div><label for="f-look" data-t>look</label><select id="f-look"></select></div>
-    <div><label for="f-sans">interface font</label><input id="f-sans" spellcheck="false" autocomplete="off" placeholder="system default" /></div>
-    <div class="pair">
-      <div><label for="f-mono">monospace and terminal font</label><input id="f-mono" spellcheck="false" autocomplete="off" placeholder="system default" /></div>
-      <div><label for="f-term">terminal size</label><input id="f-term" type="number" min="8" max="32" step="1" /></div>
+    <div class="set-group">
+      <h3 class="set-head">The app</h3>
+      <div class="set-card" id="set-card-app">
+        <div class="set-row" data-control="f-look"><div class="set-text"><label class="set-title" for="f-look">look</label><p class="set-says">The face of the panels and the tiles.</p></div><div class="set-ctl"><select id="f-look"></select></div></div>
+        <div class="set-row" data-control="f-lang"><div class="set-text"><label class="set-title" for="f-lang">language</label><p class="set-says">The language of the whole app.</p></div><div class="set-ctl"><select id="f-lang"></select></div></div>
+        <div class="set-row" data-control="f-clock" data-search="clock hour"><div class="set-text"><label class="set-title" for="f-clock">time format</label><p class="set-says">How every time in the app is written: the system's way, 12-hour or 24-hour.</p></div><div class="set-ctl"><select id="f-clock"></select></div></div>
+      </div>
     </div>
-    <div class="pair">
-      <div><label for="f-chat-line">chat line height</label><input id="f-chat-line" type="number" min="1" max="2.5" step="0.05" /></div>
-      <div><label for="f-chat-gap">chat spacing</label><input id="f-chat-gap" type="number" min="0" max="40" step="1" /></div>
+    <div class="set-group">
+      <h3 class="set-head">Fonts and size</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-sans"><div class="set-text"><label class="set-title" for="f-sans">interface font</label><p class="set-says">Empty uses the system font.</p></div><div class="set-ctl"><input id="f-sans" spellcheck="false" autocomplete="off" placeholder="system default" /></div></div>
+        <div class="set-row" data-control="f-mono"><div class="set-text"><label class="set-title" for="f-mono">monospace and terminal font</label><p class="set-says">Used in code, diffs and the terminal. Empty uses the system font.</p></div><div class="set-ctl"><input id="f-mono" spellcheck="false" autocomplete="off" placeholder="system default" /></div></div>
+        <div class="set-row" data-control="f-term"><div class="set-text"><label class="set-title" for="f-term">terminal size</label><p class="set-says">In pixels, from 8 to 32.</p></div><div class="set-ctl"><input id="f-term" type="number" min="8" max="32" step="1" /></div></div>
+        <div class="set-row" data-control="f-chat-line"><div class="set-text"><label class="set-title" for="f-chat-line">chat line height</label><p class="set-says">The space between the lines of a message.</p></div><div class="set-ctl"><input id="f-chat-line" type="number" min="1" max="2.5" step="0.05" /></div></div>
+        <div class="set-row" data-control="f-chat-gap"><div class="set-text"><label class="set-title" for="f-chat-gap">chat spacing</label><p class="set-says">The space between messages, in pixels.</p></div><div class="set-ctl"><input id="f-chat-gap" type="number" min="0" max="40" step="1" /></div></div>
+      </div>
     </div>
-    <div><label for="f-lang" data-t>language</label><select id="f-lang"></select></div>
     </section>
     <section class="pref-pane" data-pane="performance" hidden>
     <h2 data-t>Performance</h2>
-    <p class="hint" data-t>Lean is the default: nothing slides or pulses, there is no blur behind the panels, and the screen has less to paint. Full brings the motion and the blur back, and costs memory and battery, more so on a computer with 8 or 16 GB.</p>
-    <div><label for="f-visual" data-t>how the screen is drawn</label><select id="f-visual"></select></div>
-    <p class="hint" data-t>Either way, when nobody is looking at the window the motion pauses on its own.</p>
+    <div class="set-group">
+      <h3 class="set-head">Motion and blur</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-visual"><div class="set-text"><label class="set-title" for="f-visual">how the screen is drawn</label><p class="set-says">Lean draws less and saves memory and battery. Full brings the motion and the blur back.</p><details class="set-more"><summary>More about this</summary><p class="hint">Lean is the default: nothing slides or pulses, there is no blur behind the panels, and the screen has less to paint. Full brings the motion and the blur back, and costs memory and battery, more so on a computer with 8 or 16 GB.</p><p class="hint">Either way, when nobody is looking at the window the motion pauses on its own.</p></details></div><div class="set-ctl"><select id="f-visual"></select></div></div>
+      </div>
+    </div>
     </section>
     <section class="pref-pane" data-pane="experimental" hidden>
       <h2 data-t>Experiments</h2>
-      <h3 data-t>New Hive</h3>
-      <p class="hint" data-t>Try the next Hive at your own pace. This first step includes the visual foundation; the rest of the screens will follow. No features are removed.</p>
-      <p class="hint" data-t>This choice applies to this Hive installation, including its other windows. It does not change your teammates' settings.</p>
-      <p id="experience-state" role="status" aria-live="polite" data-no-t></p>
-      <button type="button" class="btn" id="experience-toggle" disabled data-no-t>…</button>
-      <details class="experience-notes"><summary data-t>What changed</summary>
-        <p class="hint" data-t>Experimental foundation: charcoal surfaces, orange selection, square controls and sage message bubbles. Conversations and commands stay the same. Fonts and performance settings are preserved.</p>
-      </details>
-      <details class="experience-notes"><summary data-t>Recovery</summary>
-        <p class="hint" data-t>If New Hive fails, open Hive with ?experience=raycast in its address, or remove experience from your Hive configuration file. Recovery does not close your chats.</p>
-        <a id="experience-recovery" href="?experience=raycast" data-t>Open Hive without New Hive</a>
-      </details>
+      <div class="set-group">
+        <h3 class="set-head">New Hive</h3>
+        <div class="set-card">
+          <div class="set-row" data-control="experience-toggle"><div class="set-text">
+            <span class="set-title">Try new Hive</span>
+            <p class="set-says">Try the next Hive at your own pace. This first step includes the visual foundation; the rest of the screens will follow. No features are removed.</p>
+            <p class="set-says">This choice applies to this Hive installation, including its other windows. It does not change your teammates' settings.</p>
+            <p class="set-state" id="experience-state" role="status" aria-live="polite" data-no-t></p>
+            <details class="experience-notes set-more"><summary>What changed</summary>
+              <p class="hint">Experimental foundation: charcoal surfaces, orange selection, square controls and sage message bubbles. Conversations and commands stay the same. Fonts and performance settings are preserved.</p>
+            </details>
+            <details class="experience-notes set-more"><summary>Recovery</summary>
+              <p class="hint">If New Hive fails, open Hive with ?experience=raycast in its address, or remove experience from your Hive configuration file. Recovery does not close your chats.</p>
+              <a id="experience-recovery" href="?experience=raycast">Open Hive without New Hive</a>
+            </details>
+          </div><div class="set-ctl"><button type="button" class="btn" id="experience-toggle" disabled data-no-t>…</button></div></div>
+        </div>
+      </div>
     </section>
     <section class="pref-pane" data-pane="dictation" hidden>
     <h2 data-t>Dictation</h2>
-    <p class="hint" data-t>Talk instead of typing. The model runs on this machine and the sound never leaves it. Nothing is downloaded until you ask for it here.</p>
-    <div><label for="t-stt" data-t>talk instead of typing</label><div class="sound-row wide"><span class="plain" id="stt-say" data-t>off</span><button class="ghost flip" id="t-stt" type="button"></button></div></div>
-    <div id="stt-box" hidden>
-      <div><label for="f-stt-model" data-t>the model that listens</label><select id="f-stt-model"></select>
-        <div class="stt-line" id="stt-state"></div>
-        <div class="stt-bar" id="stt-bar" hidden><i></i></div>
-        <div class="stt-act">
-          <button type="button" class="ghost" id="stt-get" hidden></button>
-          <button type="button" class="ghost" id="stt-stop" hidden data-t>stop the download</button>
-          <button type="button" class="ghost" id="stt-drop" hidden data-t>delete it from this machine</button>
-        </div>
+    <div class="set-group">
+      <h3 class="set-head">Voice input</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-stt"><div class="set-text"><label class="set-title" for="t-stt">talk instead of typing</label><p class="set-says">Talk instead of typing. The model runs on this machine and the sound never leaves it. Nothing is downloaded until you ask for it here.</p></div><div class="set-ctl"><div class="sound-row wide"><span class="plain" id="stt-say">off</span><button class="ghost flip" id="t-stt" type="button"></button></div></div></div>
       </div>
-      <div><label for="f-stt-mic" data-t>the microphone dictation listens to</label><select id="f-stt-mic"></select></div>
-      <div><label for="f-stt-lang" data-t>the language you talk in</label><select id="f-stt-lang"></select></div>
+      <div class="set-card" id="stt-box" hidden>
+        <div class="set-row" data-control="f-stt-model"><div class="set-text"><label class="set-title" for="f-stt-model">the model that listens</label>
+          <div class="stt-line" id="stt-state"></div>
+          <div class="stt-bar" id="stt-bar" hidden><i></i></div>
+          <div class="stt-act">
+            <button type="button" class="ghost" id="stt-get" hidden></button>
+            <button type="button" class="ghost" id="stt-stop" hidden>stop the download</button>
+            <button type="button" class="ghost" id="stt-drop" hidden>delete it from this machine</button>
+          </div>
+        </div><div class="set-ctl"><select id="f-stt-model"></select></div></div>
+        <div class="set-row" data-control="f-stt-mic"><div class="set-text"><label class="set-title" for="f-stt-mic">the microphone dictation listens to</label></div><div class="set-ctl"><select id="f-stt-mic"></select></div></div>
+        <div class="set-row" data-control="f-stt-lang"><div class="set-text"><label class="set-title" for="f-stt-lang">the language you talk in</label></div><div class="set-ctl"><select id="f-stt-lang"></select></div></div>
+      </div>
     </div>
     </section>
     <section class="pref-pane" data-pane="meetings" hidden>
     <h2 data-t>Meetings</h2>
-    <p class="hint" data-t>The words are written on this machine. Only the text goes to the model that writes the notes.</p>
-    <div><label for="f-mt-model" data-t>the model that writes the notes</label><select id="f-mt-model"></select></div>
-    <div><label for="f-mt-who" data-t>when a meeting ends, who sees it</label><select id="f-mt-who"></select></div>
-    <div><label for="f-mt-mic" data-t>the microphone a meeting listens to</label><select id="f-mt-mic"></select></div>
-    <div id="mt-output-row" hidden><label for="f-mt-output" data-t>the sound output a meeting listens to</label><select id="f-mt-output"></select></div>
-    <div><label for="t-mt-system" data-t>record the computer's sound too</label><div class="sound-row wide"><span class="plain" id="mt-system-say"></span><button class="ghost flip" id="t-mt-system" type="button"></button></div></div>
-    <div id="mt-ext-row" hidden>
-      <label data-t>captions from Google Meet</label>
-      <p class="hint" data-t>A browser extension hands the captions of a Meet call to the hive, with the name of who spoke. While they arrive they are what gets written down; the microphone and the computer's sound are still captured and take over if they stop.</p>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Notes</h3>
+      <div class="set-card">
+        <div class="set-row info"><div class="set-text"><p class="hint" data-t>The words are written on this machine. Only the text goes to the model that writes the notes.</p></div></div>
+        <div class="set-row" data-control="f-mt-model"><div class="set-text"><label class="set-title" for="f-mt-model" data-t>the model that writes the notes</label></div><div class="set-ctl"><select id="f-mt-model"></select></div></div>
+        <div class="set-row" data-control="f-mt-who"><div class="set-text"><label class="set-title" for="f-mt-who" data-t>when a meeting ends, who sees it</label></div><div class="set-ctl"><select id="f-mt-who"></select></div></div>
+        <div class="set-row" data-control="f-mt-ask"><div class="set-text"><label class="set-title" for="f-mt-ask" data-t>how you want the notes — optional</label></div><div class="set-ctl"><textarea id="f-mt-ask" rows="3" maxlength="600" spellcheck="false"></textarea></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Sound</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-mt-mic"><div class="set-text"><label class="set-title" for="f-mt-mic" data-t>the microphone a meeting listens to</label></div><div class="set-ctl"><select id="f-mt-mic"></select></div></div>
+        <div class="set-row" id="mt-output-row" data-control="f-mt-output" hidden><div class="set-text"><label class="set-title" for="f-mt-output" data-t>the sound output a meeting listens to</label></div><div class="set-ctl"><select id="f-mt-output"></select></div></div>
+        <div class="set-row" data-control="t-mt-system"><div class="set-text"><label class="set-title" for="t-mt-system" data-t>record the computer's sound too</label></div><div class="set-ctl"><div class="sound-row wide"><span class="plain" id="mt-system-say"></span><button class="ghost flip" id="t-mt-system" type="button"></button></div></div></div>
+      </div>
+    </div>
+    <div class="set-group" id="mt-ext-row" hidden>
+      <h3 class="set-head" data-t>captions from Google Meet</h3>
+      <div class="set-card">
+        <div class="set-row info"><div class="set-text"><p class="set-says" data-t>A browser extension hands the captions of a Meet call to the hive, with the name of who spoke. While they arrive they are what gets written down; the microphone and the computer's sound are still captured and take over if they stop.</p>
       <div class="stt-line" id="mt-ext-state"></div>
       <div class="stt-act"><button type="button" class="ghost" id="mt-ext-install"></button></div>
       <p class="hint" id="mt-ext-aveia"></p>
@@ -5085,86 +5343,169 @@ try {
         <div class="sound-row"><span class="fixed" id="mt-ext-firefox"></span><button type="button" class="ghost flip" id="mt-ext-firefox-open" data-t>open the folder</button><button type="button" class="ghost flip" id="mt-ext-firefox-copy" data-t>copy</button></div>
         <div class="stt-line" data-t>Then open a Meet call: a Record button shows up beside the call's own buttons.</div>
       </div>
+        </div></div>
+      </div>
     </div>
-    <div><label for="f-mt-ask" data-t>how you want the notes — optional</label><textarea id="f-mt-ask" rows="3" maxlength="600" spellcheck="false"></textarea></div>
     </section>
     <section class="pref-pane" data-pane="character" hidden>
     <h2 data-t>Your character</h2>
-    <div class="fs-top">
-      <span class="fs-mug av-alive" id="cfg-mug"></span>
-      <div class="fs-say"><b data-t>your face in the hive</b><span data-t>the body and the colour are yours alone — the screen is free, and so is what it wears</span></div>
-      <button class="ghost" id="cfg-open" type="button" aria-expanded="false" aria-controls="cfg-pick"></button>
+    <div class="set-group">
+      <h3 class="set-head">Your face</h3>
+      <div class="set-card">
+        <div class="set-row fs-top"><span class="fs-mug av-alive" id="cfg-mug"></span><div class="set-text fs-say"><b class="set-title">your face in the hive</b><span class="set-says">the body and the colour are yours alone — the screen is free, and so is what it wears</span></div><div class="set-ctl"><button class="ghost" id="cfg-open" type="button" aria-expanded="false" aria-controls="cfg-pick"></button></div></div>
+        <div class="cfg-pick" id="cfg-pick" hidden>
+          <div class="facepick" id="cfg-face" data-no-t></div>
+          <div class="fs-act"><button type="button" id="cfg-roll">another</button><button type="button" id="cfg-strip">take it all off</button></div>
+        </div>
+      </div>
     </div>
-    <div class="cfg-pick" id="cfg-pick" hidden>
-      <div class="facepick" id="cfg-face" data-no-t></div>
-      <div class="fs-act"><button type="button" id="cfg-roll" data-t>another</button><button type="button" id="cfg-strip" data-t>take it all off</button></div>
+    <div class="set-group">
+      <h3 class="set-head">The little you</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-pet"><div class="set-text"><label class="set-title" for="f-pet">the little you in the corner</label></div><div class="set-ctl"><select id="f-pet"></select></div></div>
+        <div class="set-row" data-control="f-brand"><div class="set-text"><label class="set-title" for="f-brand">the face in the title bar</label></div><div class="set-ctl"><select id="f-brand"></select></div></div>
+        <div class="set-row" data-control="f-gaze"><div class="set-text"><label class="set-title" for="f-gaze">its eyes follow the cursor</label><details class="set-more"><summary>More about this</summary><p class="hint">The eyes are the little you at the foot of the rail — it has to be on above for them to have anywhere to look. Anywhere on the screen means it keeps following you into the window you moved to, and stops while the hive is minimised or hidden.</p></details></div><div class="set-ctl"><select id="f-gaze"></select></div></div>
+      </div>
     </div>
-    <div><label for="f-pet" data-t>the little you in the corner</label><select id="f-pet"></select></div>
-    <div class="pair">
-      <div><label for="f-brand" data-t>the face in the title bar</label><select id="f-brand"></select></div>
-      <div><label for="f-gaze" data-t>its eyes follow the cursor</label><select id="f-gaze"></select></div>
-    </div>
-    <p class="hint" data-t>The eyes are the little you at the foot of the rail — it has to be on above for them to have anywhere to look. Anywhere on the screen means it keeps following you into the window you moved to, and stops while the hive is minimised or hidden.</p>
     </section>
     <section class="pref-pane" data-pane="notices" hidden>
     <h2>Notices</h2>
-    <p class="hint">Three moments: <b>needs you</b> is a seat that stopped and is waiting on you, <b>answered</b> is a seat that just finished a turn you have not read — those two have a switch and a sound of your choosing. The third is someone on the team knocking on one of your keyboards, and it <b>nudges</b>: the window shakes and the ask lands in the middle of the screen, with the sound from MSN. That one has no switch and keeps that sound: it is a person waiting on the other side, and silence there is a promise nobody kept. The desktop notice itself goes out silent — this is the sound you hear. Press <b>play</b> to try one on, and use the volume when the system notification sound is too shy to hear.</p>
-    <div><label for="s-needs">when a seat needs you</label><div class="sound-row"><select id="s-needs"></select><button class="ghost play" id="p-needs" type="button" title="hear it" aria-label="hear it"><svg aria-hidden="true"><use href="#i-play"/></svg></button><button class="ghost flip" id="t-needs" type="button"></button></div></div>
-    <div><label for="s-answered">when a seat answers</label><div class="sound-row"><select id="s-answered"></select><button class="ghost play" id="p-answered" type="button" title="hear it" aria-label="hear it"><svg aria-hidden="true"><use href="#i-play"/></svg></button><button class="ghost flip" id="t-answered" type="button"></button></div></div>
-    <div><label>when someone asks for a keyboard</label><div class="sound-row"><span class="fixed" id="s-asked-say"></span><button class="ghost play" id="p-asked" type="button" title="hear it" aria-label="hear it"><svg aria-hidden="true"><use href="#i-play"/></svg></button><span class="always">always on</span></div></div>
-    <div><label for="t-knocks">the team can knock</label><div class="sound-row"><span class="fixed" id="s-knocks-say"></span><button class="ghost flip" id="t-knocks" type="button"></button></div></div>
-    <p class="hint">Off, and nobody on the team can reach you: the button to ask for your keyboard leaves your seats on their side, a poke or a hi goes nowhere, and a question sent through one of their chats comes straight back to them, unanswered. Your cards stay on the cluster as they were — this is about who can interrupt you, not who can see you.</p>
-    <div><label for="s-volume">how loud</label><div class="sound-row wide"><input id="s-volume" type="range" min="0" max="100" step="5" /><span class="vol-n" id="s-volume-n"></span></div></div>
+    <details class="set-more pane-more"><summary>How notices work</summary><p class="hint">Three moments: <b>needs you</b> is a seat that stopped and is waiting on you, <b>answered</b> is a seat that just finished a turn you have not read — those two have a switch and a sound of your choosing. The third is someone on the team knocking on one of your keyboards, and it <b>nudges</b>: the window shakes and the ask lands in the middle of the screen, with the sound from MSN. That one has no switch and keeps that sound: it is a person waiting on the other side, and silence there is a promise nobody kept. The desktop notice itself goes out silent — this is the sound you hear. Press <b>play</b> to try one on, and use the volume when the system notification sound is too shy to hear.</p></details>
+    <div class="set-group">
+      <h3 class="set-head">Sounds</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="s-needs t-needs"><div class="set-text"><label class="set-title" for="s-needs">when a seat needs you</label><p class="set-says">A chat stopped and is waiting for you.</p></div><div class="set-ctl"><div class="sound-row"><select id="s-needs"></select><button class="ghost play" id="p-needs" type="button" title="hear it" aria-label="hear it"><svg aria-hidden="true"><use href="#i-play"/></svg></button><button class="ghost flip" id="t-needs" type="button"></button></div></div></div>
+        <div class="set-row" data-control="s-answered t-answered"><div class="set-text"><label class="set-title" for="s-answered">when a seat answers</label><p class="set-says">A chat finished a turn you have not read.</p></div><div class="set-ctl"><div class="sound-row"><select id="s-answered"></select><button class="ghost play" id="p-answered" type="button" title="hear it" aria-label="hear it"><svg aria-hidden="true"><use href="#i-play"/></svg></button><button class="ghost flip" id="t-answered" type="button"></button></div></div></div>
+        <div class="set-row"><div class="set-text"><span class="set-title">when someone asks for a keyboard</span><p class="set-says">A person is waiting on the other side, so this one has no switch.</p></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-asked-say"></span><button class="ghost play" id="p-asked" type="button" title="hear it" aria-label="hear it"><svg aria-hidden="true"><use href="#i-play"/></svg></button><span class="always">always on</span></div></div></div>
+        <div class="set-row" data-control="s-volume" data-search="volume"><div class="set-text"><label class="set-title" for="s-volume">how loud</label><p class="set-says">Turn it up when the system sound is too shy to hear.</p></div><div class="set-ctl"><div class="sound-row wide"><input id="s-volume" type="range" min="0" max="100" step="5" /><span class="vol-n" id="s-volume-n"></span></div></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head">Team</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-knocks"><div class="set-text"><label class="set-title" for="t-knocks">the team can knock</label><p class="set-says">Teammates can ask for your keyboard, poke you and ask through their chats.</p><details class="set-more"><summary>More about this</summary><p class="hint">Off, and nobody on the team can reach you: the button to ask for your keyboard leaves your seats on their side, a poke or a hi goes nowhere, and a question sent through one of their chats comes straight back to them, unanswered. Your cards stay on the cluster as they were — this is about who can interrupt you, not who can see you.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-knocks-say"></span><button class="ghost flip" id="t-knocks" type="button"></button></div></div></div>
+      </div>
+    </div>
     </section>
     <section class="pref-pane" data-pane="screen" hidden>
     <h2>The screen</h2>
-    <p class="hint">It works in <b>blocks of a few chats each</b> — the field below says how many seats one block holds, from 2 to 6; 4 is the ceiling of what one person holds at once. A new chat takes a free seat in the block you are on; once it fills up, the next one opens a new block. No chat is ever pulled out of its block on its own — the one exception is a block that fits whole into the one before it, and then the two join instead of leaving you with half a screen. A block you arranged by hand is never touched. Every block carries a label saying what it is about — click it to rewrite it.</p>
-    <p class="hint">Blocks live inside a workspace — the subject you are on, which holds as many blocks as it needs and keeps its own colour. The pile of floors opens on the name at the top left, and the same key closes it; a chat you open lands in the workspace you are looking at, and a workspace you close hands its blocks to the one before it, never closing a chat.</p>
-    <div class="pair">
-      <div><label for="f-layout" data-t>how the seats sit</label><select id="f-layout"></select></div>
-      <div><label for="f-size" data-t>seats in a block</label><input id="f-size" type="number" min="2" max="6" step="1" /></div>
+    <div class="set-group">
+      <h3 class="set-head">Blocks</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-layout"><div class="set-text"><label class="set-title" for="f-layout">how the seats sit</label><p class="set-says">Side by side lays the whole block out in a single row.</p><details class="set-more"><summary>More about this</summary><p class="hint">Side by side lays the whole block out in a single row, room a wide screen has and a grid wastes; on a narrow window both settle into one column. The status of a chat starts folded away so the terminal takes the room — the minus on the card brings it back.</p></details></div><div class="set-ctl"><select id="f-layout"></select></div></div>
+        <div class="set-row" data-control="f-size"><div class="set-text"><label class="set-title" for="f-size">seats in a block</label><p class="set-says">From 2 to 6; 4 is the ceiling of what one person holds at once.</p><details class="set-more"><summary>More about this</summary><p class="hint">It works in <b>blocks of a few chats each</b> — the field below says how many seats one block holds, from 2 to 6; 4 is the ceiling of what one person holds at once. A new chat takes a free seat in the block you are on; once it fills up, the next one opens a new block. No chat is ever pulled out of its block on its own — the one exception is a block that fits whole into the one before it, and then the two join instead of leaving you with half a screen. A block you arranged by hand is never touched. Every block carries a label saying what it is about — click it to rewrite it.</p><p class="hint">Blocks live inside a workspace — the subject you are on, which holds as many blocks as it needs and keeps its own colour. The pile of floors opens on the name at the top left, and the same key closes it; a chat you open lands in the workspace you are looking at, and a workspace you close hands its blocks to the one before it, never closing a chat.</p></details></div><div class="set-ctl"><input id="f-size" type="number" min="2" max="6" step="1" /></div></div>
+      </div>
     </div>
-    <p class="hint">Side by side lays the whole block out in a single row, room a wide screen has and a grid wastes; on a narrow window both settle into one column. The status of a chat starts folded away so the terminal takes the room — the minus on the card brings it back.</p>
-    <p class="hint">Inside the PR panel, <code>↑↓</code> changes file, <code>v</code> marks it seen and moves on, <code>shift v</code> goes back and unmarks the last one, and <code>[ ]</code> changes PR. A path to an image printed in a tile is clickable: it opens the picture over the screen — on your machine or on the server, <code>esc</code> closes.</p>
-    <p class="hint">A picture a chat names in its answer hangs under the words as a thumbnail. Every shot a chat takes lives in <code>~/.hive/shots/&lt;chat&gt;/</code>; the folder goes when the chat is closed, and anything older than seven days is swept when the hive starts. <span id="f-shots">measuring the shots…</span></p>
-    <p class="hint">The <b>pod</b> screen shows the state of the machine the hive lives on — memory, disk, Claude's login, environment variables — with a root terminal at the bottom. Sleeping, restarting and pushing the <code>.env</code> ask for confirmation because they kill the cloud sessions.</p>
+    <div class="set-group">
+      <h3 class="set-head">Good to know</h3>
+      <div class="set-card">
+        <div class="set-row info"><div class="set-text"><span class="set-title">The PR panel</span><p class="hint">Inside the PR panel, <code>↑↓</code> changes file, <code>v</code> marks it seen and moves on, <code>shift v</code> goes back and unmarks the last one, and <code>[ ]</code> changes PR. A path to an image printed in a tile is clickable: it opens the picture over the screen — on your machine or on the server, <code>esc</code> closes.</p></div></div>
+        <div class="set-row info"><div class="set-text"><span class="set-title">Pictures and shots</span><p class="hint">A picture a chat names in its answer hangs under the words as a thumbnail. Every shot a chat takes lives in <code>~/.hive/shots/&lt;chat&gt;/</code>; the folder goes when the chat is closed, and anything older than seven days is swept when the hive starts. <span id="f-shots">measuring the shots…</span></p></div></div>
+        <div class="set-row info"><div class="set-text"><span class="set-title">The cluster screen</span><p class="hint">The <b>pod</b> screen shows the state of the machine the hive lives on — memory, disk, Claude's login, environment variables — with a root terminal at the bottom. Sleeping, restarting and pushing the <code>.env</code> ask for confirmation because they kill the cloud sessions.</p></div></div>
+      </div>
+    </div>
     </section>
     <section class="pref-pane" data-pane="conversation" hidden>
     <h2>The conversation</h2>
-    <p class="hint">Everything a seat has read since it opened is read again on every answer, so a seat left open for days gets slower and dearer each turn. The field below says how far a conversation runs before it is summed up and carried on from the summary.</p>
-    <div class="pair">
-      <div><label for="f-compact" data-t>sum up the conversation at</label><div class="unit-row"><input id="f-compact" type="number" min="100" max="1000" step="50" placeholder="auto" /><span class="unit">k</span></div></div>
+    <div class="set-group">
+      <h3 class="set-head">Tool calls</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-tools"><div class="set-text"><label class="set-title" for="f-tools">tool calls in the chat</label><p class="set-says">Hide successful keeps the ones that failed, and Hide all keeps only the ones with pictures. Zen shows just your messages and the final answers. Questions and plans always show.</p></div><div class="set-ctl"><select id="f-tools"></select></div></div>
+      </div>
     </div>
-    <p class="hint">Empty leaves the choice to the agent; 100k to 1000k sets your own. A lower ceiling sums up more often — cheaper and quicker, at the cost of reading again what it still needs. A seat takes a new ceiling when it comes back, not while it runs.</p>
-    <p class="hint">Every native chat takes the ceiling, on Claude, Codex, Kimi, Kiro or Cursor; a terminal takes it only on Claude. The field is off while none of yours does.</p>
-    <div><label for="t-context-usage" data-t>tell a Claude chat how full it is</label><div class="sound-row"><span class="fixed" id="s-context-usage-say"></span><button class="ghost flip" id="t-context-usage" type="button"></button></div></div>
-    <p class="hint">On, a Claude chat on this machine is told how full its context is, counted against the ceiling above. It reads a line like <code>Token usage: 120000/180000; 60000 remaining</code> and can finish a step or write down what matters before the summary. Off unless you turn it on; a chat takes it when it comes back.</p>
-    <p class="hint">To start over without a summary, type <code>/fresh</code> in a chat. A new session takes an extract of the old one and the path of the whole conversation, which it searches when it needs more.</p>
-    <h3 data-t>Agent updates</h3>
-    <div><label for="t-agent-updates" data-t>update the agents on their own</label><div class="sound-row"><span class="fixed" id="s-agent-updates-say"></span><button class="ghost flip" id="t-agent-updates" type="button"></button></div></div>
-    <p class="hint">On, the hive looks for a newer Claude, Codex or other agent every hour and installs it as soon as it is out, the same as the update button at the top. A chat that is open keeps its version until it comes back; a new chat starts on the newest one. An agent the hive cannot update for you still shows at the top, with the command to run.</p>
-    <h3 data-t>Closing quiet chats</h3>
-    <div class="pair">
-      <div><label for="f-quiet-days" data-t>close a chat after it sits quiet for</label><div class="unit-row"><input id="f-quiet-days" type="number" min="0" max="90" step="1" placeholder="2" /><span class="unit" data-t>days</span></div></div>
+    <div class="set-group">
+      <h3 class="set-head">Screen reader</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-sr-say"><div class="set-text"><label class="set-title" for="f-sr-say">screen reader announcements</label><p class="set-says">What a screen reader hears from the chat you are on.</p><details class="set-more"><summary>More about this</summary><p class="hint">What a screen reader hears from the chat you are on: a turn starting, needing you, and ending. Status and messages also reads each message the agent writes and then keeps working after, once it is complete; a very long one is cut short, and the reply that closes the turn is not read. Everything adds the step the agent is on, such as the command it runs, spaced out. Reasoning is never read.</p></details></div><div class="set-ctl"><select id="f-sr-say"></select></div></div>
+        <div class="set-row" data-control="t-sr-title"><div class="set-text"><label class="set-title" for="t-sr-title">screen reader window title</label><p class="set-says">The window title starts with the status and the name of the chat you are on.</p><details class="set-more"><summary>More about this</summary><p class="hint">On, the window title starts with the status of the chat you are on (Working, Needs approval or Needs your input) and its name, then its project, so a screen reader says them first when you switch to the Hive. When the turn ends, only the status goes away. Anyone who sees your taskbar or shared screen sees it too.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-sr-title-say"></span><button class="ghost flip" id="t-sr-title" type="button"></button></div></div></div>
+      </div>
     </div>
-    <p class="hint">Every chat on this machine that nobody wrote to and that did nothing for this many days is closed, once an hour; 2 unless you change it. A chat that is working or waiting for you is never closed. It closes for good, the same as closing it yourself: it does not go to the archive. 0 keeps every chat open until you close it.</p>
-    <h3 data-t>Clearing closed chats' history</h3>
-    <div class="pair">
-      <div><label for="f-diary-days" data-t>clear a closed chat's screen history after</label><div class="unit-row"><input id="f-diary-days" type="number" min="0" max="365" step="1" placeholder="30" /><span class="unit" data-t>days</span></div></div>
+    <div class="set-group">
+      <h3 class="set-head">Context</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-compact"><div class="set-text"><label class="set-title" for="f-compact">sum up the conversation at</label><p class="set-says">Empty leaves the choice to the agent; 100k to 1000k sets your own.</p><details class="set-more"><summary>More about this</summary><p class="hint">Everything a seat has read since it opened is read again on every answer, so a seat left open for days gets slower and dearer each turn. The field below says how far a conversation runs before it is summed up and carried on from the summary.</p><p class="hint">Empty leaves the choice to the agent; 100k to 1000k sets your own. A lower ceiling sums up more often — cheaper and quicker, at the cost of reading again what it still needs. A seat takes a new ceiling when it comes back, not while it runs.</p><p class="hint">Every native chat takes the ceiling, on Claude, Codex, Kimi, Kiro or Cursor; a terminal takes it only on Claude. The field is off while none of yours does.</p><p class="hint">To start over without a summary, type <code>/fresh</code> in a chat. A new session takes an extract of the old one and the path of the whole conversation, which it searches when it needs more.</p></details></div><div class="set-ctl"><div class="unit-row"><input id="f-compact" type="number" min="100" max="1000" step="50" placeholder="auto" /><span class="unit">k</span></div></div></div>
+        <div class="set-row" data-control="t-context-usage"><div class="set-text"><label class="set-title" for="t-context-usage">tell a Claude chat how full it is</label><p class="set-says">A Claude chat on this machine is told how full its context is, so it can wrap up before the summary.</p><details class="set-more"><summary>More about this</summary><p class="hint">On, a Claude chat on this machine is told how full its context is, counted against the ceiling above. It reads a line like <code>Token usage: 120000/180000; 60000 remaining</code> and can finish a step or write down what matters before the summary. Off unless you turn it on; a chat takes it when it comes back.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-context-usage-say"></span><button class="ghost flip" id="t-context-usage" type="button"></button></div></div></div>
+      </div>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Titles</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-title-scope"><div class="set-text"><label class="set-title" for="f-title-scope" data-t>instructions for titles in</label><p class="set-says">They go into the request for new and regenerated titles, like "start with the ticket number" or "at most five words". A project's own instructions take the place of the ones for all projects.</p></div><div class="set-ctl"><select id="f-title-scope" data-no-t></select></div></div>
+        <div class="set-row wide"><textarea id="f-title-rules" rows="4" maxlength="2000" spellcheck="false" aria-label="instructions for titles" placeholder="Keep titles to a few words. Lead with the main subject."></textarea><div class="title-rules-foot"><p class="hint" id="f-title-note" aria-live="polite" data-no-t></p><button type="button" class="ghost" id="f-title-reset">back to the default</button></div></div>
+      </div>
     </div>
-    <p class="hint">An empty field keeps 30. Once an hour, the screen history of every closed chat that did nothing for that many days is cleared from this machine, freeing disk. Only what can come back goes: a Claude chat whose conversation is already on GitHub through cloud-sessions, or a Codex chat, which keeps its own history. Reopened from the archive, the chat brings its conversation back on screen. Kimi, Kiro, OpenCode and Cursor chats are never cleared. 0 turns this off.</p>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head">Agent updates</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-agent-updates"><div class="set-text"><label class="set-title" for="t-agent-updates">update the agents on their own</label><p class="set-says">The hive installs a newer Claude, Codex or other agent as soon as it is out.</p><details class="set-more"><summary>More about this</summary><p class="hint">On, the hive looks for a newer Claude, Codex or other agent every hour and installs it as soon as it is out, the same as the update button at the top. A chat that is open keeps its version until it comes back; a new chat starts on the newest one. An agent the hive cannot update for you still shows at the top, with the command to run.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-agent-updates-say"></span><button class="ghost flip" id="t-agent-updates" type="button"></button></div></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head">Keep the computer awake while agents work</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-keep-awake"><div class="set-text"><label class="set-title" for="t-keep-awake">keep it awake</label><p class="set-says">Stop the computer from going to sleep while agents are working, and let it sleep once they finish. Closing a laptop lid still puts it to sleep.</p><details class="set-more"><summary>More about this</summary><p class="hint">Only the chats of this machine count. The hive waits a minute after the last one stops, so a turn that starts right after keeps the computer awake. On unless you turn it off.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-keep-awake-say"></span><button class="ghost flip" id="t-keep-awake" type="button"></button></div></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head">Cleanup</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-quiet-days"><div class="set-text"><label class="set-title" for="f-quiet-days">close a chat after it sits quiet for</label><p class="set-says">A chat that is working or waiting for you is never closed. 0 keeps every chat open.</p><details class="set-more"><summary>More about this</summary><p class="hint">Every chat on this machine that nobody wrote to and that did nothing for this many days is closed, once an hour; 2 unless you change it. A chat that is working or waiting for you is never closed. It closes for good, the same as closing it yourself: it does not go to the archive. 0 keeps every chat open until you close it.</p></details></div><div class="set-ctl"><div class="unit-row"><input id="f-quiet-days" type="number" min="0" max="90" step="1" placeholder="2" /><span class="unit">days</span></div></div></div>
+        <div class="set-row" data-control="f-diary-days"><div class="set-text"><label class="set-title" for="f-diary-days">clear a closed chat's screen history after</label><p class="set-says">Frees disk on this machine. Empty keeps 30, and 0 turns this off.</p><details class="set-more"><summary>More about this</summary><p class="hint">An empty field keeps 30. Once an hour, the screen history of every closed chat that did nothing for that many days is cleared from this machine, freeing disk. Only what can come back goes: a Claude chat whose conversation is already on GitHub through cloud-sessions, or a Codex chat, which keeps its own history. Reopened from the archive, the chat brings its conversation back on screen. Kimi, Kiro, OpenCode and Cursor chats are never cleared. 0 turns this off.</p></details></div><div class="set-ctl"><div class="unit-row"><input id="f-diary-days" type="number" min="0" max="365" step="1" placeholder="30" /><span class="unit">days</span></div></div></div>
+      </div>
+    </div>
+    </section>
+    <section class="pref-pane" data-pane="threads" hidden>
+    <h2 data-t>Settle and snooze</h2>
+    <p class="hint">Settle takes finished work out of the list without deleting it, and a new message brings the chat back. Snooze hides a chat until the time you pick, and it comes back marked “Woke”. Both work in every structure, from the menu of the chat.</p>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Settle on its own</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="f-settle-idle"><div class="set-text"><label class="set-title" for="f-settle-idle" data-t>settle a chat that sits idle for</label><p class="set-says">A chat that is working, waits for you or runs work in the background never settles on its own. “Never” in the menu of a chat keeps that chat out of these rules.</p></div><div class="set-ctl"><select id="f-settle-idle"></select></div></div>
+        <div class="set-row" data-control="t-settle-merged"><div class="set-text"><label class="set-title" for="t-settle-merged" data-t>settle when its PR is merged</label></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-settle-merged-say"></span><button class="ghost flip" id="t-settle-merged" type="button"></button></div></div></div>
+        <div class="set-row" data-control="t-keep-open-pr"><div class="set-text"><label class="set-title" for="t-keep-open-pr" data-t>keep chats with an open PR</label></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-keep-open-pr-say"></span><button class="ghost flip" id="t-keep-open-pr" type="button"></button></div></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head" data-t>The list</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-group-by-project"><div class="set-text"><label class="set-title" for="t-group-by-project" data-t>group the list by project</label><p class="set-says">Each project becomes a folder with its count and a dot when a chat in it needs you. Pinned chats stay on top, and Working, Snoozed and Settled stay at the foot.</p></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-group-by-project-say"></span><button class="ghost flip" id="t-group-by-project" type="button"></button></div></div></div>
+        <div class="set-row" data-control="f-list-click"><div class="set-text"><label class="set-title" for="f-list-click" data-t>a click on a chat in the list opens it</label></div><div class="set-ctl"><select id="f-list-click"></select></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Working</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-working-section"><div class="set-text"><label class="set-title" for="t-working-section" data-t>move working chats to their own section</label><p class="set-says">A chat that is working goes to Working, at the foot of the list, and comes back to the top when it finishes, fails or needs you. The one you last sent work to comes first.</p></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-working-section-say"></span><button class="ghost flip" id="t-working-section" type="button"></button></div></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Snooze</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-wake-early"><div class="set-text"><label class="set-title" for="t-wake-early" data-t>come back early when it needs you</label><p class="set-says">A new approval, a new question or a failed run takes the chat out of Snoozed right away, marked “back early”.</p></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-wake-early-say"></span><button class="ghost flip" id="t-wake-early" type="button"></button></div></div></div>
+        <div class="set-row wide"><div class="set-text"><span class="set-title" data-t>options in the Snooze menu</span></div><div id="snooze-options" class="snz-options" data-no-t></div><div class="snz-options-foot"><button class="ghost" id="snooze-option-add" type="button" data-t>add option</button><span class="hint" id="snooze-options-say" data-no-t></span></div></div>
+      </div>
+    </div>
+    <div class="set-group">
+      <h3 class="set-head" data-t>Cleanup when it settles</h3>
+      <div class="set-card">
+        <div class="set-row wide"><div class="set-text"><p class="set-says">When a chat in its own worktree settles, the command of its repository runs in that worktree. A chat in the main checkout is skipped. What the command printed stays in the settle-cleanup folder of the hive.</p></div><div id="settle-commands" class="settle-commands" data-no-t></div><button class="ghost" id="settle-command-add" type="button" data-t>add repository</button></div>
+      </div>
+    </div>
     </section>
     <section class="pref-pane" data-pane="slack" hidden>
     <h2>Slack</h2>
-    <p class="hint">Connect this hive to the team's bot on Slack. Once it is connected, a direct message to the bot, or a mention of it in a channel, opens a chat here, and the chat answers in the same thread. Only what you write reaches this hive; what someone else writes goes to theirs.</p>
-    <div class="stt-line" id="slack-state" data-no-t></div>
-    <div class="slack-code" id="slack-code-box" hidden>
-      <p class="hint">Send this code to the bot in a direct message on Slack. It is good for ten minutes, and this box closes on its own once the bot takes it.</p>
-      <code class="slack-code-say" id="slack-code" data-no-t></code>
-    </div>
-    <div class="stt-act">
-      <button type="button" class="ghost" id="slack-connect">connect</button>
-      <button type="button" class="ghost" id="slack-forget" hidden>disconnect</button>
+    <div class="set-group">
+      <h3 class="set-head">The team's bot</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="slack-connect"><div class="set-text"><span class="set-title">Connect this hive to the bot</span><p class="set-says">Connect this hive to the team's bot on Slack. Once it is connected, a direct message to the bot, or a mention of it in a channel, opens a chat here, and the chat answers in the same thread. Only what you write reaches this hive; what someone else writes goes to theirs.</p><div class="stt-line" id="slack-state" data-no-t></div></div><div class="set-ctl"><div class="stt-act">
+          <button type="button" class="ghost" id="slack-connect">connect</button>
+          <button type="button" class="ghost" id="slack-forget" hidden>disconnect</button>
+        </div></div></div>
+        <div class="set-row wide slack-code" id="slack-code-box" hidden>
+          <p class="hint">Send this code to the bot in a direct message on Slack. It is good for ten minutes, and this box closes on its own once the bot takes it.</p>
+          <code class="slack-code-say" id="slack-code" data-no-t></code>
+        </div>
+      </div>
     </div>
     </section>
     </div>
@@ -5216,11 +5557,16 @@ try {
 
 <div class="peek" id="peek"><img alt="" /></div>
 <div class="shot" id="shot" data-t>
-  <div class="shot-head"><b id="shot-name"></b><span id="shot-say"></span><button class="ghost" id="shot-close">close <kbd>esc</kbd></button></div>
+  <div class="shot-head"><b id="shot-name"></b><span class="shot-at" id="shot-at" aria-live="polite"></span><span id="shot-say"></span><button class="ghost" id="shot-close">close <kbd>esc</kbd></button></div>
   <div class="shot-floor" id="shot-floor"><img id="shot-img" alt="" hidden /><p id="shot-note"></p></div>
+  <button type="button" class="shot-nav" id="shot-prev" data-go="prev" aria-label="previous image" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+  <button type="button" class="shot-nav" id="shot-next" data-go="next" aria-label="next image" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
   <div class="shot-tools" id="shot-tools" role="group" aria-label="image zoom"><button type="button" class="ghost" data-zoom="out" aria-label="zoom out">−</button><output id="shot-pct" aria-live="polite">100%</output><button type="button" class="ghost" data-zoom="in" aria-label="zoom in">+</button><button type="button" class="ghost" data-zoom="actual">actual size</button><button type="button" class="ghost" data-zoom="fit">fit</button></div>
 </div>
 <div id="hud" role="status" aria-live="polite" hidden></div>
+<div id="quit-hint" role="status" aria-live="assertive" data-no-t hidden></div>
+<div class="sr-only" id="sr-chat-detail" aria-live="polite" data-no-t></div>
+<div class="sr-only" id="sr-chat-status" aria-live="polite" data-no-t></div>
 <div id="rail-hud"></div>
 
 <div class="which" id="which"><div class="which-head" id="which-head"></div><div class="which-grid" id="which-grid"></div></div>
@@ -5234,43 +5580,6 @@ try {
     <div class="left" id="w-bar-left"></div>
     <div class="w-dots" id="w-dots"></div>
     <div class="right" id="w-bar-right"></div>
-  </div>
-</section>
-
-<section id="whatsnew" data-t hidden aria-label="what landed while you were away">
-  <div class="w-top">
-    <div class="w-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 20.2 7.25v9.5L12 21.5 3.8 16.75v-9.5Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 7.2 16.2 9.6v4.8L12 16.8 7.8 14.4V9.6Z" fill="currentColor" opacity=".9"/></svg>HIVE</div>
-    <button class="ghost" id="wn-skip">skip <kbd>esc</kbd></button>
-  </div>
-  <div class="wn-stage">
-    <div class="wn-page">
-      <div class="wn-left">
-        <div class="comb"><svg viewBox="0 0 100 100" aria-hidden="true"><g id="wn-comb"></g></svg></div>
-        <div class="wn-kick"><i class="live"></i>now running</div>
-        <h2><b id="wn-count">0</b> <span id="wn-headline">changes landed while you were working</span></h2>
-        <div class="wn-chip" id="wn-chip"></div>
-        <p class="wn-quiet" id="wn-quiet"></p>
-      </div>
-      <div class="wn-right">
-        <article class="wn-lead" id="wn-lead" hidden>
-          <div class="tag" id="wn-lead-tag">new</div>
-          <h3 id="wn-lead-title"></h3>
-          <p id="wn-lead-body"></p>
-          <div class="pipe">
-            <span class="st done">CI builds it</span><span class="ar"></span>
-            <span class="st done">this machine takes it</span><span class="ar"></span>
-            <span class="st">back where you were</span>
-            <span class="pr" id="wn-lead-pr" hidden><svg aria-hidden="true"><use href="#i-pr"/></svg><span></span></span>
-          </div>
-        </article>
-        <div id="wn-groups"></div>
-      </div>
-    </div>
-  </div>
-  <div class="w-bar">
-    <div class="left"><span class="says" id="wn-says"></span></div>
-    <div class="w-dots"></div>
-    <div class="right"><button class="go" id="wn-go">back to the hive <kbd>&crarr;</kbd></button></div>
   </div>
 </section>
 

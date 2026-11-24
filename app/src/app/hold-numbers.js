@@ -20,7 +20,7 @@ import { closeProviders, providersOnScreen } from "./providers.js";
 import { closeExtensions, extensionsOnScreen } from "./extensions.js";
 import { palKeys, palOn } from "./palette.js";
 import { panelKeys } from "./panel-window.js";
-import { closeShot, openShot, shotOnScreen, stepShotZoom, toggleShotZoom } from "./picture-preview.js";
+import { arrowShot, closeShot, openShot, shotOnScreen, stepShotZoom, toggleShotZoom } from "./picture-preview.js";
 import { closeConfirm, closePortaria, closeWorkspace, portariaOnScreen, wsOnScreen } from "./pod.js";
 import { roomTakesKey } from "./pure-helpers.js";
 import { answerWithDigit, stepQuestionCard } from "./seat-layout.js";
@@ -32,6 +32,7 @@ import { TALK_TAP_MS, startTalking, stopTalking, talking } from "./stt.js";
 import { answerNudge } from "./team.js";
 import { backToLive, copySelection, focusedTerminal, lookingBack, refit, terminalSelection } from "./terminal-history.js";
 import { backToThemeBrowse, closeHelp, closeThemes, run, showThemeView, themesOn } from "./themes.js";
+import { stepArea } from "./focus-areas.js";
 import { closePrs, closeThreadPanel, exitReview, markCurrent, pickPrTab, prsOnScreen, stepFile, stepPr, threadVisible, unmarkLast } from "./thread.js";
 import { tasksOn } from "./tasks.js";
 import { tourKeys } from "./tour.js";
@@ -161,10 +162,15 @@ window.addEventListener("blur", dropHold);
 
 document.addEventListener("visibilitychange", () => { if (document.hidden) dropHold(); });
 
+const AREA_STEPS = { nextArea: 1, prevArea: -1 };
+
+const FUNCTION_KEY = /^F([1-9]|1[0-9]|2[0-4])$/;
+
 document.addEventListener("keydown", (e) => {
   st.keyHeld = !!e.repeat;
   trackHold(e);
   if (st.capturing) return captureKey(e);
+  if (document.activeElement?.closest?.(".md-ctx")) return;
   if (welcomeOn()) return welcomeKeys(e);
   if (st.tourAt >= 0) return tourKeys(e);
   if (st.pending) return resolveLeader(e);
@@ -222,6 +228,8 @@ document.addEventListener("keydown", (e) => {
     return;
   }
   if ($("help").classList.contains("on")) {
+    const area = AREA_STEPS[whichAction(e)?.action];
+    if (area) { e.preventDefault(); return void stepArea(area); }
     if (raycastOn() && panelKeys(e, "help")) return;
     if (whichAction(e)?.action === "help") { e.preventDefault(); return closeHelp(); }
     if (e.key === "Escape") {
@@ -264,6 +272,7 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.preventDefault(); return closeShot(); }
     if (e.key === " " || e.key === "Enter") { e.preventDefault(); return toggleShotZoom(); }
     if ((e.key === "+" || e.key === "=" || e.key === "-") && stepShotZoom(e.key === "-" ? -1 : 1)) { e.preventDefault(); return; }
+    if (!(e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) && arrowShot(e.key)) { e.preventDefault(); return; }
     return;
   }
 
@@ -429,6 +438,7 @@ document.addEventListener("keydown", (e) => {
   const m = aMessageBoxKeepsEnter(e) ? null : whichAction(e);
 
   if (st.typing) {
+    if (m && AREA_STEPS[m.action]) { e.preventDefault(); e.stopPropagation(); return run(m.action); }
     if (m?.action === "release") { e.preventDefault(); e.stopPropagation(); releaseKeyboard(); }
     if (m?.action === "copy" && terminalSelection()) { e.preventDefault(); e.stopPropagation(); copySelection(); }
     if (m && (FOCUS_MOVES[m.action] || MOVE_DIRS[m.action]) && (st.keys[m.action].alt || st.keys[m.action].ctrl || st.keys[m.action].meta)) {
@@ -470,7 +480,7 @@ document.addEventListener("keydown", (e) => {
 
   if (m) {
     const b = st.keys[m.action];
-    if (inField && !(b.alt || b.ctrl || b.meta)) return;
+    if (inField && !(b.alt || b.ctrl || b.meta) && !FUNCTION_KEY.test(b.code)) return;
     if (m.action === "copy" && !terminalSelection()) return;
     e.preventDefault();
     e.stopPropagation();

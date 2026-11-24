@@ -3,6 +3,7 @@ import { keyLabel, whichAction } from "../app/brand-face.js";
 import { openBrowser, openPrLink, webOfSeat } from "../app/chat-and-panes.js";
 import { IS_MAC, st } from "../app/core.js";
 import { ago } from "../app/pod.js";
+import { retitlingNamed } from "../app/chat-name.js";
 import { changes, openDiff, pullChanges } from "../app/seat-changes.js";
 import { shortBranch } from "../app/seat-layout.js";
 import { prsOfChat } from "../app/seat-menu.js";
@@ -89,7 +90,7 @@ function miniHtml(ctx, one, extra = "") {
   const { esc } = ctx;
   const bars = one.busy ? '<i class="tool"></i><i style="width:88%"></i><i style="width:64%"></i>' : '<i style="width:90%"></i><i style="width:70%"></i>';
   return `<button type="button" class="stg-mini${extra}" data-seat="${esc(one.key)}" title="${esc(`${one.name} — ${ctx.label(one.state)}`)}">
-    <span class="stg-mini-top"><i class="rc-dot ${esc(one.state)}"></i><span class="t">${esc(one.name)}</span>${one.hint ? `<span class="k">${esc(one.hint)}</span>` : ""}</span>
+    <span class="stg-mini-top"><i class="rc-dot ${esc(one.state)}"></i><span class="t${retitlingNamed(one.key) ? " title-regenerating" : ""}"${retitlingNamed(one.key) ? ' aria-busy="true"' : ""}>${esc(one.name)}</span>${one.hint ? `<span class="k">${esc(one.hint)}</span>` : ""}</span>
     <span class="stg-mini-body">${one.text ? `<span class="p">${esc(one.text)}</span>` : ""}${bars}${one.ask ? `<span class="p q">${esc(one.ask)}</span>` : ""}</span>
     <span class="stg-mini-comp"></span>
   </button>`;
@@ -227,6 +228,7 @@ function keepChangesFresh(seat) {
 const stage = {
   id: "stage",
   ready: true,
+  shelvesInline: true,
   model: stageModel,
   card: cardOf,
   enter(ctx) {
@@ -258,7 +260,7 @@ const stage = {
       return b ? blockLabelOf(b, ofBlock(b)).txt : "";
     };
     const model = stageModel(seats, ctx.focused(), { keyOf, labelOf });
-    const wing = wingHtml(ctx, model);
+    const wing = `${wingHtml(ctx, model)}${ctx.shelvesHtml()}`;
     if (parts.wing.dataset.h !== wing) { parts.wing.dataset.h = wing; parts.wing.innerHTML = wing; }
     const calling = model.calling[0]?.key || null;
     if (calling && calling !== lastCall) parts.wing.querySelector(".stg-stack.pop")?.classList.add("fresh");

@@ -61,6 +61,7 @@ export function seatCommand({
   side = "local",
   carry = {},
   addDir = "",
+  settingsFile = "",
   shell = "bash",
   fallback = "",
   continueLast = false,
@@ -74,6 +75,7 @@ export function seatCommand({
   const mine = `HIVE_SEAT=${quoteForShell(name)} HIVE_SIDE=${quoteForShell(side)} HIVE_STATE_DIR=${quoteForShell(stateDir)}`;
   const model_ = model ? ` --model ${quoteForShell(model)}` : "";
   const reach = addDir ? ` --add-dir ${quoteForShell(addDir)}` : "";
+  const settled = settingsFile ? ` --settings ${quoteForShell(settingsFile)}` : "";
   const words = [];
 
   if (structured) {
@@ -119,7 +121,7 @@ export function seatCommand({
     const resumed = resumeId ? ` --resume ${quoteForShell(resumeId)}` : "";
     const session = !resumed && sessionId ? ` --session-id ${quoteForShell(sessionId)}` : "";
     const compact = compactAt ? ` --autocompact ${quoteForShell(compactAt)}` : "";
-    words.push(`${carried}${held}${mine} FORCE_HYPERLINK=1 claude${resumed} --dangerously-skip-permissions${reach}${seen}${model_}${session}${compact}`);
+    words.push(`${carried}${held}${mine} FORCE_HYPERLINK=1 claude${resumed} --dangerously-skip-permissions${settled}${reach}${seen}${model_}${session}${compact}`);
     if (promptFile) words.push(` ${readPrompt(promptFile)}`);
   }
 
@@ -161,6 +163,7 @@ export function seatArgv({
   side = "local",
   carry = {},
   addDir = "",
+  settingsFile = "",
   fallback = "",
   continueLast = false,
   anonymous = false,
@@ -230,6 +233,7 @@ export function seatArgv({
   }
   if (resumeId) args.push("--resume", resumeId);
   args.push("--dangerously-skip-permissions");
+  if (settingsFile) args.push("--settings", settingsFile);
   if (addDir) args.push("--add-dir", addDir);
   if (remoteControl) args.push("--remote-control", name);
   args.push(...withModel);

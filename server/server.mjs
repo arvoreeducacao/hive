@@ -534,6 +534,11 @@ export function createBroker({ home, stateDir, now = () => Date.now(), log = () 
         return asJson(held);
       }
 
+      if (leaf === "/tool" && method === "GET") {
+        const held = sessions.toolOutput(name, query?.get("id") || "");
+        return asJson(held, held.error ? 404 : 200);
+      }
+
       if (method !== "POST") return asJson({ error: "no such route" }, 404);
       let asked = {};
       try { asked = JSON.parse(body.toString("utf8") || "{}"); } catch { return asJson({ error: "unreadable body" }, 400); }

@@ -180,7 +180,7 @@ body:where(.experience-raycast).look-dimension:has(#status-strip:not(:empty)) :i
 :where(body.experience-raycast) .us-meter.key { box-shadow: var(--e2); }
 :where(body.experience-raycast) .us-lbl { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; color: var(--txt-2); }
 :where(body.experience-raycast) .us-lbl .rc-badge { margin-left: auto; }
-:where(body.experience-raycast) .us-track { display: block; height: 4px; border-radius: 9999px; background: var(--pw-fill); overflow: hidden; }
+:where(body.experience-raycast) .us-track { display: block; position: relative; height: 4px; border-radius: 9999px; background: var(--pw-fill); }
 :where(body.experience-raycast) .us-track i { display: block; height: 100%; border-radius: 9999px; background: var(--accent); }
 :where(body.experience-raycast) .us-meter.hot .us-track i { background: var(--yellow); }
 :where(body.experience-raycast) .us-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-radius: var(--r3); box-shadow: var(--e1); overflow: hidden; }
@@ -444,6 +444,18 @@ body:where(.experience-raycast).look-dimension .pr-msg { border-radius: var(--r3
 :where(body.experience-raycast) #help .pref-nav button:focus-visible { outline: none; }
 :where(body.experience-raycast) #thm-edit, :where(body.experience-raycast) #thm-paste { display: grid; gap: 14px; }
 :where(body.experience-raycast) #thm-edit[hidden], :where(body.experience-raycast) #thm-paste[hidden] { display: none; }
+:where(body.experience-raycast) #help .pref-search { display: none; }
+:where(body.experience-raycast) #help .pref-pane > h2 { font-size: 16px; font-weight: 600; }
+:where(body.experience-raycast) #help .set-card { border-radius: var(--r2); background: var(--pw-fill, color-mix(in srgb, var(--txt) 3%, transparent)); border-color: color-mix(in srgb, var(--txt) 8%, transparent); }
+:where(body.experience-raycast) #help .set-card > * + * { border-top-color: color-mix(in srgb, var(--txt) 7%, transparent); }
+:where(body.experience-raycast) #help .set-head { font-family: var(--mono); font-weight: 500; letter-spacing: .08em; }
+:where(body.experience-raycast) #help .set-title { font-weight: 500; }
+:where(body.experience-raycast) #help .set-ctl :is(select, input:not([type="range"])) { height: 32px; padding-top: 0; padding-bottom: 0; border-radius: var(--r2); }
+:where(body.experience-raycast) #help .thm-side .set-group:first-of-type .set-head { margin-top: 0; }
+:where(body.experience-raycast) #help .box .pref-body.searching { padding: 24px; overflow-y: auto; }
+:where(body.experience-raycast) #help .box .pref-body.searching .pref-look { display: grid; grid-template-columns: minmax(0, 1fr); height: auto; }
+:where(body.experience-raycast) #help .box .pref-body.searching .pref-look :is(.thm-list, .thm-side > .pw-cap, #thm-prev, .thm-where, .thm-side > .pw-hr) { display: none; }
+:where(body.experience-raycast) #help .box .pref-body.searching .thm-side { padding: 0; overflow: visible; }
 @media (max-width: 640px) {
   :where(body.experience-raycast) #help .box { grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 48px; }
   :where(body.experience-raycast) #help .help-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }

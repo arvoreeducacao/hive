@@ -1,0 +1,11 @@
+.chat-drag-ghost { position: fixed; top: -1000px; left: -1000px; z-index: 1000; display: inline-flex; align-items: center; gap: 8px; max-width: 288px; box-sizing: border-box; padding: 8px 12px;
+  border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); color: var(--txt); box-shadow: 0 8px 24px rgb(0 0 0 / .28);
+  font-family: var(--tx-font, inherit); font-size: 13px; font-weight: 500; line-height: 1.2; white-space: nowrap; pointer-events: none; }
+.chat-drag-ghost svg { flex: none; width: 15px; height: 15px; color: var(--cc-chat); }
+.chat-drag-ghost .cl { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.chat-drag-ghost .more { flex: none; padding: 1px 6px; border-radius: 999px; background: color-mix(in oklab, var(--txt) 12%, transparent); font-size: 11px; }
+
+.chat-drop-over { --chat-drop-tint: color-mix(in oklab, var(--accent) 14%, transparent); outline: 1px solid color-mix(in oklab, var(--accent) 75%, transparent) !important; outline-offset: -1px !important; background-image: linear-gradient(var(--chat-drop-tint), var(--chat-drop-tint)) !important; }
+
+#pal.chat-dragging-out { opacity: 0; pointer-events: none; }
+body.chat-dragging .il-veil { opacity: 0; pointer-events: none; }

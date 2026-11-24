@@ -3,15 +3,18 @@ import { render } from "./arrange.js";
 import { markCopied } from "./avatars.js";
 import { forgetSeat } from "./blocks.js";
 import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svReset, svTrimTurns, svTypePath } from "./chat-stretches.js";
+import { svForked } from "./chat-fork.js";
 import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
 import { paintSaidChips } from "./context-chips.js";
-import { svConvBubbleOf, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvShow, svConvStream, svConvThink, svConvThumb, svConvTurnDone, svConvUnsay } from "./conversation-model.js";
+import { svConvBubbleOf, svConvDispatched, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvSwitch, svConvRecovered, svConvRetry, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvSettle, svConvShow, svConvSteer, svConvStopped, svConvStream, svConvThink, svConvThinking, svConvThumb, svConvTurnEnded, svConvTurnStart, svConvUnsay } from "./conversation-model.js";
 import { editFailed } from "./edit-message.js";
 import { $, apiGet, chooseOption, esc, experienceNext, raycastOn, forgetUpload, liveMarkdown, lookFor, markUpload, NATIVE_COMMAND_NAMES, phrase, reachRef, readPage, renderMarkdown, sayPage, st, svgIcon } from "./core.js";
 import { drafts } from "./draft-seat.js";
 import { closeTile, openTile, pull, releaseKeyboard } from "./focus-navigation.js";
 import { accountSaid, providerAccounts, providerName, providerReady, providerWhyNot, pullAccounts, readyAgents } from "./providers.js";
+import { enrichMarkdown } from "./markdown-rich.js";
 import { memoryTurnEnded, memoryTurnSaw } from "./memory-turn.js";
+import { mcpAuthenticate, mcpSignInsAtInit } from "./mcp-sign-in.js";
 import { wireMdShots, wireShelfLinks } from "./picture-preview.js";
 import { dropFieldPane, paneShownFor, takeFieldPane } from "./plane.js";
 import { pullThreads } from "./prs.js";
@@ -23,6 +26,7 @@ import { ART_WEBVIEW, artClock, artifactIndexAt, shelfPageOf, svSubCall, svSubEc
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, closeThreadPanel, exitReview, openThreadOf, prsOnScreen, pullPrs } from "./thread.js";
 import { ARTIFACT_LINK, toolSays, trimBody } from "./tool-face.js";
+import { svMcpApp } from "./mcp-apps.js";
 
 const PR_LINK = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+(?:[/?#]\S*)?$/;
 
@@ -68,6 +72,7 @@ function wireLinks(name, root) {
     a.classList.add("md-art");
     a.title = phrase("opens in the hive — {chord}+click opens it in your browser", { chord: applePlatform() ? "⌘" : "ctrl" });
     const took = (ev) => {
+      if (ev.type === "auxclick" && ev.button !== 1) return;
       ev.preventDefault();
       ev.stopPropagation();
       if (leavesForTheBrowser(ev)) return openOutside(a.getAttribute("href") || "");
@@ -184,6 +189,7 @@ const DEVICE_BEAT = 120;
 const DEVICE_RETRY = 3000;
 
 const VIDEO_STEP = 33333;
+
 
 const VIDEO_WAIT = 5000;
 
@@ -2784,6 +2790,7 @@ function svPlanCard(e, ev) {
   body.className = "pb";
   body.innerHTML = renderMarkdown(planWithoutFronts(ev.plan));
   wireLinks(e.name, body);
+  enrichMarkdown(body, { seat: e });
   const rows = document.createElement("div");
   rows.className = "prows";
   const asked = [];
@@ -2842,6 +2849,7 @@ function svDraftPaint(e) {
     if (!fresh) continue;
     wireMdShots(e, fresh);
     wireLinks(e.name, fresh);
+    enrichMarkdown(fresh, { seat: e });
     const worn = draft.el.children[i];
     if (worn) draft.el.replaceChild(fresh, worn);
     else draft.el.appendChild(fresh);
@@ -2854,8 +2862,10 @@ function svDraftPaint(e) {
 function svStreamDelta(e, ev) {
   const inner = ev.event;
   if (ev.parent_tool_use_id) return;
+  if (e.conv && inner?.type === "content_block_start" && inner.content_block?.type === "thinking") svConvThinking(e, "", true);
   if (inner?.type !== "content_block_delta") return;
   if (inner.delta?.type === "thinking_delta" && !e.thoughtAt && !ev.replayed) e.thoughtAt = Date.now();
+  if (inner.delta?.type === "thinking_delta" && e.conv) svConvThinking(e, inner.delta.thinking);
   if (inner.delta?.type === "text_delta") {
     if (e.conv) return svConvStream(e, inner.delta.text);
     if (!e.draft) e.draft = { el: svLine(e, "sv-msg md streaming", ""), raw: "", blocks: [], frame: 0 };
@@ -2881,21 +2891,26 @@ function svAssistant(e, ev) {
     }
     return;
   }
+  const said = (ev.message?.content || []).find((b) => b.type !== "text" || b.text.trim());
+  let settled = null;
   if (e.draft) {
     cancelAnimationFrame(e.draft.frame);
-    if (e.conv) svConvDraftDrop(e);
-    else e.draft.el.remove();
+    if (e.conv) settled = said?.type === "text" ? svConvSettle(e, said.text) : null;
+    if (e.conv && !settled) svConvDraftDrop(e);
+    else if (!e.conv) e.draft.el.remove();
     e.draft = null;
   }
   for (const b of ev.message?.content || []) {
     if (b.type === "text" && b.text.trim()) {
-      if (e.conv) svConvSaid(e, b.text);
+      if (e.conv && settled && b === said) { settled.seq = Number(ev.seq) || 0; continue; }
+      if (e.conv) svConvSaid(e, b.text).seq = Number(ev.seq) || 0;
       else {
         const div = document.createElement("div");
         div.className = "sv-msg md";
         div.innerHTML = renderMarkdown(b.text);
         wireMdShots(e, div);
         wireLinks(e.name, div);
+        enrichMarkdown(div, { seat: e });
         svAppend(e, div);
       }
     }
@@ -2991,7 +3006,7 @@ function svPeerFrom(e, from, consumed) {
   /* the banner says who wrote in the words the person keeps this chat under, not in the name the
      machine handed it — the same name the rail, the pane and the mention menu all say. */
   const seat = st.data.sessions.find((one) => one.name === from);
-  return svConvPeer(e, seat ? seatLabel(seat) : from, consumed);
+  return svConvPeer(e, seat ? seatLabel(seat) : from, consumed, from);
 }
 
 function svUser(e, ev) {
@@ -3005,12 +3020,13 @@ function svUser(e, ev) {
     const text = (Array.isArray(ev.message?.content) ? ev.message.content : [])
       .filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
     if (!ev.from) rememberSent(e, text, ev.seq);
-    if (ev.cid && e.said?.has(ev.cid)) return;
+    if (ev.cid && e.said?.has(ev.cid)) return void (e.saidSeqs ||= new Map()).set(ev.cid, Number(ev.seq) || 0);
     if (ev.from) svPeerFrom(e, ev.from, ev.consumed);
     const bubble = svLine(e, ev.from ? "sv-user peer" : "sv-user", splitPeerHandle(text).body || "(image)");
     paintMentions(bubble);
     if (ev.cid) bubble.dataset.cid = ev.cid;
     if (ev.uuid && !ev.from) bubble.dataset.uuid = ev.uuid;
+    if (!ev.from && Number(ev.seq)) bubble.seq = Number(ev.seq);
     for (const path of ev.images || []) svUserThumb(e, bubble, path);
     if (ev.edited) svLine(e, "sv-meta sv-edited", phrase("you edited this message · what came after it left the conversation"));
     svTrimTurns(e);
@@ -3040,14 +3056,17 @@ function svAlreadyPainted(e, ev) {
 
 function svEvent(e, ev) {
   if (svAlreadyPainted(e, ev)) return;
+  e.heardAt = Date.now();
   if (!e.firstSeq && Number(ev.seq) > 0) e.firstSeq = Number(ev.seq);
   e.at = (ev.ts && Date.parse(ev.ts)) || Date.now();
   const live = !ev.replayed;
   if (ev.type === "system") {
     if (ev.subtype === "init") {
+      if (e.conv) svConvTurnStart(e);
       if (ev.agent) e.agent = ev.agent;
       if (ev.model) e.model = ev.model;
       if (typeof ev.effort === "string") e.effort = ev.effort;
+      e.heard = { model: ev.model || e.heard?.model || "", effort: typeof ev.effort === "string" ? ev.effort : e.heard?.effort || "" };
       paintPills(e);
       const gone = new Set(ev.terminal_slash_commands || []);
       e.slashGone = gone;
@@ -3057,6 +3076,7 @@ function svEvent(e, ev) {
         e.turnOpen = ev.working !== false;
         svActivity(e, e.turnOpen ? "working" : "");
         if (e.turnOpen && !e.driverDequeues) svDequeue(e);
+        mcpSignInsAtInit(e, ev);
       }
     }
     if (ev.subtype === "commands_changed") {
@@ -3094,9 +3114,11 @@ function svEvent(e, ev) {
       if (live) refreshContext(e);
       return;
     }
+    if (ev.subtype === "api_retry") return void (e.conv && svConvRetry(e, ev));
     svSubTask(e, ev);
     return;
   }
+  if (e.conv?.retrying && (ev.type === "stream_event" || ev.type === "assistant") && !ev.parent_tool_use_id) svConvRecovered(e);
   if (ev.type === "stream_event") {
     if (live && !ev.parent_tool_use_id) {
       const delta = ev.event?.delta?.type;
@@ -3132,8 +3154,10 @@ function svEvent(e, ev) {
     return svUser(e, ev);
   }
   if (ev.type === "result") {
+    if (e.conv) svConvTurnEnded(e, ev.is_error === true);
     if (live) {
       e.turnOpen = false;
+      e.turnFailed = ev.is_error === true;
       e.thoughtAt = 0;
       e.pendingTools?.clear();
       svActivity(e, "");
@@ -3141,7 +3165,6 @@ function svEvent(e, ev) {
       for (const [id, item] of [...(e.subs || [])]) if (!item.dataset.bg) svSubUnpin(e, id);
       refreshContext(e);
     }
-    svConvTurnDone(e, ev);
     memoryTurnEnded(e);
     return;
   }
@@ -3158,6 +3181,7 @@ function svEvent(e, ev) {
       return;
     }
     if (ev.subtype === "shell") return void svShellBlock(e, ev);
+    if (ev.subtype === "mcp_app") return void svMcpApp(e, ev);
     if (ev.subtype === "turn_started") {
       if (live) { e.turnOpen = true; svActivity(e, "working"); }
       return;
@@ -3224,12 +3248,14 @@ function svEvent(e, ev) {
     }
     if (ev.subtype === "model_changed") {
       e.model = ev.model || "";
+      svSwitched(e, { model: e.model, effort: e.heard?.effort ?? e.effort ?? "" }, ev.label);
       paintPills(e);
       if (live) refreshContext(e);
       return;
     }
     if (ev.subtype === "effort_changed") {
       e.effort = ev.level || "";
+      svSwitched(e, { model: e.heard?.model || e.model || "", effort: e.effort });
       paintPills(e);
       if (live) render();
       return;
@@ -3266,10 +3292,12 @@ function svEvent(e, ev) {
     if (ev.subtype === "account_came_home") {
       return void svLine(e, "sv-meta", phrase("{here} has room again, so this chat is back on it", { here: ev.account || "default" }));
     }
-    if (ev.subtype === "interrupted") return void svLine(e, "sv-meta", `interrupted · ${ev.ms}ms`);
+    if (ev.subtype === "interrupted") return void svConvStopped(e);
     /* the driver says the moment a queued message enters the turn. before this event the chip
        only left on the next init, and the take back button was dead for the whole gap. */
+    if (ev.subtype === "said_now") return void (e.conv && svConvSteer(e, ev.cid));
     if (ev.subtype === "dispatched") {
+      if (e.conv) svConvDispatched(e, ev.cid);
       e.driverDequeues = true;
       e.limitedUntil = 0;
       if (live) { e.turnOpen = true; svActivity(e, "working"); }
@@ -3295,6 +3323,7 @@ function svEvent(e, ev) {
       if (e.conv) svConvRewind(e, ev.target);
       return;
     }
+    if (ev.subtype === "forked") return void svForked(e, ev);
     if (ev.subtype === "said_as") {
       if (e.conv) svConvSaidAs(e, ev.was, ev.uuid);
       return;
@@ -3372,6 +3401,22 @@ const DRAFT_EFFORT_KINDS = { claude: ["structured"], codex: ["structured", "term
 function draftCarriesEffort(agent, kind) {
   const kinds = DRAFT_EFFORT_KINDS[AGENT_NAMES[agent] || "claude"] || [];
   return kinds.includes(kind === "terminal" ? "terminal" : "structured");
+}
+
+function modelNameOf(e, id, label = "") {
+  const raw = String(id || "");
+  if (!raw) return "";
+  const pretty = prettyModelId(raw).name;
+  if (pretty !== withoutVariant(raw).split("/").pop()) return pretty;
+  const row = (e.catalog || []).find((m) => m.value === raw || m.resolved === raw);
+  return pillLabel(row?.label || label) || pretty;
+}
+
+function svSwitched(e, after, label = "") {
+  const before = e.heard;
+  e.heard = after;
+  if (!e.conv || !before?.model) return;
+  svConvSwitch(e, before, after, (id) => modelNameOf(e, id, id === after.model ? label : ""));
 }
 
 function pillLabel(text) {
@@ -4138,7 +4183,7 @@ function openSeatPicker(e, kind) {
   const apply = (label, before, send) => {
     paintPills(e);
     closeSeatPicker(e);
-    svLine(e, "sv-meta", label);
+    if (label) svLine(e, "sv-meta", label);
     send().then((r) => {
       if (r?.ok) {
         if (Array.isArray(r.data?.models)) e.catalog = r.data.models;
@@ -4185,7 +4230,7 @@ function openSeatPicker(e, kind) {
     /* another model is another context window — the gauge below the composer
        would keep counting against the old ceiling until it asks again. */
     refreshContext(e);
-    apply(`model → ${value}`, before, () => svCmd(e, { type: "control", op: "setModel", model: value }));
+    apply("", before, () => svCmd(e, { type: "control", op: "setModel", model: value }));
   };
 
   const pickAccount = (value) => {
@@ -4203,7 +4248,7 @@ function openSeatPicker(e, kind) {
     const before = snapshot();
     e.effort = level;
     e.effortFrom = "session";
-    apply(`thinking → ${level}`, before, () => svCmd(e, { type: "control", op: "setEffort", level }));
+    apply("", before, () => svCmd(e, { type: "control", op: "setEffort", level }));
   };
 
   let cursor = -1;
@@ -4278,98 +4323,6 @@ function svCmdCard(e, title) {
   return card;
 }
 
-async function mcpAuthenticate(e, serverName, row, body, fail) {
-  const cloud = e.where === "cloud";
-  const btn = row.querySelector(".auth");
-  btn.disabled = true;
-  btn.textContent = cloud ? phrase("getting the login url…") : phrase("waiting for the browser…");
-  const q = `name=${encodeURIComponent(e.name)}&server=${encodeURIComponent(serverName)}`;
-  const started = await fetch("/api/mcp/login", {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: e.name, server: serverName, where: e.where })
-  }).then((r) => r.json()).catch(() => null);
-  if (!started || started.error) {
-    btn.textContent = phrase("authenticate");
-    btn.disabled = false;
-    row.querySelector(".er").textContent = started?.error || phrase("the login did not start");
-    return;
-  }
-  const deadline = Date.now() + 300000;
-  while (Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 2000));
-    const job = await fetch(`/api/mcp/login?${q}`).then((r) => r.json()).catch(() => null);
-    if (!job) continue;
-    if (job.url && !row.querySelector(".auth-link")) {
-      const link = document.createElement("a");
-      link.className = "auth-link";
-      link.href = job.url;
-      link.target = "_blank";
-      link.textContent = phrase("open the login page");
-      row.appendChild(link);
-      {
-        btn.textContent = phrase("waiting for the redirect url…");
-        const paste = document.createElement("div");
-        paste.className = "auth-paste";
-        paste.innerHTML = `<input placeholder="${phrase("finish the login, then paste the url of the page it lands on (even a broken localhost one)")}" /><button type="button">${phrase("confirm")}</button>`;
-        const input = paste.querySelector("input");
-        const go = paste.querySelector("button");
-        const sendRedirect = async () => {
-          if (!input.value.trim()) return;
-          go.disabled = true;
-          input.disabled = true;
-          go.textContent = phrase("finishing…");
-          go.classList.add("busy");
-          btn.textContent = phrase("completing the login…");
-          const r = await fetch("/api/mcp/login", {
-            method: "POST", headers: { "content-type": "application/json" },
-            body: JSON.stringify({ name: e.name, server: serverName, redirect: input.value.trim() })
-          }).then((x) => x.json()).catch(() => null);
-          if (!r?.ok) {
-            go.disabled = false;
-            input.disabled = false;
-            go.textContent = phrase("confirm");
-            go.classList.remove("busy");
-            btn.textContent = phrase("waiting for the redirect url…");
-          }
-        };
-        go.addEventListener("click", sendRedirect);
-        input.addEventListener("keydown", (kev) => { kev.stopPropagation(); if (kev.key === "Enter") { kev.preventDefault(); sendRedirect(); } });
-        row.after(paste);
-      }
-    }
-    if (job.state === "done") {
-      btn.textContent = phrase("reconnecting…");
-      body.closest(".sv-cmd")?.querySelector(".auth-paste")?.remove();
-      row.querySelector(".auth-link")?.remove();
-      let back = await svCmd(e, { type: "control", op: "mcpReconnect", server: serverName });
-      if (!back?.ok) back = await svCmd(e, { type: "control", op: "mcpReload" });
-      if (!back?.ok) {
-        await svCmd(e, { type: "control", op: "reinit" });
-        svLine(e, "sv-meta", phrase("{name} authenticated — reopen the seat with the same name for its tools to answer here", { name: serverName }));
-      } else {
-        const now = (Array.isArray(back.data) ? back.data : []).find((s) => s.name === serverName);
-        const live = !now || now.status === "connected";
-        svLine(e, live ? "sv-meta" : "sv-meta warn", live
-          ? phrase("{name} authenticated — its tools answer in this seat now", { name: serverName })
-          : phrase("{name} authenticated, but the seat could not reconnect to it — reopen the seat with the same name", { name: serverName }));
-      }
-      body.closest(".sv-cmd")?.remove();
-      return;
-    }
-    if (job.state === "failed") {
-      btn.textContent = phrase("authenticate");
-      btn.disabled = false;
-      body.closest(".sv-cmd")?.querySelector(".auth-paste")?.remove();
-      row.querySelector(".auth-link")?.remove();
-      row.querySelector(".er").textContent = job.error || phrase("the login did not go through");
-      return;
-    }
-  }
-  btn.textContent = phrase("authenticate");
-  btn.disabled = false;
-  row.querySelector(".er").textContent = phrase("the login timed out");
-}
-
 async function loadMcpBody(e, body, fail) {
   const r = await svCmd(e, { type: "control", op: "mcp" });
   if (!r?.ok) return fail(r?.error);
@@ -4387,7 +4340,10 @@ async function loadMcpBody(e, body, fail) {
       btn.className = "auth";
       btn.type = "button";
       btn.textContent = phrase("authenticate");
-      btn.addEventListener("click", () => mcpAuthenticate(e, s.name, row, body, fail));
+      btn.addEventListener("click", () => mcpAuthenticate(e, s.name, row, (cls, text) => {
+        svLine(e, cls, text);
+        body.closest(".sv-cmd")?.remove();
+      }));
       row.appendChild(btn);
     }
     body.appendChild(row);
@@ -4427,6 +4383,12 @@ function paintContextTones(u, bar, legend) {
   legend.appendChild(item);
 }
 
+async function setPlanMode(e, on) {
+  const r = await svCmd(e, { type: "control", op: "setMode", mode: on ? "plan" : "normal" });
+  if (r?.ok) { e.mode = r.data?.mode === "plan" ? "plan" : ""; paintPills(e); }
+  return r;
+}
+
 async function runNativeCommand(e, cmd, arg) {
   if (CLAUDE_ONLY_COMMANDS.has(cmd) && seatAgent(e) !== "claude") {
     svLine(e, "sv-meta warn", phrase("/{cmd} is Claude Code's own — {agent} has nothing behind it here", { cmd, agent: seatAgent(e) }));
@@ -4446,7 +4408,7 @@ async function runNativeCommand(e, cmd, arg) {
       if (Array.isArray(r.data?.models)) e.catalog = r.data.models;
       paintPills(e);
     }
-    svLine(e, r?.ok ? "sv-meta" : "sv-meta warn", r?.ok ? `model → ${row.label || row.value}` : r?.error || phrase("failed"));
+    if (!r?.ok) svLine(e, "sv-meta warn", r?.error || phrase("failed"));
     return;
   }
   if (cmd === "effort" && arg) {
@@ -4456,13 +4418,12 @@ async function runNativeCommand(e, cmd, arg) {
       if (Array.isArray(r.data?.models)) e.catalog = r.data.models;
       paintPills(e);
     }
-    svLine(e, r?.ok ? "sv-meta" : "sv-meta warn", r?.ok ? `thinking → ${e.effort}` : r?.error || phrase("failed"));
+    if (!r?.ok) svLine(e, "sv-meta warn", r?.error || phrase("failed"));
     return;
   }
   if (cmd === "plane-mode") {
     const off = /^(off|no|nao|não|sair|desliga)$/i.test(String(arg || "").trim());
-    const r = await svCmd(e, { type: "control", op: "setMode", mode: off ? "normal" : "plan" });
-    if (r?.ok) { e.mode = r.data?.mode === "plan" ? "plan" : ""; paintPills(e); }
+    const r = await setPlanMode(e, !off);
     const said = off
       ? phrase("plane mode off — this chat works as it did before")
       : phrase("plane mode on — it plans, and nothing runs until you approve");
@@ -4645,4 +4606,4 @@ function svUserThumb(e, bubble, path) {
   return svConvThumb(e, bubble, path);
 }
 
-export { REVIEW_ASK, dimYardsUnderScrims, referenceLine, anchorToPill, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, insideFocusStroke, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, prettyModelId, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserCookies, runBrowserEval, runBrowserHover, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };
+export { REVIEW_ASK, dimYardsUnderScrims, referenceLine, anchorToPill, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, insideFocusStroke, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, prettyModelId, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserHover, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, setPlanMode, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };

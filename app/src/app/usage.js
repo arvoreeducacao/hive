@@ -1,11 +1,12 @@
 import { $, esc, phrase, raycastOn, screenOpens, solidMounts, st } from "./core.js";
 import { releaseKeyboard } from "./focus-navigation.js";
-import { accountTag, insideTheWeek, limitHeat, limitLabel, limitWhen, limitsShown, pullLimits, windowWord } from "./limit-chip.js";
+import { accountTag, insideTheWeek, limitHeat, limitLabel, limitPace, limitsShown, pullLimits, windowWord } from "./limit-chip.js";
 import { closeActions, followRaycast, footModel, openActions, panelOf, registerPanel, runAction } from "./panel-window.js";
 import { ago, closePortaria, portariaOnScreen } from "./pod.js";
 import { openProviders } from "./providers.js";
 import { closePrs, prsOnScreen } from "./thread.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
+import { clockOptions } from "./clock-format.js";
 
 st.usage = null;
 
@@ -60,13 +61,12 @@ function paintUsage(raw) {
 
 let usageSolid = null;
 
-function limitBlockModel(one, at) {
-  const when = limitWhen(one.resets_at);
+function limitBlockModel(one, at, now = Date.now()) {
   return {
     key: at, heat: limitHeat(one.percent), name: limitLabel(one), sub: insideTheWeek(one),
     pct: phrase("{percent}% used", { percent: one.percent }),
     fill: Math.min(100, one.percent),
-    resets: when ? phrase("resets {n}", { n: when }) : ""
+    ...limitPace(one, now)
   };
 }
 
@@ -84,7 +84,7 @@ function limitsPanelModel() {
     held: rows.map((row) => ({
       key: `${row.provider || "claude"}/${row.account}`,
       account: held.length > 1 ? accountTag(row, rows) : "",
-      meters: limitsShown(row).map(limitBlockModel)
+      meters: limitsShown(row).map((one, at) => limitBlockModel(one, at))
     }))
   };
 }
@@ -167,7 +167,7 @@ function usageViewModel(raw) {
     },
     hero: {
       peak: p.peak,
-      lead: phrase("chats at once at your peak, on {when}.", { when: peak.toLocaleString(undefined, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) }),
+      lead: phrase("chats at once at your peak, on {when}.", { when: peak.toLocaleString(undefined, clockOptions({ day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })) }),
       average: phrase("On average you hold"), mean: number(p.mean_when_active),
       active: phrase("while active, and"), minutes: number(p.minutes_with_2_plus),
       tail: phrase("of the {n} active minutes had two or more running.", { n: number(p.active_minutes) })
@@ -409,6 +409,12 @@ function openUsage() {
   if (!st.usageAsked || !st.usage) { st.usageAsked = true; pullUsage(); }
 }
 
+function openUsageAt(key) {
+  if (key) st.usagePick = `acc:${key}`;
+  if (usageOnScreen()) return paintUsage({});
+  openUsage();
+}
+
 function closeUsage() {
   if (raycastOn()) closeActions();
   $("usage").hidden = true;
@@ -421,4 +427,4 @@ followRaycast((on) => {
 
 $("btn-usage").addEventListener("click", () => (usageOnScreen() ? closeUsage() : openUsage()));
 
-export { accountRowModel, machineRowsModel, pickUsage, recomputeUsage, stepUsage, usageActions, usageDetailModel, usageListModel, usageStatsModel, usageWindowModel, INSIGHT_TEXT, WEEKDAYS, closeUsage, insightsPanelModel, limitBlockModel, limitsPanelModel, localHour, number, openUsage, paintUsage, pullUsage, sayUsageTrouble, shortTokens, usageBarsModel, usageOnScreen, usageSolid, usageViewModel, usageWeeksModel };
+export { accountRowModel, machineRowsModel, pickUsage, recomputeUsage, stepUsage, usageActions, usageDetailModel, usageListModel, usageStatsModel, usageWindowModel, INSIGHT_TEXT, WEEKDAYS, closeUsage, insightsPanelModel, limitBlockModel, limitsPanelModel, localHour, number, openUsage, openUsageAt, paintUsage, pullUsage, sayUsageTrouble, shortTokens, usageBarsModel, usageOnScreen, usageSolid, usageViewModel, usageWeeksModel };

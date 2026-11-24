@@ -39,36 +39,177 @@ const quietly = (fn) => {
   try { return fn(); } finally { globalThis.fetch = was; }
 };
 
-test("a seat that was working and answered is one to tell you about", () => {
-  const turned = it.turnedInto([{ name: "rafa", state: "answered" }], seen({ rafa: "working" }), "answered");
-  assert.deepEqual(turned.map((s) => s.name), ["rafa"]);
+const hiveOf = (sessions, extra = {}) => {
+  st.data = { pod: { up: true, name: "pod-1" }, sessions, archived: [], spawning: [], marks: {}, ...extra };
+  st.blocks = [{ id: "b1", ws: st.space, keys: sessions.map((s) => s.name) }];
+  st.block = 0;
+  st.focus = 0;
+  st.open = "";
+  st.typing = "";
+};
+
+const chat = (over = {}) => ({ name: "bruno", title: "School avatar in header", where: "local", agent: "claude", raw: "idle", state: "idle", ...over });
+const busy = (over = {}) => chat({ raw: "working", state: "working", ...over });
+const finished = (over = {}) => chat({ raw: "idle", state: "answered", finish: { at: "2026-10-29T12:00:00Z", error: false }, ...over });
+const asking = (over = {}) => chat({ raw: "needs", state: "needs", asks: [{ id: "q1", questions: [{ question: "OC ou SKU?" }] }], ...over });
+
+function systemNotices() {
+  const shown = [];
+  const was = globalThis.Notification;
+  globalThis.Notification = class {
+    static permission = "granted";
+    constructor(title, options) { this.title = title; this.options = options; this.closed = false; shown.push(this); }
+    close() { this.closed = true; }
+  };
+  return { shown, restore: () => { globalThis.Notification = was; } };
+}
+
+function awayFromTheApp() {
+  const was = document.hasFocus;
+  document.hasFocus = () => false;
+  return () => { document.hasFocus = was; };
+}
+
+const runOf = (steps) => {
+  const { previousState } = leader;
+  previousState.clear();
+  let at = Date.now();
+  for (const sessions of steps) {
+    st.data = { ...st.data, sessions };
+    it.announceChange(at);
+    at += 2500;
+  }
+};
+
+const leader = await app("leader-key");
+
+test("away from the app, a finished chat becomes a system notice with the finished title and the chat's name", () => {
+  const { shown, restore } = systemNotices();
+  const back = awayFromTheApp();
+  try {
+    hiveOf([busy()]);
+    st.answeredAlert = true;
+    quietly(() => runOf([[busy()], [finished()], [finished()]]));
+    assert.deepEqual(shown.map((one) => [one.title, one.options.body]), [["Thread completed", "School avatar in header"]]);
+    assert.equal(shown[0].options.silent, true, "the hive plays its own sound");
+    window.dispatchEvent(new window.Event("focus"));
+    assert.equal(shown[0].closed, true, "coming back to the app clears what it left in the notification center");
+  } finally { st.answeredAlert = false; back(); restore(); }
 });
 
-test("a seat that was already answered stays quiet — the notice went out once", () => {
-  assert.deepEqual(it.turnedInto([{ name: "rafa", state: "answered" }], seen({ rafa: "answered" }), "answered"), []);
+test("a finished chat that picks up again inside the grace says nothing", () => {
+  const { shown, restore } = systemNotices();
+  const back = awayFromTheApp();
+  try {
+    hiveOf([busy()]);
+    st.answeredAlert = true;
+    quietly(() => runOf([[busy()], [finished()], [busy()], [busy()]]));
+    assert.deepEqual(shown, []);
+  } finally { st.answeredAlert = false; back(); restore(); }
 });
 
-test("the first round after a reload says nothing about seats it had never seen", () => {
-  assert.deepEqual(it.turnedInto([{ name: "rafa", state: "answered" }], new Map(), "answered"), []);
+test("a question is said at once, even with the answered switch off", () => {
+  const { shown, restore } = systemNotices();
+  const back = awayFromTheApp();
+  try {
+    hiveOf([busy()]);
+    st.answeredAlert = false;
+    quietly(() => runOf([[busy()], [asking()]]));
+    assert.deepEqual(shown.map((one) => one.title), ["Input needed"]);
+  } finally { back(); restore(); }
 });
 
-test("answering and needing you are counted apart, so the two toggles never speak for each other", () => {
-  const sessions = [{ name: "rafa", state: "answered" }, { name: "ana", state: "needs" }];
-  const before = seen({ rafa: "working", ana: "working" });
-  assert.deepEqual(it.turnedInto(sessions, before, "answered").map((s) => s.name), ["rafa"]);
-  assert.deepEqual(it.turnedInto(sessions, before, "needs").map((s) => s.name), ["ana"]);
+test("clicking the notice brings the window back and opens that chat", () => {
+  const { shown, restore } = systemNotices();
+  const back = awayFromTheApp();
+  const revealed = [];
+  window.hiveDock = { badge() {}, reveal: () => revealed.push(true) };
+  try {
+    hiveOf([chat({ name: "other", title: "other" }), busy()]);
+    st.focus = 0;
+    quietly(() => runOf([[chat({ name: "other", title: "other" }), busy()], [chat({ name: "other", title: "other" }), asking()]]));
+    assert.equal(shown.length, 1);
+    quietly(() => shown[0].onclick());
+    assert.equal(revealed.length, 1);
+    assert.equal(shown[0].closed, true);
+    assert.equal(st.blocks[st.block].keys[st.focus], "bruno", "the chat of the notice is the one in front");
+  } finally { delete window.hiveDock; back(); restore(); }
 });
 
-test("the notice carries the title of the chat and what it said", () => {
-  const said = it.noticeOfAnswer({ name: "hive-3", title: "School avatar in header", summary: "PR aberta #2406" });
-  assert.equal(said.title, "School avatar in header answered");
-  assert.equal(said.body, "PR aberta #2406");
+test("a snoozed, settled or archived chat stays quiet", () => {
+  const { shown, restore } = systemNotices();
+  const back = awayFromTheApp();
+  try {
+    for (const extra of [{ marks: { bruno: { snoozeUntil: Date.now() + 3600000 } } }, { marks: { bruno: { settledAt: 1 } } }, { archived: [{ name: "bruno" }] }]) {
+      hiveOf([busy()], extra);
+      quietly(() => runOf([[busy()], [asking()]]));
+    }
+    assert.deepEqual(shown, []);
+  } finally { back(); restore(); }
 });
 
-test("a chat with no title and nothing to say still reads like a sentence", () => {
-  const said = it.noticeOfAnswer({ name: "hive-3" });
-  assert.equal(said.title, "hive-3 answered");
-  assert.ok(said.body.length > 0);
+test("an app from before the dock bridge still notifies needs from main, so the page does not say it twice", () => {
+  const { shown, restore } = systemNotices();
+  const back = awayFromTheApp();
+  window.hiveWindow = { act() {} };
+  try {
+    hiveOf([busy()]);
+    quietly(() => runOf([[busy()], [asking()]]));
+    assert.deepEqual(shown, []);
+    hiveOf([busy()]);
+    quietly(() => runOf([[busy()], [finished({ finish: { at: "2026-10-29T12:30:00Z", error: true } })]]));
+    assert.deepEqual(shown.map((one) => one.title), ["Thread failed"], "main never said failures, so the page still does");
+  } finally { delete window.hiveWindow; back(); restore(); }
+});
+
+test("the dock counts the chats that wait for you, leaves out muted ones and the one you read, and clears as they are read", () => {
+  const counts = [];
+  window.hiveDock = { badge: (n) => counts.push(n), reveal() {} };
+  try {
+    const ask = asking({ name: "a", title: "a" });
+    const done = finished({ name: "b", title: "b" });
+    const snoozed = asking({ name: "c", title: "c", asks: [{ id: "q9", questions: [{ question: "?" }] }] });
+    hiveOf([ask, done, snoozed], { marks: { c: { snoozeUntil: Date.now() + 3600000 } } });
+    st.focus = 2;
+    assert.equal(it.waitingCount(), 2);
+    it.paintBadge();
+    assert.deepEqual(counts, [2]);
+    it.paintBadge();
+    assert.deepEqual(counts, [2], "the same count is not sent again");
+    st.typing = "a";
+    assert.equal(it.waitingCount(), 1, "the chat you are typing in is being read");
+    st.typing = "";
+    st.data = { ...st.data, sessions: [ask, { ...done, state: "idle" }, snoozed] };
+    it.paintBadge();
+    assert.deepEqual(counts, [2, 1]);
+  } finally { delete window.hiveDock; }
+});
+
+test("a chat that finishes on screen while you read it is read, so it never waits in the dock", async () => {
+  const { readMark, seatMark } = leader;
+  const { structPool } = await app("structured-seats");
+  const done = finished();
+  hiveOf([done]);
+  const host = document.createElement("div");
+  document.body.append(host);
+  host.getBoundingClientRect = () => ({ width: 400, height: 300, top: 10, left: 10, bottom: 310, right: 410 });
+  structPool.set("bruno", { name: "bruno", host });
+  readMark.set("bruno", "an older turn");
+  try {
+    quietly(() => it.announceChange());
+    assert.equal(readMark.get("bruno"), seatMark(done));
+  } finally {
+    structPool.delete("bruno");
+    host.remove();
+  }
+  readMark.set("bruno", "an older turn");
+  quietly(() => it.announceChange());
+  assert.equal(readMark.get("bruno"), "an older turn", "a chat that is not on screen stays where you put it");
+});
+
+test("a window holding one seat alone neither counts nor notifies — the main window does", () => {
+  assert.match(source("chimes-and-notices"), /function announceChange\(now = Date\.now\(\)\) \{\n  if \(soloSeat\) return;/);
+  assert.match(source("chimes-and-notices"), /function paintBadge\(now = Date\.now\(\)\) \{\n  if \(soloSeat \|\| !window\.hiveDock\?\.badge\) return;/);
 });
 
 test("there are eleven sounds to pick from, each with its own name", () => {

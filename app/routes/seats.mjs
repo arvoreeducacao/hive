@@ -47,6 +47,7 @@ export function registerSeatRoutes(on, context) {
     forgetSeat,
     forgetShots,
     archiveSeat,
+    eraseConversation,
     reviveArchivedSeat,
     archivedSeats,
     saveArchivedSeats,
@@ -171,9 +172,9 @@ export function registerSeatRoutes(on, context) {
     const name = String(b?.name || "").trim();
     if (!name || !isSeatName(name)) return json({ error: "no seat to retitle" }, 400);
     const where = b?.where === "cloud" ? "cloud" : "local";
-    const said = await regenerateSeatTitle(name, where);
+    const said = b?.by === "agent" ? await regenerateSeatTitle(name, where, { keepHand: true }) : await regenerateSeatTitle(name, where);
     invalidateFleetCache();
-    return json(said, said.ok ? 200 : 404);
+    return json(said, said.ok ? 200 : said.held ? 409 : 404);
   });
 
   on("POST", "/api/attach", async (req, res, url, json) => {
@@ -245,6 +246,12 @@ export function registerSeatRoutes(on, context) {
   on("POST", "/api/seat/archive", async (req, res, url, json) => {
     const { name, where } = await bodyOf(req);
     try { return json(await archiveSeat(name, where)); }
+    catch (wrong) { return json({ error: String(wrong.message || wrong) }, 400); }
+  });
+
+  on("POST", "/api/seat/erase", async (req, res, url, json) => {
+    const { name, where } = await bodyOf(req);
+    try { return json(await eraseConversation(name, where)); }
     catch (wrong) { return json({ error: String(wrong.message || wrong) }, 400); }
   });
 

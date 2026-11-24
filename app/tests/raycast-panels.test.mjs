@@ -305,6 +305,22 @@ test("settings open as the compact window with the flag on, the themes inside Ap
   assert.equal(themesApi.themesViewModel().raycast, undefined);
 });
 
+test("a row taken out of Appearance while the compact settings are open stays out when they close", async () => {
+  const lookPane = $("pref-body").querySelector('.pref-pane[data-pane="look"]');
+  const row = document.createElement("div");
+  row.id = "row-that-leaves";
+  lookPane.appendChild(row);
+  const before = [...lookPane.childNodes];
+  await withFlag(() => {
+    themesApi.openHelp("look");
+    assert.ok(row.closest(".thm-side"), "the row moved into the compact window");
+    row.remove();
+    themesApi.closeHelp();
+  });
+  assert.equal($("row-that-leaves"), null, "closing the window does not bring back a row someone removed");
+  assert.deepEqual([...lookPane.childNodes], before.filter((node) => node !== row));
+});
+
 const actionHost = document.createElement("section");
 document.body.append(actionHost);
 const actionRuns = [];

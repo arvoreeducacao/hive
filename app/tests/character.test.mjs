@@ -224,9 +224,9 @@ test("the picker is a way in, not a wall", () => {
 });
 
 test("the roll and the strip live inside the open picker", () => {
-  const block = page.slice(page.indexOf('<div class="cfg-pick"'), page.indexOf("<div class=\"pair\">\n      <div><label for=\"f-brand\""));
+  const block = page.slice(page.indexOf('<div class="cfg-pick"'), page.indexOf('<h3 class="set-head">The little you</h3>'));
   assert.match(block, /id="cfg-face"/);
-  assert.match(block, /<div class="fs-act"><button type="button" id="cfg-roll" data-t>another<\/button><button type="button" id="cfg-strip" data-t>take it all off<\/button><\/div>/,
+  assert.match(block, /<div class="fs-act"><button type="button" id="cfg-roll">another<\/button><button type="button" id="cfg-strip">take it all off<\/button><\/div>/,
     "both are in the picker, after the rows, not next to the preview");
 });
 

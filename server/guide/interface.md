@@ -175,7 +175,7 @@ On macOS ⌘ is Command, ⌥ Option, ⌃ Control. "Leader" is the key after the 
 | dim the others (`dim`) | ⌥Q | Ctrl+Shift+D | q |
 | the plane (`plane`) | ⌥L | Ctrl+Shift+L | y |
 
-No direct key by default, leader chord in brackets: `detach` (o), `rename` (shift+r), `worktrees` (k), `themes` (shift+t), `doctor` (shift+d), `extensions` (shift+e), `focusLeft`/`focusRight`/`focusUp`/`focusDown` (arrows), `sendPrevBlock` (shift+[), `sendNextBlock` (shift+]), `sendBlock` (alt+1…9). With neither: `archive`, `focusMode`, `moveLeft`/`moveRight`/`moveUp`/`moveDown`, `scrollUp`, `scrollDown`.
+No direct key by default, leader chord in brackets: `detach` (o), `rename` (shift+r), `worktrees` (k), `themes` (shift+t), `doctor` (shift+d), `extensions` (shift+e), `focusLeft`/`focusRight`/`focusUp`/`focusDown` (arrows), `sendPrevBlock` (shift+[), `sendNextBlock` (shift+]), `sendBlock` (alt+1…9). With neither: `archive`, `retitle`, `focusMode`, `moveLeft`/`moveRight`/`moveUp`/`moveDown`, `scrollUp`, `scrollDown`.
 
 Keys you cannot change: ⌘V / Ctrl+V pastes a screenshot into the focused session; Shift+Enter breaks a line; drop a file on a session or the new-chat box; drag a seat title to swap seats; Esc leaves full screen. While the keyboard belongs to the Hive, Ctrl+C on a focused native chat with nothing selected stops its turn.
 
@@ -331,6 +331,7 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 | `sttModel` | `whisper-medium`, `parakeet-v3` (`whisper-medium`) | Dictation, model |
 | `sttLanguage` | `""` or a 2–3 letter code (`""`) | Dictation, language |
 | `sttMic` | a microphone id, `""` = system default | Dictation, microphone |
+| `keepAwakeWhileAgentsWork` | true/false (true) | The conversation, "Keep the computer awake while agents work". While a chat of this machine works, the app holds `caffeinate -i` (macOS) or `systemd-inhibit` (Linux) and lets go a minute after the last chat stops. Closing a laptop lid still sleeps it. |
 
 `avatar` bodies: `ball`, `tall`, `wide`, `triangle`, `capsule`, `tv`, `crawler`, `cocoon`, `bee`; screen: `dark`; colours: `red`, `orange`, `amber`, `green`, `turquoise`, `blue`, `purple`, `pink`. `wear` slots: `glasses` (`round`, `square`), `hat` (`cap`, `beanie`, `bucket`, `headband`, `tophat`, `crown`, `party`, `wizard`, `fedora`, `cowboy`), `extra` (`bowtie`, `bow`, `scarf`, `tie`, `moustache`).
 
@@ -341,6 +342,7 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 | `autocompact` | `auto` or `100k`–`1000k` (`auto`) | The conversation, "sum up the conversation at" | "seats" |
 | `closeQuietAfterDays` | 0 (never) or 1–90 (2) | The conversation, "close a chat after it sits quiet for" | "seats" |
 | `pruneDiariesAfterDays` | 0 (never) or 1–365 (30) | The conversation, "clear a closed chat's screen history after" | "seats" |
+| `titleInstructions` | `{ all, projects }`, text up to 2000 characters (`""`) | The conversation, "Titles" | "seats" |
 | `share` | true/false (true) | `⋯`, "share my fleet" | "team-and-cloud" |
 | `knocks` | true/false (true) | Notices, "the team can knock" | "team-and-cloud" |
 | `phone` | true/false (false) | `⋯`, "my phone" | "team-and-cloud" |
@@ -349,6 +351,7 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 | `shelf` | https URL of a private GitHub repo (`""`) | none | "team-and-cloud" |
 | `providers` | agent → `{ enabled, name, color, binary, args, env }` | providers and accounts | "providers" |
 | `extensions` | name → `{ enabled, settings }` | extensions | "extensions" |
+| `prViews` | list of `{ id, name, filter, query }` (`[]`) | PR panel, "Views" | "tools" |
 
 The Settings "Slack" pane connects this Hive to a Slack bot (see the "team-and-cloud" topic).
 
@@ -376,7 +379,7 @@ The Settings "Slack" pane connects this Hive to a Slack bot (see the "team-and-c
 - `app/src/app/chimes-and-notices.js`
 - `app/src/app/hud.js`
 - `app/src/app/tour.js`
-- `app/src/app/whats-new.js`
+- `app/src/app/solo-seat.js`
 - `app/src/app/stt.js`
 - `app/src/app/stt-prefs.js`
 - `app/lib/stt-download.mjs`

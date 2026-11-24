@@ -16,6 +16,7 @@ const hive = () => {
   let peak = 0;
   let iAm = "jonas";
   let registry = [];
+  let links = [];
   let sessions = [];
   let answer = () => ({ ok: true, out: "{}", error: "" });
   const readRegistry = async () => JSON.parse(JSON.stringify(registry));
@@ -57,7 +58,9 @@ const hive = () => {
     liveSessions: () => sessions,
     readRegistry,
     writeRegistry,
-    retire
+    retire,
+    readLinks: async () => JSON.parse(JSON.stringify(links)),
+    writeLinks: async (list) => { links = list; }
   });
   return {
     ...domain,
@@ -66,6 +69,7 @@ const hive = () => {
     peak: () => peak,
     registry: () => registry,
     seed: (list) => { registry = list; },
+    link: (list) => { links = list; },
     nameless: () => { iAm = ""; },
     onScreen: (list) => { sessions = list; },
     reply: (fn) => { answer = fn; }
@@ -148,6 +152,26 @@ test("a PR merged yesterday leaves the panel and is retired in the registry", as
   const list = await h.collectPrs();
   assert.deepEqual(list, []);
   assert.equal(h.registry()[0].retired, true);
+});
+
+test("a PR linked by hand belongs to its chat, and the chat's own finds step aside until it is unlinked", async () => {
+  const h = hive();
+  h.seed([{ key: "o/r#1", session: "retry" }, { key: "o/r#2", session: "auth" }]);
+  h.reply(() => ({ ok: true, out: prJson(), error: "" }));
+  h.link([{ session: "retry", where: "local", key: "o/r#2" }]);
+  const owners = (list) => Object.fromEntries(list.map((pr) => [pr.key, [pr.session, !!pr.linked]]));
+  assert.deepEqual(owners(await h.collectPrs()), { "o/r#1": ["", false], "o/r#2": ["retry", true] });
+  h.link([]);
+  assert.deepEqual(owners(await h.collectPrs()), { "o/r#1": ["retry", false], "o/r#2": ["auth", false] });
+});
+
+test("a PR linked by hand stays on its chat after it merges, even one the hive had retired", async () => {
+  const h = hive();
+  h.seed([{ key: "o/r#1", retired: true }]);
+  h.link([{ session: "retry", where: "local", key: "o/r#1" }]);
+  h.reply(() => ({ ok: true, out: merged(3 * 24 * 60 * 60 * 1000), error: "" }));
+  const list = await h.collectPrs();
+  assert.deepEqual(list.map((pr) => [pr.key, pr.session, pr.linked]), [["o/r#1", "retry", true]]);
 });
 
 test("a retired PR still on a chat's screen is not asked about again", async () => {

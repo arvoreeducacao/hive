@@ -75,11 +75,6 @@ const hudUndoes = () => hudOnScreen() && shown.act?.key === UNDO_KEY;
 document.addEventListener("keydown", (ev) => {
   if (!hudOnScreen()) return;
   const box = $("hud");
-  if (ev.key === "F6" && shown.act) {
-    ev.preventDefault();
-    box.querySelector(".hud-act")?.focus();
-    return;
-  }
   if (ev.key === "Escape" && box.contains(document.activeElement)) {
     ev.preventDefault();
     ev.stopPropagation();

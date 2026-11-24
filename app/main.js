@@ -8,11 +8,16 @@ const { bundleOf, swapScript, appImageOf, swapAppImage, rpmInstallOf, swapRpm, i
 const { readCurrent, pickJsRoot } = require("./main/ota.js");
 const { readDeath, REVIVALS } = require("./main/revive.js");
 const relay = require("./main/relay.js");
+const pageGuard = require("./main/page-guard.js");
 const { linkOf, deliverLink, LINK_WAIT } = require("./main/deeplink.js");
 const passkey = require("./main/passkey.js");
 const zoom = require("./main/zoom.js");
 const { watchAway } = require("./main/away.js");
+const { badgeText } = require("./main/dock-badge.js");
 const nodeLookup = require("./main/node-lookup.js");
+const { quitShortcut } = require("./main/quit-hold.js");
+const { bindingHits, cleanBinding, hiveAppMenu } = require("./main/app-menu.js");
+const { fileDragHandler, hubOf } = require("./main/file-drag.js");
 
 delete process.env.ARGV0;
 
@@ -59,8 +64,11 @@ let quitting = false;
 let clock = null;
 let path = CANDIDATES.join(PATH_SEP);
 let githubToken = "";
+let menuSaid = null;
+let settingsKey = null;
 let lastLines = "";
 let firstRound = true;
+let pageNotices = false;
 let serverBroke = false;
 let revivals = 0;
 let bornAt = 0;
@@ -183,6 +191,36 @@ function saveNode(found) {
 function configFile() {
   if (process.env.HIVE_CONFIG) return process.env.HIVE_CONFIG;
   return join(process.env.HIVE_HOME || join(app.getPath("home"), ".hive"), "config.jsonc");
+}
+
+function readQuitMode() {
+  try {
+    const { parse } = require("jsonc-parser");
+    return (parse(readFileSync(configFile(), "utf8")) || {}).quitShortcut;
+  } catch { return undefined; }
+}
+
+function concealForQuit(win) {
+  if (!win || win.isDestroyed()) return;
+  if (win.isFullScreen()) win.setFullScreen(false);
+  win.setOpacity(0);
+}
+
+function guardQuit(win) {
+  const onKey = quitShortcut({
+    mac: IS_MAC,
+    mode: readQuitMode,
+    notify: (hint) => { if (!win.isDestroyed()) win.webContents.send("hive:quit-hint", hint); },
+    conceal: () => concealForQuit(win),
+    quit: () => app.quit()
+  });
+  win.webContents.on("before-input-event", (event, input) => onKey(event, input));
+}
+
+function menuAct(what) {
+  show();
+  if (!window_ || window_.isDestroyed()) return;
+  window_.webContents.send("hive:menu", what);
 }
 
 function fontCss() {
@@ -485,6 +523,7 @@ function openSeatWindow(name) {
   });
   homeLights.set(win, SEAT_LIGHTS);
   seatWindows.set(seat, win);
+  guardQuit(win);
   win.loadURL(`${BASE}?seat=${encodeURIComponent(seat)}`);
   win.webContents.on("did-finish-load", () => {
     win.webContents.insertCSS(APP_CSS + (IS_MAC ? MAC_TOP_CSS : OVERLAY_TOP_CSS));
@@ -496,6 +535,7 @@ function openSeatWindow(name) {
     if (/^https?:/.test(url)) shell.openExternal(url);
     return { action: "deny" };
   });
+  pageGuard.guardPageFrames(win.webContents);
   win.on("resize", () => saveSeatState(win));
   win.on("move", () => saveSeatState(win));
   win.on("closed", () => {
@@ -559,7 +599,13 @@ function createWindow() {
   });
   window_.on("enter-full-screen", () => markFullscreen(true));
   window_.on("leave-full-screen", () => markFullscreen(false));
+  guardQuit(window_);
   window_.webContents.on("before-input-event", (event, input) => {
+    if (bindingHits(settingsKey, input)) {
+      event.preventDefault();
+      window_.webContents.send("hive:menu", "settings");
+      return;
+    }
     if (!readingAlone || input.type !== "keyDown" || input.key !== "Escape") return;
     event.preventDefault();
     window_.webContents.send("hive:leave-reading");
@@ -568,9 +614,9 @@ function createWindow() {
     if (/^https?:/.test(url)) shell.openExternal(url);
     return { action: "deny" };
   });
-  window_.webContents.session.setPermissionRequestHandler((wc, permission, grant) => {
+  window_.webContents.session.setPermissionRequestHandler((wc, permission, grant, details) => {
     if (permission !== "media" && permission !== "display-capture") return grant(false);
-    grant(wc === window_.webContents);
+    grant(wc === window_.webContents && details?.isMainFrame !== false);
   });
   window_.webContents.session.setDisplayMediaRequestHandler(async (request, hand) => {
     const armed = Date.now() < systemSoundUntil;
@@ -598,6 +644,10 @@ function createWindow() {
   const shelfThumbs = session.fromPartition("shelf-thumbs");
   shelfThumbs.setPermissionRequestHandler((_wc, _permission, grant) => grant(false));
   relay.serveShelfPages(shelfThumbs, SOCK);
+  const pagesSession = session.fromPartition(pageGuard.PAGES_PARTITION);
+  pageGuard.guardPagesSession(pagesSession);
+  pageGuard.guardDefaultSession(window_.webContents.session);
+  pageGuard.guardPageFrames(window_.webContents);
   const seatWc = new Set();
   const seatGuest = (wcId) => (seatWc.has(wcId) ? webContents.fromId(wcId) : null);
   const SEAT_PROFILES = { teacher: "DESIGN_REVIEW_TOKEN", principal: "DESIGN_REVIEW_TOKEN_PRINCIPAL", teacher2: "DESIGN_REVIEW_TOKEN_TEACHER2", student: "DESIGN_REVIEW_TOKEN_STUDENT" };
@@ -619,6 +669,12 @@ function createWindow() {
      "the mouse moved somewhere else entirely", and it is stopped the moment the window cannot be
      seen — a hidden window has nobody to look at, and this would otherwise wake the cpu all day.
      the point handed over is relative to the content, so the page reads it as a client point. */
+  ipcMain.on("hive:menu-words", (event, said) => {
+    if (!window_ || window_.isDestroyed() || event.sender !== window_.webContents) return;
+    menuSaid = said?.words || null;
+    settingsKey = cleanBinding(said?.settingsKey);
+    buildMenu();
+  });
   ipcMain.on("hive:reading-alone", (event, on) => {
     if (window_ && !window_.isDestroyed() && event.sender === window_.webContents) readingAlone = !!on;
   });
@@ -633,6 +689,32 @@ function createWindow() {
     if (!win || win.isDestroyed()) return;
     win.once("closed", () => show(seat));
     win.close();
+  });
+
+  ipcMain.on("hive:badge", (event, count) => {
+    if (!window_ || window_.isDestroyed() || event.sender !== window_.webContents) return;
+    pageNotices = true;
+    if (app.dock) app.dock.setBadge(badgeText(count));
+  });
+
+  ipcMain.removeHandler("hive:file-drag");
+  ipcMain.handle("hive:file-drag", fileDragHandler({
+    home: HIVE_HOME,
+    hub: () => hubOf(process.env, HIVE_HOME),
+    isHiveWindow: (sender) => {
+      const win = BrowserWindow.fromWebContents(sender);
+      return !!win && !win.isDestroyed() && (win === window_ || [...seatWindows.values()].includes(win));
+    },
+    iconOf: (file) => app.getFileIcon(file, { size: "normal" })
+  }));
+
+  ipcMain.on("hive:reveal", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win || win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    if (!win.isVisible()) win.show();
+    if (IS_MAC) app.focus({ steal: true });
+    win.focus();
   });
 
   ipcMain.on("hive:window", (event, act) => {
@@ -843,6 +925,7 @@ function createWindow() {
     if (String(params.partition || "").includes("seat-browser")) webPreferences.preload = join(HERE, "main", "seat-preload.js");
   });
   window_.webContents.on("did-attach-webview", (_ev, guest) => {
+    if (guest.session === pagesSession) return pageGuard.lockPageGuest(guest);
     guest.setWindowOpenHandler(({ url, disposition }) => {
       if (guest.session === seatBrowser && /^https?:/.test(url) && disposition === "new-window") {
         return {
@@ -923,11 +1006,13 @@ function notify(session) {
 }
 
 async function watch() {
+  if (pageNotices) return;
   let data;
   try {
     const r = await fetch(`${BASE}/api/hive`);
     data = await r.json();
   } catch { return; }
+  if (pageNotices) return;
 
   const sessions = data.sessions || [];
   let asking = 0;
@@ -943,7 +1028,7 @@ async function watch() {
     if (!sessions.some((s) => s.name === name)) before.delete(name);
   }
   firstRound = false;
-  if (app.dock) app.dock.setBadge(asking ? String(asking) : "");
+  if (app.dock) app.dock.setBadge(badgeText(asking));
 }
 
 const GAZE_MS = 1000 / 24;
@@ -987,6 +1072,7 @@ function zoomTo(step) {
 }
 
 function buildMenu() {
+  const own = hiveAppMenu({ mac: IS_MAC, name: app.getName(), words: menuSaid, settingsKey, act: menuAct });
   const hive = [
     { label: "Bring to front", click: () => show() },
     { type: "separator" },
@@ -994,9 +1080,9 @@ function buildMenu() {
     { label: "Config file", click: () => shell.openPath(configFile()) },
     { label: "Data folder", click: () => shell.openPath(app.getPath("userData")) }
   ];
-  if (!IS_MAC) hive.push({ type: "separator" }, { role: "quit", label: "Quit" });
+  if (!IS_MAC) hive.push({ type: "separator" }, own.updates, own.settings, { type: "separator" }, { role: "quit", label: "Quit" });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(IS_MAC ? [{ role: "appMenu" }] : []),
+    ...(IS_MAC ? [own] : []),
     { role: "editMenu" },
     { label: "View", submenu: zoom.viewMenu(zoomTo) },
     { label: "Hive", submenu: hive },

@@ -10,6 +10,7 @@ import { DEFAULT_ACCOUNT } from "./accounts.mjs";
 import { accountFailover } from "./failover.mjs";
 import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault } from "./agents.mjs";
 import { ensureGateway, hubFor } from "../gateway/mcp-gateway.mjs";
+import { withHubSettings } from "./hub-settings.mjs";
 import { claudeConfigPath, readClaudeConfig, hubServers, peerServerFor, routedThroughGateway } from "./mcp-routing.mjs";
 import { readsOnly, wakesTheSeat, answerWhileAsleep } from "./seat-memory.mjs";
 import { sleepVerdict, sleepAfterMs, rebornArgs, rebornScript, canBeReborn, childrenGone, REBIRTH_CHILD_GRACE_MS } from "../sleep.mjs";
@@ -18,6 +19,7 @@ import { stateDir, sideOf, hiveRoot, seatSockPath } from "./paths.mjs";
 import { builtinClaudePath, chosenClaude, unmountable } from "./claude-binary.mjs";
 import { peerEntry } from "./peer-module.mjs";
 import { importSdk } from "./sdk-module.mjs";
+import { callResultOf, captureMcpApp, mcpAppOps, mightCarryApp } from "./mcp-apps.mjs";
 import { prepareShellEnv, shellEnvFileFor } from "./shell-env.mjs";
 import { aBirthCarriesAMission, aFullPaneMustNeverWedgeTheSeat, arg, forgetWhatTheNameHeld, missionShots, tailOfFile, makeSessionStore, makeWarnOnce, makeEventsTrouble, createSeatServer, makeDirsTrail, inputDirs } from "./seat-core.mjs";
 
@@ -443,6 +445,7 @@ if (anonymous) {
 if (chosenModel) options.model = chosenModel;
 if (resumeId) options.resume = resumeId;
 if (EFFORTS_A_SESSION_CAN_BE_BORN_ON.includes(effortLevel)) options.settings = { effortLevel };
+if (!anonymous) Object.assign(options, withHubSettings(options, hubFor(cwd)));
 
 const builtinClaude = builtinClaudePath();
 const claude = chosenClaude({ builtin: builtinClaude });
@@ -632,6 +635,28 @@ function ensureAwake() {
     sleeping = true;
     emit({ type: "driver", subtype: "error", error: `the seat could not load the agent sdk to wake up: ${String(e?.message || e)}` });
   });
+}
+
+const MCP_TOOL_USES_KEPT = 200;
+const mcpToolUses = new Map();
+
+function noteMcpApps(message) {
+  const blocks = Array.isArray(message?.message?.content) ? message.message.content : [];
+  if (message.type === "assistant") {
+    for (const block of blocks) if (block?.type === "tool_use" && mightCarryApp(block.name)) mcpToolUses.set(block.id, { id: block.id, name: block.name, input: block.input });
+    while (mcpToolUses.size > MCP_TOOL_USES_KEPT) mcpToolUses.delete(mcpToolUses.keys().next().value);
+    return;
+  }
+  if (message.type !== "user") return;
+  for (const block of blocks) {
+    const toolUse = block?.type === "tool_result" ? mcpToolUses.get(block.tool_use_id) : null;
+    if (!toolUse) continue;
+    mcpToolUses.delete(block.tool_use_id);
+    const asked = session;
+    captureMcpApp({ session: asked, base, seat: name, toolUse, result: callResultOf(message, block) })
+      .then((event) => { if (event) emit(event); })
+      .catch((e) => emit({ type: "driver", subtype: "warning", message: `the app of ${toolUse.name} did not load: ${String(e?.message || e)}` }));
+  }
 }
 
 function noteTasks(message) {
@@ -847,8 +872,12 @@ function handleCommand(cmd, reply) {
     return reply({ ok: true, name, side, agent: "claude", model: currentModel || chosenModel || "", effort: effortLevel, session_id: sessionId, seq, questions: [...pendingQuestions.keys()], queued: gate.queued, working: gate.busy, asleep: sleeping, watched, tasks: backgroundTasks.size, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
   }
   if (cmd.type === "control") {
+    const appOps = () => mcpAppOps({ session: () => session, base, seat: name });
     const ops = {
       ...readers,
+      mcpAppTool: () => appOps().mcpAppTool(cmd),
+      mcpAppCall: () => appOps().mcpAppCall(cmd),
+      mcpAppRead: () => appOps().mcpAppRead(cmd),
       setModel: async () => {
         const models = await session.supportedModels().catch(() => []);
         const chosen = models.find((m) => m.value === cmd.model || m.resolvedModel === cmd.model);
@@ -1000,6 +1029,7 @@ function remember(op, data) {
 const server = createSeatServer({ sockFile, shellEnvFile: shellEnvFileFor(base, name), handleCommand, emit, leave, store: sessionStore, flush: () => sessionStore.flush() });
 
 emit({ type: "driver", subtype: "started", name, cwd, model: chosenModel || null, account: logins.name, base, engine: process.argv[1], resumed: resumeId || null, pid: process.pid, asleep: bornAsleep });
+emit({ type: "driver", subtype: "mode_changed", mode });
 
 async function replayTranscript(id) {
   const projects = join(homedir(), ".claude", "projects");
@@ -1058,6 +1088,7 @@ async function runConsume(mine = generation) {
       compactRefused = compactRanDry(message) || compactRefused;
       noteTasks(message);
       emit(idleCompactTurn ? idleTagged(message) : message);
+      noteMcpApps(message);
       noteIdleCompact(message);
       if (message.type === "result") readers.context().then((data) => remember("context", data)).catch(() => {});
       if (message.type === "result" && await theTurnEnded(message)) return;

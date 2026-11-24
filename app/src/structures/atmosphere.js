@@ -1,3 +1,5 @@
+import { clockHM } from "../app/clock-format.js";
+
 const SMALL = new Set(["ready", "idle", "done"]);
 
 const TALLY = ["answered", "working", "stalled", "done", "ready", "idle"];
@@ -188,7 +190,7 @@ function heroHtml(ctx, story) {
   const lang = document.documentElement.lang || undefined;
   let day = "";
   try { day = now.toLocaleDateString(lang, { weekday: "long", day: "numeric", month: "short" }); } catch {}
-  const time = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  const time = clockHM(now);
   const eyebrow = [day, time].filter(Boolean).map(esc).join(" · ");
   const lead = story.lead ? `<p class="lead"><button type="button" data-act="go" data-key="${esc(story.lead.key)}">${esc(story.lead.name)}</button>${story.lead.says ? ` ${esc(story.lead.says)}` : ""}</p>` : "";
   const answerBtn = story.needs ? `<button type="button" class="atmo-btn primary" data-act="answer">${esc(phrase("Answer"))}<kbd class="rc-key">⇥</kbd></button>` : "";

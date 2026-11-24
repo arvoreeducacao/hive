@@ -62,7 +62,7 @@ test("each picture under the words offers to be kept on the page, asks for a cap
   assert.ok(input, "no caption field after asking");
   shot.kept = "hive://shelf/card-do-livro?tab=prints#p1";
   shot.keeping = "";
-  e.convView.show({ key: e.name, blocks: e.conv.blocks.map((one) => ({ ...one, shots: one.shots.map((t) => ({ ...t })) })) });
+  e.convView.show({ key: e.name, rows: e.conv.blocks.map((one) => ({ kind: "block", key: one.key, block: { ...one, shots: one.shots.map((t) => ({ ...t })) } })) });
   const done = (svConvFlushAll(), e.scroll).querySelector(".mshot .mk-done");
   assert.ok(done, "no link once kept");
   assert.equal(done.getAttribute("href"), "hive://shelf/card-do-livro?tab=prints#p1");

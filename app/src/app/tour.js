@@ -179,8 +179,6 @@ const releasesUrl = () => (st.updateState.releaseRepo ? `https://github.com/${st
 
 const NOTE_TAG = { new: "new", fixed: "fix", faster: "fast", changed: "changed" };
 
-const NOTE_GROUP = [["new", "new"], ["fixed", "fixed"], ["faster", "faster"], ["changed", "changed"], ["", "also"]];
-
 const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 function versionOf(tag, number) {
@@ -363,4 +361,8 @@ $("relnotes").addEventListener("click", (e) => e.stopPropagation());
 
 document.addEventListener("click", () => { if (!$("relnotes").hidden) closeRelnotes(); });
 
-export { NOTE_GROUP, NOTE_TAG, TOUR, applyUpdate, bootWelcome, clearHeld, closeRelnotes, endTour, holdUpdate, megabytes, notesIn, openRelnotes, paintRelnotes, paintRunning, paintTour, paintUpdate, plural, pullUpdate, releasesUrl, relnotesSolid, relnotesViewModel, sayHelpful, startPhase, startTour, stopPhase, tourKeys, tourSaid, tourSolid, tourViewModel, versionOf };
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !$("relnotes").hidden) { e.preventDefault(); e.stopPropagation(); closeRelnotes(); }
+}, true);
+
+export { NOTE_TAG, TOUR, applyUpdate, bootWelcome, clearHeld, closeRelnotes, endTour, holdUpdate, megabytes, notesIn, openRelnotes, paintRelnotes, paintRunning, paintTour, paintUpdate, plural, pullUpdate, releasesUrl, relnotesSolid, relnotesViewModel, sayHelpful, startPhase, startTour, stopPhase, tourKeys, tourSaid, tourSolid, tourViewModel, versionOf };

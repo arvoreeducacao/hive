@@ -70,3 +70,11 @@ test("every font app.html declares with @font-face is served by STATIC — an un
   const missing = [...new Set(declared)].filter((path) => !server.includes(`"${path}":`));
   assert.deepEqual(missing, [], `app.html declares these faces and server.mjs STATIC does not serve them: ${missing.join(", ")}`);
 });
+
+test("every stylesheet app.html links is served by STATIC — an unserved one answers html and the page draws with no rules", () => {
+  const page = readFileSync(join(HERE, "app.html"), "utf8");
+  const linked = [...page.matchAll(/<link rel="stylesheet" href="(\/[^"]+\.css)"/g)].map((hit) => hit[1]);
+  assert.ok(linked.length > 1, "no stylesheet link found in app.html — this test lost its subject");
+  const missing = [...new Set(linked)].filter((path) => !server.includes(`"${path}":`));
+  assert.deepEqual(missing, [], `app.html links these sheets and server.mjs STATIC does not serve them: ${missing.join(", ")}`);
+});

@@ -1,6 +1,7 @@
 import { blocksOf, labelOf, ofBlock, spaceName, spaceOf } from "../app/blocks.js";
 import { keyLabel } from "../app/brand-face.js";
 import { st } from "../app/core.js";
+import { retitlingNamed } from "../app/chat-name.js";
 import { liveTitle } from "../app/leader-key.js";
 import { offScreenWhy } from "../app/mirror.js";
 import { structPool } from "../app/structured-seats.js";
@@ -92,7 +93,7 @@ function fleetModel(ctx, since) {
 function rowHtml(ctx, row) {
   const cls = ["ck-fr", row.here ? "here" : "", row.on ? "on" : "", row.state === "needs" ? "need" : ""].filter(Boolean).join(" ");
   const sub = row.sub?.text ? `<span class="ck-fs${row.sub.tone ? ` ${row.sub.tone}` : ""}">${ctx.esc(row.sub.text)}</span>` : "";
-  return `<button type="button" class="${cls}" data-seat="${ctx.esc(row.key)}" title="${ctx.esc(row.title)}"><span class="rc-dot ${ctx.esc(row.state)}"></span><span class="ck-fn">${ctx.esc(row.title)}</span><span class="ck-ft">${ctx.esc(row.tail)}</span>${sub}</button>`;
+  return `<button type="button" class="${cls}" data-seat="${ctx.esc(row.key)}" title="${ctx.esc(row.title)}"><span class="rc-dot ${ctx.esc(row.state)}"></span><span class="ck-fn${retitlingNamed(row.key) ? " title-regenerating" : ""}"${retitlingNamed(row.key) ? ' aria-busy="true"' : ""}>${ctx.esc(row.title)}</span><span class="ck-ft">${ctx.esc(row.tail)}</span>${sub}</button>`;
 }
 
 function groupHtml(ctx, group) {

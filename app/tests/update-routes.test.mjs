@@ -11,10 +11,6 @@ function updateHarness(overrides = {}) {
   const dependencies = {
     checkUpdate: async (force) => { calls.push(["check", force]); return update; },
     getUpdatePhase: () => ({ step: "downloading", done: 4, total: 8 }),
-    whatLanded: async () => ({ ready: true }),
-    markReleaseSeen: async (sha) => { calls.push(["seen", sha]); },
-    getLandedSha: () => "landed-sha",
-    builtFrom: "built-sha",
     applyPublished: async (state) => { calls.push(["published", state]); return { ok: true }; },
     repo: "/repo",
     shr: async (command, args, options) => { calls.push(["shr", command, args, options]); return { ok: true, error: "" }; },
@@ -43,24 +39,20 @@ function updateHarness(overrides = {}) {
   return { routes, calls, logs, call, setUpdate: (value) => { update = value; } };
 }
 
-test("update routes keep the five original method and path pairs", () => {
+test("update routes keep the three method and path pairs", () => {
   const { routes } = updateHarness();
   assert.deepEqual(routes.map(({ method, path }) => [method, path]), [
     [null, "/api/update"],
     [null, "/api/update/phase"],
-    [null, "/api/whatsnew"],
-    ["POST", "/api/whatsnew/seen"],
     ["POST", "/api/update/apply"]
   ]);
 });
 
-test("update reads force, phase and what landed through their injected state", async () => {
+test("update reads force and phase through their injected state", async () => {
   const hive = updateHarness();
   assert.deepEqual(await hive.call(null, "/api/update", "?force=1"), [{ value: { behind: 0 }, status: 200 }]);
   assert.deepEqual(await hive.call(null, "/api/update/phase"), [{ value: { step: "downloading", done: 4, total: 8 }, status: 200 }]);
-  assert.deepEqual(await hive.call(null, "/api/whatsnew"), [{ value: { ready: true }, status: 200 }]);
-  assert.deepEqual(await hive.call("POST", "/api/whatsnew/seen"), [{ value: { ok: true }, status: 200 }]);
-  assert.deepEqual(hive.calls.slice(0, 2), [["check", true], ["seen", "landed-sha"]]);
+  assert.deepEqual(hive.calls.slice(0, 1), [["check", true]]);
 });
 
 test("published updates retain the apply result and conflict status", async () => {

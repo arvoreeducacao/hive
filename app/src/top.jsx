@@ -111,7 +111,7 @@ function LimitChip(props) {
             <Show when={one.who}><span class="who">{one.who}</span></Show>
             <For each={one.parts}>{(part) => (
               <span class={`meter ${part.heat}`}>
-                <span class="track"><i style={{ width: part.width }}></i></span>
+                <span class="track"><i style={{ width: part.width }}></i><PaceTick at={part.tick} /></span>
                 <b>{part.pct}</b><Show when={part.k}><span class="k">{part.k}</span></Show>
               </span>
             )}</For>
@@ -131,7 +131,7 @@ function LimitAccounts(props) {
         <For each={one.parts}>{(part, at) => (
           <>
             <Show when={at() > 0}><span class="dot">&middot;</span></Show>
-            <span class={`track ${part.heat}`}><i style={{ width: part.width }}></i></span>
+            <span class={`track ${part.heat}`}><i style={{ width: part.width }}></i><PaceTick at={part.tick} /></span>
             <b class={part.heat}>{part.pct}<Show when={part.k}><span class="k">{part.k}</span></Show></b>
           </>
         )}</For>
@@ -156,6 +156,10 @@ export function mountLimitResets(host) {
   return mountView(host, LimitResets, { key: "limresets", resets: [] });
 }
 
+function PaceTick(props) {
+  return <Show when={props.at}><span class="pace-tick" aria-hidden="true" style={{ left: `clamp(0.5px, ${props.at}, calc(100% - 0.5px))` }}></span></Show>;
+}
+
 function LimPop(props) {
   return (
     <Show when={!props.model.empty} fallback={<p class="lp-empty">{props.model.empty}</p>}>
@@ -164,11 +168,12 @@ function LimPop(props) {
           <Show when={row.named}><h4>{row.account}</h4></Show>
           <Show when={row.note}><p class="lp-note">{row.note}</p></Show>
           <For each={row.limits}>{(one) => (
-            <div class={`limit ${one.heat}`} classList={{ sub: one.sub }}>
-              <div class="top"><span class="name">{one.label}</span><span class="pct">{one.pct}</span></div>
-              <div class="track"><i class="fill" style={{ width: one.width }}></i></div>
-              <Show when={one.resets}><div class="resets">{one.resets}</div></Show>
-            </div>
+            <button type="button" class={`limit ${one.heat}`} classList={{ sub: one.sub }} data-account={row.key} title={props.model.opensSay} onClick={() => props.actions?.open(row.key)}>
+              <span class="top"><span class="name">{one.label}</span><span class="pct">{one.pct}</span></span>
+              <span class="track"><i class="fill" style={{ width: one.width }}></i><PaceTick at={one.tick} /></span>
+              <Show when={one.pace}><span class="pace">{one.pace}</span></Show>
+              <Show when={one.resets}><span class="resets">{one.resets}</span></Show>
+            </button>
           )}</For>
         </div>
       )}</For>
@@ -176,8 +181,8 @@ function LimPop(props) {
   );
 }
 
-export function mountLimPop(host) {
-  return mountView(host.querySelector(".lp-body"), LimPop, { key: "limpop", empty: "", accounts: [] });
+export function mountLimPop(host, extras = {}) {
+  return mountView(host.querySelector(".lp-body"), LimPop, { key: "limpop", empty: "", opensSay: "", accounts: [] }, extras);
 }
 
 function PrButton(props) {

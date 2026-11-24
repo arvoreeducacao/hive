@@ -4,6 +4,9 @@ import { STT_DEFAULT_MODEL, STT_MODELS } from "./stt-download.mjs";
 import { cleanQuietDays } from "./quiet-seats.mjs";
 import { cleanDiaryDays } from "./diary-prune.mjs";
 import { cleanMeetingSettings } from "./meetings.mjs";
+import { TITLE_INSTRUCTIONS_CEILING, TITLE_PROJECTS_CEILING, TITLE_PROJECT_NAME_CEILING, noTitleInstructions } from "../assets/title-instructions.mjs";
+import { cleanThreads } from "../assets/thread-rules.mjs";
+import { PR_VIEWS_MAX, PR_VIEW_FILTERS, PR_VIEW_NAME_MAX, PR_VIEW_QUERY_MAX, cleanPrView } from "../assets/pr-views.mjs";
 
 export const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -152,6 +155,14 @@ export const INFO_HEIGHT_RANGE = [60, 2000];
 export const THREAD_WIDTH_RANGE = [240, 1200];
 export const THREAD_WIDTH_DEFAULT = 392;
 export const PANE_WIDTH_RANGE = [320, 2400];
+export const TOOL_CALLS_CHOICES = ["all", "failed", "none", "zen"];
+export const TOOL_CALLS_DEFAULT = "all";
+export const TIME_FORMAT_CHOICES = ["system", "12h", "24h"];
+export const TIME_FORMAT_DEFAULT = "system";
+export const QUIT_SHORTCUT_CHOICES = ["hold", "twice", "direct"];
+export const QUIT_SHORTCUT_DEFAULT = "hold";
+export const SCREEN_READER_CHOICES = ["status", "messages", "everything"];
+export const SCREEN_READER_DEFAULT = "status";
 export const VISUAL_CHOICES = ["lean", "full"];
 export const VISUAL_DEFAULT = "lean";
 
@@ -220,6 +231,54 @@ export function cleanPet(raw, where, problems) {
   if (typeof raw === "string" && PET_CHOICES.includes(raw.trim())) return raw.trim();
   problems.push(`${where}: pet should be ${PET_CHOICES.join(", ")}`);
   return PETS_OFF;
+}
+
+export function cleanToolCalls(raw, where, problems) {
+  if (raw === undefined) return TOOL_CALLS_DEFAULT;
+  if (typeof raw === "string" && TOOL_CALLS_CHOICES.includes(raw.trim())) return raw.trim();
+  problems.push(`${where}: toolCalls should be ${TOOL_CALLS_CHOICES.join(", ")}`);
+  return TOOL_CALLS_DEFAULT;
+}
+
+export function cleanTitleInstructions(raw, where, problems) {
+  const clean = noTitleInstructions();
+  if (raw === undefined) return clean;
+  if (!isPlainObject(raw)) { problems.push(`${where}: titleInstructions should be an object with all and projects`); return clean; }
+  if (raw.all !== undefined) {
+    if (typeof raw.all === "string" && raw.all.trim().length <= TITLE_INSTRUCTIONS_CEILING) clean.all = raw.all.trim();
+    else problems.push(`${where}: titleInstructions.all should be text of at most ${TITLE_INSTRUCTIONS_CEILING} characters`);
+  }
+  if (raw.projects === undefined) return clean;
+  if (!isPlainObject(raw.projects)) { problems.push(`${where}: titleInstructions.projects should be an object of project -> instructions`); return clean; }
+  for (const [project, text] of Object.entries(raw.projects)) {
+    if (Object.keys(clean.projects).length >= TITLE_PROJECTS_CEILING) { problems.push(`${where}: titleInstructions.projects keeps at most ${TITLE_PROJECTS_CEILING} projects — the rest were ignored`); break; }
+    const name = project.trim();
+    if (!name || name.length > TITLE_PROJECT_NAME_CEILING) { problems.push(`${where}: titleInstructions.projects needs project names of at most ${TITLE_PROJECT_NAME_CEILING} characters`); continue; }
+    if (typeof text !== "string" || text.trim().length > TITLE_INSTRUCTIONS_CEILING) { problems.push(`${where}: titleInstructions.projects.${name} should be text of at most ${TITLE_INSTRUCTIONS_CEILING} characters`); continue; }
+    if (text.trim()) clean.projects[name] = text.trim();
+  }
+  return clean;
+}
+
+export function cleanTimeFormat(raw, where, problems) {
+  if (raw === undefined) return TIME_FORMAT_DEFAULT;
+  if (typeof raw === "string" && TIME_FORMAT_CHOICES.includes(raw.trim())) return raw.trim();
+  problems.push(`${where}: timeFormat should be ${TIME_FORMAT_CHOICES.join(", ")}`);
+  return TIME_FORMAT_DEFAULT;
+}
+
+export function cleanQuitShortcut(raw, where, problems) {
+  if (raw === undefined) return QUIT_SHORTCUT_DEFAULT;
+  if (typeof raw === "string" && QUIT_SHORTCUT_CHOICES.includes(raw.trim())) return raw.trim();
+  problems.push(`${where}: quitShortcut should be ${QUIT_SHORTCUT_CHOICES.join(", ")}`);
+  return QUIT_SHORTCUT_DEFAULT;
+}
+
+export function cleanScreenReader(raw, where, problems) {
+  if (raw === undefined) return SCREEN_READER_DEFAULT;
+  if (typeof raw === "string" && SCREEN_READER_CHOICES.includes(raw.trim())) return raw.trim();
+  problems.push(`${where}: screenReaderAnnouncements should be ${SCREEN_READER_CHOICES.join(", ")}`);
+  return SCREEN_READER_DEFAULT;
 }
 
 export function cleanBrandFace(raw, where, problems) {
@@ -490,6 +549,23 @@ export function cleanExtensions(raw, where, problems) {
   return extensions;
 }
 
+export function cleanPrViews(raw, where, problems) {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    problems.push(`${where}: prViews should be a list of saved PR views, each { id, name, filter, query }`);
+    return [];
+  }
+  const views = [];
+  for (const one of raw) {
+    if (views.length >= PR_VIEWS_MAX) { problems.push(`${where}: prViews keeps at most ${PR_VIEWS_MAX} views — the rest were ignored`); break; }
+    const view = cleanPrView(one);
+    if (!view) { problems.push(`${where}: a saved PR view needs an id, a name of at most ${PR_VIEW_NAME_MAX} characters, a filter (${PR_VIEW_FILTERS.join(", ")}) and a search of at most ${PR_VIEW_QUERY_MAX} characters`); continue; }
+    if (views.some((kept) => kept.id === view.id || kept.name.toLowerCase() === view.name.toLowerCase())) { problems.push(`${where}: prViews has two views called ${view.name}`); continue; }
+    views.push(view);
+  }
+  return views;
+}
+
 export { cleanQuietDays };
 
 export function cleanPatch(patch) {
@@ -526,9 +602,17 @@ export function cleanPatch(patch) {
   if (patch.visual !== undefined) clean.visual = cleanVisual(patch.visual, "patch", problems);
   if (patch.autocompact !== undefined) clean.autocompact = cleanAutocompact(patch.autocompact, "patch", problems);
   if (patch.contextUsage !== undefined) clean.contextUsage = cleanFlag(patch.contextUsage, "contextUsage", "patch", problems, false);
+  if (patch.toolCalls !== undefined) clean.toolCalls = cleanToolCalls(patch.toolCalls, "patch", problems);
+  if (patch.titleInstructions !== undefined) clean.titleInstructions = cleanTitleInstructions(patch.titleInstructions, "patch", problems);
+  if (patch.timeFormat !== undefined) clean.timeFormat = cleanTimeFormat(patch.timeFormat, "patch", problems);
+  if (patch.quitShortcut !== undefined) clean.quitShortcut = cleanQuitShortcut(patch.quitShortcut, "patch", problems);
+  if (patch.screenReaderAnnouncements !== undefined) clean.screenReaderAnnouncements = cleanScreenReader(patch.screenReaderAnnouncements, "patch", problems);
+  if (patch.screenReaderWindowTitle !== undefined) clean.screenReaderWindowTitle = cleanFlag(patch.screenReaderWindowTitle, "screenReaderWindowTitle", "patch", problems, false);
   if (patch.autoUpdateAgents !== undefined) clean.autoUpdateAgents = cleanFlag(patch.autoUpdateAgents, "autoUpdateAgents", "patch", problems, true);
+  if (patch.keepAwakeWhileAgentsWork !== undefined) clean.keepAwakeWhileAgentsWork = cleanFlag(patch.keepAwakeWhileAgentsWork, "keepAwakeWhileAgentsWork", "patch", problems, true);
   if (patch.closeQuietAfterDays !== undefined) clean.closeQuietAfterDays = cleanQuietDays(patch.closeQuietAfterDays, "patch", problems);
   if (patch.pruneDiariesAfterDays !== undefined) clean.pruneDiariesAfterDays = cleanDiaryDays(patch.pruneDiariesAfterDays, "patch", problems);
+  if (patch.threads !== undefined) clean.threads = cleanThreads(patch.threads, "patch", problems, { partial: true });
   if (patch.share !== undefined) clean.share = cleanFlag(patch.share, "share", "patch", problems);
   if (patch.knocks !== undefined) clean.knocks = cleanFlag(patch.knocks, "knocks", "patch", problems);
   if (patch.phone !== undefined) clean.phone = cleanFlag(patch.phone, "phone", "patch", problems, false);
@@ -545,5 +629,6 @@ export function cleanPatch(patch) {
   if (patch.keys !== undefined) clean.keys = cleanKeys(patch.keys, "patch", problems);
   if (patch.providers !== undefined) clean.providers = cleanProviders(patch.providers, "patch", problems);
   if (patch.extensions !== undefined) clean.extensions = cleanExtensions(patch.extensions, "patch", problems);
+  if (patch.prViews !== undefined) clean.prViews = cleanPrViews(patch.prViews, "patch", problems);
   return { clean, problems };
 }

@@ -83,7 +83,7 @@ test("code fences keep their content verbatim and named language", () => {
 
 test("every fence carries its own copy button, and only the fence is inside the box", () => {
   const out = renderMarkdown("antes\n```\numa linha\n```\ndepois");
-  const box = out.slice(out.indexOf('<div class="md-codebox">'), out.indexOf("</div>") + 6);
+  const box = out.slice(out.indexOf('<div class="md-codebox"'), out.indexOf("</pre></div>") + 12);
   assert.ok(box.includes('<pre class="md-code"'));
   assert.ok(box.includes('<button type="button" class="md-copy"'));
   assert.ok(!box.includes("antes") && !box.includes("depois"));
@@ -91,7 +91,7 @@ test("every fence carries its own copy button, and only the fence is inside the 
 
 test("a fence holding one ! command carries a run button next to copy", () => {
   const out = renderMarkdown("Rode no chat:\n```\n! aws sso login --sso-session prod\n```");
-  assert.ok(out.includes('<div class="md-codebox md-shellbox">'));
+  assert.ok(/<div class="md-codebox"[^>]* data-shell>/.test(out));
   assert.ok(out.includes('class="md-run"'));
   assert.ok(out.includes('class="md-copy"'));
   assert.ok(out.indexOf('class="md-copy"') < out.indexOf('class="md-tochat"') && out.indexOf('class="md-tochat"') < out.indexOf('class="md-run"'), "copy, then copy to chat, then run");
@@ -130,9 +130,9 @@ test("a fence with any other language stays verbatim", () => {
   assert.ok(out.includes("-um\n+dois"));
 });
 
-test("lists, ordered and not, with shallow nesting marked", () => {
+test("lists, ordered and not, nest by indentation", () => {
   const out = renderMarkdown("- um\n- dois\n  - fundo\n\n1. a\n2. b");
-  assert.ok(out.includes("<ul><li>um</li><li>dois</li><li class=\"deep\">fundo</li></ul>"));
+  assert.ok(out.includes("<ul><li>um</li><li>dois<ul><li>fundo</li></ul></li></ul>"));
   assert.ok(out.includes("<ol><li>a</li><li>b</li></ol>"));
 });
 
@@ -152,7 +152,7 @@ test("tables need the rule line", () => {
 
 test("blockquote and hr", () => {
   const out = renderMarkdown("> uma linha\n> outra\n\n---");
-  assert.ok(out.includes("<blockquote>uma linha<br>outra</blockquote>"));
+  assert.ok(out.includes("<blockquote><p>uma linha<br>outra</p></blockquote>"));
   assert.ok(out.includes("<hr>"));
 });
 

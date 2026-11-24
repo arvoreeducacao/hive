@@ -2,10 +2,6 @@ export function registerUpdateRoutes(on, context) {
   const {
     checkUpdate,
     getUpdatePhase,
-    whatLanded,
-    markReleaseSeen,
-    getLandedSha,
-    builtFrom,
     applyPublished,
     repo,
     shr,
@@ -27,13 +23,6 @@ export function registerUpdateRoutes(on, context) {
   on(null, "/api/update", async (req, res, url, json) => json(await checkUpdate(!!url.searchParams.get("force"))));
 
   on(null, "/api/update/phase", async (req, res, url, json) => json(getUpdatePhase()));
-
-  on(null, "/api/whatsnew", async (req, res, url, json) => json(await whatLanded()));
-
-  on("POST", "/api/whatsnew/seen", async (req, res, url, json) => {
-    await markReleaseSeen(getLandedSha() || builtFrom);
-    return json({ ok: true });
-  });
 
   on("POST", "/api/update/apply", async (req, res, url, json) => {
     const st = await checkUpdate(true);

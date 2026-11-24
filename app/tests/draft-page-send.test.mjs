@@ -10,7 +10,7 @@ const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { webOfSeat } = await app("chat-and-panes");
 const { openPageInASeat } = await app("page-in-a-seat");
-const { allowSendingBehind, drafts, sendDraft } = await app("draft-seat");
+const { drafts, placeDraft, sendDraft } = await app("draft-seat");
 
 const SHELF = {
   repo: "https://github.com/acme/artifacts",
@@ -96,17 +96,28 @@ test("a link the person already pasted is not pasted twice", async () => {
   assert.equal(spawned.prompt, "me explica hive://shelf/guarda-roupa-do-avatar-do-hive?tab=documento");
 });
 
-test("in the inbox, enter opens the new chat and mod+enter leaves it behind a clean draft", async () => {
-  allowSendingBehind(true);
-  try {
-    hive();
-    await sendDraft(await pageDraft(), "me explica esse rfc");
-    assert.equal(st.open, "job:n1", "plain enter left the person on the empty draft instead of the chat");
-    hive();
-    await sendDraft(await pageDraft(), "me explica esse rfc", true);
-    assert.notEqual(st.open, "job:n1", "mod+enter took the person into the chat it should have left behind");
-    assert.equal(drafts.size, 1, "mod+enter should hand back a clean draft");
-  } finally {
-    allowSendingBehind(false);
-  }
+test("in any structure, enter opens the new chat and mod+enter leaves it behind a clean draft", async () => {
+  hive();
+  await sendDraft(await pageDraft(), "me explica esse rfc");
+  assert.equal(st.open, "job:n1", "plain enter left the person on the empty draft instead of the chat");
+  hive();
+  await sendDraft(await pageDraft(), "me explica esse rfc", true);
+  assert.notEqual(st.open, "job:n1", "mod+enter took the person into the chat it should have left behind");
+  assert.equal(drafts.size, 1, "mod+enter should hand back a clean draft");
+});
+
+test("the clean draft mod+enter hands back starts in the same project and from the same branch", async () => {
+  hive();
+  const d = await pageDraft();
+  placeDraft(d, { repo: "lead-engine", branch: "develop" });
+  await sendDraft(d, "conserta o retry", true);
+  assert.equal(spawned.project, "lead-engine");
+  assert.equal(spawned.base, "develop");
+  assert.equal(spawned.worktree, true);
+  const [next] = [...drafts.values()];
+  assert.ok(next && next !== d, "no fresh draft came back");
+  assert.equal(next.project, "lead-engine");
+  assert.equal(next.base, "develop");
+  assert.equal(next.worktree, true);
+  assert.equal(next.e.host.querySelector("textarea").value, "", "the fresh draft is not clean");
 });

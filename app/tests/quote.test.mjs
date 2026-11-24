@@ -5,8 +5,9 @@ import { app, dom, state, views } from "./dom.mjs";
 const st = await state();
 await views();
 const { asQuote, getStructured, quoteTray, withQuotes, withoutQuotes } = await app("chat-stretches");
-const { splitLeadingQuotes, svQuoteCard } = await app("structured-seats");
-const { svConvKey, svConvLine, svConvPush, svConvSaid, svConvSeed } = await app("conversation-model");
+const { splitLeadingQuotes, structPool, svQuoteCard } = await app("structured-seats");
+const { svConvActions, svConvFlushAll, svConvKey, svConvLine, svConvPush, svConvSaid, svConvSeed } = await app("conversation-model");
+const { mountConversation } = await import(new URL("../src/views.js", import.meta.url).href);
 const { blockText } = await app("terminal-history");
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -249,12 +250,121 @@ test("plain text with no quote at its head is not mistaken for one", () => {
   assert.equal(splitLeadingQuotes("uma frase\n> não é bem no começo"), null);
 });
 
-test("the quote card carries the icon and the quoted words, not the '>' marker", () => {
+test("the quote card is an inset holding the quoted words, labelled for the jump, with no icon and no '>' marker", () => {
   const card = svQuoteCard("uma linha\noutra");
   assert.equal(card.className, "sv-said-quote");
-  assert.ok(card.querySelector(".qi use"), "the card lost the mark that says it is a quote");
+  assert.equal(card.getAttribute("role"), "button");
+  assert.equal(card.tabIndex, 0);
+  assert.equal(card.getAttribute("aria-label"), "Go to the quoted response: uma linha outra");
+  assert.equal(card.querySelector(".qi"), null, "the inset card carries no icon of its own");
   assert.equal(card.querySelector(".qt").textContent, "uma linha\noutra");
+  assert.equal(card.querySelector(".qt").getAttribute("dir"), "auto");
+  assert.equal(card.querySelector("mark"), null, "a whole answer reads plain");
   assert.ok(!card.querySelector(".qt").textContent.startsWith(">"));
+});
+
+test("a stretch of an answer is marked inside its card, and a long quote is cut only in the label", () => {
+  const long = "palavra ".repeat(20).trim();
+  const card = svQuoteCard(long, true);
+  assert.equal(card.querySelector(".qt > mark")?.textContent, long);
+  assert.equal(card.getAttribute("aria-label"), `Go to the quoted response: ${long.slice(0, 64)}…`);
+});
+
+const cardsOf = (bubble) => [...asNodes(bubble.body).querySelectorAll(".sv-said-quote")];
+
+test("a quote of a whole answer reads plain, a stretch of it is marked, and the comment comes below as text", () => {
+  const e = held();
+  svConvSaid(e, "Rode isto:\n\n```sh\nnpm test\n```\n\nDepois veja $x^2$ em `src/app.ts`.");
+  const whole = svConvLine(e, "sv-user", withQuotes(["Rode isto:\n\nnpm test\n\nDepois veja $x^2$ em `src/app.ts`."], "e se falhar?"));
+  const part = svConvLine(e, "sv-user", withQuotes(["npm test"], ""));
+  const [plain] = cardsOf(whole);
+  assert.equal(plain.querySelector("mark"), null, "the whole answer, code head and all, was taken for a stretch");
+  assert.equal(cardsOf(part)[0].querySelector(".qt > mark")?.textContent, "npm test");
+  const said = asNodes(whole.body);
+  assert.deepEqual([...said.children].map((one) => one.className), ["sv-said-quotes", "sv-said-body"]);
+  assert.equal(said.querySelector(".sv-said-body").textContent, "e se falhar?");
+});
+
+test("an answer split by a tool is one answer: all of it reads plain, one side of it is a stretch", () => {
+  const e = held();
+  svConvSaid(e, "primeira parte");
+  svConvPush(e, { key: svConvKey(e), kind: "tool" });
+  svConvSaid(e, "segunda parte");
+  const whole = svConvLine(e, "sv-user", withQuotes(["primeira parte\n\nsegunda parte"], ""));
+  const half = svConvLine(e, "sv-user", withQuotes(["segunda parte"], ""));
+  assert.equal(cardsOf(whole)[0].querySelector("mark"), null);
+  assert.ok(cardsOf(half)[0].querySelector("mark"));
+});
+
+test("a quote whose answer is not in the conversation reads plain", () => {
+  const e = held();
+  assert.equal(cardsOf(svConvLine(e, "sv-user", withQuotes(["algo que sumiu"], "e aí?")))[0].querySelector("mark"), null);
+});
+
+test("copying the message gives back the '>' lines it was sent with", () => {
+  const e = held();
+  const said = withQuotes(["um", "dois\ntrês"], "e daí?");
+  const bubble = svConvLine(e, "sv-user", said);
+  assert.equal(asNodes(bubble.body).querySelector(".sv-said-quotes").dataset.mdCopy, "> um\n\n> dois\n> três\n");
+  const only = svConvLine(e, "sv-user", withQuotes(["um"], ""));
+  assert.equal(asNodes(only.body).querySelector(".sv-said-quotes").dataset.mdCopy, "> um");
+  const el = document.createElement("div");
+  el.className = "sv-user";
+  el.style.whiteSpace = "pre-wrap";
+  el.innerHTML = bubble.body;
+  document.body.append(el);
+  assert.match(blockText(el), /^> um\n+> dois\n> três\n+e daí\?$/);
+  el.remove();
+});
+
+function mountedSeat(name, quote) {
+  const e = getStructured({ name, where: "local" });
+  e.conv = svConvSeed();
+  e.convView = mountConversation(e.scroll, { ...svConvActions(e), ...(quote ? { quote } : {}) });
+  document.body.appendChild(e.host);
+  return e;
+}
+
+function unmount(e, name) {
+  e.convView.dispose();
+  e.host.remove();
+  structPool.delete(name);
+}
+
+test("the card is reached with Tab and jumps on click, Enter and Space; a card whose answer is gone stays put", () => {
+  const name = "quote-card-keys";
+  const jumped = [];
+  const e = mountedSeat(name, (card) => jumped.push(card));
+  svConvSaid(e, "a resposta inteira");
+  svConvLine(e, "sv-user", withQuotes(["a resposta inteira"], "comentário"));
+  svConvFlushAll();
+  const card = e.scroll.querySelector(".sv-said-quote");
+  assert.ok(card, "the sent quote never became a card");
+  document.getSelection().removeAllRanges();
+  card.focus();
+  assert.ok(document.activeElement === card, "the card cannot take focus");
+  for (const key of ["Enter", " "]) card.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+  card.click();
+  assert.equal(jumped.length, 3);
+  assert.ok(jumped.every((one) => one === card));
+  card.dataset.missing = "1";
+  card.click();
+  card.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+  assert.equal(jumped.length, 3, "a card whose answer is gone still tried to jump");
+  unmount(e, name);
+});
+
+test("a card whose answer is gone says so and is marked disabled", async () => {
+  const name = "quote-card-gone";
+  const e = mountedSeat(name);
+  svConvLine(e, "sv-user", withQuotes(["uma resposta que não existe"], ""));
+  svConvFlushAll();
+  const card = e.scroll.querySelector(".sv-said-quote");
+  assert.equal(await svConvActions(e).quote(card), false);
+  assert.equal(card.dataset.missing, "1");
+  assert.equal(card.getAttribute("aria-disabled"), "true");
+  assert.equal(card.title, "The original answer is no longer in this conversation");
+  unmount(e, name);
 });
 
 test("the bubble hands each quote its own card and keeps the rest as the said body", () => {

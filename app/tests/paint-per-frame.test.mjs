@@ -24,7 +24,7 @@ test("a burst of events paints the chat once, with every one of them in it", () 
   assert.equal(e.painted.length, 0, "an event painted the whole chat on its own");
   svConvFlushAll();
   assert.equal(e.painted.length, 1);
-  assert.equal(e.painted[0].blocks.length, 50);
+  assert.equal(e.painted[0].rows.length, 50);
 });
 
 test("the next frame paints what is due without anyone asking", async () => {

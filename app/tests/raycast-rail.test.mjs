@@ -40,6 +40,7 @@ const world = (over = {}) => {
   st.railQuery = over.query || "";
   st.railSearching = !!over.query;
   st.railCursor = over.cursor || 0;
+  st.threadRules = { ...st.threadRules, workingSection: !!over.working };
   detached.clear();
   for (const name of over.detached || []) detached.add(name);
   mirror.reviving.clear();

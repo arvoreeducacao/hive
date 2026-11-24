@@ -1,5 +1,6 @@
 import { blockNumber, labelOf, ofBlock } from "./blocks.js";
 import { $, experienceNext, phrase, solidMounts, st } from "./core.js";
+import { askNewChat } from "./draft-seat.js";
 import { goToBlock } from "./focus-navigation.js";
 import { myOpenTaskCount } from "./tasks.js";
 import { avatar, goToTeam } from "./team.js";
@@ -81,6 +82,7 @@ function nextRailViewModel() {
   return {
     key: "next-rail",
     newChat: phrase("New chat"),
+    newChatHint: phrase("New chat — shift-click starts it in the project you are in"),
     groupsSaid: phrase("Groups"),
     groups,
     shortcutsSaid: phrase("Shortcuts"),
@@ -118,7 +120,7 @@ function closedByDefault() {
 }
 
 const nextRailActions = {
-  newChat: () => run("new"),
+  newChat: (ev) => askNewChat({ here: !!ev?.shiftKey }),
   group: (i) => goToBlock(i),
   shortcut: (key) => run(key),
   mate: (key) => goToTeam(key),

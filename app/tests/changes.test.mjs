@@ -161,6 +161,7 @@ function harness(overrides = {}) {
     seatDiff: async (asked) => { calls.push(["seatDiff", asked]); return { state: "ok", hunks: [] }; },
     discardChange: async (asked) => { calls.push(["discardChange", asked]); return { ok: true }; },
     openChange: async (asked) => { calls.push(["openChange", asked]); return { ok: true, editor: "code" }; },
+    revealChange: async (asked) => { calls.push(["revealChange", asked]); return { ok: true }; },
     ...overrides
   });
   const call = async (path, { method = "GET", body } = {}) => {
@@ -173,12 +174,13 @@ function harness(overrides = {}) {
   return { routes, calls, call };
 }
 
-test("the changes routes are four doors of their own, next to the files", () => {
+test("the changes routes are five doors of their own, next to the files", () => {
   assert.deepEqual(harness().routes.map(({ method, path }) => [method, path]), [
     [null, "/api/changes"],
     [null, "/api/changes/diff"],
     ["POST", "/api/changes/discard"],
-    ["POST", "/api/changes/open"]
+    ["POST", "/api/changes/open"],
+    ["POST", "/api/changes/reveal"]
   ]);
 });
 
@@ -214,8 +216,29 @@ test("opening in the editor is for this machine only, and a refused discard says
   });
 });
 
-test("the server hands the changes routes their four helpers and serves the view helpers", () => {
+test("revealing a file in the folder is for this machine only, and the path stays inside the seat's folder", async () => {
+  const hive = harness();
+  assert.deepEqual(await hive.call("/api/changes/reveal", { method: "POST", body: { name: "seat", where: "cloud", path: "a.ts" } }), {
+    value: { error: "a cloud seat's files are not on this machine" }, status: 409
+  });
+  assert.deepEqual(await hive.call("/api/changes/reveal", { method: "POST", body: { name: "seat", path: "../etc/passwd" } }), {
+    value: { error: "that is not a path I will show" }, status: 400
+  });
+  assert.deepEqual(await hive.call("/api/changes/reveal", { method: "POST", body: { name: "nobody", path: "a.ts" } }), {
+    value: { error: "unknown session" }, status: 400
+  });
+  assert.deepEqual(await hive.call("/api/changes/reveal", { method: "POST", body: { name: "seat", path: "src/a.ts" } }), {
+    value: { ok: true }, status: 200
+  });
+  assert.deepEqual(hive.calls, [["revealChange", { name: "seat", path: "src/a.ts" }]]);
+  const gone = harness({ revealChange: async () => ({ error: "that file is not there any more" }) });
+  assert.deepEqual(await gone.call("/api/changes/reveal", { method: "POST", body: { name: "seat", path: "a.ts" } }), {
+    value: { error: "that file is not there any more" }, status: 409
+  });
+});
+
+test("the server hands the changes routes their five helpers and serves the view helpers", () => {
   const server = readFileSync(new URL("../server.mjs", import.meta.url), "utf8");
-  assert.match(server, /registerChangesRoutes\(on, \{ bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange \}\);/);
+  assert.match(server, /registerChangesRoutes\(on, \{ bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange, revealChange \}\);/);
   assert.match(server, /"\/assets\/changes-view\.mjs": \["assets\/changes-view\.mjs", "text\/javascript"\]/);
 });

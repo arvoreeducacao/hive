@@ -1,4 +1,3 @@
-import { markCopied } from "./avatars.js";
 import { activeItems } from "./blocks.js";
 import { closeSeatPicker } from "./chat-and-panes.js";
 import { connectStructured } from "./chat-stretches.js";
@@ -219,25 +218,60 @@ async function toClipboard(text) {
   } catch { return false; }
 }
 
+function htmlByCopyEvent(text, html) {
+  if (typeof document.execCommand !== "function") return false;
+  let filled = false;
+  const fill = (ev) => {
+    if (!ev.clipboardData) return;
+    ev.clipboardData.setData("text/plain", text);
+    ev.clipboardData.setData("text/html", html);
+    ev.preventDefault();
+    filled = true;
+  };
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.style.cssText = "position:fixed;top:-1000px;opacity:0";
+  document.body.appendChild(ta);
+  ta.addEventListener("copy", fill);
+  try {
+    ta.select();
+    return document.execCommand("copy") && filled;
+  } catch {
+    return false;
+  } finally {
+    ta.removeEventListener("copy", fill);
+    ta.remove();
+  }
+}
+
+async function htmlToClipboard(text, html) {
+  if (!text || !html) return false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "text/plain": new Blob([text], { type: "text/plain" }), "text/html": new Blob([html], { type: "text/html" }) })]);
+    return true;
+  } catch {}
+  return htmlByCopyEvent(text, html);
+}
+
 const boxText = (pre) => (pre.classList.contains("md-diff")
   ? [...pre.children].map((line) => line.textContent.replaceAll("\u200b", "")).join("\n")
   : pre.textContent);
 
 function blockText(block) {
-  const buttons = [...block.querySelectorAll(".md-copy, .md-tochat, .md-run"), ...block.querySelectorAll(".sv-stamp")];
-  for (const one of buttons) one.style.display = "none";
+  const buttons = [...block.querySelectorAll(".md-copy, .md-codehead, .md-tablebar"), ...block.querySelectorAll(".sv-stamp, .tx-cf")];
+  const drawn = [...block.querySelectorAll("[data-md-copy]")].filter((one) => !one.parentElement?.closest("[data-md-copy]"));
+  const written = drawn.map((one) => {
+    const said = document.createElement("span");
+    said.textContent = one.dataset.mdCopy;
+    one.after(said);
+    return said;
+  });
+  for (const one of [...buttons, ...drawn]) one.style.display = "none";
   const said = block.innerText;
-  for (const one of buttons) one.style.display = "";
+  for (const one of [...buttons, ...drawn]) one.style.display = "";
+  for (const one of written) one.remove();
   return said;
 }
-
-document.addEventListener("click", async (ev) => {
-  const button = ev.target.closest(".md-copy");
-  if (!button) return;
-  ev.preventDefault();
-  const pre = button.parentElement?.querySelector(".md-code");
-  if (pre && await toClipboard(boxText(pre))) markCopied(button);
-}, true);
 
 function focusedTerminal() {
   const it = st.open ? { kind: "session", name: st.open } : activeItems()[st.focus];
@@ -315,4 +349,4 @@ function reconnect(name) {
   connect(e);
 }
 
-export { HiveSocket, RETRY_AFTER, atBottom, backToLive, paintWellKeys, blockText, boxText, connect, copySelection, dropStructured, dropTerminal, focusedTerminal, historyOf, keepTerminalsUp, lookBack, lookingBack, mount, notches, observer, onWheel, reconnect, refit, terminalSelection, toClipboard, tracksMouse, wheelReports, wheelToPane };
+export { HiveSocket, RETRY_AFTER, atBottom, backToLive, paintWellKeys, blockText, boxText, connect, copySelection, dropStructured, dropTerminal, focusedTerminal, historyOf, htmlToClipboard, keepTerminalsUp, lookBack, lookingBack, mount, notches, observer, onWheel, reconnect, refit, terminalSelection, toClipboard, tracksMouse, wheelReports, wheelToPane };

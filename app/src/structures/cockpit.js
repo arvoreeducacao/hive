@@ -10,6 +10,7 @@ import { structPool } from "../app/structured-seats.js";
 import { run } from "../app/themes.js";
 import { fleetHtml, fleetModel, fleetShown, toggleFleet } from "./cockpit-fleet.js";
 import { closeMini, miniKey, miniOn, openMini } from "./cockpit-minibuffer.js";
+import { clockOptions } from "../app/clock-format.js";
 
 const COLUMNS = 6;
 
@@ -169,7 +170,7 @@ function lineModel(ctx, now) {
   const prs = st.prs?.length ? prButtonViewModel() : null;
   const date = new Date(now);
   const lang = document.documentElement.lang || undefined;
-  const clock = `${date.toLocaleTimeString(lang, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })} ${date.toLocaleDateString(lang, { weekday: "short" }).replace(/\.$/, "")} ${date.toLocaleDateString(lang, { day: "2-digit", month: "2-digit" })}`;
+  const clock = `${date.toLocaleTimeString(lang, clockOptions({ hour: "2-digit", minute: "2-digit", hourCycle: "h23" }))} ${date.toLocaleDateString(lang, { weekday: "short" }).replace(/\.$/, "")} ${date.toLocaleDateString(lang, { day: "2-digit", month: "2-digit" })}`;
   return {
     armed: keyLabel(st.leader || null),
     windows,

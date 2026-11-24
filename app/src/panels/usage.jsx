@@ -2,11 +2,16 @@ import { For, Show } from "solid-js";
 import { mountView } from "../view.jsx";
 import { Empty, Foot, Head, Icon } from "./window.jsx";
 
+function PaceTick(props) {
+  return <Show when={props.at}><span class="pace-tick" aria-hidden="true" style={{ left: `clamp(0.5px, ${props.at}, calc(100% - 0.5px))` }}></span></Show>;
+}
+
 function Meter(props) {
   return (
     <div class={`limit ${props.meter.heat}`} classList={{ sub: props.meter.sub }}>
       <div class="top"><span class="name">{props.meter.name}</span><span class="pct">{props.meter.pct}</span></div>
-      <div class="track"><i class="fill" style={{ width: `${props.meter.fill}%` }}></i></div>
+      <div class="track"><i class="fill" style={{ width: `${props.meter.fill}%` }}></i><PaceTick at={props.meter.tick} /></div>
+      <Show when={props.meter.pace}><div class="pace">{props.meter.pace}</div></Show>
       <Show when={props.meter.resets}><div class="resets">{props.meter.resets}</div></Show>
     </div>
   );
@@ -163,7 +168,8 @@ function MeterCard(props) {
     <div class="us-meter" classList={{ hot: !!props.meter.heat, key: props.meter.key === 0 }}>
       <span class="us-lbl">{props.meter.name}<Show when={props.meter.badge}><span class="rc-badge mono">{props.meter.badge}</span></Show></span>
       <span class="us-big">{props.meter.n}<small>%</small></span>
-      <span class="us-track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={props.meter.fill} aria-label={props.meter.name}><i style={{ width: `${props.meter.fill}%` }} /></span>
+      <span class="us-track" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={props.meter.fill} aria-label={props.meter.name}><i style={{ width: `${props.meter.fill}%` }} /><PaceTick at={props.meter.tick} /></span>
+      <Show when={props.meter.pace}><span class="pw-m us-pace">{props.meter.pace}</span></Show>
       <span class="pw-m">{props.meter.resets}<Show when={props.meter.heat}>{` · ${props.meter.hotSay}`}</Show></span>
     </div>
   );

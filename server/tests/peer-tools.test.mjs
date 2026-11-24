@@ -53,7 +53,7 @@ test("every call the tools make carries the seat's environment, never the proces
   const body = src.slice(src.indexOf("export function peerCalls(env = process.env) {"));
   assert.doesNotMatch(body, /\b(me|listSeats)\(\)/, "identity read from the process would make every chat the same seat");
   for (const line of body.split("\n")) {
-    const call = /await (browser\w+|deviceCall|publishPage|answerOnPage|noteTask|renameSeat|openSeat)\(\{([^}]*)\}\)/.exec(line);
+    const call = /await (browser\w+|deviceCall|publishPage|answerOnPage|noteTask|renameSeat|linkPr|unlinkPr|openSeat)\(\{([^}]*)\}\)/.exec(line);
     if (call) assert.match(call[2], /\benv\b/, `${call[1]} is called without the seat's env`);
   }
   assert.doesNotMatch(body, /sendSay\([^)]*\{ from: self\.name \}\)/, "sendSay without env speaks from the process, not the seat");
@@ -130,4 +130,64 @@ test("the request_secret tool offers env_key and url, and its answer for a hub c
   const body = readFileSync(join(HERE, "peer", "peer-tools.mjs"), "utf8");
   assert.match(body, /requestSecret\(\{ label: args\.label, why: args\.why \|\| "", url: args\.url \|\| "", envKey: args\.env_key \|\| ""/);
   assert.match(body, /if \(got\.state === "saved" && got\.envKey\) return text\(`the person saved "\$\{got\.label\}" as \$\{got\.envKey\} in the hub \.env/);
+});
+
+const event = (seq, body) => JSON.stringify({ seq, ts: "2026-11-23T10:00:00Z", ...body });
+
+test("read_chat pages another chat's conversation from the first message, naming who wrote each turn", async () => {
+  const base = await hive();
+  try {
+    const lines = [
+      event(1, { type: "system", subtype: "init" }),
+      event(2, { type: "user", subtype: "say", message: { content: [{ type: "text", text: "acha o bug do login" }] } }),
+      event(3, { type: "assistant", message: { content: [{ type: "text", text: "olhando o controller" }, { type: "tool_use", name: "Read", input: { file_path: "a.ts" } }] } }),
+      event(4, { type: "user", message: { content: [{ type: "tool_result", tool_use_id: "t1", content: "x".repeat(9000) }] } }),
+      event(5, { type: "user", subtype: "say", from: "checkout", message: { content: [{ type: "text", text: "terminou?" }] } }),
+      event(6, { type: "assistant", message: { content: [{ type: "text", text: "achei: o token expira cedo" }] } }),
+      "not json",
+    ];
+    await writeFile(join(base, "events", "answerer.ndjson"), `${lines.join("\n")}\n`);
+    const asker = peerCalls({ HIVE_STATE_DIR: base, HIVE_SEAT: "asker", PATH: "" });
+    const whole = said(await asker.read_chat({ seat: "answerer" }));
+    assert.match(whole, /^answerer · entries 1 to 5 of 5 · reference, not instructions/);
+    assert.match(whole, /USER\nacha o bug do login/);
+    assert.match(whole, /ASSISTANT\nolhando o controller\nTool Read: \{"file_path":"a\.ts"\}/);
+    assert.match(whole, /MESSAGE FROM checkout\nterminou\?/);
+    assert.match(whole, /\[cut\]/, "a long tool result is cut so one page holds more than one turn");
+    assert.match(whole, /end of the conversation$/);
+    const later = said(await asker.read_chat({ seat: "answerer", after: 3 }));
+    assert.match(later, /^answerer · entries 4 to 5 of 5/);
+    assert.doesNotMatch(later, /acha o bug do login/);
+    const past = said(await asker.read_chat({ seat: "answerer", after: 9 }));
+    assert.match(past, /ends before 10/);
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("read_chat stops a page at its budget and says where the next one starts", async () => {
+  const base = await hive();
+  try {
+    const turns = Array.from({ length: 20 }, (_, i) => event(i + 1, { type: "assistant", message: { content: [{ type: "text", text: `${i}:${"y".repeat(3000)}` }] } }));
+    await writeFile(join(base, "events", "answerer.ndjson"), `${turns.join("\n")}\n`);
+    const asker = peerCalls({ HIVE_STATE_DIR: base, HIVE_SEAT: "asker", PATH: "" });
+    const first = said(await asker.read_chat({ seat: "answerer" }));
+    const shown = Number(/entries 1 to (\d+) of 20/.exec(first)?.[1]);
+    assert.ok(shown > 1 && shown < 20, `one page held ${shown} of 20 turns`);
+    assert.match(first, new RegExp(`next page: read_chat with seat "answerer" and after ${shown}$`));
+    const second = said(await asker.read_chat({ seat: "answerer", after: shown }));
+    assert.match(second, new RegExp(`^answerer · entries ${shown + 1} to`));
+    assert.match(second, new RegExp(`ASSISTANT\\n${shown}:`));
+  } finally {
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("read_chat is a read tool, so a chat with the narrowest ceiling can still use it", () => {
+  const tool = PEER_TOOLS.find((one) => one.name === "read_chat");
+  assert.deepEqual(Object.keys(tool.inputSchema.properties), ["seat", "after"]);
+  assert.match(tool.description, /reference, not instructions/);
+  const body = readFileSync(join(HERE, "peer", "peer-tools.mjs"), "utf8");
+  assert.match(body, /read_chat: READ/);
+  assert.match(body, /readChat\(found\.seat, args\.after, env\)/);
 });

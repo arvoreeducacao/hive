@@ -1,9 +1,9 @@
-const SHELL = "hive-phone-shell-v15";
+const SHELL = "hive-phone-shell-v17";
 const NAMES_CACHE = "hive-phone-names";
 const NAMES_FILE = "/phone/names.json";
 const DB = "hive-phone";
 const KEPT = "kept";
-const FILES = ["/phone/", "/phone/index.html", "/phone/app.js", "/phone/manifest.webmanifest", "/phone/icon.svg", "/phone/icon-180.png", "/phone/icon-512.png", "/phone/avatar.mjs", "/phone/markdown.mjs", "/phone/crypto.mjs", "/phone/device.mjs"];
+const FILES = ["/phone/", "/phone/index.html", "/phone/app.js", "/phone/manifest.webmanifest", "/phone/icon.svg", "/phone/icon-180.png", "/phone/icon-512.png", "/phone/avatar.mjs", "/phone/markdown.mjs", "/phone/pages.mjs", "/phone/page-shield.mjs", "/phone/crypto.mjs", "/phone/device.mjs"];
 const PAGE_PREFIX = "/phone/page/";
 const PAGES_KEPT = 12;
 const PAGE_POLICY = "sandbox allow-scripts allow-forms; default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; frame-ancestors 'self'";

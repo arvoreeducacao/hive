@@ -1,6 +1,6 @@
 import { isChangePath } from "../lib/changes.mjs";
 
-export function registerChangesRoutes(on, { bodyOf, isSeatName, seatChanges, seatDiff, discardChange, openChange }) {
+export function registerChangesRoutes(on, { bodyOf, isSeatName, seatChanges, seatDiff, discardChange, openChange, revealChange }) {
   on(null, "/api/changes", async (req, res, url, json) => {
     const name = url.searchParams.get("name");
     const where = url.searchParams.get("where") === "cloud" ? "cloud" : "local";
@@ -44,5 +44,15 @@ export function registerChangesRoutes(on, { bodyOf, isSeatName, seatChanges, sea
     if (where === "cloud") return json({ error: "a cloud seat's files are not on this machine" }, 409);
     const opened = await openChange({ name: data.name, where, tree: String(data.tree || ""), path, line: Math.max(1, Number(data.line) || 1) });
     return json(opened, opened.error ? 409 : 200);
+  });
+
+  on("POST", "/api/changes/reveal", async (req, res, url, json) => {
+    const data = await bodyOf(req);
+    const path = String(data.path || "");
+    if (!isSeatName(data.name)) return json({ error: "unknown session" }, 400);
+    if (!isChangePath(path)) return json({ error: "that is not a path I will show" }, 400);
+    if (data.where === "cloud") return json({ error: "a cloud seat's files are not on this machine" }, 409);
+    const shown = await revealChange({ name: data.name, path });
+    return json(shown, shown.error ? 409 : 200);
   });
 }

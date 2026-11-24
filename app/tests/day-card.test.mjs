@@ -133,7 +133,7 @@ let reply = { ok: true };
 let blowUp = false;
 
 globalThis.fetch = (path, options) => {
-  calls.push({ path: String(path), body: options?.body ? JSON.parse(options.body) : null });
+  if (!/^\/api\/(tasks|secrets\/pending)(\?|$)/.test(String(path))) calls.push({ path: String(path), body: options?.body ? JSON.parse(options.body) : null });
   if (String(path).startsWith("/api/answer")) {
     if (blowUp) return Promise.reject(new Error("the app is not answering"));
     return Promise.resolve({ ok: true, json: async () => reply, text: async () => JSON.stringify(reply) });

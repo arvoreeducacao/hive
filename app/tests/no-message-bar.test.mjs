@@ -17,7 +17,8 @@ test("no look has a message bar under the canvas", () => {
 
 test("a new chat starts only from the draft", () => {
   const keys = read("src/app/themes.js");
-  assert.match(keys, /case "new": return openDraft\(\);/, "the new chat key opens a draft");
+  assert.match(keys, /case "new": return askNewChat\(\);/, "the new chat key opens a draft");
+  assert.match(read("src/app/draft-seat.js"), /function openDraftIn\([^)]*\) \{\n  const d = openDraft\(seed\);/, "asking for a new chat ends in the draft");
   assert.doesNotMatch(keys, /case "(compose|bar)":/, "the bar's keys are gone");
   assert.match(read("src/app/palette.js"), /go: \(\) => openDraft\(`\$\{i\.identifier\} `\)/, "a Linear issue opens a draft with its id");
   assert.match(read("src/app/core.js"), /const RETIRED_ACTIONS = \[[^\]]*"compose", "bar"\]/, "a saved key for the bar is skipped, not reported");

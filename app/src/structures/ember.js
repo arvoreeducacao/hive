@@ -1,5 +1,6 @@
 import { blockNumber, blocksOf, itemOf, labelOf } from "../app/blocks.js";
 import { IS_MAC, st } from "../app/core.js";
+import { retitlingNamed } from "../app/chat-name.js";
 import { goToBlock } from "../app/focus-navigation.js";
 import { goToTeam } from "../app/team.js";
 
@@ -143,11 +144,12 @@ function cardHtml(card, ctx, seatKey) {
   const answers = card.answers.length ? `<div class="em-quick">${card.answers.map((one, i) => `<button type="button" class="em-q" data-answer="${i + 1}"><span class="rc-key">${i + 1}</span><span>${esc(one)}</span></button>`).join("")}</div>` : "";
   const text = card.text ? `<p class="em-ctxt">${esc(card.text)}</p>` : "";
   const name = esc(card.name || phrase("new chat"));
+  const regenerating = retitlingNamed(card.key);
   if (card.asks) {
     return `<div class="em-strip"><svg aria-hidden="true"><use href="#i-hand"/></svg><span>${esc(ctx.label("needs"))}${note ? ` · ${esc(note)}` : ""}</span>${away}${key}</div>
-      <div class="em-cbody"><div class="em-cname">${name}</div>${text}${answers}</div>`;
+      <div class="em-cbody"><div class="em-cname${regenerating ? " title-regenerating" : ""}"${regenerating ? ' aria-busy="true"' : ""}>${name}</div>${text}${answers}</div>`;
   }
-  return `<div class="em-cbody"><div class="em-crow"><i class="rc-dot ${esc(card.state)}"></i><span class="em-cname">${name}</span><span class="em-cst">${esc(ctx.label(card.state))}${note ? ` · ${esc(note)}` : ""}</span>${away}${key}</div>${text}</div>`;
+  return `<div class="em-cbody"><div class="em-crow"><i class="rc-dot ${esc(card.state)}"></i><span class="em-cname${regenerating ? " title-regenerating" : ""}"${regenerating ? ' aria-busy="true"' : ""}>${name}</span><span class="em-cst">${esc(ctx.label(card.state))}${note ? ` · ${esc(note)}` : ""}</span>${away}${key}</div>${text}</div>`;
 }
 
 function paintPage(ctx, page, seatKey) {
