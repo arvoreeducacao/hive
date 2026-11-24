@@ -98,6 +98,19 @@ test("a chat without a session id is not restorable, a shell is", () => {
   assert.strictEqual(plan.restore.length, 0);
 });
 
+test("a shell comes back from any absolute folder, its name taken as plain text by the script", () => {
+  const shell = (cwd) => ({ name: "ada-terminal", where: "local", kind: "shell", of: "ada", cwd });
+  assert.strictEqual(seatIsRestorable(shell("/tmp/chat com espaco")), true);
+  assert.strictEqual(seatIsRestorable(shell("/tmp/$(touch pwned)")), true);
+  assert.strictEqual(seatIsRestorable(shell("relative")), false);
+  assert.strictEqual(seatIsRestorable(shell("/tmp/a\nb")), false);
+  assert.strictEqual(seatIsRestorable({ name: "term", where: "local", kind: "shell" }), true);
+  const script = localRestoreScript([shell("/tmp/$(touch pwned)")], { hub: "/home/dev/hub", hiveHome: "/home/dev/.hive", shell: "zsh" });
+  assert.match(script, /-c "\$hive_dir"/, "the folder reaches tmux through -c");
+  assert.match(script, /hive_dir='\/tmp\/\$\(touch pwned\)'/, "single quoted, so the shell never runs it");
+  assert.doesNotMatch(script, /cd \/tmp\/\$\(touch/);
+});
+
 test("a seat with shell metacharacters never reaches a script", () => {
   assert.strictEqual(seatIsRestorable(chat({ cwd: "/tmp; rm -rf /" })), false);
   assert.strictEqual(seatIsRestorable(chat({ account: "a$(id)" })), false);

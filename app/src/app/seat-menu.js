@@ -11,9 +11,9 @@ import { mountStructured } from "./chat-stretches.js";
 import { $, GLYPH, LABEL, PILL_LABEL, esc, experienceNext, markFinishSeen, paintFold, phrase, previewOf, raycastOn, renderMarkdown, saveUnfolded, sideShut, solidMounts, st, statusFolded, svgIcon, unfolded } from "./core.js";
 import { behaviorOn } from "./experience.js";
 import { closeTile, focusSeat, goToBlock, goToSpace, openTile, pull, takeKeyboard } from "./focus-navigation.js";
-import { keyHint, keyParts, liveBadge, liveOf, liveTitle, pool, receiving, tiles } from "./leader-key.js";
+import { keyHint, keyParts, keyTip, liveBadge, liveOf, liveTitle, pool, receiving, tiles } from "./leader-key.js";
 import { archiveSeatNow, cancelParking, parkWhen, wakeParkedNow } from "./mirror.js";
-import { paneOnField, planeShown } from "./plane.js";
+import { paneOnField } from "./plane.js";
 import { ago, ask } from "./pod.js";
 import { paintDiffOfChat, paintInfoOfChat } from "./seat-changes.js";
 import { appendLeftovers, leftoversOf, worktreesThatStayed, worktreesToDrop } from "./seat-leftovers.js";
@@ -21,8 +21,10 @@ import { WHERE_ICON, knock, shortBranch } from "./seat-layout.js";
 import { eraseRow, marksMenuRows } from "./seat-marks-menu.js";
 import { SHELF_TABS } from "./shelf.js";
 import { openPrInASeat } from "./page-in-a-seat.js";
-import { structureWorn } from "./structure.js";
-import { openPrSide } from "../structures/inbox-pr.js";
+import { paintChatBarOfChat } from "./chat-bar.js";
+import { copyRowsOf } from "./chat-details.js";
+import { paintTileExtras } from "./tile-extras.js";
+import { openPrTab, paintSidePanelOfChat } from "./side-panel.js";
 import { paintSlim, toggleFold } from "./shared.js";
 import { artFileOf } from "./subagents-dock.js";
 import { goToTeam, takeKeyboardBack, teamRow } from "./team.js";
@@ -32,12 +34,15 @@ import { deleteBranch, exitReview, hidePr, mergePr, mergeState, movePrPanel, mov
 import { canDetach, closeSeat, detachToWindow, seatDrag } from "./tiles.js";
 
 st.seatMenuFor = "";
+st.menuCap = "";
+st.menuTrail = [];
 
 const seatMenuOn = () => $("seatmenu").classList.contains("on");
 
 function closeSeatMenu() {
   $("seatmenu").classList.remove("on");
   st.seatMenuFor = "";
+  st.menuTrail = [];
   menuStop("seatmenu");
 }
 
@@ -53,7 +58,7 @@ function seatMenuRows(s) {
   if (!s.anon) rows.push({ ...retitleRow(s), note: keyHint("retitle") === "—" ? "" : keyHint("retitle") });
   rows.push(isOpen
     ? { label: sideShut(s.name) ? phrase("bring the cards back") : phrase("fold the cards away"), go: () => toggleFold(s.name) }
-    : { label: statusFolded(s.name) ? "unfold the status" : "fold the status away", go: () => toggleFold(s.name) });
+    : { label: statusFolded(s.name) ? phrase("unfold the status") : phrase("fold the status away"), go: () => toggleFold(s.name) });
   if (threadsOfChat(s.name).length) rows.push({ label: phrase("its Slack thread"), note: keyHint("threads"), go: () => openThreadOf(s.name, st.openThread) });
   if (prOfChat(s.name)) rows.push({ label: phrase("review its PR"), note: keyHint("prs"), go: () => reviewInChat(s.name) });
   const onBranch = branchPlaceOf(s);
@@ -66,8 +71,8 @@ function seatMenuRows(s) {
     if (i === here) return;
     const full = b.keys.length >= st.LIMIT;
     rows.push({
-      label: `move to block ${blockNumber(i)}`,
-      note: full ? "full" : labelOf(b, ofBlock(b)).txt,
+      label: phrase("move to block {n}", { n: blockNumber(i) }),
+      note: full ? phrase("full") : labelOf(b, ofBlock(b)).txt,
       off: full,
       go: () => moveSeatToBlock(s.name, i)
     });
@@ -83,18 +88,27 @@ function seatMenuRows(s) {
     rows.push({ label: phrase("wake it now"), note: phrase("parked till {when}", { when: parkWhen(s.parked.until) }), go: () => wakeParkedNow(s) });
     rows.push({ label: phrase("cancel parking"), go: () => cancelParking(s) });
   }
-  rows.push({ sep: true });
-  for (const row of marksMenuRows(s)) {
-    if (!row.sub) rows.push({ label: row.label, note: row.note, go: row.go });
-    else for (const one of row.sub) if (!one.sep) rows.push({ label: `${row.label} · ${one.label}`, note: one.note, go: one.go });
-  }
-  rows.push({ label: phrase("hide until it finishes"), go: () => hideUntilItEnds(s) });
-  rows.push({ label: phrase("hide until it works again"), go: () => hideUntilItWorks(s) });
+  rows.push({ sep: true }, ...marksMenuRows(s).map(plainRow));
+  rows.push({
+    label: phrase("hide until…"),
+    sub: [
+      { label: phrase("it finishes"), note: phrase("back when the turn ends or it needs you"), go: () => hideUntilItEnds(s) },
+      { label: phrase("it works again"), note: phrase("back when it starts a turn"), go: () => hideUntilItWorks(s) }
+    ]
+  });
   if (!s.anon) rows.push({ label: phrase("archive"), note: keyHint("archive") || phrase("no key"), go: () => archiveSeatNow(s) });
   const erase = eraseRow(s);
   if (erase) rows.push({ label: erase.label, danger: true, go: erase.go });
   rows.push({ label: phrase("close the seat"), danger: true, go: (at) => closeSeat(s, at) });
   return rows;
+}
+
+function plainRow(row) {
+  if (row.sep) return row;
+  return {
+    label: row.label, note: row.note, go: row.go,
+    ...(row.on ? { on: true } : {}), ...(row.danger ? { danger: true } : {}), ...(row.sub ? { sub: row.sub.map(plainRow) } : {})
+  };
 }
 
 function retitleRow(s) {
@@ -113,7 +127,7 @@ function seatMenuRowsRaycast(s) {
   if (!s.anon) rows.push({ icon: "i-reload", ...retitleRow(s), keys: keyHint("retitle") });
   rows.push(isOpen
     ? { icon: "i-minus", label: sideShut(s.name) ? phrase("bring the cards back") : phrase("fold the cards away"), go: () => toggleFold(s.name) }
-    : { icon: "i-minus", label: statusFolded(s.name) ? "unfold the status" : "fold the status away", go: () => toggleFold(s.name) });
+    : { icon: "i-minus", label: statusFolded(s.name) ? phrase("unfold the status") : phrase("fold the status away"), go: () => toggleFold(s.name) });
   rows.push({ sep: true });
   if (threadsOfChat(s.name).length) rows.push({ icon: "i-hash", label: phrase("its Slack thread"), keys: keyHint("threads"), go: () => openThreadOf(s.name, st.openThread) });
   if (prOfChat(s.name)) rows.push({ icon: "i-pr", label: phrase("review its PR"), keys: keyHint("prs"), go: () => reviewInChat(s.name) });
@@ -148,6 +162,7 @@ function seatMenuRowsRaycast(s) {
   rows.push({ icon: "i-reload", label: phrase("reconnect"), keys: keyHint("reconnect"), go: () => reconnect(s.name) });
   rows.push({ icon: "i-copy", label: phrase("copy the seat name"), note: s.name, go: () => toClipboard(s.name) });
   if (!s.anon) rows.push({ icon: "i-copy", label: phrase("copy the chat link"), go: () => toClipboard(`hive://seat/${s.name}`) });
+  for (const row of copyRowsOf(s)) rows.push({ icon: "i-copy", ...row });
   if (s.parked) {
     rows.push({ icon: "i-play", label: phrase("wake it now"), note: phrase("parked till {when}", { when: parkWhen(s.parked.until) }), go: () => wakeParkedNow(s) });
     rows.push({ icon: "i-x", label: phrase("cancel parking"), go: () => cancelParking(s) });
@@ -200,11 +215,34 @@ function paintMenu(cap, rows, x, y) {
   if (raycastOn()) return paintMenuRaycast(cap, rows, x, y);
   const el = $("seatmenu");
   st.menuShown = rows;
+  st.menuCap = cap;
+  st.menuTrail = [];
+  nameMenu(cap);
   menuSolid.show(menuViewModel(cap, rows));
   el.classList.add("on");
   const box = el.getBoundingClientRect();
   el.style.left = `${Math.max(6, Math.min(x, innerWidth - box.width - 6))}px`;
   el.style.top = `${Math.max(6, Math.min(y, innerHeight - box.height - 6))}px`;
+}
+
+function showMenuLevel(cap, rows) {
+  st.menuCap = cap;
+  st.menuShown = rows;
+  nameMenu(cap);
+  menuSolid.show(menuViewModel(cap, rows, { back: st.menuTrail.length > 0 }));
+}
+
+function enterSubMenu(row) {
+  st.menuTrail.push({ cap: st.menuCap, rows: st.menuShown });
+  showMenuLevel(row.label, row.sub);
+}
+
+function seatMenuBack() {
+  if (menuBack("seatmenu")) return true;
+  const up = st.menuTrail.pop();
+  if (!up) return false;
+  showMenuLevel(up.cap, up.rows);
+  return true;
 }
 
 function openMenuRows(cap, rows, x, y) {
@@ -224,19 +262,24 @@ function paintMenuRaycast(cap, rows, x, y, at = "") {
 
 let menuSolid = null;
 
+function nameMenu(cap) {
+  $("seatmenu").setAttribute("aria-label", String(cap ?? "") || phrase("what to do with this chat or block"));
+}
+
 let palActsSolid = null;
 
 let menuViews = null;
 
 st.menuShown = [];
 
-function menuViewModel(cap, rows) {
+function menuViewModel(cap, rows, { back = false } = {}) {
   return {
     on: true,
     cap: String(cap ?? ""),
+    ...(back ? { back: true, backSay: phrase("back") } : {}),
     rows: rows.map((r, i) => (r.sep
       ? { key: `sep-${i}`, sep: true }
-      : { key: `row-${i}`, at: i, label: String(r.label ?? ""), note: r.note ? String(r.note) : "", danger: !!r.danger, off: !!r.off }))
+      : { key: `row-${i}`, at: i, label: String(r.label ?? ""), note: r.note ? String(r.note) : "", danger: !!r.danger, off: !!r.off, ...(r.sub ? { sub: true } : {}), ...(r.on ? { on: true } : {}) }))
   };
 }
 
@@ -246,35 +289,43 @@ solidMounts.push((hive) => {
     pick: (at, rect) => {
       if (menus.has("seatmenu")) return menuPick("seatmenu", at, rect);
       const row = st.menuShown[at];
+      if (row?.sub) return enterSubMenu(row);
       closeSeatMenu();
       row?.go(rect);
     },
     hover: (at) => menuHover("seatmenu", at),
     find: (q) => menuFind("seatmenu", q),
     key: (ev) => menuKeys("seatmenu", ev),
-    back: () => menuBack("seatmenu")
+    back: () => seatMenuBack()
   });
 });
 
 const menus = new Map();
 
 function menuRaycastModel(cap, rows, extra = {}) {
+  const bare = !!extra.bare;
   return {
     on: true,
     raycast: true,
+    head: !bare || !!extra.back,
     cap: String(cap ?? ""),
-    at: String(extra.at ?? ""),
+    at: bare ? "" : String(extra.at ?? ""),
     back: !!extra.back,
     backSay: phrase("back"),
     find: !!extra.find,
     findSay: phrase("Filter…"),
     q: String(extra.q ?? ""),
-    rows: rows.map((r, i) => (r.sep
-      ? { key: `sep-${i}`, sep: true }
-      : {
-        key: `row-${i}`, at: i, label: String(r.label ?? ""), icon: r.icon || "", note: r.note ? String(r.note) : "",
-        keys: keyParts(r.keys), danger: !!r.danger, off: !!r.off, sub: !!r.sub, sel: i === extra.sel
-      }))
+    rows: rows.map((r, i) => {
+      if (r.sep) return { key: `sep-${i}`, sep: true };
+      const note = r.note ? String(r.note) : "";
+      return {
+        key: `row-${i}`, at: i, label: String(r.label ?? ""), icon: r.icon || "",
+        note: bare ? "" : note,
+        keys: bare ? [] : keyParts(r.keys),
+        tip: bare ? [note, keyTip(r.keys)].filter(Boolean).join(" · ") : "",
+        danger: !!r.danger, off: !!r.off, sub: !!r.sub, sel: i === extra.sel
+      };
+    })
   };
 }
 
@@ -313,8 +364,10 @@ function menuPaint(m) {
   const top = m.stack[m.stack.length - 1];
   m.shown = menuList(m);
   if (m.id === "seatmenu") st.menuShown = m.shown;
-  const solid = m.id === "seatmenu" ? menuSolid : palActsView();
-  solid?.show(menuRaycastModel(top ? top.cap : m.cap, m.shown, { at: top ? "" : m.at, back: !!top, find: true, q: m.q, sel: m.sel }));
+  const chat = m.id === "seatmenu";
+  const solid = chat ? menuSolid : palActsView();
+  if (chat) nameMenu(top ? top.cap : m.cap);
+  solid?.show(menuRaycastModel(top ? top.cap : m.cap, m.shown, { at: top ? "" : m.at, back: !!top, find: true, q: m.q, sel: m.sel, bare: chat }));
 }
 
 function menuShow(id, cap, rows, { at = "", pick = null, close = null } = {}) {
@@ -429,8 +482,8 @@ function blockMenuRows(i) {
   if (i !== st.block) rows.push({ label: phrase("go to this block"), go: () => goToBlock(i) });
   rows.push({ sep: true });
   rows.push({
-    label: seats.length === 1 ? "close its seat" : `close all ${seats.length} seats`,
-    note: seats.length ? "" : "nothing to close",
+    label: seats.length === 1 ? phrase("close its seat") : phrase("close all {n} seats", { n: seats.length }),
+    note: seats.length ? "" : phrase("nothing to close"),
     off: !seats.length,
     danger: true,
     go: (at) => closeBlock(i, at)
@@ -847,6 +900,7 @@ function update(el, s, pos) {
   paintDiffOfChat(el, s);
   markArtRows(s.name);
   el.classList.remove("arting");
+  paintSidePanelOfChat(el, s);
   paintCockpitOfChat(el, s);
   paintWebOfChat(el, s);
   paintDeviceOfChat(el, s);
@@ -854,8 +908,10 @@ function update(el, s, pos) {
   if (st.threadChat === s.name && st.open === s.name) moveThreadPanel(el);
   paintFrontsOfChat(el, s);
   const well = el.querySelector(".well");
+  paintChatBarOfChat(el, s);
   if (s.structured) mountStructured(s, well);
   else mount(getTerminal(s), well);
+  paintTileExtras(el, s, pos);
   paintSlim(s.name, el);
   if (raycastOn()) paintSince(well, s);
 }
@@ -1486,9 +1542,9 @@ function goToPr(p) {
   closePrPop();
   if (finishOn()) closeFinish();
   if (experienceNext()) return openPrInASeat(p);
-  if (raycastOn() && structureWorn() === "inbox" && !planeShown()) {
-    openPrSide(p.key);
-    return render();
+  if (raycastOn() && !planeShown() && chatOfPr(p)) {
+    if (st.open !== p.session) openTile(p.session, false);
+    return openPrTab(p.session, p.key);
   }
   st.openPr = p.key;
   st.openFile = null;
@@ -1568,4 +1624,4 @@ function markThreadSeen(t) {
 
 const CHANNEL_GLYPH = (t) => `<svg aria-hidden="true"><use href="#${t.private ? "i-lock" : "i-hash"}"/></svg><span>${esc(String(t.channel || "slack").replace(/^#/, ""))}</span>`;
 
-export { forgetPalActs, openMenuRows, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, seatSpot, branchTrouble, CHANNEL_GLYPH, CI_MARK, MERGE_ARMED, MERGE_ARMED_LONG, MERGE_BUSY, MERGE_LANDING_WAIT, PR_GONE, PR_LANDED, PR_SHELVES, PR_WAITS_ON_YOU, SPINNER, blockMenuRows, brokenCheck, chatOfPr, chatOfThread, closeBlock, closeFinish, closePrPop, closeSeatMenu, closeSpace, spaceCloseNote, createJobTile, createOpeningTile, createTile, updateOpening, finishMeta, finishOn, finishWarnings, freshOf, goToPr, helloTeam, jobSideOf, jobSides, jobViewModel, landedSeen, markLandedSeen, markSeatLandedSeen, markThreadSeen, menuSolid, menuViewModel, mergeTrouble, merging, nodeOf, openBlockMenu, openFinish, openFinishOf, openPrPop, openSeatMenu, openSpaceMenu, openTeamMenu, paintMenu, paintPrButton, paintPrOfChat, paintPrPop, placePrPop, pokeTeam, prActions, prButtonSolid, prButtonViewModel, prCardModel, prIsGone, prOfChat, prPopOpen, prPopRowModel, prPopSolid, prPopViewModel, prSays, prUrgency, prWindowOf, prsMemo, prsMemoOf, prsOfChat, prsOnCard, prsWorthShowing, readSeenThreads, renameSpace, saveLandedSeen, saveSeenThreads, seatMenuOn, seatMenuCommands, seatMenuRows, seenThreads, sinceStart, spaceMenuRows, teamMenuRows, threadCardModel, threadOfChat, threadsOfChat, tileActions, tileChipsModel, tileNodes, tilePagesModel, tilePrsModel, tileSideOf, tileSides, tileThreadsModel, tileViewModel, togglePrPop, update, updateJob };
+export { forgetPalActs, openMenuRows, seatMenuBack, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, seatSpot, branchTrouble, CHANNEL_GLYPH, CI_MARK, MERGE_ARMED, MERGE_ARMED_LONG, MERGE_BUSY, MERGE_LANDING_WAIT, PR_GONE, PR_LANDED, PR_SHELVES, PR_WAITS_ON_YOU, SPINNER, blockMenuRows, brokenCheck, chatOfPr, chatOfThread, closeBlock, closeFinish, closePrPop, closeSeatMenu, closeSpace, spaceCloseNote, createJobTile, createOpeningTile, createTile, updateOpening, finishMeta, finishOn, finishWarnings, freshOf, goToPr, helloTeam, jobSideOf, jobSides, jobViewModel, landedSeen, markLandedSeen, markSeatLandedSeen, markThreadSeen, menuSolid, menuViewModel, mergeTrouble, merging, nodeOf, openBlockMenu, openFinish, openFinishOf, openPrPop, openSeatMenu, openSpaceMenu, openTeamMenu, paintMenu, paintPrButton, paintPrOfChat, paintPrPop, placePrPop, pokeTeam, prActions, prButtonSolid, prButtonViewModel, prCardModel, prIsGone, prOfChat, prPopOpen, prPopRowModel, prPopSolid, prPopViewModel, prSays, prUrgency, prWindowOf, prsMemo, prsMemoOf, prsOfChat, prsOnCard, prsWorthShowing, readSeenThreads, renameSpace, saveLandedSeen, saveSeenThreads, seatMenuOn, seatMenuCommands, seatMenuRows, seenThreads, sinceStart, spaceMenuRows, teamMenuRows, threadCardModel, threadOfChat, threadsOfChat, tileActions, tileChipsModel, tileNodes, tilePagesModel, tilePrsModel, tileSideOf, tileSides, tileThreadsModel, tileViewModel, togglePrPop, update, updateJob };

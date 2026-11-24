@@ -1,6 +1,7 @@
-import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, readChat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, pagePreview, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserHover, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, linkPr, unlinkPr, parkSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS, prTool } from "./peer.mjs";
+import { ASK_WAIT_MAX_SECONDS, listSeats, me, spendBirths, seatRoster, resolveSeat, sendSay, peekSeat, readChat, socketCommand, awaitReply, askPerson, buzzPhone, noteTask, publishPage, publishProposal, answerOnPage, browserNavigate, browserShoot, pagePreview, browserEval, browserConsole, browserResize, browserProfile, browserCookies, browserSetCookie, browserMap, browserClick, browserHover, browserType, browserKey, browserWait, browserChoose, browserTabs, browserStep, browserUpload, browserNetwork, deviceCall, DEVICE_OPEN_WAIT, openSeat, closeSeat, renameSeat, linkPr, unlinkPr, parkSeat, sayOnSlack, requestSecret, SECRET_WAIT_MAX_SECONDS, prTool, readAppThemes, setAppTheme } from "./peer.mjs";
 import { BIRTHS_MAX } from "../engine/protocol.mjs";
 import { allows, readCeiling } from "./ceilings.mjs";
+import { isDeviceTool, readAgentTools } from "./agent-tools.mjs";
 import { stateDir } from "../engine/paths.mjs";
 import { answerGuide } from "./guide.mjs";
 import { PAGE_COLUMN_WIDTH, PAGE_LAYOUT_GUIDE, PAGE_MAX_BYTES, PAGE_MAX_FIT_HEIGHT, PAGE_MAX_HEIGHT, PAGE_MAX_TITLE, PAGE_MAX_WIDTH, PAGE_MIN_HEIGHT, PAGE_MIN_WIDTH, PAGE_RULES, PAGE_THEME_GUIDE, keepPage, pageAppearance, pageHeight, pageSource, pageTitle, pageWidth, renderAnswer } from "./html-pages.mjs";
@@ -579,6 +580,28 @@ export const PEER_TOOLS = [
     },
   },
   ...PR_TOOLS,
+  {
+    name: "theme_read",
+    description: "Read how the Hive itself is styled before restyling it: the theme it wears, the built-in and saved themes, the colour roles, the CSS selectors that stay stable and the rules a theme follows. Call it before theme_set.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "theme_set",
+    description: "Restyle the Hive app on this machine, only when the person asks for it. To make or update a theme, give name with canvas and accent (hex) — the rest of the palette comes from them — and optionally colors to override single roles and css for what colours cannot do; the app switches to it at once. use wears a theme that already exists, built-in or saved, and is how to undo; the person can also press ⌃⌥⌘T (Ctrl+Alt+Shift+T off the Mac). appearance \"system\" follows macOS with one theme for light and one for dark; \"fixed\" wears one theme always. CSS cannot load files: no @import, no image-set() or src(), no backslash, and url() only with data: or #id.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "the theme's name, up to 60 characters; the same name updates it" },
+        canvas: { type: "string", description: "the background colour in hex, like #1A1B26" },
+        accent: { type: "string", description: "the accent colour in hex, like #7AA2F7" },
+        colors: { type: "object", description: "single roles to override, role -> hex; theme_read lists the roles", additionalProperties: { type: "string" } },
+        css: { type: "string", description: "CSS applied after the app's own, up to 20000 characters, never loading a file" },
+        use: { type: "string", description: "wear a theme that already exists instead of making one, e.g. Hive" },
+        appearance: { type: "string", enum: ["system", "fixed"], description: "follow macOS light and dark, or keep one theme" },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
 
 const READ = "read";
@@ -586,7 +609,7 @@ const OPERATE = "operate";
 const FULL = "full";
 
 export const TOOL_ACCESS = {
-  peers: READ, peek: READ, read_chat: READ, guide: READ, html_preview: READ, html_render: READ,
+  peers: READ, peek: READ, read_chat: READ, guide: READ, html_preview: READ, html_render: READ, theme_read: READ,
   browser_screenshot: READ, browser_snapshot: READ, browser_cookies: READ, browser_console: READ, browser_network: READ,
   device_screenshot: READ, device_tree: READ, device_logs: READ,
   message: OPERATE, ask: OPERATE, reply_on_page: OPERATE, rename: OPERATE, link_pr: OPERATE, unlink_pr: OPERATE, park: OPERATE, task: OPERATE, buzz: OPERATE,
@@ -595,7 +618,7 @@ export const TOOL_ACCESS = {
   browser_type: OPERATE, browser_select_option: OPERATE, browser_press_key: OPERATE, browser_wait_for: OPERATE, browser_tabs: OPERATE,
   browser_back: OPERATE, browser_forward: OPERATE, browser_reload: OPERATE, browser_upload: OPERATE,
   device_open: OPERATE, device_tap: OPERATE, device_swipe: OPERATE, device_type: OPERATE, device_key: OPERATE, device_close: OPERATE,
-  close: OPERATE, spawn: FULL, publish: FULL, browser_set_cookie: FULL,
+  close: OPERATE, spawn: FULL, publish: FULL, browser_set_cookie: FULL, theme_set: FULL,
   pull_request_read: READ, pull_request_list: READ, ci_logs: READ,
   pull_request_create: OPERATE, pull_request_update: OPERATE, pull_request_respond: OPERATE, ci_rerun: OPERATE,
   pull_request_merge: FULL
@@ -616,7 +639,9 @@ export function ceilingOf(env = process.env) {
 
 const callerOf = (self, env) => self.name || (env.HIVE_CLIENT ? `${String(env.HIVE_CLIENT).slice(0, 40)} (outside the hive)` : "");
 
-export const toolsFor = (ceiling) => PEER_TOOLS.filter((tool) => allows(ceiling, TOOL_ACCESS[tool.name]));
+const devicesAllowed = (env) => readAgentTools(stateDir(env)).devices;
+
+export const toolsFor = (ceiling, env = process.env) => PEER_TOOLS.filter((tool) => allows(ceiling, TOOL_ACCESS[tool.name]) && (!isDeviceTool(tool.name) || devicesAllowed(env)));
 
 function text(body) {
   return { content: [{ type: "text", text: String(body) }] };
@@ -659,6 +684,7 @@ export function peerCalls(env = process.env) {
       if (!need) return failure(`${name} has no access declared, so it does not run`);
       const ceiling = ceilingOf(env);
       if (!allows(ceiling, need)) return failure(`this chat runs with a "${ceiling}" ceiling, and ${name} needs "${need}" — ask the person to open it from a chat that may`);
+      if (isDeviceTool(name) && !devicesAllowed(env)) return failure("the person turned the device tools off for agents in the Hive settings, so this chat cannot drive a phone");
       return call(args);
     };
   }
@@ -1038,6 +1064,19 @@ function rawCalls(env) {
       const sent = await buzzPhone(args.line, { env });
       if (sent.error) return failure(sent.error);
       return text("the phone was buzzed. It reaches them only if a phone is paired, and the same seat cannot buzz again for five minutes — so carry on, and do not buzz twice about the same thing.");
+    },
+
+    async theme_read() {
+      const read = await readAppThemes({ env });
+      if (read.error) return failure(read.error);
+      return text(JSON.stringify(read, null, 2));
+    },
+
+    async theme_set(args) {
+      const done = await setAppTheme(args, { env });
+      if (done.error) return failure(done.error);
+      const wearing = done.wearing ? `the app now wears "${done.wearing}"` : "the theme did not change";
+      return text(`${wearing}; appearance is ${done.appearance}. You cannot see it: ask the person how it looks. To undo, call theme_set with use and a built-in theme such as Hive.`);
     },
 
     async reply_on_slack(args) {

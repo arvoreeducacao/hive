@@ -43,7 +43,7 @@ const SHORTCUT = /^(⌥|Alt\+)A$/;
 
 const A_FACE = /^<span class="team-av face av-alive"><svg/;
 
-test("the workspace chip carries the floor it is on, and the held row carries every floor numbered", () => {
+test("the workspace chip carries the floor it is on, and its tooltip counts the blocks and says the shortcut", () => {
   const over = {
     spaces: [{ id: "w1", tint: "#111", name: "one" }, { id: "w2", tint: "#222", name: "two" }],
     blocks: [{ ws: "w1", keys: ["a"], label: "the block", manual: true }],
@@ -54,31 +54,35 @@ test("the workspace chip carries the floor it is on, and the held row carries ev
   assert.equal(shut.open, null);
   assert.equal(shut.chip.tint, "#111");
   assert.equal(shut.chip.name, "one");
-  assert.equal(shut.chip.count, 1);
+  assert.equal("count" in shut.chip, false, "the number of blocks lives in the tooltip, not on the chip");
   assert.equal(shut.chip.expanded, "false");
   assert.match(shut.chip.hint, SHORTCUT, "the chip has to carry the shortcut that opens the pile");
-  assert.equal(shut.chip.title, "one — every workspace is a floor, and this opens the pile of them");
+  assert.equal(shut.chip.title, `one — every workspace is a floor, and this opens the pile of them · 1 block · ${shut.chip.hint}`);
   world({ ...over, holding: "space" });
   const held = blocksViewModel();
   assert.equal(held.chip, null);
   assert.deepEqual(held.open.map((one) => [one.n, one.id, one.on, one.count]), [[1, "w1", true, 1], [2, "w2", false, 0]]);
 });
 
-test("a block tab says its number, its label, how full it is and whether anyone is calling", () => {
+test("a block tab says its number, its label and whether anyone is calling, and its tooltip says how full it is", () => {
   world({
     blocks: [{ ws: "w1", keys: ["a", "b"], label: "the block", manual: true }, { ws: "other", keys: [] }],
     sessions: [seat("a", { state: "needs" }), seat("b")]
   });
   const model = blocksViewModel();
   assert.equal(model.tabs.length, 1, "a block of another floor is not a tab here");
-  assert.deepEqual(model.tabs[0], {
-    key: "b0", i: 0, n: 1, name: "the block", tally: "2/4", calls: true, pressed: "true", title: "block 1: the block"
-  });
+  const { title, ...tab } = model.tabs[0];
+  assert.deepEqual(tab, { key: "b0", i: 0, n: 1, name: "the block", calls: true, pressed: "true" });
+  assert.match(title, /^the block: a, b · 2 seats · \S+1$/, "the tooltip names the seats, counts them and ends in the key");
   world({ blocks: [{ ws: "w1", keys: ["b"] }], sessions: [seat("b", { title: "the reader" })], block: 9 });
   const quiet = blocksViewModel();
   assert.equal(quiet.tabs[0].calls, false);
   assert.equal(quiet.tabs[0].pressed, "false");
   assert.equal(quiet.tabs[0].name, "the reader", "a block nobody named borrows the name of the chat inside it");
+  world({ blocks: [{ ws: "w1", keys: ["b", "c", "d"] }], sessions: [seat("b", { title: "the reader" }), seat("c"), seat("d")] });
+  const crowded = blocksViewModel().tabs[0];
+  assert.equal(crowded.name, "the reader", "the other seats go to the tooltip instead of a +2 on the tab");
+  assert.match(crowded.title, /^the reader and 2 more seats: c, d · 3 seats · /);
   world({ blocks: [{ ws: "w1", keys: [] }] });
   assert.equal(blocksViewModel().tabs[0].name, "unnamed");
 });

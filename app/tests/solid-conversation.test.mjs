@@ -8,6 +8,7 @@ const { SUB_LOG_MAX } = await app("subagents-dock");
 const { workSummary } = await app("structured-seats");
 const hive = await app("conversation-model");
 const { legacyRows } = await app("timeline-rows");
+const { backgroundWorkLine } = await app("background-work");
 
 const seat = () => ({
   name: "rafa", tag: "t", where: "local", at: Date.now(), atBottom: false,
@@ -389,30 +390,16 @@ test("a run older than the transcript it was read from is not pinned again", () 
   assert.equal(e.conv.subs.length, 0);
 });
 
-test("the clock on a pinned agent only speaks once it has been going a while", () => {
+test("a pinned agent becomes the background line at the end of the timeline", () => {
   const e = seat();
-  hive.svConvSubPin(e, { id: "s1", input: {} });
-  const item = e.subs.get("s1");
-  item.dataset.t0 = String(Date.now() - 4000);
-  hive.svConvSubs(e);
-  assert.equal(item.ms, "4.0s");
-  item.dataset.t0 = String(Date.now());
-  hive.svConvSubs(e);
-  assert.equal(item.ms, "");
-});
-
-test("the dock the seat shows counts the agents it is holding", () => {
-  const e = seat();
-  e.host.innerHTML = `<div class="sv-subs"><span class="scount"></span></div>`;
-  hive.svConvSubPin(e, { id: "s1", input: {} });
-  hive.svConvSubPin(e, { id: "s2", input: {} });
-  const dock = e.host.querySelector(".sv-subs");
-  assert.equal(dock.classList.contains("on"), true);
-  assert.equal(dock.querySelector(".scount").textContent, "2");
+  hive.svConvSubPin(e, { id: "s1", input: { subagent_type: "Explore", description: "map the repo" } });
+  const line = backgroundWorkLine(e);
+  assert.equal(line.id, "bg");
+  assert.equal(line.label, "Waiting · map the repo");
+  assert.equal(line.open, "bg-details");
+  assert.deepEqual(line.actions.map((one) => one.act), ["bg-stop"]);
   hive.svConvSubUnpin(e, "s1");
-  hive.svConvSubUnpin(e, "s2");
-  assert.equal(dock.classList.contains("on"), false);
-  assert.equal(dock.querySelector(".scount").textContent, "0");
+  assert.equal(backgroundWorkLine(e), null);
 });
 
 test("a picture the model named in its words hangs under what it said, once per file", () => {

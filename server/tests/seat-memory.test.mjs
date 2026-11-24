@@ -5,6 +5,7 @@ import { READ_OPS, readsOnly, wakesTheSeat, answerWhileAsleep } from "../engine/
 
 test("only state and the read-only control ops leave a sleeping seat alone", () => {
   assert.equal(wakesTheSeat({ type: "state" }), false);
+  assert.equal(wakesTheSeat({ type: "stop_task", task_ids: ["b1"] }), false, "a sleeping seat has no background work to stop");
   for (const op of READ_OPS) assert.equal(wakesTheSeat({ type: "control", op }), false, op);
   for (const op of ["setModel", "setEffort", "setMode", "setAccount", "compact", "mcpReconnect", "reinit", "setTitle", "spendBirth"]) {
     assert.equal(wakesTheSeat({ type: "control", op }), true, op);
@@ -28,7 +29,7 @@ test("a sleeping seat answers a read from memory, and says so when it has nothin
 
 test("the claude driver wakes only for what wakesTheSeat says, and answers reads from memory while asleep", () => {
   const driver = readFileSync(new URL("../engine/driver.mjs", import.meta.url), "utf8");
-  assert.match(driver, /function handleCommand\(cmd, reply\) \{\s*if \(wakesTheSeat\(cmd\) && sleeping && !query\) \{[\s\S]*?\n  \}\s*if \(wakesTheSeat\(cmd\)\) ensureAwake\(\);\s*if \(sleeping\) \{\s*const fromMemory = answerWhileAsleep\(cmd, remembered\);\s*if \(fromMemory\) return reply\(fromMemory\);\s*\}/);
+  assert.match(driver, /function handleCommand\(cmd, reply\) \{\s*(?:if \(cmd\.type === "forceStop"\) return forceStop\(reply\);\s*)?if \(wakesTheSeat\(cmd\) && sleeping && !query\) \{[\s\S]*?\n  \}\s*if \(wakesTheSeat\(cmd\)\) ensureAwake\(\);\s*if \(sleeping\) \{\s*const fromMemory = answerWhileAsleep\(cmd, remembered\);\s*if \(fromMemory\) return reply\(fromMemory\);\s*\}/);
   assert.match(driver, /asleep: sleeping/);
   assert.match(driver, /remember\("catalog"/);
   assert.match(driver, /remember\("context"/);

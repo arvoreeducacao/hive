@@ -1,13 +1,16 @@
-import { FitAddon, THEME, Terminal, WebLinksAddon, phrase, raycastOn } from "./core.js";
+import { FitAddon, IS_MAC, THEME, Terminal, WebLinksAddon, phrase, raycastOn } from "./core.js";
 import { GhosttyTerm } from "/assets/ghostty/term.mjs";
 import { pool } from "./leader-key.js";
 import { imageLinks } from "./session-images.js";
 import { openShot } from "./picture-preview.js";
-import { refit, toClipboard } from "./terminal-history.js";
+import { backToLive, navigateTerminal, refit, toClipboard, tracksMouse } from "./terminal-history.js";
+import { terminalNavKey } from "./terminal-keys.js";
 
 const MOUSE_MOTION_ONLY = /\x1b\[<(?:35|39|43|47|51|55|59|63);\d+;\d+[Mm]/g;
 
 const NEWLINE = "\x1b\r";
+
+const BARE_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"]);
 
 const openLink = (ev, uri) => { window.open(uri, "_blank", "noopener,noreferrer"); };
 
@@ -41,7 +44,7 @@ const COPIED_SHOWN_MS = 1600;
 const RAYCAST_TERM_LINE = 1.5;
 
 function sayCopied(term, text) {
-  const well = term.element?.closest(".well, .sh-term, .hist") || term.element?.parentElement;
+  const well = term.element?.closest(".ct-well, .well, .sh-term, .hist") || term.element?.parentElement;
   if (!well) return;
   const lines = text.replace(/\n+$/, "").split("\n").length;
   let pill = well.querySelector(":scope > .term-copied");
@@ -129,7 +132,15 @@ function getTerminal(s) {
     if (clean && e.ws?.readyState === 1) e.ws.send(clean);
   });
   term.attachCustomKeyEventHandler((ev) => {
-    if (ev.type !== "keydown" || ev.key !== "Enter") return true;
+    if (ev.type !== "keydown") return true;
+    const nav = terminalNavKey(ev, { mac: IS_MAC });
+    if (nav && !tracksMouse(e)) {
+      ev.preventDefault();
+      navigateTerminal(e, nav);
+      return false;
+    }
+    if (e.lookingBack && !nav && !ev.metaKey && !ev.ctrlKey && !ev.altKey && !BARE_KEYS.has(ev.key)) backToLive(e);
+    if (ev.key !== "Enter") return true;
     if (!ev.shiftKey || ev.altKey || ev.ctrlKey || ev.metaKey) return true;
     ev.preventDefault();
     if (e.ws?.readyState === 1) e.ws.send(NEWLINE);

@@ -7,7 +7,7 @@ import { announceCanopy, announceChange } from "./chimes-and-notices.js";
 import { $, GLYPH, LABEL, ORDER, PILL_LABEL, apiGet, batch, markFinishSeen, paneOfSeat, perf, phrase, raycastOn, st } from "./core.js";
 import { takePagePreviews } from "./html-pages.js";
 import { disarmLeader, markSeatRead, pool, receiving, stateOf, tiles } from "./leader-key.js";
-import { paintLimitChip } from "./limit-chip.js";
+import { markHiveReach, paintLimitChip } from "./limit-chip.js";
 import { noteOpen } from "./palette-search.js";
 import { calmly } from "./pure-helpers.js";
 import { inARow, inAStrip, inFocusMode } from "./seat-layout.js";
@@ -46,6 +46,14 @@ function takeKeyboard(name, callIt) {
   else pool.get(name)?.term.focus();
 }
 
+function markSays(mark, said) {
+  if (!mark) return;
+  mark.setAttribute("aria-label", said);
+  const title = mark.querySelector("title");
+  if (title) title.textContent = said;
+  else mark.setAttribute("title", said);
+}
+
 function releaseKeyboard(focusBody = true) {
   if (!st.typing) return;
   const name = st.typing;
@@ -61,10 +69,11 @@ function releaseKeyboard(focusBody = true) {
   el.classList.remove("typing");
   const s = st.data.sessions.find((one) => one.name === name);
   if (!s) return;
-  if (raycastOn()) el.querySelector(".t-say").textContent = phrase(LABEL[s.state]);
+  if (raycastOn()) markSays(el.querySelector(".t-dot"), phrase(LABEL[s.state]));
   else {
     el.querySelector(".t-pill .label").textContent = phrase(PILL_LABEL[s.state]);
-    el.querySelector(".t-pill use")?.setAttribute("href", `#${GLYPH[s.state]}`);
+    for (const use of el.querySelectorAll(".t-pill use, .t-glyph use")) use.setAttribute("href", `#${GLYPH[s.state]}`);
+    markSays(el.querySelector(".t-glyph"), phrase(PILL_LABEL[s.state]));
   }
   el.querySelector(".badge").textContent = receiving.get(name) || (s.verb ? `${s.verb}… ${s.measure}` : phrase("live terminal"));
 }
@@ -407,10 +416,14 @@ async function pull() {
       }
       paintLimitChip();
     }
+    markHiveReach(true);
     announceChange();
     announceCanopy();
     followFocusedChat();
-  } catch { $("clock").textContent = phrase("no connection"); }
+  } catch {
+    $("clock").textContent = phrase("no connection");
+    markHiveReach(false);
+  }
   keepTerminalsUp();
   keepStructuredUp();
 }
@@ -437,4 +450,4 @@ function pollKey(raw, now) {
   return `${Math.floor(now / beat)}|${JSON.stringify(withoutClock(raw))}`;
 }
 
-export { GRID_ROWS, POLL_STILL, prLinksMoved, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, openBeside, openFromList, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, gridRows, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, scrollFocusedChat, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };
+export { GRID_ROWS, POLL_STILL, prLinksMoved, canvasLift, canvasSlide, clickLeavesKeyboard, closeTile, focusSeat, goTo, openBeside, openFromList, goToBlock, goToBlockAt, goToSeat, goToSpace, goToSpaceAt, keepPane, keyboardHome, liftCanvas, openTile, paneHere, pollKey, pollSeen, pull, reclaimSeat, releaseKeyboard, restorePane, scrollFocusedChat, sendSeatToBlockAt, slideCanvas, stepBlock, stepSendSeat, stepFocus, stepMove, takeKeyboard };

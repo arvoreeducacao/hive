@@ -25,12 +25,10 @@ const { $ } = await app("core");
 const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { runHud } = await app("hud");
-const { setStructure } = await app("structure");
 const mirror = await app("mirror");
 const marks = await app("seat-marks");
 const { marksMenuRows } = await app("seat-marks-menu");
 const { seatMenuCommands } = await app("seat-menu");
-const { shelvesModel } = await app("seat-shelves");
 
 bootSolid();
 document.body.classList.add("experience-raycast");
@@ -150,50 +148,6 @@ test("the settled shelf shows five and offers the rest", () => {
   assert.equal(settled.more, "Show 3 more");
   marks.unsettleSeats(["a", "c", "e", "f", "g", "h", "i", "j"]);
   st.data.sessions.splice(4);
-  render();
-});
-
-test("in a structure with no rail the shelves sit in a dock, and in the stage they close the column", () => {
-  marks.settleSeats(["a"], { undo: false });
-  marks.snoozeSeats(["c"], Date.now() + 3600000, { undo: false });
-  setStructure("map", { quiet: true });
-  render();
-  const dock = document.getElementById("shelves-dock");
-  assert.equal(dock.hidden, false);
-  assert.match(dock.querySelector(".shv-pill").textContent, /1 snoozed.*1 settled/);
-  dock.querySelector(".shv-pill").click();
-  render();
-  const reopen = dock.querySelector('[data-shelves-act="unsettle"][data-of="a"]');
-  assert.ok(reopen, "Reopen is on the row of the settled chat");
-  reopen.click();
-  render();
-  assert.equal(marks.seatSection("a"), "active");
-  assert.deepEqual(shelvesModel().snoozed.map((one) => one.name), ["c"]);
-  setStructure("stage", { quiet: true });
-  render();
-  assert.equal(document.getElementById("shelves-dock").hidden, true, "the stage draws them in its own column");
-  assert.ok($("structure-root").querySelector('.stg-wing .seat-shelves [data-shelves-act="wake"][data-of="c"]'));
-  marks.wakeSeats(["c"]);
-  setStructure("classic", { quiet: true });
-  render();
-  assert.equal(document.getElementById("shelves-dock").hidden, true);
-});
-
-test("in the inbox a settled chat opens from its shelf and stays settled", () => {
-  lay();
-  marks.settleSeats(["d"], { undo: false });
-  st.LIMIT = 2;
-  setStructure("inbox", { quiet: true });
-  render();
-  const root = $("structure-root");
-  const shelf = root.querySelector('.tx-shelf[data-shelf="settled"]');
-  if (shelf.getAttribute("aria-expanded") !== "true") shelf.click();
-  root.querySelector('.tx-row[data-key="d"]').click();
-  assert.equal(root.querySelector(".tx-row.sel")?.dataset.key, "d");
-  assert.equal(marks.seatSection("d"), "settled");
-  marks.unsettleSeats(["d"]);
-  setStructure("classic", { quiet: true });
-  st.LIMIT = 4;
   render();
 });
 

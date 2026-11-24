@@ -119,7 +119,7 @@ export async function watchProviderTransfer(e) {
         }
         refreshContext(e);
         pull();
-        return;
+        return job;
       }
       await new Promise((done) => setTimeout(done, 1000));
     }
@@ -138,14 +138,15 @@ export async function switchSeatProvider(e, agent, model) {
   void watchProviderTransfer(e);
 }
 
-export async function startFresh(e) {
+export async function startFresh(e, { clean = false } = {}) {
   closeSeatPicker(e);
-  if (e.providerTransfer) return;
+  if (e.providerTransfer) return null;
   providerTransferState(e, { agent: e.agent, fresh: true, phase: "preparing" });
-  const result = await svCmd(e, { type: "control", op: "startFresh" });
+  const result = await svCmd(e, { type: "control", op: "startFresh", ...(clean ? { clean: true } : {}) });
   if (!result?.ok && !result?.silent) {
-    providerTransferState(e, { fresh: true, phase: "failed", error: result.error || phrase("the session did not answer") });
-    return;
+    const failed = { fresh: true, phase: "failed", error: result.error || phrase("the session did not answer") };
+    providerTransferState(e, failed);
+    return failed;
   }
-  void watchProviderTransfer(e);
+  return watchProviderTransfer(e);
 }

@@ -1,4 +1,4 @@
-import { IS_MAC, esc, phrase, st } from "./core.js";
+import { IS_MAC, phrase, st } from "./core.js";
 import { archiveSeatNow } from "./mirror.js";
 import { asksBefore, seatSection, settleSeats, togglePinSeat, unsettleSeats } from "./seat-marks.js";
 import { ask } from "./pod.js";
@@ -77,12 +77,6 @@ function selectionModel() {
   };
 }
 
-function selectionBarHtml(model = selectionModel(), cls = "seat-selbar") {
-  if (!model) return "";
-  const buttons = model.actions.map((one) => `<button type="button" class="${one.danger ? "danger" : ""}" data-pick-act="${one.act}"${one.more ? ' aria-haspopup="menu"' : ""}>${esc(one.say)}</button>`).join("");
-  return `<div class="${cls}" role="toolbar" aria-label="${esc(model.say)}"><span class="sel-n">${esc(model.say)}</span>${buttons}<button type="button" class="sel-x" data-pick-act="clear" aria-label="${esc(model.clearSay)}" title="${esc(model.clearSay)}">×</button></div>`;
-}
-
 const askForAll = async (action, keys, title, text, yes) => !asksBefore(action) || await ask(phrase(title, { n: keys.length }), phrase(text), phrase(yes, { n: keys.length }));
 
 async function runPicked(act, rect) {
@@ -129,4 +123,4 @@ document.addEventListener("keydown", (event) => {
   clearPicks();
 });
 
-export { clearPicks, isPicked, pickClick, pickedKeys, runPicked, selectionBarHtml, selectionModel };
+export { clearPicks, isPicked, pickClick, pickedKeys, runPicked, selectionModel };

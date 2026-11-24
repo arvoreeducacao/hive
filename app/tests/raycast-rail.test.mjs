@@ -80,7 +80,7 @@ test("the flag moves the worktrees to the foot of the rail with a tooltip beside
   assert.equal(document.getElementById("rail-tip"), null);
 });
 
-test("the seats are grouped by block, and the machine is a filter with a count on each side", () => {
+test("the seats are grouped by block, and the machine is a filter that keeps its count in the tip", () => {
   flag(true);
   const blocks = [{ id: "b1", ws: "w0", keys: ["a"] }, { id: "b2", ws: "w0", keys: ["c", "d"] }];
   const sessions = [seat("a"), seat("c", { where: "cloud" }), seat("d")];
@@ -91,6 +91,7 @@ test("the seats are grouped by block, and the machine is a filter with a count o
   assert.deepEqual(all.groups.map((g) => g.keys), [keyLabel(st.keys.block, 1), keyLabel(st.keys.block, 2)], "a block wears the key that reaches it");
   assert.deepEqual(all.groups.map((g) => g.here), [false, true], "only the block on screen sits in the well");
   assert.deepEqual(all.shows.map((one) => [one.key, one.count, one.on]), [["all", 3, true], ["local", 2, false], ["cloud", 1, false]]);
+  assert.deepEqual(all.shows.map((one) => one.hint), ["3 chats", "2 chats", "1 chat"]);
   const cloud = world({ data: { pod: { up: true, name: "pod-1" }, sessions, archived: [] }, blocks, block: 1, shows: "cloud" });
   assert.deepEqual(rows(cloud), ["c"], "the filter keeps the blocks and hides the seats of the other machine");
   assert.deepEqual(cloud.groups.map((g) => g.key), ["b2"], "a block left with nothing to show goes away");
@@ -110,7 +111,7 @@ test("a block of another workspace is named after it and has no key, and a seat 
   assert.equal(model.groups[1].i, -1, "a block of another workspace is not reached by clicking its title");
 });
 
-test("a seat row carries the state written out, so the colour is never alone", () => {
+test("a seat row keeps the state in its tip and on its dot, and the corner stays empty unless the chat works", () => {
   flag(true);
   const model = world({
     data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana", state: "needs", live: [1, 2] }), seat("b", { state: "answered" }), seat("c", { state: "done" }), seat("d", { state: "ready" }), seat("e")], archived: [] },
@@ -122,8 +123,8 @@ test("a seat row carries the state written out, so the colour is never alone", (
   assert.deepEqual(a.parts, { pre: "Ana", hit: "", post: "" });
   assert.equal(a.said, "needs you");
   assert.equal(a.hint, "Ana — needs you · 2 running");
-  assert.deepEqual([a.meta, a.tone], ["needs you", "need"]);
-  assert.deepEqual([row("b").meta, row("c").meta, row("d").meta, row("e").meta], ["answered", "finished", "—", "zzz"]);
+  assert.deepEqual(["a", "b", "c", "d", "e"].map((key) => row(key).meta), ["", "", "", "", ""]);
+  assert.equal("tone" in a, false);
   assert.equal(a.openKey, keyLabel(st.keys.seat, 1), "a seat of the block on screen offers its own key on hover");
   assert.equal(row("b").openKey, "", "a seat of another block has no seat key to offer");
 });
@@ -135,8 +136,9 @@ test("the meta counts how long: working since the rail saw it, stalled since the
   const model = world({ data: { pod: { up: false, name: "" }, sessions: [seat("w", { state: "working" }), seat("s", { state: "stalled" })], archived: [] }, blocks: [{ id: "b1", ws: "w0", keys: ["w", "s"] }] });
   const [w, s] = model.groups[0].items;
   assert.match(w.meta, /^\d+s$/);
-  assert.equal(w.tone, "t");
-  assert.equal(s.meta, "stalled 12m");
+  assert.equal(s.meta, "");
+  assert.equal(s.said, "stalled 12m");
+  assert.equal(s.hint, "s — stalled 12m");
   sawWorking.delete("s");
 });
 
@@ -281,9 +283,12 @@ test("/ opens the rail search only with the flag", async () => {
   input.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
   assert.equal(st.railQuery, "");
   assert.equal(st.railSearching, false, "esc clears the search and gives the filter back");
-  assert.deepEqual([...host.querySelectorAll(".rail-seg [data-show]")].map((b) => b.dataset.show), ["all", "local", "cloud"]);
-  host.querySelector("[data-show='cloud']").click();
+  assert.deepEqual([...host.querySelectorAll(".rail-seg [data-show]")].map((b) => b.dataset.show), ["all", "local"], "the cloud filter waits for a chat in the cloud");
+  assert.equal(host.querySelector(".rail-seg b"), null, "the count went to the tip");
+  assert.equal(host.querySelector("[data-show='local']").title, "1 chat");
+  mirror.showOnRail("cloud");
   assert.equal(st.railShows, "cloud");
+  assert.ok(host.querySelector("[data-show='cloud'][aria-pressed='true']"), "the filter in use stays even with nothing in it");
   assert.ok(host.querySelector(".rail-empty"), "the empty cloud says so in one line");
   host.querySelector("[data-show='all']").click();
   flag(false);
@@ -358,4 +363,55 @@ test("a parked chat says on the rail until when it is parked", () => {
   assert.equal(off.items[0].why, `parked till ${mirror.parkWhen(until.getTime())}`);
   assert.match(mirror.parkWhen(until.getTime(), new Date(until.getTime() - 60000)), /^\d{2}:\d{2}/);
   hidden.clear();
+});
+
+test("a row draws no state word: the dot says it to a screen reader, and only a working chat shows its time", async () => {
+  if (!mirror.railSolid) (await app("shared")).bootSolid();
+  flag(true);
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana", state: "needs" }), seat("w", { title: "Wil", state: "working" }), seat("d", { title: "Dora", state: "ready" }), seat("z", { title: "Zeca" })], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a", "w", "d", "z"] }]
+  });
+  mirror.paintRail();
+  const host = $("rail-sessions");
+  const row = (name) => host.querySelector(`.item[data-name='${name}']`);
+  assert.equal(row("a").title, "Ana — needs you");
+  assert.equal(row("a").querySelector(".rc-dot").getAttribute("role"), "img");
+  assert.equal(row("a").querySelector(".rc-dot").getAttribute("aria-label"), "needs you");
+  assert.equal(row("a").querySelector(".meta"), null, "the state word came back to the corner");
+  assert.equal(row("d").querySelector(".meta"), null, "a ready chat wears a dash again");
+  assert.equal(row("z").querySelector(".meta"), null, "an idle chat wears zzz again");
+  assert.match(row("w").querySelector(".meta").textContent, /^\d+s$/);
+  flag(false);
+});
+
+test("a block title is its name alone: no on-screen tag, the key stays", async () => {
+  if (!mirror.railSolid) (await app("shared")).bootSolid();
+  flag(true);
+  const model = world({ data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b")], archived: [] }, blocks: [{ id: "b1", ws: "w0", keys: ["a"] }, { id: "b2", ws: "w0", keys: ["b"] }] });
+  assert.equal(model.groups.some((g) => "hereSaid" in g), false);
+  mirror.paintRail();
+  const title = $("rail-sessions").querySelector(".rail-blk.cur > .group-title");
+  assert.equal(title.querySelector("span").textContent, "block 1");
+  assert.equal(title.querySelector(".on-screen"), null);
+  assert.equal(title.querySelector(".rc-key").textContent, keyLabel(st.keys.block, 1));
+  flag(false);
+});
+
+test("the rail headers read in sentence case sans, the rows breathe, and the block on screen sits in no box", () => {
+  const rule = (selector) => {
+    const at = sheet.indexOf(`:where(body.experience-raycast) ${selector} {`);
+    assert.ok(at >= 0, `no rule for ${selector}`);
+    return sheet.slice(at, sheet.indexOf("}", at));
+  };
+  const title = rule(".group-title");
+  assert.match(title, /font: 500 12px var\(--sans\)/);
+  assert.match(title, /text-transform: none/);
+  assert.doesNotMatch(title, /var\(--mono\)/);
+  assert.match(rule(".group-title > span:first-of-type::first-letter"), /text-transform: uppercase/);
+  assert.match(rule("#rail-sessions .rail-blk > .item + .item"), /margin-top: 2px/);
+  assert.match(rule(".rail-blk"), /margin-top: 12px/, "a block title sits 12px under the chat above it");
+  assert.doesNotMatch(sheet, /\.rail-blk\.cur \{/, "the block on screen got its box back");
+  assert.doesNotMatch(sheet, /\.rail-seg button b/);
+  assert.match(rule(".item .meta"), /font: 400 12px var\(--sans\); font-variant-numeric: tabular-nums;/);
 });

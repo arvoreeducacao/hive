@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { app, state, views } from "./dom.mjs";
-import { BLOCK_SIZE_DEFAULT, BRAND_FACE_DEFAULT, GAZE_DEFAULT, LOOK_DEFAULT, PETS_OFF, STRUCTURE_DEFAULT, TOOL_CALLS_DEFAULT, VISUAL_DEFAULT } from "../lib/config.mjs";
+import { readFileSync } from "node:fs";
+import { BLOCK_SIZE_DEFAULT, BRAND_FACE_DEFAULT, GAZE_DEFAULT, LIMITS_FOOT_DEFAULT, LOOK_DEFAULT, PETS_OFF, TOOL_CALLS_DEFAULT, VISUAL_DEFAULT } from "../lib/config.mjs";
 import { QUIET_DAYS_DEFAULT } from "../lib/quiet-seats.mjs";
 import { DIARY_DAYS_DEFAULT } from "../lib/diary-prune.mjs";
 
@@ -18,7 +19,7 @@ const visibleRows = () => rows().filter((row) => !row.classList.contains("miss")
 
 test("every pane is made of groups of cards, and every control row names its title and its controls", () => {
   const panes = [...$("pref-body").querySelectorAll(".pref-pane")];
-  assert.equal(panes.length, 12);
+  assert.equal(panes.length, 14);
   for (const pane of panes) assert.ok(pane.querySelector(".set-group .set-card .set-row"), `${pane.dataset.pane} has no card`);
   for (const row of $("pref-body").querySelectorAll(".set-row[data-control]")) {
     assert.ok(row.querySelector(".set-title")?.textContent.trim(), `${row.dataset.control} has no title`);
@@ -27,21 +28,70 @@ test("every pane is made of groups of cards, and every control row names its tit
 });
 
 test("the controls keep the ids the rest of the app reaches for", () => {
-  const ids = ["f-look", "f-lang", "f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap", "cfg-path", "cfg-ignored", "f-visual", "experience-toggle", "experience-state", "experience-recovery", "t-stt", "stt-say", "stt-box", "f-stt-model", "stt-state", "stt-bar", "stt-get", "stt-stop", "stt-drop", "f-stt-mic", "f-stt-lang", "cfg-mug", "cfg-open", "cfg-pick", "cfg-face", "cfg-roll", "cfg-strip", "f-pet", "f-brand", "f-gaze", "s-needs", "p-needs", "t-needs", "s-answered", "p-answered", "t-answered", "s-asked-say", "p-asked", "t-knocks", "s-knocks-say", "s-volume", "s-volume-n", "f-layout", "f-size", "f-shots", "f-tools", "f-compact", "t-context-usage", "s-context-usage-say", "t-agent-updates", "s-agent-updates-say", "f-quiet-days", "f-diary-days", "slack-state", "slack-code-box", "slack-code", "slack-connect", "slack-forget", "help-hint", "help-leader", "help-keys"];
+  const ids = ["f-look", "f-lang", "f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap", "cfg-path", "cfg-ignored", "f-visual", "experience-toggle", "experience-state", "experience-recovery", "t-stt", "stt-say", "stt-box", "f-stt-model", "stt-state", "stt-bar", "stt-get", "stt-stop", "stt-drop", "f-stt-mic", "f-stt-lang", "cfg-mug", "cfg-open", "cfg-pick", "cfg-face", "cfg-roll", "cfg-strip", "f-pet", "f-brand", "f-gaze", "s-needs", "p-needs", "t-needs", "s-answered", "p-answered", "t-answered", "p-asked", "t-knocks", "s-knocks-say", "s-volume", "s-volume-n", "f-layout", "f-size", "f-shots", "f-tools", "f-compact", "t-context-usage", "s-context-usage-say", "t-agent-updates", "s-agent-updates-say", "f-quiet-days", "f-diary-days", "slack-state", "slack-code-box", "slack-code", "slack-connect", "slack-forget", "help-hint", "help-leader", "help-keys", "btn-dim", "k-dim", "btn-share", "btn-phone", "btn-machines", "in-machine", "ver"];
   for (const id of ids) assert.equal(document.querySelectorAll(`#${id}`).length, 1, `#${id} should be on the page once`);
 });
 
 test("the defaults the cards reset to are the ones the config file falls back to", () => {
   assert.equal(SETTING_DEFAULTS["f-look"], LOOK_DEFAULT);
-  assert.equal(SETTING_DEFAULTS["f-structure"], STRUCTURE_DEFAULT);
   assert.equal(SETTING_DEFAULTS["f-visual"], VISUAL_DEFAULT);
   assert.equal(SETTING_DEFAULTS["f-gaze"], GAZE_DEFAULT);
   assert.equal(SETTING_DEFAULTS["f-brand"], BRAND_FACE_DEFAULT);
   assert.equal(SETTING_DEFAULTS["f-pet"], PETS_OFF);
   assert.equal(SETTING_DEFAULTS["f-tools"], TOOL_CALLS_DEFAULT);
+  assert.equal(SETTING_DEFAULTS["t-limits-foot"], LIMITS_FOOT_DEFAULT);
   assert.equal(SETTING_DEFAULTS["f-size"], BLOCK_SIZE_DEFAULT);
   assert.equal(SETTING_DEFAULTS["f-quiet-days"][0], String(QUIET_DAYS_DEFAULT));
   assert.equal(SETTING_DEFAULTS["f-diary-days"][0], String(DIARY_DAYS_DEFAULT));
+});
+
+test("the switches that left the ⋯ menu live in their sections and reset to what a new hive starts with", () => {
+  const paneOf = (id) => $(id).closest(".pref-pane").dataset.pane;
+  assert.equal(paneOf("btn-dim"), "screen");
+  assert.equal(paneOf("btn-share"), "notices");
+  assert.ok($("btn-share").closest(".set-card").contains($("t-knocks")), "sharing sits next to the knock, in Team");
+  for (const id of ["in-machine", "btn-machines", "btn-phone", "ver"]) assert.equal(paneOf(id), "machines", `${id} is not in Machines`);
+  assert.ok($("pref-nav").querySelector('button[data-pane="machines"]'), "Machines has its tab");
+  for (const id of ["btn-dim", "btn-share", "btn-phone", "btn-machines"]) assert.ok($(id).classList.contains("flip"), `${id} is not a switch`);
+  assert.equal(SETTING_DEFAULTS["btn-dim"], true);
+  assert.equal(SETTING_DEFAULTS["btn-share"], true);
+  assert.equal(SETTING_DEFAULTS["btn-phone"], false);
+  assert.equal(SETTING_DEFAULTS["btn-machines"], false);
+  assert.equal(SETTING_DEFAULTS["in-machine"], "");
+  const menu = document.getElementById("more");
+  for (const id of ["btn-dim", "btn-share", "btn-phone", "btn-machines", "in-machine", "ver"]) assert.ok(!menu.contains($(id)), `${id} is still in the ⋯ menu`);
+  assert.ok(!menu.firstElementChild.classList.contains("sep"), "the menu does not open on a separator");
+});
+
+test("the ⋯ menu writes its keys as grey text, and the settings speak in sentence case with plain selects", () => {
+  const page = readFileSync(new URL("../app.html", import.meta.url), "utf8");
+  const next = readFileSync(new URL("../assets/experience.css", import.meta.url), "utf8");
+  const panels = readFileSync(new URL("../assets/raycast/panels.css", import.meta.url), "utf8");
+  const rule = (sheet, selector) => sheet.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`))?.[1] || "";
+  const keys = rule(page, "#top #more .ghost kbd");
+  assert.match(keys, /border: 0/);
+  assert.match(keys, /background: none/);
+  assert.match(rule(next, "body.experience-next #top #more .ghost kbd"), /padding: 0/, "the new hive does not box them either");
+  const head = rule(page, "#help .set-head");
+  assert.match(head, /text-transform: none/);
+  assert.match(head, /font-size: 13px/);
+  assert.match(head, /font-family: var\(--sans\)/);
+  assert.doesNotMatch(panels, /#help \.set-head \{[^}]*--mono/, "the default look does not put the group heads back in mono");
+  assert.match(rule(page, "#help .set-ctl select"), /font-family: var\(--sans\)/);
+});
+
+test("a moved switch that is off shows its way back, and taking it turns it on through its own handler", () => {
+  const flip = $("btn-share");
+  flip.classList.remove("on");
+  let clicks = 0;
+  const count = () => { clicks += 1; flip.classList.add("on"); };
+  flip.addEventListener("click", count);
+  paintSettingResets();
+  const back = flip.closest(".set-row").querySelector(".set-reset");
+  assert.equal(back.hidden, false);
+  back.click();
+  assert.ok(clicks >= 1);
+  flip.removeEventListener("click", count);
 });
 
 test("a changed row shows the way back to the default, and taking it restores the value through the control's own handler", async () => {

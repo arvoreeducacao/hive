@@ -40,7 +40,14 @@ export function registerFilesRoutes(on, {
   on(null, "/api/code", async (req, res, url, json) => {
     const where = url.searchParams.get("where") === "cloud" ? "cloud" : "local";
     const started = now();
-    const found = await searchCode({ q: url.searchParams.get("q") || "", where, glob: url.searchParams.get("glob") || "" });
+    const found = await searchCode({
+      q: url.searchParams.get("q") || "",
+      where,
+      glob: url.searchParams.get("glob") || "",
+      matchCase: url.searchParams.get("case") === "1",
+      wholeWord: url.searchParams.get("word") === "1",
+      regex: url.searchParams.get("regex") === "1"
+    });
     return json({ ...found, where, ms: now() - started, hits: found.hits.map((hit) => ({ ...hit, where })) });
   });
 

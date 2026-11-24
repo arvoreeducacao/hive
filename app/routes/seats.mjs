@@ -33,10 +33,13 @@ export function registerSeatRoutes(on, context) {
     hiveHome,
     serverFor,
     openShell,
+    cancelOpeningShell,
+    retireTiedShell,
     spawning,
     invalidateFleetCache,
     renameSeat,
     regenerateSeatTitle,
+    guessNextPrompt = async () => ({ text: "", skipped: "off" }),
     cloudReach,
     killSeatWindow,
     seatLeftovers,
@@ -177,6 +180,15 @@ export function registerSeatRoutes(on, context) {
     return json(said, said.ok ? 200 : said.held ? 409 : 404);
   });
 
+  on("POST", "/api/next-prompt", async (req, res, url, json) => {
+    const b = await bodyOf(req);
+    const name = String(b?.name || "").trim();
+    if (!name || !isSeatName(name)) return json({ error: "no seat to guess for" }, 400);
+    const where = b?.where === "cloud" ? "cloud" : "local";
+    try { return json(await guessNextPrompt(name, where)); }
+    catch (e) { return json({ text: "", error: String(e?.message || e) }); }
+  });
+
   on("POST", "/api/attach", async (req, res, url, json) => {
     const b = await bodyOf(req);
     if (b.oversized) return json({ error: "that is more than this app carries in one go" }, 413);
@@ -221,6 +233,7 @@ export function registerSeatRoutes(on, context) {
     if (closer && closer !== name && readErrands(hiveHome)?.[name]?.by !== closer) {
       return json({ error: `${name} was not opened by ${closer} — a chat closes only itself and the chats it opened` }, 403);
     }
+    if (!closer && cancelOpeningShell?.(name)) return json({ ok: true, cancelled: true });
     const leaving = Boolean(closer) && closer === name;
     if (leaving) {
       json({ ok: true, leaving: true });
@@ -228,6 +241,7 @@ export function registerSeatRoutes(on, context) {
     }
     const reply = leaving ? () => {} : json;
     const said = await killSeatWindow(name, where);
+    if (said?.ok === false && !closer && retireTiedShell?.(name, where)) return reply({ ok: true, retrying: true });
     if (said?.ok === false) return reply({ error: said.error || `the seat would not close` }, 502);
     historyClosedSeat(where === "cloud" ? "cloud" : "local", name);
     forgetSeat(where === "cloud" ? "cloud" : "local", name);

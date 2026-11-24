@@ -8,4 +8,3 @@
 .chat-drop-over { --chat-drop-tint: color-mix(in oklab, var(--accent) 14%, transparent); outline: 1px solid color-mix(in oklab, var(--accent) 75%, transparent) !important; outline-offset: -1px !important; background-image: linear-gradient(var(--chat-drop-tint), var(--chat-drop-tint)) !important; }
 
 #pal.chat-dragging-out { opacity: 0; pointer-events: none; }
-body.chat-dragging .il-veil { opacity: 0; pointer-events: none; }

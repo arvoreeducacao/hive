@@ -97,7 +97,7 @@ test("a seat mid-turn keeps its login until the turn lets go", () => {
 });
 
 test("the seat says which login it is on, and starting says it too", () => {
-  assert.match(driver, /current: \{ model: currentModel, effort, from: [^}]*account: logins\.name \}/);
+  assert.match(driver, /current: \{ model: currentModel, effort, from: [^}]*account: logins\.name(?:, fast: fastMode)? \}/);
   assert.match(driver, /subtype: "started"[^}]*account: logins\.name/);
 });
 

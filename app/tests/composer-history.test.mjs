@@ -51,7 +51,7 @@ test("what another chat wrote here never enters the box's memory", () => {
 });
 
 test("native commands and mirror sends, which never echo, are remembered on the spot", () => {
-  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, cutIn = false) => {", "const dropFromTray =", "chat-stretches.js");
+  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, steer = false) => {", "const dropFromTray =", "chat-stretches.js");
   assert.match(deliver, /if \(e\.mirror\) \{[^`]*?rememberSent\(e, text\)/s);
   assert.match(deliver, /rememberSent\(e, text\);\n\s*runNativeCommand/);
   const serverPath = deliver.slice(deliver.indexOf("svCmd(e,"));
@@ -80,12 +80,13 @@ test("down walks forward and past the newest the box is empty again", () => {
   assert.deepEqual(stepHistory(sent, null, 1), { idx: null, text: "" });
 });
 
-test("the queue keeps its arrow — history only opens when nothing is queued", () => {
+test("up walks the history only from an empty or recalled box, and a mirrored chat keeps the take-back arrow", () => {
   const keys = slice(stretches, 'textarea.addEventListener("keydown"', 'textarea.addEventListener("input"', "chat-stretches.js");
   const queueBranch = keys.indexOf("takeBack(e.queuedEls[e.queuedEls.length - 1])");
   const historyBranch = keys.indexOf("stepHistory(e.sent, e.histIdx, -1)");
-  assert.ok(queueBranch >= 0 && historyBranch > queueBranch, "the take-back branch wins while there is a queue");
-  assert.match(keys, /kev\.key === "ArrowUp"[^}]*!textarea\.value\) \{\n\s*const step = stepHistory/);
+  assert.ok(queueBranch >= 0 && historyBranch > queueBranch, "the take-back branch comes first");
+  assert.match(keys, /e\.queuedEls\?\.length && !composerLive\(e\)\) \{/, "only a chat without the queue list takes a message back with up");
+  assert.match(keys, /kev\.key === "ArrowUp"[^}]*historyOpen\(-1\)\) \{\n\s*const step = stepHistory/);
 });
 
 test("down only means history while a recall is showing", () => {
@@ -99,7 +100,7 @@ test("typing again lets the cycling go", () => {
 });
 
 test("everything the box sends is remembered once, consecutive repeats included only once", () => {
-  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, cutIn = false) => {", "const dropFromTray =", "chat-stretches.js");
+  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, steer = false) => {", "const dropFromTray =", "chat-stretches.js");
   assert.match(deliver, /e\.histIdx = null;/);
   const e = seatWith();
   rememberSent(e, "again");

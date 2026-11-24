@@ -8,7 +8,7 @@ import { pull, releaseKeyboard } from "./focus-navigation.js";
 import { justCreated, keyHint } from "./leader-key.js";
 import { paintRail } from "./mirror.js";
 import { personFace } from "./person-face.js";
-import { calmly, nameSlug } from "./pure-helpers.js";
+import { calmly, hostOf, nameSlug } from "./pure-helpers.js";
 import { devFace, faceSvg, holdingKeyboard, takenSlots, wearsBlob } from "./team.js";
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, exitReview, prsOnScreen } from "./thread.js";
@@ -600,7 +600,8 @@ function wPaint() {
   const shown = W_STEPS.filter((own) => !wSkipped(own.id) && !W_ON_THE_PAGE.includes(own.id));
   const done = shown.filter((own) => wDone(own.id)).length;
   const at = shown.findIndex((own) => own.id === wb.step);
-  wSet("w-bar-left", `${prev ? `<button class="btn" data-w="back">${phrase("Back")}</button>` : ""}<span class="says">${phrase("{i} of {total}", { i: Math.max(at, 0) + 1, total: shown.length })} · ${phrase(W_STEPS[i].label)} · <b>${phrase("{n} done", { n: done })}</b>${s?.server?.url ? ` · ${esc(new URL(s.server.url).host)}` : ""}</span>`);
+  const host = hostOf(s?.server?.url);
+  wSet("w-bar-left", `${prev ? `<button class="btn" data-w="back">${phrase("Back")}</button>` : ""}<span class="says">${phrase("{i} of {total}", { i: Math.max(at, 0) + 1, total: shown.length })} · ${phrase(W_STEPS[i].label)} · <b>${phrase("{n} done", { n: done })}</b>${host ? ` · ${esc(host)}` : ""}</span>`);
   const pr = wPrimary();
   wSet("w-bar-right", `<button class="go" data-w="${pr.action}"${pr.disabled ? " disabled" : ""}>${wb.busy && wb.busy === pr.action ? phrase("working…") : esc(phrase(pr.label))} <kbd>↵</kbd></button>`);
   $("w-sandbox").hidden = !s?.sandbox;

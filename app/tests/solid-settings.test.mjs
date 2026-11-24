@@ -366,6 +366,7 @@ function keysWorld(over = {}) {
     },
     DEFAULT_LEADER: { code: "KeyB", ctrl: true },
     IS_MAC: false,
+    THEME_RESCUE_KEY: { ctrl: true, alt: true, shift: true, code: "KeyT" },
     experienceNext: () => over.next === true,
     silenced: (a) => a === "new" && over.silenced === true,
     digitSpan: () => 4,
@@ -439,11 +440,12 @@ test("the search narrows the list by what it does or by the key, and says so whe
   assert.equal(none.empty, "No keybindings match your search.");
 });
 
-test("the five combinations the app does not let you change close the list", () => {
+test("the six combinations the app does not let you change close the list, the theme rescue last", () => {
   const model = run(keysWorld(), keysPanel, "keysGridModel")();
   const fixed = model.groups.at(-1);
   assert.equal(fixed.fixed, true);
-  assert.deepEqual(fixed.rows.map((one) => one.combo), ["Ctrl+V", "⇧Enter", "drag", "drag", "Esc"]);
+  assert.deepEqual(fixed.rows.map((one) => one.combo), ["Ctrl+V", "⇧Enter", "drag", "drag", "Esc", "KeyT"]);
+  assert.equal(fixed.rows.at(-1).key, "themeRescue");
 });
 
 test("the leader line offers to turn it off while it is on, and on while it is off", () => {
@@ -479,7 +481,8 @@ function notesWorld(over = {}) {
     },
     notesIn: (d) => d.notes || [],
     versionOf: (tag, number) => (number > 0 ? `#${number}` : String(tag || "")),
-    plural: (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`,
+    changesSaid: (n) => (n === 1 ? "1 change" : `${n} changes`),
+    housekeepingSaid: (n) => (n === 1 ? "1 housekeeping commit" : `${n} housekeeping commits`),
     megabytes: (b) => (b > 0 ? `${(b / 1048576).toFixed(0)} MB` : ""),
     NOTE_TAG: { new: "new", fixed: "fix" }
   };

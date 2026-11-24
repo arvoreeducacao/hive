@@ -3,6 +3,7 @@ import { DRAFT_ANONYMOUS, draftFrom } from "./draft-seat.js";
 import { closePal } from "./palette.js";
 import { isLongPaste } from "./pasted-text.js";
 import { MENTION, seatHandle, seatLabel } from "./pure-helpers.js";
+import { clearPicks, isPicked, pickedKeys } from "./seat-selection.js";
 
 const SEATS_MIME = "application/x-hive-seats";
 const SEAT_LINK = /\[[^\]\n]{0,512}\]\(hive:\/\/seat\/([\w.-]+)\)|hive:\/\/seat\/([\w.-]+)/g;
@@ -10,12 +11,6 @@ const COMPOSER_WAIT_FRAMES = 90;
 
 const ROW_SOURCES = [
   ["#rail-sessions .item[data-name]", (row) => row.dataset.name],
-  [".tx-row[data-key]", (row) => row.dataset.key],
-  [".ck-fr[data-seat]", (row) => row.dataset.seat],
-  [".stg-mini[data-seat], .stg-who-one[data-seat]", (row) => row.dataset.seat],
-  [".em-card[data-key]", (row) => row.dataset.key],
-  [".il-bar [data-seat], .il-panel [data-seat]", (row) => row.dataset.seat],
-  [".lx-row[data-id]", (row) => row.dataset.id],
   ["#pal-list .pal-row[data-i]", (row) => paletteSeatName(row)],
 ];
 
@@ -84,9 +79,14 @@ function dropTargetOf(node) {
   return composer ? { kind: "composer", el: tile.querySelector(".sv-composer"), ...composer } : null;
 }
 
-const takes = (target, seats) => !!target && seats.every((seat) => seat.name !== target.name && sideOf(seat) === target.side);
+const othersThan = (target, seats) => seats.filter((seat) => seat.name !== target?.name);
 
-const drag = { seats: [], over: null, lit: null, ghost: null, leave: null };
+const takes = (target, seats) => {
+  const others = othersThan(target, seats);
+  return !!target && others.length > 0 && others.every((seat) => sideOf(seat) === target.side);
+};
+
+const drag = { seats: [], fromPicks: false, over: null, lit: null, ghost: null, leave: null };
 
 const OVERLAYS = [
   {
@@ -97,7 +97,6 @@ const OVERLAYS = [
       closePal();
     },
   },
-  { within: ".il-island", lift: () => {}, leave: () => document.querySelector(".il-veil")?.click() },
 ];
 
 function surfaceOf(el) {
@@ -130,6 +129,7 @@ function endDrag() {
   drag.ghost?.remove();
   drag.leave?.();
   drag.seats = [];
+  drag.fromPicks = false;
   drag.ghost = null;
   drag.leave = null;
   document.body.classList.remove("chat-dragging");
@@ -194,8 +194,10 @@ document.addEventListener("pointerup", disarm, true);
 document.addEventListener("dragstart", (ev) => {
   const hit = rowOf(ev.target);
   if (!hit || ev.target !== hit.row) return;
-  const seats = [hit.seat];
+  const fromPicks = isPicked(hit.seat.name);
+  const seats = fromPicks ? [hit.seat, ...pickedKeys().filter((key) => key !== hit.seat.name).map(liveSeat).filter(Boolean)] : [hit.seat];
   drag.seats = seats;
+  drag.fromPicks = fromPicks;
   const overlay = OVERLAYS.find((one) => hit.row.closest(one.within));
   drag.leave = overlay?.leave || null;
   ev.dataTransfer.effectAllowed = "copy";
@@ -236,11 +238,14 @@ document.addEventListener("drop", (ev) => {
   ev.stopPropagation();
   const seats = seatsCarried(ev);
   const target = dropTargetOf(ev.target);
+  const fromPicks = drag.fromPicks;
   markOver(null);
   if (drag.seats.length) endDrag();
   if (!takes(target, seats)) return;
-  if (target.kind === "row") return void dropOnRow(target.el, target.name, seats);
-  weaveSeats(target.textarea, seats);
+  if (fromPicks) clearPicks();
+  const others = othersThan(target, seats);
+  if (target.kind === "row") return void dropOnRow(target.el, target.name, others);
+  weaveSeats(target.textarea, others);
 }, true);
 
 function seatsInLinks(text, here) {

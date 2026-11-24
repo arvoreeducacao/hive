@@ -1,7 +1,8 @@
 import { render } from "./arrange.js";
+import { backgroundWorkAct, backgroundWorkLine, paintBackgroundWork } from "./background-work.js";
 import { paintMentions, wireLinks } from "./chat-and-panes.js";
 import { giveImageChipItsPicture, paintSaidChips, wireChips } from "./context-chips.js";
-import { liveStart, liveStep, phrase, raycastOn, renderMarkdownBlocks, solidMounts, st } from "./core.js";
+import { liveStart, liveStep, phrase, renderMarkdownBlocks, solidMounts, st } from "./core.js";
 import { enrichMarkdown } from "./markdown-rich.js";
 import { focusSeat, goTo } from "./focus-navigation.js";
 import { openShotFrom, wireMdShots } from "./picture-preview.js";
@@ -30,7 +31,7 @@ let convSolid = null;
 const TOOK_SHOWN_FROM_MS = 10;
 
 function svConvSeed() {
-  return { blocks: [], subs: [], seq: 0, shownFrom: null, thinking: null, retrying: null, steers: new Set() };
+  return { blocks: [], subs: [], seq: 0, shownFrom: null, thinking: null, retrying: null, steers: new Set(), unreadSteers: new Set(), steerStep: false };
 }
 
 const svConvHasBar = (blocks) => blocks[0]?.kind === "node" && String(blocks[0].key).endsWith(":earlier");
@@ -86,10 +87,6 @@ function svConvSay(one) {
   return said;
 }
 
-function svConvSaySub(one) {
-  return { ...one, dataset: { ...one.dataset }, steps: one.steps.map((step) => ({ ...step })) };
-}
-
 const svConvDue = new Set();
 
 const ANCHOR_OFFSET = 24;
@@ -99,8 +96,14 @@ const OUT_CAP = 200000;
 
 let timelineHook = null;
 
+let timelineBase = null;
+
 function svConvTimeline(hook) {
   timelineHook = hook || null;
+}
+
+function svConvTimelineBase(hook) {
+  timelineBase = hook || null;
 }
 
 const svConvTimelineOn = (e) => !!e?.convView;
@@ -115,8 +118,8 @@ function svConvLook(e) {
   const extra = timelineHook?.look?.(e) || {};
   return {
     say: phrase, busy: !!e.turnOpen, waiting: (e.asked?.size || 0) > 0, since: extra.since || svConvTurnSince(e), thinking: e.conv.thinking?.text || "", tools: st.toolCalls || "all",
-    steers: e.conv.steers, unfolded: tl.unfolded, expanded: tl.expanded, users: tl.users,
-    turnFiles: extra.turnFiles || null, status: [...svConvBackground(e), ...(extra.status || marksStatusLines(e.name))]
+    steers: e.conv.steers, unreadSteers: e.conv.unreadSteers, unfolded: tl.unfolded, expanded: tl.expanded, users: tl.users,
+    turnFiles: extra.turnFiles || timelineBase?.turnFiles?.(e) || null, status: [...svConvBackground(e), ...(extra.status || marksStatusLines(e.name))]
   };
 }
 
@@ -126,9 +129,8 @@ function svConvTurnSince(e) {
 }
 
 function svConvBackground(e) {
-  const running = e.subs?.size || 0;
-  if (!running || e.turnOpen) return [];
-  return [{ id: "bg", icon: "bot", label: running === 1 ? phrase("1 background agent running") : phrase("{n} background agents running", { n: running }) }];
+  const line = backgroundWorkLine(e);
+  return line ? [line] : [];
 }
 
 function svConvLegacy(row) {
@@ -316,8 +318,8 @@ function svConvFlushAll() {
 }
 
 function svConvShowSubs(e) {
-  if (!e.subsView) return;
-  e.subsView.show({ key: e.name, subs: e.conv.subs.map(svConvSaySub) });
+  svConvShow(e);
+  paintBackgroundWork(e);
 }
 
 const SV_CONV_QUIET = ["think", "work", "tool", "retry"];
@@ -631,6 +633,33 @@ function svConvTurnStart(e) {
 function svConvSteer(e, cid) {
   if (!cid) return;
   e.conv.steers.add(cid);
+  e.conv.unreadSteers.add(cid);
+  e.conv.steerStep = false;
+  svConvShow(e);
+}
+
+function svConvSteerSaw(e, ev) {
+  const unread = e.conv?.unreadSteers;
+  if (!unread?.size) return;
+  const content = ev.message?.content;
+  if (ev.type === "user" && Array.isArray(content) && content.some((one) => one?.type === "tool_result")) {
+    e.conv.steerStep = true;
+    return;
+  }
+  if (ev.type === "result" || (ev.type === "assistant" && e.conv.steerStep)) {
+    unread.clear();
+    e.conv.steerStep = false;
+    svConvShow(e);
+  }
+}
+
+function svConvResay(e, cid, text, images) {
+  const block = cid && typeof text === "string" ? e.conv?.blocks.find((one) => one.kind === "bubble" && one.dataset?.cid === cid) : null;
+  if (!block) return;
+  block.body = svConvBubbleBody(text);
+  block.text = text;
+  block.thumbs = [];
+  for (const path of Array.isArray(images) ? images : []) svConvThumb(e, block, path);
   svConvShow(e);
 }
 
@@ -882,9 +911,7 @@ function svConvSubPin(e, block) {
     key: `${e.tag}:sub:${block.id}`, dataset: { t0: String(t0), bg: "", task: "" },
     name: String(inp.subagent_type || "subagent"),
     arg: oneLine(inp.description || inp.prompt || "").slice(0, 300),
-    background: phrase("background"),
-    hint: phrase("open it to see the whole run — it drops back into the chat when it lands"),
-    body: trimBody(String(inp.prompt || "").trim()), ms: "", steps: [], step: 0
+    body: trimBody(String(inp.prompt || "").trim()), steps: [], step: 0, stepAt: 0
   };
   e.subs.set(block.id, item);
   e.conv.subs.push(item);
@@ -900,6 +927,7 @@ function svConvSubStep(e, id, kind, glyph, text, key) {
     text: oneLine(text).slice(0, 300) || "…", now: true, open: false, bad: false, landed: false, hint: ""
   };
   item.steps.push(step);
+  item.stepAt = e.at || Date.now();
   while (item.steps.length > SUB_LOG_MAX) item.steps.shift();
   for (const past of item.steps) past.now = past === step;
   svConvShowSubs(e);
@@ -934,36 +962,7 @@ function svConvSubUnpin(e, id) {
   paintSubs(e);
 }
 
-const subAge = (ms) => (ms < 120000 ? tookLabel(ms) : `${Math.round(ms / 60000)}m`);
-
 function svConvSubs(e) {
-  if (raycastOn()) return svConvSubsAged(e);
-  const dock = e.host?.querySelector(".sv-subs");
-  if (dock) {
-    dock.classList.toggle("on", !!e.subs?.size);
-    const count = dock.querySelector(".scount");
-    if (count) count.textContent = String(e.subs?.size || 0);
-  }
-  for (const item of e.conv.subs) {
-    const spent = Date.now() - Number(item.dataset.t0 || 0);
-    item.ms = spent > 1500 ? tookLabel(spent) : "";
-  }
-  svConvShowSubs(e);
-}
-
-function svConvSubsAged(e) {
-  const dock = e.host?.querySelector(".sv-subs");
-  let oldest = 0;
-  for (const item of e.conv.subs) {
-    const spent = Date.now() - Number(item.dataset.t0 || 0);
-    oldest = Math.max(oldest, spent);
-    item.ms = spent > 1500 ? subAge(spent) : "";
-  }
-  if (dock) {
-    dock.classList.toggle("on", !!e.subs?.size);
-    const count = dock.querySelector(".scount");
-    if (count) count.textContent = oldest >= 60000 ? `${e.subs?.size || 0} · ${phrase("{n} min", { n: Math.round(oldest / 60000) })}` : String(e.subs?.size || 0);
-  }
   svConvShowSubs(e);
 }
 
@@ -1022,9 +1021,9 @@ function svConvActions(e) {
     seat: (name) => { if (focusSeat(name)) render(); },
     openSeat: (name) => goTo(name),
     toggle: (set, key) => svConvToggle(e, set, key),
-    files: (hit) => timelineHook?.files?.(e, hit),
+    files: (hit) => (timelineHook?.files ? timelineHook.files(e, hit) : timelineBase?.files?.(e, hit)),
     output: (block) => svConvWholeOutput(e, block.key),
-    status: (act) => timelineHook?.status?.(e, act) ?? marksStatusAct(e.name, act),
+    status: (act) => (String(act).startsWith("bg-") ? backgroundWorkAct(e, act) : timelineHook?.status?.(e, act) ?? marksStatusAct(e.name, act)),
     quote: (card) => jumpToQuote(e, card)
   };
 }
@@ -1033,7 +1032,6 @@ function svConvMount(e) {
   if (e.convView || e.lastSeq) return;
   e.conv = svConvSeed();
   e.convView = convSolid.mountConversation(e.scroll, svConvActions(e));
-  e.subsView = convSolid.mountSubs(e.host.querySelector(".sv-subs .sublist"));
   e.scroll.addEventListener("beforematch", (ev) => {
     const fold = ev.target.closest?.("[data-fold]")?.dataset.fold;
     if (!fold || svConvUi(e).unfolded.has(fold)) return;
@@ -1044,4 +1042,4 @@ function svConvMount(e) {
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { switchSays, convSolid, FOLLOW_SLACK, SV_CONV_QUIET, svConvActions, svConvAnchor, svConvAppend, svConvAppendAfter, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDispatched, svConvDraftDrop, svConvDraftPaint, svConvEdit, svConvEditing, svConvElements, svConvEndPill, svConvFlush, svConvFlushAll, svConvHasBar, svConvKey, svConvLetGo, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRecovered, svConvRestore, svConvRetry, svConvRewind, svConvRowEls, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvSaySub, svConvScrolled, svConvSeed, svConvSettle, svConvShots, svConvShow, svConvShown, svConvShownAt, svConvShowNow, svConvShowSubs, svConvStamp, svConvSteer, svConvStick, svConvStopped, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubs, svConvSubStep, svConvSubUnpin, svConvSwitch, svConvTally, svConvThink, svConvThinking, svConvThumb, svConvTimeline, svConvTimelineOn, svConvToggle, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnEnded, svConvTurnsBehind, svConvTurnStart, svConvTurnStarts, svConvUi, svConvUnsay, workedFor };
+export { switchSays, convSolid, FOLLOW_SLACK, SV_CONV_QUIET, svConvActions, svConvAnchor, svConvAppend, svConvAppendAfter, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDispatched, svConvDraftDrop, svConvDraftPaint, svConvEdit, svConvEditing, svConvElements, svConvEndPill, svConvFlush, svConvFlushAll, svConvHasBar, svConvKey, svConvLetGo, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRecovered, svConvRestore, svConvRetry, svConvRewind, svConvRowEls, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvScrolled, svConvSeed, svConvSettle, svConvShots, svConvShow, svConvShown, svConvShownAt, svConvShowNow, svConvShowSubs, svConvStamp, svConvSteer, svConvStick, svConvStopped, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubs, svConvSubStep, svConvSubUnpin, svConvSwitch, svConvTally, svConvThink, svConvThinking, svConvThumb, svConvTimeline, svConvTimelineOn, svConvToggle, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnEnded, svConvTurnsBehind, svConvTurnStart, svConvTurnStarts, svConvUi, svConvUnsay, workedFor, svConvTimelineBase, svConvResay, svConvSteerSaw };

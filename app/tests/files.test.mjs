@@ -135,6 +135,6 @@ test("a path that tries to leave the repo is refused", () => {
 
 test("git is the one that ignores: the walk asks it for tracked plus new-and-not-ignored", () => {
   assert.match(files.INDEX_WALK, /ls-files --cached --others --exclude-standard/);
-  assert.match(files.SEARCH_WALK, /grep \$fold -n -I --untracked/);
+  assert.match(files.SEARCH_WALK, /grep \$fold \$word \$1 -n -I --untracked --no-color -e "\$needle"/);
   assert.match(files.SEARCH_WALK, /wait/, "every repo greps at the same time");
 });

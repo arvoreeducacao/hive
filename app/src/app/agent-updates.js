@@ -1,6 +1,6 @@
 import { $, esc, every, phrase, raycastOn, st } from "./core.js";
 import { closeMore } from "./new-chat.js";
-import { agentsBehind, openProviders, pullProviders, updateAgentNow } from "./providers.js";
+import { agentsAtRisk, agentsBehind, compatSay, openProviders, pullProviders, updateAgentNow } from "./providers.js";
 
 const LATER_KEY = "hive-agent-updates-later";
 const AGENT_CHECK_BEAT = 3600000;
@@ -65,20 +65,32 @@ function paintRailPill() {
   }
 }
 
+function riskHtml(one) {
+  const fix = one.canUpdate && one.compat.latestFixes && one.behind
+    ? `<button type="button" class="ap-go" data-ap-update="${esc(one.id)}" ${one.updating ? "disabled" : ""}>${esc(one.updating ? phrase("updating…") : phrase("update to {version}", { version: one.latest }))}</button>`
+    : "";
+  return `<li class="ap-risk" role="note"><span class="ap-said">${esc(compatSay(one))}</span>${fix}</li>`;
+}
+
 function paintAgentUpdates() {
   paintRailPill();
   const list = waiting();
+  const risky = agentsAtRisk();
   const button = $("btn-agents");
-  button.hidden = !list.length;
-  $("agents-say").textContent = list.length === 1
-    ? phrase("{name} {version} is out", { name: list[0].name, version: list[0].latest })
-    : phrase("{n} agents have a newer version", { n: list.length });
-  if (!list.length) return closeAgentUpdates();
-  $("ap-count").textContent = String(list.length);
-  $("ap-sub").textContent = st.autoUpdateAgents === false
+  button.hidden = !list.length && !risky.length;
+  $("agents-say").textContent = !list.length && risky.length
+    ? phrase("{name} {version} has a known problem", { name: risky[0].name, version: risky[0].compat.version })
+    : list.length === 1
+      ? phrase("{name} {version} is out", { name: list[0].name, version: list[0].latest })
+      : phrase("{n} agents have a newer version", { n: list.length });
+  if (!list.length && !risky.length) return closeAgentUpdates();
+  $("ap-count").textContent = String(list.length + risky.filter((one) => !list.includes(one)).length);
+  $("ap-sub").textContent = !list.length
+    ? phrase("An agent on this machine runs a version with a known problem.")
+    : st.autoUpdateAgents === false
     ? phrase("A newer version is out. Update now, or keep the one you have: nothing changes until you say so.")
     : phrase("A newer version is out, and the hive could not install it on its own.");
-  $("ap-list").innerHTML = list.map(rowHtml).join("");
+  $("ap-list").innerHTML = list.map(rowHtml).join("") + risky.map(riskHtml).join("");
   $("ap-all").hidden = list.filter((one) => one.canUpdate).length < 2;
 }
 
@@ -132,4 +144,4 @@ document.addEventListener("click", (e) => {
 
 every("agent-updates", AGENT_CHECK_BEAT, () => pullProviders(), { background: true });
 
-export { agentPillHtml, paintRailPill, closeAgentUpdates, openAgentUpdates, paintAgentUpdates };
+export { paintRailPill, closeAgentUpdates, openAgentUpdates, paintAgentUpdates };

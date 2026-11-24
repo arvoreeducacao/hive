@@ -256,6 +256,16 @@ test("a repaint keeps the focus on the button that had it", async () => {
   assert.ok(document.activeElement === again);
 });
 
+test("a server address with no scheme still paints the page and the server steps, without a host", async () => {
+  await open(stateWith({ wantsServer: true, server: { url: "127.0.0.1:8791", answers: false } }));
+  assert.ok(stage().querySelector("#wp-server"), "the server section is on the page");
+  assert.equal(stage().querySelector("#wp-server .wp-note"), null, "no host to show, no note");
+  button("start").click();
+  await settle();
+  assert.equal(wb.step, "server");
+  assert.doesNotMatch($("w-bar-left").textContent, /127\.0\.0\.1/);
+});
+
 test("the setup and the server steps are read from the state", () => {
   assert.equal(needsSetup(stateWith({ setup: { ok: true } })), false);
   assert.equal(needsSetup(stateWith({ setup: { ok: false } })), true);

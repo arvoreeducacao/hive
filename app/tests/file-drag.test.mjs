@@ -14,7 +14,7 @@ const st = await state();
 const drag = await app("file-drag");
 const rich = await app("markdown-rich");
 const { getStructured } = await app("chat-stretches");
-const { turnFilesHtml } = await import("../src/structures/inbox-turn-files.js");
+const { turnFilesHtml } = await import("../src/app/turn-files-html.js");
 
 const root = realpathSync(mkdtempSync(join(tmpdir(), "hive-file-drag-")));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -170,13 +170,13 @@ test("a file chip in an answer is draggable once the chat's folder has the file"
   }
 });
 
-test("the files a turn touched can be dragged out of the Inbox list of a local chat", async () => {
+test("the files a turn touched can be dragged out of the turn's file list of a local chat", async () => {
   window.hiveFiles = bridge;
   asked.length = 0;
   const say = { esc: (t) => String(t), phrase: (t, v) => String(t).replace(/\{(\w+)\}/g, (w, k) => (v && k in v ? v[k] : w)) };
   const turn = { ordinal: 3, files: 1, added: 1, removed: 0, paths: [{ path: "src/login.js", added: 1, removed: 0 }] };
   assert.ok(!turnFilesHtml({ turn, all: true }, say).includes("draggable"));
-  const e = chatHost("drag-inbox");
+  const e = chatHost("drag-turn");
   const list = document.createElement("div");
   list.className = "tx-cf";
   list.innerHTML = turnFilesHtml({ turn, all: true, drag: true }, say);
@@ -184,7 +184,7 @@ test("the files a turn touched can be dragged out of the Inbox list of a local c
   const row = list.querySelector('.tx-cf-row[data-file="src/login.js"]');
   assert.equal(row.getAttribute("draggable"), "true");
   dragFrom(row);
-  assert.deepEqual(asked, [{ name: "drag-inbox", path: "src/login.js" }]);
+  assert.deepEqual(asked, [{ name: "drag-turn", path: "src/login.js" }]);
 });
 
 test("a refused drag says so, unless the mouse was already let go", async () => {

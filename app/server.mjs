@@ -1,8 +1,9 @@
+import { dropQueue, foregroundProgram, pickTerminalShell, runnableFile, shellHome, stillToRestore, tiedShellWindow } from "./lib/shell-window.mjs";
 import { catalogRun as runProviderCatalog, catalogRpc as rpcProviderCatalog } from "../server/provider-catalog.mjs";
 import { createServer } from "node:http";
 import { execFile, spawn } from "node:child_process";
 import { mkdtemp, open, readFile } from "node:fs/promises";
-import { chmodSync, closeSync, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
+import { accessSync, chmodSync, closeSync, constants as fsConstants, createReadStream, existsSync, realpathSync, mkdirSync, openSync, readdirSync, readFileSync, readSync as readBytesSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { CREDENTIAL_SAVED, loginConfirmed } from "./lib/server-login.mjs";
 import { hubGuideOf, meetingsGuideOf, serverGuideOf } from "./lib/server-guide.mjs";
 import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promises";
@@ -28,7 +29,7 @@ import { keepShot, readShot } from "./lib/shot.mjs";
 import { machineName, peerOfTheBoard, teamFromBoard, liveliestOfDev, POKE_FRESH, GRANT_MS, LIVE_DIR, panelOf, pagesOf, watchersOf, readPanel, knockOf, pokeOf, readKnock, readSay, sayLine, grantLive, turnsOfTail, liveOfTail, liveFileOf, readPoke, canPoke, askOf, readAsk, readOutbox, answerOf, readAnswer, askLine, owedOf, owedLive, owedText, owedFrom, OWED_FILE } from "./lib/team.mjs";
 import { pickRepo, runsFromBundle, builtBundle, notesFromSubjects, updateFromReleases, updatePicked, releasesQuery, releaseOf, downloadScript, verifyScript, unpackScript, unpackedBundle, rpmInstallOf } from "./main/update.js";
 import { packOf, signatureOf, verifyPack, jsRootOf, sweepJsScript, unpackPackScript, signingTeam, sdkAgreement } from "./main/ota.js";
-import { extensionOf, refuseDrop, FILE_CEILING } from "./assets/drops.mjs";
+import { ATTACHMENT_BYTES, extensionOf, refuseDrop, FILE_CEILING } from "./assets/drops.mjs";
 import { WEBP_DATA_URL, addComment, keepProposalThumb, labelError, proposalCommitLine, proposalOf, readProposalThumb, shelveProposal, TELAS_TAKE_PROPOSALS, askedTab, canonicalLabel, catchUp, commentCommitLine, commitLine, keepPrint, oneAtATime, PRINT_KINDS, printsPage, readComments as readShelfComments, readPage as readShelfPage, readMeta as readShelfMeta, readPrints, keepThumb, readThumb, sendToShelf, settleComment, settleCommitLine, shelfIndex, shelve, slugOf, tabOf, TABS, thumbQueue } from "./lib/shelf.mjs";
 import { pictureFromStore, proposalFromStore } from "./lib/screenbook-store.mjs";
 import { withPinShim } from "./lib/shelf-pins.mjs";
@@ -41,7 +42,8 @@ import { freeNameAmong, nameFromMission, namerCommand, namesThatLived, pastHandl
 import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFallback, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
 import { projectOfChat, titleInstructionsFor } from "./assets/title-instructions.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
-import { cleanAutocompact, cleanAvatar, cleanBlockSize, cleanBrandFace, cleanExperience, cleanExperienceOff, cleanExtensions, cleanFlag, cleanFont, cleanGaze, cleanInfoHeight, cleanInfoWidth, cleanKeys, cleanLanguage, cleanLayout, cleanLook, cleanMachine, cleanPaneWidth, cleanPatch, cleanPet, cleanProviders, cleanQuietDays, cleanQuitShortcut, cleanScreenReader, cleanShelf, cleanSound, cleanSounds, cleanStructure, cleanSttLanguage, cleanSttModel, cleanTerminal, cleanThemeName, cleanThemes, cleanThreadWidth, cleanTimeFormat, cleanTitleInstructions, cleanToolCalls, cleanVisual, cleanVolume, cleanWear, CONTEXT_USAGE_ENV, contextUsageEnv, FONT_DEFAULTS, GITHUB_REPO_URL, isPlainObject, sameGithubRepo, cleanPrViews } from "./lib/config.mjs";
+import { cleanAutocompact, cleanAvatar, cleanBlockSize, cleanBrandFace, cleanExperience, cleanExperienceOff, cleanExtensions, cleanFlag, cleanFont, cleanGaze, cleanInfoHeight, cleanInfoWidth, cleanKeys, cleanLanguage, cleanLayout, cleanLook, cleanMachine, cleanPaneWidth, cleanPatch, cleanPet, cleanProviders, cleanQuietDays, cleanQuitShortcut, cleanScreenReader, cleanShelf, cleanSound, cleanSounds, cleanSttLanguage, cleanSttModel, cleanTerminal, cleanTerminalShell, cleanThemeName, cleanThemes, cleanThreadWidth, cleanTimeFormat, cleanTitleInstructions, cleanToolCalls, cleanVisual, cleanVolume, cleanWear, CONTEXT_USAGE_ENV, contextUsageEnv, FONT_DEFAULTS, GITHUB_REPO_URL, isPlainObject, sameGithubRepo, cleanPrViews, cleanAppearance, cleanThemeLight, cleanContrast, cleanGlass, cleanPanelMotion, cleanChatWidth, seatTuningEnv, SEAT_TUNING_ENVS, cleanSendShortcut, cleanFollowUp } from "./lib/config.mjs";
+import { buildNextPromptAsk, nextPromptFromAnswer, nextPromptSkip } from "./lib/next-prompt.mjs";
 import { seatsGoneQuiet, quietReason, QUIET_SWEEP_EVERY_MS } from "./lib/quiet-seats.mjs";
 import { cleanDiaryDays, diariesToPrune, pruneDiary, readDiaries, readSeatMeta, syncedSessionIds } from "./lib/diary-prune.mjs";
 import { autocompactFromConfig } from "../server/engine/agents.mjs";
@@ -51,6 +53,8 @@ import { AUTO_UPDATE_EVERY, AUTO_UPDATE_FIRST, behindOf, createAutoUpdater, crea
 import { readScreen, findThinking, deriveState, modelOnScreen, since } from "./lib/screen.mjs";
 import { TRAILS_KEPT, trailCwds, treesOfSeat } from "./lib/trails.mjs";
 import { CHANGES_SCRIPT, DIFF_SCRIPT, DISCARD_SCRIPT, readChanges, readDiff } from "./lib/changes.mjs";
+import { patternProblem, readSearchProblem, searchFlags, searchOptions } from "./assets/code-search.mjs";
+import { createProjectFiles } from "./lib/project-files.mjs";
 import { createReach } from "./lib/cloud-reach.mjs";
 import { bridgeTerminal } from "./lib/seat-terminal.mjs";
 import { browserState, registerBrowserRoutes } from "./routes/browser.mjs";
@@ -80,6 +84,8 @@ import { createRegistry as createExtensionRegistry } from "./lib/extensions.mjs"
 import { createStore as createExtensionStore } from "./lib/extension-store.mjs";
 import { registerFilesRoutes } from "./routes/files.mjs";
 import { registerChangesRoutes } from "./routes/changes.mjs";
+import { registerChatPanelRoutes } from "./routes/chat-panel.mjs";
+import { registerProjectFileRoutes } from "./routes/project-files.mjs";
 import { registerSecretAskRoutes } from "./routes/secret-asks.mjs";
 import { registerCheckpointRoutes } from "./routes/checkpoints.mjs";
 import { registerRewindRoutes } from "./routes/rewind.mjs";
@@ -87,10 +93,14 @@ import { createTurnCheckpoints } from "./lib/turn-checkpoints.mjs";
 import { createTraces } from "./lib/traces.mjs";
 import { registerExternalMcpRoutes } from "./routes/external-mcp.mjs";
 import { narrowest, readCeiling, writeCeiling } from "../server/peer/ceilings.mjs";
+import { shareAgentTools } from "../server/peer/agent-tools.mjs";
+import { behaviorHas, cleanBehavior } from "./lib/behavior-config.mjs";
+import { agentCompat } from "./lib/agent-compat.mjs";
 import { createSecretAsks } from "./lib/secret-asks.mjs";
 import { registerHistoryRoutes } from "./routes/history.mjs";
 import { registerHiveRoutes } from "./routes/hive.mjs";
 import { registerDraftRoutes } from "./routes/drafts.mjs";
+import { registerPlanFileRoutes } from "./routes/plan-file.mjs";
 import { draftOf, dropGoneDrafts, keepDraft, readDrafts } from "./lib/drafts.mjs";
 import { registerInboxRoutes } from "./routes/inbox.mjs";
 import { readMarks } from "./lib/inbox-marks.mjs";
@@ -102,6 +112,8 @@ import { registerMcpRoutes } from "./routes/mcp.mjs";
 import { registerOnboardingRoutes } from "./routes/onboarding.mjs";
 import { registerPortariaRoutes } from "./routes/portaria.mjs";
 import { registerSeatRoutes } from "./routes/seats.mjs";
+import { registerAttachmentRoutes } from "./routes/attachments.mjs";
+import { registerPrSearchRoutes } from "./routes/pr-search.mjs";
 import { registerSlackRoutes } from "./routes/slack.mjs";
 import { registerTeamRoutes } from "./routes/team.mjs";
 import { registerThreadRoutes } from "./routes/threads.mjs";
@@ -145,7 +157,7 @@ import { DEFAULT_GATEWAY_PORT, workspaceOf, readManifest } from "./lib/hub-works
 import { HUB_MARKERS, cloudRepoOfTheHub, hubLookOf, hubPathFrom, makeHub } from "./lib/hub-path.mjs";
 import { FIRST_FLIGHT, firstFlightAgentOf, firstFlightMission } from "./lib/first-flight.mjs";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { basename, dirname, join } from "node:path";
+import { basename, delimiter, dirname, isAbsolute, join, posix } from "node:path";
 import { homedir, hostname, tmpdir, userInfo } from "node:os";
 import { WebSocket, WebSocketServer } from "ws";
 import pty from "node-pty";
@@ -291,8 +303,11 @@ const CONFIG_HEADER = `// hive — written by the app's panels, safe to edit by 
 // own), keepAwakeWhileAgentsWork (whether this computer stays awake while a
 // chat of this machine works, and sleeps a minute after the last one stops — on
 // unless you turn it off; closing a laptop lid still puts it to sleep), theme
-// (the name of the palette the app wears) and themes (your custom palettes —
-// shareable as json).`;
+// (the name of the palette the app wears), themeLight and appearance
+// (\`system\` wears themeLight while the system is light), themes (your custom
+// palettes — shareable as json, with css that never loads a file), contrast, glass
+// (\`null\` keeps the panels as they are), panelMotion (milliseconds) and chatWidth
+// (\`auto\`, \`full\` or pixels).`;
 
 const JSONC_FORMAT = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
 const tilde = (file) => file.replace(homedir(), "~");
@@ -332,12 +347,14 @@ async function readConfig() {
     blockSize: cleanBlockSize(raw.blockSize, tilde(CONFIG_FILE), problems),
     autocompact: cleanAutocompact(raw.autocompact, tilde(CONFIG_FILE), problems),
     contextUsage: cleanFlag(raw.contextUsage, "contextUsage", tilde(CONFIG_FILE), problems, false),
+    limitsFoot: cleanFlag(raw.limitsFoot, "limitsFoot", tilde(CONFIG_FILE), problems, false),
     toolCalls: cleanToolCalls(raw.toolCalls, tilde(CONFIG_FILE), problems),
     titleInstructions: cleanTitleInstructions(raw.titleInstructions, tilde(CONFIG_FILE), problems),
     timeFormat: cleanTimeFormat(raw.timeFormat, tilde(CONFIG_FILE), problems),
     quitShortcut: cleanQuitShortcut(raw.quitShortcut, tilde(CONFIG_FILE), problems),
     screenReaderAnnouncements: cleanScreenReader(raw.screenReaderAnnouncements, tilde(CONFIG_FILE), problems),
     screenReaderWindowTitle: cleanFlag(raw.screenReaderWindowTitle, "screenReaderWindowTitle", tilde(CONFIG_FILE), problems, false),
+    promptSuggestions: cleanFlag(raw.promptSuggestions, "promptSuggestions", tilde(CONFIG_FILE), problems, false),
     autoUpdateAgents: cleanFlag(raw.autoUpdateAgents, "autoUpdateAgents", tilde(CONFIG_FILE), problems, true),
     keepAwakeWhileAgentsWork: cleanFlag(raw.keepAwakeWhileAgentsWork, "keepAwakeWhileAgentsWork", tilde(CONFIG_FILE), problems, true),
     closeQuietAfterDays: cleanQuietDays(raw.closeQuietAfterDays, tilde(CONFIG_FILE), problems),
@@ -345,9 +362,12 @@ async function readConfig() {
     threads: cleanThreads(raw.threads, tilde(CONFIG_FILE), problems),
     language: cleanLanguage(raw.language, tilde(CONFIG_FILE), problems),
     terminal: cleanTerminal(raw.terminal, tilde(CONFIG_FILE), problems),
+    terminalShell: cleanTerminalShell(raw.terminalShell, tilde(CONFIG_FILE), problems),
     pet: cleanPet(raw.pet, tilde(CONFIG_FILE), problems),
     brandFace: cleanBrandFace(raw.brandFace, tilde(CONFIG_FILE), problems),
     gaze: cleanGaze(raw.gaze, tilde(CONFIG_FILE), problems),
+    sendShortcut: cleanSendShortcut(raw.sendShortcut, tilde(CONFIG_FILE), problems),
+    followUp: cleanFollowUp(raw.followUp, tilde(CONFIG_FILE), problems),
     experience: cleanExperience(raw.experience, tilde(CONFIG_FILE), problems),
     experienceOff: cleanExperienceOff(raw.experienceOff, tilde(CONFIG_FILE), problems),
     infoWidth: cleanInfoWidth(raw.infoWidth, tilde(CONFIG_FILE), problems),
@@ -356,9 +376,14 @@ async function readConfig() {
     paneWidth: cleanPaneWidth(raw.paneWidth, tilde(CONFIG_FILE), problems),
     splitsLearned: cleanFlag(raw.splitsLearned, "splitsLearned", tilde(CONFIG_FILE), problems, false),
     look: cleanLook(raw.look, tilde(CONFIG_FILE), problems),
-    structure: cleanStructure(raw.structure, tilde(CONFIG_FILE), problems),
     theme: cleanThemeName(raw.theme, tilde(CONFIG_FILE), problems),
     themes: cleanThemes(raw.themes, tilde(CONFIG_FILE), problems),
+    appearance: cleanAppearance(raw.appearance, tilde(CONFIG_FILE), problems),
+    themeLight: cleanThemeLight(raw.themeLight, tilde(CONFIG_FILE), problems),
+    contrast: cleanContrast(raw.contrast, tilde(CONFIG_FILE), problems),
+    glass: cleanGlass(raw.glass, tilde(CONFIG_FILE), problems),
+    panelMotion: cleanPanelMotion(raw.panelMotion, tilde(CONFIG_FILE), problems),
+    chatWidth: cleanChatWidth(raw.chatWidth, tilde(CONFIG_FILE), problems),
     dim: cleanFlag(raw.dim, "dim", tilde(CONFIG_FILE), problems),
     visual: cleanVisual(raw.visual, tilde(CONFIG_FILE), problems),
     share: cleanFlag(raw.share, "share", tilde(CONFIG_FILE), problems),
@@ -376,11 +401,13 @@ async function readConfig() {
     extensions: cleanExtensions(raw.extensions, tilde(CONFIG_FILE), problems),
     prViews: cleanPrViews(raw.prViews, tilde(CONFIG_FILE), problems),
     wear: cleanWear(raw.wear, tilde(CONFIG_FILE), problems),
-    keys: fromLegacy ? cleanKeys(legacy.value, tilde(LEGACY_KEYS_FILE), problems) : cleanKeys(raw.keys, tilde(CONFIG_FILE), problems)
+    keys: fromLegacy ? cleanKeys(legacy.value, tilde(LEGACY_KEYS_FILE), problems) : cleanKeys(raw.keys, tilde(CONFIG_FILE), problems),
+    ...cleanBehavior(raw, tilde(CONFIG_FILE), problems)
   };
   if (!config.avatar) config.avatar = avatarKey(avatarFor(DEV || ""));
-  const has = { terminal: raw.terminal !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, structure: raw.structure !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, toolCalls: raw.toolCalls !== undefined, titleInstructions: raw.titleInstructions !== undefined, quitShortcut: raw.quitShortcut !== undefined, autoUpdateAgents: raw.autoUpdateAgents !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, threads: raw.threads !== undefined, keys: raw.keys !== undefined || fromLegacy, screenReaderAnnouncements: raw.screenReaderAnnouncements !== undefined, screenReaderWindowTitle: raw.screenReaderWindowTitle !== undefined, keepAwakeWhileAgentsWork: raw.keepAwakeWhileAgentsWork !== undefined, prViews: raw.prViews !== undefined };
-  return { config, defaults: { font: FONT_DEFAULTS }, file: tilde(CONFIG_FILE), has, fromLegacy, error: unreadable.join(" · "), ignored: problems.join(" · ") };
+  const has = { terminal: raw.terminal !== undefined, terminalShell: raw.terminalShell !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, toolCalls: raw.toolCalls !== undefined, titleInstructions: raw.titleInstructions !== undefined, quitShortcut: raw.quitShortcut !== undefined, autoUpdateAgents: raw.autoUpdateAgents !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, threads: raw.threads !== undefined, keys: raw.keys !== undefined || fromLegacy, screenReaderAnnouncements: raw.screenReaderAnnouncements !== undefined, screenReaderWindowTitle: raw.screenReaderWindowTitle !== undefined, keepAwakeWhileAgentsWork: raw.keepAwakeWhileAgentsWork !== undefined, prViews: raw.prViews !== undefined, appearance: raw.appearance !== undefined, themeLight: raw.themeLight !== undefined, contrast: raw.contrast !== undefined, glass: raw.glass !== undefined, panelMotion: raw.panelMotion !== undefined, chatWidth: raw.chatWidth !== undefined, ...behaviorHas(raw), promptSuggestions: raw.promptSuggestions !== undefined, sendShortcut: raw.sendShortcut !== undefined, followUp: raw.followUp !== undefined };
+  shareAgentTools(HIVE_HOME, config);
+  return { config, defaults: { font: FONT_DEFAULTS, terminalShell: loginShell() }, file: tilde(CONFIG_FILE), has, fromLegacy, error: unreadable.join(" · "), ignored: problems.join(" · ") };
 }
 
 async function cleanUpSettled(keys) {
@@ -704,7 +731,7 @@ function readEnvFile(text) {
 const vaultProblemsSaid = new Set();
 
 async function hubSeatEnv() {
-  const tuning = contextUsageEnv((await readConfig()).config);
+  const tuning = seatTuningEnv((await readConfig()).config);
   let env = {};
   let wanted = new Set();
   try {
@@ -747,9 +774,10 @@ async function hubEnvIntoTmux() {
     lines.push(`tmux set-environment -gu ${key} 2>/dev/null`);
     lines.push(`tmux set-environment -t ${LOCAL_SESSION} -u ${key} 2>/dev/null`);
   }
-  if (!found[CONTEXT_USAGE_ENV] && already.has(CONTEXT_USAGE_ENV)) {
-    lines.push(`tmux set-environment -gu ${CONTEXT_USAGE_ENV} 2>/dev/null`);
-    lines.push(`tmux set-environment -t ${LOCAL_SESSION} -u ${CONTEXT_USAGE_ENV} 2>/dev/null`);
+  for (const tuned of SEAT_TUNING_ENVS) {
+    if (found[tuned] || !already.has(tuned)) continue;
+    lines.push(`tmux set-environment -gu ${tuned} 2>/dev/null`);
+    lines.push(`tmux set-environment -t ${LOCAL_SESSION} -u ${tuned} 2>/dev/null`);
   }
   if (!lines.length) return 0;
   await sh(...inBash(`tmux has-session -t ${LOCAL_SESSION} 2>/dev/null || tmux new-session -d -s ${LOCAL_SESSION} -c "$HOME" -n hub "sleep 999999"; ${lines.join("; ")}; true`), { timeout: 20000, cwd: HOME });
@@ -794,7 +822,7 @@ function accountOf(command) {
   return accountNameInCommand(command);
 }
 
-const WINDOW_ROW = "#W\t#{pane_dead}\t#{pane_start_command}";
+const WINDOW_ROW = "#W\t#{pane_dead}\t#{pane_current_command}\t#{pane_start_command}";
 
 async function localWindows() {
   if (NATIVE) {
@@ -807,7 +835,7 @@ async function localWindows() {
   }
   if (!r.ok && !NO_TMUX_SESSION.test(r.error)) return lastLocalWindows;
   lastLocalWindows = r.out.split("\n").map((l) => l.split("\t"))
-    .map(([name, dead, ...rest]) => ({ name: String(name || "").trim(), dead: String(dead || "").trim() === "1", account: accountOf(rest.join("\t")) }))
+    .map(([name, dead, current, ...rest]) => ({ name: String(name || "").trim(), dead: String(dead || "").trim() === "1", foreground: foregroundProgram(current), account: accountOf(rest.join("\t")) }))
     .filter((w) => w.name && w.name !== "hub" && isSeatName(w.name));
   return lastLocalWindows;
 }
@@ -1357,6 +1385,8 @@ function build(name, where, lines, statusText, mission, links = [], account = ""
     where,
     kind: seat?.kind || "",
     agent,
+    ...(seat?.of ? { of: seat.of } : {}),
+    ...(seat?.of && shellsToDrop.has({ name, where }) ? { dropping: true } : {}),
     trees: treesOfSeat(trails, seat, dirs),
     cwd: seat?.cwd || structuredInfo?.cwd || dirs.at(-1) || "",
     account: typeof structuredInfo?.account === "string" ? structuredInfo.account : account,
@@ -1518,7 +1548,7 @@ async function collect() {
   const statuses = new Map();
   const waited = childrenWaited(readErrands(HIVE_HOME));
 
-  const sessions = await Promise.all(local.map(async ({ name, account }) => {
+  const sessions = await Promise.all(local.map(async ({ name, account, foreground }) => {
     const [screen, st, mission] = await Promise.all([localScreen(name), localStatus(name), localMission(name)]);
     missions.set(seatKey("local", name), mission);
     statuses.set(seatKey("local", name), st);
@@ -1530,7 +1560,8 @@ async function collect() {
     rememberStructuredTalk(seatKey("local", name), structuredInfo);
     rememberStructuredAccount(name, "local", structuredInfo);
     rememberStructuredSession(name, "local", structuredInfo);
-    return build(name, "local", seen.lines, st, mission, seen.links, account, seen.running, structured, structuredInfo);
+    const built = build(name, "local", seen.lines, st, mission, seen.links, account, seen.running, structured, structuredInfo);
+    return built.kind === "shell" && built.of && foreground ? { ...built, foreground } : built;
   }));
   for (const [name, d] of Object.entries(pod.windows)) {
     missions.set(seatKey("cloud", name), d.mission);
@@ -1906,7 +1937,10 @@ const INDEX_WALK = [
 ].join("\n");
 
 const SEARCH_WALK = [
-  'root="$1"; needle="$2"; glob="$3"; fold="$4"',
+  'root="$1"; needle="$2"; glob="$3"; fold="$4"; word="$5"; mode="${6:--F}"',
+  'case "$fold" in ""|-i) ;; *) exit 0 ;; esac',
+  'case "$word" in ""|-w) ;; *) exit 0 ;; esac',
+  'case "$mode" in -F|-P|-E) ;; *) exit 0 ;; esac',
   'box=$(mktemp -d "${TMPDIR:-/tmp}/hive-grep.XXXXXX") || exit 0',
   'n=0',
   'for dir in "$root"/*/ "$root"/.worktrees/*/; do',
@@ -1914,17 +1948,20 @@ const SEARCH_WALK = [
   '  rel=${dir#"$root/"}; rel=${rel%/}',
   '  n=$((n + 1))',
   '  (',
-  '    if [ -n "$glob" ]; then',
-  '      out=$(git -C "$dir" grep $fold -n -I --untracked --no-color -F -e "$needle" -- "$glob" 2>/dev/null | head -40)',
-  '    else',
-  '      out=$(git -C "$dir" grep $fold -n -I --untracked --no-color -F -e "$needle" 2>/dev/null | head -40)',
-  '    fi',
+  '    grepped() {',
+  '      if [ -n "$glob" ]; then git -C "$dir" grep $fold $word $1 -n -I --untracked --no-color -e "$needle" -- "$glob"',
+  '      else git -C "$dir" grep $fold $word $1 -n -I --untracked --no-color -e "$needle"; fi 2>"$box/$n.err" | head -40',
+  '    }',
+  '    out=$(grepped "$mode")',
+  '    if [ "$mode" = "-P" ] && grep -q PCRE "$box/$n.err" 2>/dev/null; then out=$(grepped -E); fi',
+  '    grep -m 1 "^fatal:" "$box/$n.err" 2>/dev/null | sed "s/^/#hive:bad /" > "$box/$n.bad"',
   '    [ -n "$out" ] || exit 0',
-  '    printf "%s\\n" "$out" | awk -v r="$rel" \'{ print r "\\t" $0 }\' > "$box/$n"',
+  '    printf "%s\\n" "$out" | awk -v r="$rel" \'{ print r "\\t" $0 }\' > "$box/$n.hit"',
   '  ) &',
   'done',
   'wait',
-  'cat "$box"/* 2>/dev/null',
+  'cat "$box"/*.hit 2>/dev/null',
+  'cat "$box"/*.bad 2>/dev/null | head -1',
   'rm -rf "$box"',
   'true'
 ].join("\n");
@@ -2081,16 +2118,21 @@ function readSearchWalk(raw) {
   return hits;
 }
 
-async function searchCode({ q, where, glob }) {
+async function searchCode({ q, where, glob, ...asked }) {
   const needle = String(q || "");
   if (needle.length < 2) return { hits: [], total: 0 };
-  const fold = /[A-Z]/.test(needle) ? "" : "-i";
+  const options = searchOptions(asked);
+  const refused = patternProblem(needle, options);
+  if (refused) return { hits: [], total: 0, problem: refused };
+  const { fold, word, mode } = searchFlags(options);
   const safeGlob = /^[A-Za-z0-9_*./-]{0,40}$/.test(String(glob || "")) ? String(glob || "") : "";
+  const args = [needle, safeGlob, fold, word, mode];
   const raw = where === "cloud"
-    ? (await onTheServer(SEARCH_WALK, [CLOUD_ROOT, needle, safeGlob, fold], { timeout: 45000 })).out
-    : await sh(BASH, ["-c", SEARCH_WALK, "search", HUB, needle, safeGlob, fold], { timeout: 30000 });
+    ? (await onTheServer(SEARCH_WALK, [CLOUD_ROOT, ...args], { timeout: 45000 })).out
+    : await sh(BASH, ["-c", SEARCH_WALK, "search", HUB, ...args], { timeout: 30000 });
   const hits = readSearchWalk(raw);
-  return { hits, total: hits.length };
+  const problem = hits.length ? "" : readSearchProblem(raw);
+  return { hits, total: hits.length, ...(problem ? { problem } : {}) };
 }
 
 async function readRepoFile({ repo, path, where }) {
@@ -2249,6 +2291,43 @@ async function readImage({ path, where, session }) {
   const anchor = relative ? dir : await paneDirectory(session, where);
   if (!withinRoots(file, [anchor, HUB, HIVE_HOME, tmpdir(), TEMP_DIR])) return { error: "that image lives outside the seat's directory, the hub and tmp" };
   if (statSync(file).size > FILE_CEILING) return { error: "that file is bigger than 24 MB" };
+  return { type, data: await readFile(file) };
+}
+
+const ATTACHMENT_TYPES = {
+  ...IMAGE_TYPES, pdf: "application/pdf", txt: "text/plain; charset=utf-8", md: "text/markdown; charset=utf-8", csv: "text/csv; charset=utf-8",
+  tsv: "text/tab-separated-values; charset=utf-8", json: "application/json", html: "text/plain; charset=utf-8", htm: "text/plain; charset=utf-8",
+  zip: "application/zip", mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg", flac: "audio/flac",
+  mp4: "video/mp4", m4v: "video/mp4", mov: "video/quicktime", webm: "video/webm"
+};
+
+const POD_ATTACHMENTS = "/workspace/hive/assets";
+
+function podAttachmentAllowed(asked, anchor) {
+  if (asked.startsWith("~")) return false;
+  const full = posix.normalize(asked.startsWith("/") ? asked : posix.join(anchor || "/nowhere", asked));
+  return [anchor, POD_ATTACHMENTS, "/tmp"].some((root) => root && (full === root || full.startsWith(`${posix.normalize(root).replace(/\/$/, "")}/`)));
+}
+
+async function readAttachment({ path, where, session }) {
+  const asked = String(path || "");
+  if (!asked) return { error: "which file?" };
+  const type = ATTACHMENT_TYPES[extensionOf(asked)] || "application/octet-stream";
+  const relative = !asked.startsWith("/") && !asked.startsWith("~/") && !/^[A-Za-z]:/.test(asked);
+  const dir = relative ? await paneDirectory(session, where) : "";
+  if (relative && !dir) return { error: "the path is relative and the session no longer says which directory it is in" };
+  if (where === "cloud") {
+    const anchor = dir || await paneDirectory(session, where);
+    if (!podAttachmentAllowed(asked, anchor)) return { error: "that file lives outside the chat's directory and its attachments" };
+    const r = await bytesFromServer(READ_ON_POD, [asked, dir], { timeout: 30000 });
+    if (r.ok) return { type, data: r.data };
+    return { error: r.error.split("\n").map((l) => l.trim()).filter(Boolean).pop() || "the server refused to read that file" };
+  }
+  const file = asTheSystemWritesIt(relative ? join(dir, asked) : asked.startsWith("~/") ? join(homedir(), asked.slice(2)) : asked);
+  if (!existsSync(file) || !statSync(file).isFile()) return { error: `there is no ${file} on this machine` };
+  const anchor = relative ? dir : await paneDirectory(session, where);
+  if (!withinRoots(file, [anchor, SHOTS_DIR, join(HUB, ".hive/assets"), tmpdir(), TEMP_DIR])) return { error: "that file lives outside the chat's directory and its attachments" };
+  if (statSync(file).size > ATTACHMENT_BYTES) return { error: "that file is over the attachment limit" };
   return { type, data: await readFile(file) };
 }
 
@@ -2927,6 +3006,7 @@ async function readProviders(force = false) {
         version,
         latest,
         behind: behindOf(version, latest),
+        compat: settings.enabled ? agentCompat(id, version, latest) : null,
         canUpdate: !!plan.action,
         updateCommand: plan.command,
         bundled: plan.bundled,
@@ -3250,7 +3330,7 @@ async function seatInANativeWindow(asked) {
   }
 }
 
-async function seatInATmuxWindow({ name, model, effort, prompt, images = [], account, sessionId, resumeId, cwd = HUB, structured, agent, compactAt, anon = false }) {
+async function seatInATmuxWindow({ name, model, effort, fast = false, prompt, images = [], account, sessionId, resumeId, cwd = HUB, structured, agent, compactAt, anon = false }) {
   if (name === "hub") throw new Error(`"${name}" is a window this session already keeps — a seat with that name cannot be peeked, said to or killed. Pick another.`);
   if (agent !== "claude" && !NATIVE) {
     const binary = AGENT_BINARY[agent] || agent;
@@ -3278,6 +3358,7 @@ async function seatInATmuxWindow({ name, model, effort, prompt, images = [], acc
     agent,
     model,
     effort,
+    fast,
     sessionId,
     resumeId,
     structured,
@@ -3316,7 +3397,7 @@ async function seatInATmuxWindow({ name, model, effort, prompt, images = [], acc
 
 const gitIn = (dir, args, timeout = 8000) => shr("git", ["-C", dir, ...args], { timeout });
 
-async function newChat({ name, prompt, images = [], where = "local", model = "", repo = "", branch = "", account = "", structured = false, agent = "", effort = "", anon = false, project = "", base = "", worktree = false, tree = "" }) {
+async function newChat({ name, prompt, images = [], where = "local", model = "", repo = "", branch = "", account = "", structured = false, agent = "", effort = "", fast = false, anon = false, project = "", base = "", worktree = false, tree = "" }) {
   if (anon && (where === "cloud" || !structured || (agent && agent !== "claude"))) throw new Error("an anonymous chat is a native claude chat on this machine");
   assertSpawnArgs({ name, model, repo, branch, account, agent, effort, project, base });
   const eng = OTHER_AGENTS.has(agent) ? agent : "claude";
@@ -3356,7 +3437,7 @@ async function newChat({ name, prompt, images = [], where = "local", model = "",
       seatCwd = String(opened.body.cwd || "");
       replaced = String(opened.body.replaced || "");
     } else {
-      await seatInATmuxWindow({ name, model, effort, prompt, images, account, sessionId, structured, agent: eng, compactAt, ...anonWindow });
+      await seatInATmuxWindow({ name, model, effort, fast: fast === true, prompt, images, account, sessionId, structured, agent: eng, compactAt, ...anonWindow });
     }
   } catch (e) {
     newborn.delete(seatKey(side, name));
@@ -3564,10 +3645,15 @@ function projectOfSeat(name, where) {
   return projectOfChat((cache.data?.sessions || []).find((one) => one.name === name && one.where === where));
 }
 
+async function titleWritersFor(agent) {
+  const chosen = (await readConfig().catch(() => null))?.config?.textWriter || "";
+  return chosen && chosen !== agent ? [chosen, agent] : [agent];
+}
+
 async function guessedTitle(prompt, agent, project) {
-  const [links, instructions] = await Promise.all([linkedTitleContext(prompt), titleInstructionsOf(project)]);
+  const [links, instructions, writers] = await Promise.all([linkedTitleContext(prompt), titleInstructionsOf(project), titleWritersFor(agent)]);
   for (let tries = 0; tries < NAME_TRIES; tries++) {
-    const said = await askTitle({ message: prompt, agent, links, instructions }).catch(() => null);
+    const said = await askTitle({ message: prompt, agent: writers[Math.min(tries, writers.length - 1)], links, instructions }).catch(() => null);
     if (said?.title) return said;
   }
   return { title: "", needsRefinement: false };
@@ -3611,7 +3697,11 @@ async function retitle(name, where, { previousTitle, agent = "claude", prompt = 
       linkedTitleContext(said.filter((one) => one.role === "user").map((one) => one.text).join("\n")),
       titleInstructionsOf(projectOfSeat(name, where))
     ]);
-    const fresh = await askTitle({ message, previousTitle, agent, links, instructions });
+    let fresh = { title: "" };
+    for (const writer of await titleWritersFor(agent)) {
+      fresh = await askTitle({ message, previousTitle, agent: writer, links, instructions }).catch(() => ({ title: "" }));
+      if (fresh.title) break;
+    }
     if (!fresh.title || fresh.title === previousTitle) return "";
     return (await titleTheSeat(name, where, fresh.title, { over: true })) ? fresh.title : "";
   } finally {
@@ -3629,6 +3719,34 @@ function maybeRefineTitle(name, where, info, label, mine) {
   retitle(name, where, { previousTitle: label, agent: asked.agent, prompt: asked.prompt })
     .then((title) => { if (title) console.log(`hive: seat ${name} was refined to "${title}"`); })
     .catch((wrong) => console.log(`hive: refining the title of ${name} failed: ${String(wrong?.message || wrong)}`));
+}
+
+const guessingNext = new Set();
+
+const NEXT_PROMPT_WAIT_MS = 60000;
+
+async function guessNextPrompt(name, where) {
+  if (!(await readConfig()).config.promptSuggestions) return { text: "", skipped: "off" };
+  const seat = seatRecord(where, name);
+  const agent = seat?.agent || "claude";
+  const skipped = nextPromptSkip({ where, agent, anon: anonymousSeat(where, name), structured: structuredSeat(where, name) });
+  if (skipped) return { text: "", skipped };
+  const key = seatKey(where, name);
+  if (guessingNext.has(key)) return { text: "", skipped: "busy" };
+  guessingNext.add(key);
+  let dir = "";
+  try {
+    dir = await mkdtemp(join(tmpdir(), "hive-next-"));
+    const prompt = buildNextPromptAsk(await chatSoFar(name, where));
+    if (!prompt) return { text: "", skipped: "empty" };
+    const ask = namerCommand({ agent, prompt, outFile: join(dir, "answer.txt"), claude: theClaude(), engineDir: ENGINE_DIR });
+    const out = await sh(...viaBash(ask.exe, ask.args), { timeout: NEXT_PROMPT_WAIT_MS, cwd: dir, own: true, input: "" });
+    const answer = ask.answerIn ? await readFile(ask.answerIn, "utf8").catch(() => "") : out;
+    return { text: nextPromptFromAnswer(ask.pick ? ask.pick(answer) : answer) };
+  } finally {
+    guessingNext.delete(key);
+    if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
 }
 
 async function regenerateSeatTitle(name, where, { keepHand = false } = {}) {
@@ -4076,11 +4194,54 @@ function historyClosedSeat(where, name) {
   }, { title: name, cwd: String(seat.cwd || "") });
 }
 
-async function openShell({ where, name }) {
+const loginShell = () => {
+  try { return process.env.SHELL || userInfo().shell || "bash"; } catch { return process.env.SHELL || "bash"; }
+};
+
+const runnableShell = (path) => runnableFile(path, { stat: statSync, access: accessSync, executable: fsConstants.X_OK });
+
+async function terminalShell() {
+  const { config } = await readConfig();
+  return pickTerminalShell(config.terminalShell, { login: loginShell(), paths: String(process.env.PATH || "").split(delimiter), runnable: runnableShell });
+}
+
+function shellHomeOf(of, cwd) {
+  if (!of) return { of: "", home: HUB };
+  const owner = isSeatName(String(of)) ? fleet.get(seatKey("local", String(of))) : null;
+  if (!owner || closingSeats.has(seatKey("local", String(of)))) throw new Error("that chat is closed, so its terminal cannot open");
+  const isDir = (path) => existsSync(path) && statSync(path).isDirectory();
+  return { of: String(of), home: shellHome({ cwd, ownerCwd: owner.cwd, hub: HUB, isAbsolute, isDir }) };
+}
+
+const openingShells = new Set();
+const cancelledShells = new Set();
+
+function cancelOpeningShell(name) {
+  if (!openingShells.has(name)) return false;
+  cancelledShells.add(name);
+  return true;
+}
+
+function retireTiedShell(name, where) {
+  const seat = fleet.get(seatKey(where === "cloud" ? "cloud" : "local", name));
+  if (!seat?.of) return false;
+  shellsToDrop.retire(seat).catch(() => {});
+  return true;
+}
+
+async function openShell({ where, name, of, cwd }) {
   const w = where === "cloud" ? "cloud" : "local";
+  const tied = w === "local" ? shellHomeOf(of, cwd) : { of: "", home: HUB };
   const wanted = slug(name) || "terminal";
   if (!isSeatName(wanted)) throw new Error("that name has characters tmux cannot address");
-  const seat = await freeName(wanted, w);
+  if (tied.of) {
+    if (openingShells.has(wanted)) throw new Error("that terminal name is taken");
+    openingShells.add(wanted);
+  }
+  let seat = wanted;
+  try {
+  seat = await freeName(wanted, w);
+  if (tied.of && seat !== wanted) throw new Error("that terminal name is taken");
   if (w === "cloud") {
     if (!CLOUD) throw new Error(NO_ADDRESS);
     const woke = await wakeAndWait();
@@ -4095,18 +4256,30 @@ tmux new-window -d -t hive -n ${quoted(seat)} "cd /workspace && if [ -f $HIVE_RC
   } else {
     if (!(await hasTmux())) throw new Error("this machine has no tmux — open it on the pod instead");
     if (NATIVE) {
-      const opened = await nativeRoom().open({ name: seat, kind: "shell", cwd: HUB, fallback: HUB, env: await hubSeatEnv() });
+      const opened = await nativeRoom().open({ name: seat, kind: "shell", cwd: tied.home, fallback: HUB, env: await hubSeatEnv() });
       if (opened.error) throw new Error(opened.error);
     } else {
       await hubEnvIntoTmux();
       writeHiveShellRc(HIVE_HOME);
+      const exec = hiveShellExec(await terminalShell(), HIVE_HOME);
       const script = `tmux has-session -t ${LOCAL_SESSION} 2>/dev/null || tmux new-session -d -s ${LOCAL_SESSION} -c "$HOME" -n hub "sleep 999999"
-tmux new-window -d -t ${LOCAL_SESSION} -n ${quoted(seat)} "cd ${HUB ? quoted(HUB) : '\\\"$HOME\\\"'} && ${hiveShellExec(process.env.SHELL || "bash", HIVE_HOME)}"
+${tied.of
+  ? tiedShellWindow({ session: LOCAL_SESSION, seat, home: tied.home, exec })
+  : `tmux new-window -d -t ${LOCAL_SESSION} -n ${quoted(seat)} "cd ${HUB ? quoted(HUB) : '\\\"$HOME\\\"'} && ${exec}"`}
 tmux set-window-option -t ${quoted(`${LOCAL_SESSION}:=${seat}`)} remain-on-exit on`;
       const r = await shr(...viaBash("bash", ["-c", script]), { timeout: 15000 });
       if (!r.ok) throw new Error(r.error.slice(0, 200) || "tmux refused");
     }
   }
+  } catch (wrong) {
+    if (tied.of) {
+      openingShells.delete(wanted);
+      cancelledShells.delete(wanted);
+    }
+    throw wrong;
+  }
+  const cancelled = cancelledShells.delete(seat);
+  openingShells.delete(seat);
   titles.set(`${w}:${seat}`, { title: "Terminal", mission: "", settled: true, tries: 0 });
   saveTitles();
   cache.at = 0;
@@ -4115,10 +4288,58 @@ tmux set-window-option -t ${quoted(`${LOCAL_SESSION}:=${seat}`)} remain-on-exit 
     name: seat,
     where: w,
     kind: "shell",
-    cwd: w === "cloud" ? "/workspace" : HUB,
+    cwd: w === "cloud" ? "/workspace" : tied.home,
+    ...(tied.of ? { of: tied.of } : {}),
     at: Date.now()
   });
-  return { ok: true, name: seat, where: w };
+  if (cancelled) {
+    shellsToDrop.retire({ name: seat, where: w }).catch(() => {});
+    return { ok: false, cancelled: true, name: seat, error: "the terminal was closed before it opened" };
+  }
+  return { ok: true, name: seat, where: w, ...(tied.of ? { of: tied.of } : {}) };
+}
+
+const inFleet = (where, name) => fleet.has(seatKey(where, name));
+
+const stillDue = (seat) => stillToRestore(seat, inFleet) && !closingSeats.has(seatKey(seat.where, seat.name));
+
+async function windowGone(name) {
+  if (NATIVE) return !nativeRoom().list().some((one) => one.name === name);
+  const listed = await shr(TMUX, ["list-windows", "-t", LOCAL_SESSION, "-F", "#W"], { timeout: 4000 });
+  if (!listed.ok) return /no server|can't find|session not found|no such|ENOENT|not found/i.test(String(listed.error || ""));
+  return !listed.out.split("\n").map((line) => line.trim()).includes(name);
+}
+
+const shellsToDrop = dropQueue({
+  kill: (seat) => killSeatWindow(seat.name, seat.where),
+  forget: (seat) => forgetSeat(seat.where, seat.name),
+  setTimer: (run, wait) => setTimeout(run, wait).unref?.() ?? null
+});
+
+async function dropRestoredWindow(seat) {
+  if (NATIVE) nativeRoom().kill(seat.name);
+  else await killEveryWindowNamed(seat.name).catch(() => {});
+  if (await windowGone(seat.name)) return;
+  if (seat.of) {
+    fleet.set(seatKey(seat.where, seat.name), { ...seat });
+    saveFleet();
+  }
+  shellsToDrop.retire(seat).catch(() => {});
+}
+
+async function settleRestored(created) {
+  const due = created.filter(stillDue);
+  markRevived(due);
+  for (const seat of created) if (!due.includes(seat)) await dropRestoredWindow(seat);
+  return due;
+}
+
+async function sweepOrphanShells() {
+  for (const seat of [...fleet.values()]) {
+    if (!seat.of || fleet.has(seatKey(seat.where, seat.of)) || shellsToDrop.has(seat)) continue;
+    shellsToDrop.retire(seat).catch(() => {});
+  }
+  await shellsToDrop.drain();
 }
 
 const trails = new Map();
@@ -4616,6 +4837,10 @@ async function killSeatWindow(name, where) {
     endTerminalsOf(name, "");
     if (NATIVE) nativeRoom().kill(name);
     else await killEveryWindowNamed(name);
+    if (!(await windowGone(name))) {
+      closingSeats.delete(seatKey(side, name));
+      return { ok: false, error: `${name} would not close` };
+    }
     await reapSeatLeftovers(name);
     wtCache = { ...wtCache, at: 0 };
   }
@@ -4685,7 +4910,8 @@ async function archiveSeat(rawName, rawWhere, why = "") {
   const seat = fleet.get(seatKey(where, name));
   if (!seat) throw new Error("this app never opened that seat, so it has nothing to bring back");
   if (!seatIsRestorable(seat)) throw new Error("this seat cannot be brought back — close it instead");
-  await killSeatWindow(name, where);
+  const said = await killSeatWindow(name, where);
+  if (said?.ok === false) throw new Error(said.error || "the seat would not close, so it stays open");
   archivedSeats.set(seatKey(where, name), archiveEntry(seat, Date.now(), why));
   saveArchivedSeats();
   historyClosedSeat(where, name);
@@ -4812,7 +5038,7 @@ async function reviveArchivedSeat(rawName, rawWhere) {
         engineDir: ENGINE_DIR,
         hub: HUB,
         hiveHome: HIVE_HOME,
-        shell: process.env.SHELL || "bash",
+        shell: await terminalShell(),
         remoteControl: process.env.HIVE_REMOTE_CONTROL !== "0",
         autocompact: await autocompactNow()
       });
@@ -5482,6 +5708,7 @@ function forgetSeat(where, name) {
   if (fleet.delete(seatKey(where, name))) saveFleet();
   noteShutSeat(where, name);
   closingSeats.delete(seatKey(where, name));
+  if ([...fleet.values()].some((seat) => seat.of === name && seat.where === where)) setImmediate(() => { sweepOrphanShells().catch(() => {}); });
 }
 
 function fleetSeats(where) {
@@ -5636,17 +5863,21 @@ async function reconcileNativeFleet(seats, { boot = false } = {}) {
   const liveNames = nativeRoom().list().map((one) => one.name);
   const live = new Set(liveNames);
   const planned = fleetPlan(seats, !boot, liveNames);
-  const missing = planned.restore.filter((seat) => !live.has(seat.name));
+  const candidates = planned.restore.filter((seat) => !live.has(seat.name));
   applyPrune(planned.prune.filter((one) => one.why === GAVE_UP_NOTHING_TO_RESUME));
+  await sweepOrphanShells();
+  const missing = candidates.filter((seat) => stillToRestore(seat, inFleet));
   clearRevived("local", liveNames);
   const { restore, held } = withoutTheLiving(missing, await seatsStillAnswering(missing));
   tellHeldOnce(held, liveNames);
   if (!restore.length) return;
-  const brought = await restoreNatively(restore, await autocompactNow());
-  const back = restore.filter((seat) => brought.find((one) => one.name === seat.name)?.ok);
+  const autocompact = await autocompactNow();
+  const due = restore.filter(stillDue);
+  if (!due.length) return;
+  const brought = await restoreNatively(due, autocompact);
+  const back = await settleRestored(due.filter((seat) => brought.find((one) => one.name === seat.name)?.ok));
   for (const one of brought) if (one.error) console.log(`fleet: leaving ${one.name} behind — ${one.error}`);
   if (!back.length) return;
-  markRevived(back);
   console.log(`fleet: brought ${back.length} local seat(s) back after a restart`);
   cache.at = 0;
 }
@@ -5695,26 +5926,31 @@ async function reconcileLocalFleet() {
     if (!r.ok) return;
     liveNames = r.out.split("\n").map((l) => l.trim()).filter(Boolean);
   }
-  const { restore: missing, prune } = fleetPlan(seats, has.ok, liveNames);
+  const { restore: candidates, prune } = fleetPlan(seats, has.ok, liveNames);
   applyPrune(prune);
+  await sweepOrphanShells();
+  const missing = candidates.filter((seat) => stillToRestore(seat, inFleet));
   clearRevived("local", liveNames);
   const { restore, held } = withoutTheLiving(missing, await seatsStillAnswering(missing));
   tellHeldOnce(held, liveNames);
   if (!restore.length) return;
   await hubEnvIntoTmux();
   writeHiveShellRc(HIVE_HOME);
-  const script = localRestoreScript(restore, {
+  const autocompact = await autocompactNow();
+  const due = restore.filter(stillDue);
+  if (!due.length) return;
+  const script = localRestoreScript(due, {
     engineDir: ENGINE_DIR,
     hub: HUB,
     hiveHome: HIVE_HOME,
-    shell: process.env.SHELL || "bash",
+    shell: await terminalShell(),
     remoteControl: process.env.HIVE_REMOTE_CONTROL !== "0",
-    autocompact: await autocompactNow()
+    autocompact
   });
   const r = await shr(...inBash(script), { timeout: 30000 });
   if (r.ok) {
-    markRevived(restore);
-    console.log(`fleet: brought ${restore.length} local seat(s) back after a restart`);
+    const back = await settleRestored(due);
+    console.log(`fleet: brought ${back.length} local seat(s) back after a restart`);
     cache.at = 0;
   }
 }
@@ -6908,6 +7144,14 @@ const STATIC = {
   "/assets/draft-place.css": ["assets/draft-place.css", "text/css"],
   "/assets/shortcuts.css": ["assets/shortcuts.css", "text/css"],
   "/assets/seat-hover-card.css": ["assets/seat-hover-card.css", "text/css"],
+  "/assets/behavior.css": ["assets/behavior.css", "text/css"],
+  "/assets/behavior-defaults.mjs": ["assets/behavior-defaults.mjs", "text/javascript"],
+  "/assets/appearance.css": ["assets/appearance.css", "text/css"],
+  "/assets/side-panel.css": ["assets/side-panel.css", "text/css"],
+  "/assets/project-files.css": ["assets/project-files.css", "text/css"],
+  "/assets/chat-terminal.css": ["assets/chat-terminal.css", "text/css"],
+  "/assets/composer.css": ["assets/composer.css", "text/css"],
+  "/assets/composer-attachments.css": ["assets/composer-attachments.css", "text/css"],
   "/assets/raycast/foundation.css": ["assets/raycast/foundation.css", "text/css"],
   "/assets/raycast/top.css": ["assets/raycast/top.css", "text/css"],
   "/assets/raycast/rail.css": ["assets/raycast/rail.css", "text/css"],
@@ -6917,16 +7161,7 @@ const STATIC = {
   "/assets/raycast/panels.css": ["assets/raycast/panels.css", "text/css"],
   "/assets/raycast/browser.css": ["assets/raycast/browser.css", "text/css"],
   "/assets/raycast/micro.css": ["assets/raycast/micro.css", "text/css"],
-  "/assets/raycast/structures.css": ["assets/raycast/structures.css", "text/css"],
-  "/assets/structures/launcher.css": ["assets/structures/launcher.css", "text/css"],
-  "/assets/structures/inbox.css": ["assets/structures/inbox.css", "text/css"],
   "/assets/html-pages.css": ["assets/html-pages.css", "text/css"],
-  "/assets/structures/atmosphere.css": ["assets/structures/atmosphere.css", "text/css"],
-  "/assets/structures/cockpit.css": ["assets/structures/cockpit.css", "text/css"],
-  "/assets/structures/stage.css": ["assets/structures/stage.css", "text/css"],
-  "/assets/structures/map.css": ["assets/structures/map.css", "text/css"],
-  "/assets/structures/ember.css": ["assets/structures/ember.css", "text/css"],
-  "/assets/structures/island.css": ["assets/structures/island.css", "text/css"],
   "/assets/pixel-icons.mjs": ["assets/pixel-icons.mjs", "text/javascript"],
   "/assets/slack-text.mjs": ["assets/slack-text.mjs", "text/javascript"],
   "/assets/markdown.mjs": ["assets/markdown.mjs", "text/javascript"],
@@ -6949,6 +7184,7 @@ const STATIC = {
   "/assets/pets/max-form.mjs": ["assets/pets/max-form.mjs", "text/javascript"],
   "/assets/mood.mjs": ["assets/mood.mjs", "text/javascript"],
   "/assets/themes.mjs": ["assets/themes.mjs", "text/javascript"],
+  "/assets/theme-css.mjs": ["assets/theme-css.mjs", "text/javascript"],
   "/assets/ghostty/ghostty.mjs": ["assets/ghostty/ghostty.mjs", "text/javascript"],
   "/assets/ghostty/term.mjs": ["assets/ghostty/term.mjs", "text/javascript"],
   "/assets/ghostty/ghostty-vt.wasm": ["assets/ghostty/ghostty-vt.wasm", "application/wasm"],
@@ -6970,6 +7206,7 @@ const STATIC = {
   "/assets/archive-search.mjs": ["assets/archive-search.mjs", "text/javascript"],
   "/assets/thread-rules.mjs": ["assets/thread-rules.mjs", "text/javascript"],
   "/assets/seat-marks.css": ["assets/seat-marks.css", "text/css"],
+  "/assets/code-search.mjs": ["assets/code-search.mjs", "text/javascript"],
   "/assets/changes-view.mjs": ["assets/changes-view.mjs", "text/javascript"],
   "/assets/dist/hive.mjs": ["assets/dist/hive.mjs", "text/javascript"],
   "/assets/dist/hive.mjs.map": ["assets/dist/hive.mjs.map", "application/json"],
@@ -7054,15 +7291,18 @@ const answer = async (req, res) => {
 
 registerBrowserRoutes(on, { isSeatName, bodyOf: body, fleet, saveFiles, onTheServer, cloudReach, typeText });
 registerRenderRoutes(on, { isSeatName, bodyOf: body, HIVE_HOME, bytesFromServer });
-registerDeviceRoutes(on, { isSeatName, bodyOf: body });
+registerDeviceRoutes(on, { isSeatName, bodyOf: body, switches: async () => { const { config } = await readConfig(); return { devices: config.devices !== false, agents: config.deviceAgents !== false }; } });
 const prDomain = registerPrRoutes(on, { bodyOf: body, sh, shr, extractJson, languageOf, paintLines, liveSessions: () => cache.data?.sessions || [], ceilingOfChat: (name) => readCeiling(HIVE_HOME, name), transcriptOf: seatTranscript });
 const workspaceDomain = registerWorkspaceRoutes(on, { sh, shr, inBash, podUp, onTheServer, hub: HUB, workspaceOf, readManifest, bodyOf: body, gitSaid });
 registerHiveRoutes(on, { collect });
 registerDraftRoutes(on, { bodyOf: body, HIVE_HOME, isSeatName, publish: async (name, text, at) => { await phoneBridge.sendDraft(name, text, at); } });
 registerInboxRoutes(on, { bodyOf: body, HIVE_HOME, settled: (keys) => { cleanUpSettled(keys).catch(() => {}); }, localSeats: () => (cache.data?.sessions || []).filter((one) => one.where === "local" && !one.anon).map((one) => one.name) });
 registerMcpRoutes(on, { bodyOf: body, isSeatName, mcpLogins, onTheServer, startMcpLogin });
+registerPlanFileRoutes(on, { bodyOf: body, isSeatName, HIVE_HOME, HUB });
 registerFilesRoutes(on, { bodyOf: body, isSeatName, seatFiles, rankFiles, fileIndex, indexCache, rankIndex, searchCode, writeRepoFile, readRepoFile, languageOf, paintLines });
 registerChangesRoutes(on, { bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange, revealChange });
+registerChatPanelRoutes(on, { bodyOf: body, isSeatName, hive: HIVE_HOME, seatOf: (name) => (cache.data?.sessions || []).find((s) => s.name === name) || null, folderOf: async (name) => (await changesDirOf(name, "local", "")).dir });
+registerProjectFileRoutes(on, { isSeatName, projectFiles: createProjectFiles({ run: inSeatTree }), languageOf, paintLines });
 const secretAsks = createSecretAsks({ dir: join(HIVE_HOME, "secrets"), keep: workspaceDomain.keepCredential });
 secretAsks.sweep();
 setInterval(() => secretAsks.sweep(), 60 * 60 * 1000).unref?.();
@@ -7120,6 +7360,8 @@ registerMemoryRoutes(on, {
   judge: createScopeJudge({ run: judgeScopes })
 });
 registerHistoryRoutes(on, { isSeatName, paneHistory, readImage });
+registerAttachmentRoutes(on, { isSeatName, shotsDirOf, assetsDir: join(HUB, ".hive/assets"), cloudReach, slug, readAttachment });
+registerPrSearchRoutes(on, { sh, shr, liveSessions: () => cache.data?.sessions || [], hub: HUB });
 registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
 registerErrandRoutes(on, { bodyOf: body, renameErrand, markSeen, HIVE_HOME, invalidateCollectionCache: () => { cache.at = 0; }, readErrands, liveSessions: () => cache.data?.sessions || [], archiveSeat });
 registerTaskRoutes(on, {
@@ -7175,7 +7417,7 @@ extensions = await createExtensionRegistry({
   log: console.log
 }).load();
 registerExtensionRoutes(on, { bodyOf: body, registry: extensions, readConfig, writeConfig, invalidateFleetCache: () => { cache.at = 0; }, store: createExtensionStore({ repo: EXTENSIONS_REPO, personalDir: join(HIVE_HOME, "extensions") }) });
-registerSeatRoutes(on, { bodyOf: body, phoneBridgeFor: () => phoneBridge, openJob, runJob, readErrands, isSeatName, deliverSay, wakeAndWait, fleetTick, structuredSeat, typeText, deliverAnswer, saveFiles, bridgeFor: () => bridge, hiveHome: HIVE_HOME, serverFor, openShell, spawning, invalidateFleetCache: () => { cache.at = 0; }, renameSeat, regenerateSeatTitle, cloudReach, killSeatWindow, historyClosedSeat, forgetSeat, seatLeftovers, removeWorktree, forgetShots, archiveSeat, reviveArchivedSeat, archivedSeats, saveArchivedSeats, eraseConversation });
+registerSeatRoutes(on, { bodyOf: body, phoneBridgeFor: () => phoneBridge, openJob, runJob, readErrands, isSeatName, deliverSay, wakeAndWait, fleetTick, structuredSeat, typeText, deliverAnswer, saveFiles, guessNextPrompt, bridgeFor: () => bridge, hiveHome: HIVE_HOME, serverFor, openShell, cancelOpeningShell, retireTiedShell, spawning, invalidateFleetCache: () => { cache.at = 0; }, renameSeat, regenerateSeatTitle, cloudReach, killSeatWindow, historyClosedSeat, forgetSeat, seatLeftovers, removeWorktree, forgetShots, archiveSeat, reviveArchivedSeat, archivedSeats, saveArchivedSeats, eraseConversation });
 registerSlackRoutes(on, { bodyOf: body, isSeatName, bridgeFor: () => slackBridge, linkerFor: () => slackLinker });
 registerThreadRoutes(on, { bodyOf: body, liveSessions: () => cache.data?.sessions || [], threadKey, threadCache, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut });
 registerAccountRoutes(on, { bodyOf: body, settingsEffort, agentCatalog, readAccounts, readLedger, noteBack, hiveHome: HIVE_HOME, invalidateAccountCache: () => { accountCache = { at: 0, list: [] }; invalidateProviders(); }, runAccount });

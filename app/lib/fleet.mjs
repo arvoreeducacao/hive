@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { restoredShellWindow, shellFolderUsable } from "./shell-window.mjs";
 import { REPO_FOLDER } from "./env.mjs";
 import { hiveShellExec } from "../../server/engine/hive-shell.mjs";
 import { carriedEnv, quoteForShell } from "../../server/engine/seat-command.mjs";
@@ -41,7 +42,7 @@ export function seatIsRestorable(seat) {
   if (!seat || typeof seat !== "object") return false;
   if (!SAFE_WORD.test(String(seat.name || ""))) return false;
   if (seat.where !== "local" && seat.where !== "cloud") return false;
-  if (seat.kind === "shell") return true;
+  if (seat.kind === "shell") return !seat.cwd || shellFolderUsable(String(seat.cwd));
   if (seat.agent && !SAFE_WORD.test(String(seat.agent))) return false;
   const agent = otherAgent(seat);
   if (agent && seat.kind !== "structured") {
@@ -171,7 +172,8 @@ export function localRestoreScript(seats, { hub, hiveHome, shell = "bash", remot
       cmd = `cd ${seat.cwd || hub} 2>/dev/null || cd ${hub}; ` +
         `${account}FORCE_HYPERLINK=1 claude --resume ${seat.id} ${claudeFlags(seat, remoteControl, autocompact)}${hubClaudeArgs(seat.cwd || hub, hub, hiveHome).map((one) => ` ${quoteForShell(one)}`).join("")}`;
     }
-    lines.push(`${WINDOW_MISSING("hive-local", seat.name)} && tmux new-window -d -t hive-local -n ${seat.name} "${cmd}"`);
+    if (seat.kind === "shell") lines.push(`${WINDOW_MISSING("hive-local", seat.name)} && { ${restoredShellWindow({ session: "hive-local", seat: seat.name, home: seat.cwd, hub, exec: hiveShellExec(shell, hiveHome) })}; }`);
+    else lines.push(`${WINDOW_MISSING("hive-local", seat.name)} && tmux new-window -d -t hive-local -n ${seat.name} "${cmd}"`);
     if (seat.kind === "shell") lines.push(`tmux set-window-option -t "hive-local:=${seat.name}" remain-on-exit on`);
     lines.push(WINDOW_SHAPE("hive-local", seat.name));
   }

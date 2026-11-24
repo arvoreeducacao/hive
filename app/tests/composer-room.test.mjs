@@ -48,7 +48,7 @@ test("a short seat caps the textarea so the pills and the send button stay on sc
 test("whatever else sits in flow above the composer takes from the room too", () => {
   const queue = box("sv-queue", 40, { marginTop: "0px", marginBottom: "6px" });
   const floating = box("sv-suggest", 120, { position: "absolute" });
-  const shut = box("sv-subs", 0);
+  const shut = box("sv-jump-anchor", 0);
   const { host, textarea } = seat({ tall: 300, extra: [queue, floating, shut] });
   assert.equal(svRoom(host, textarea), 300 - 64 - 45 - 20 - 46);
 });

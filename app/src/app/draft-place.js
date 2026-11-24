@@ -243,5 +243,5 @@ function repaintPlaceMenu(kind, more) {
 
 export {
   BEHIND_KEY, NO_PROJECT, baseItems, isBehindKey, baseOf, branchPlaceOf, closePlaceMenu, openPlaceMenu, paintPlace, placeMarkup,
-  projectItems, projectNamed, projectOfRepo, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu
+  projectItems, projectNamed, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu
 };

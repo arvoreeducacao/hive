@@ -9,12 +9,11 @@ const html = readFileSync(join(HERE, "app.html"), "utf8");
 const server = readFileSync(join(HERE, "server.mjs"), "utf8");
 const pkg = JSON.parse(readFileSync(join(HERE, "package.json"), "utf8"));
 
-const REGIONS = ["foundation", "top", "rail", "tile", "tools", "overlays", "panels", "browser", "micro", "structures"];
+const REGIONS = ["foundation", "top", "rail", "tile", "tools", "overlays", "panels", "browser", "micro"];
 const SCOPED = /^(?::where\(\s*)?(?:html\s*>\s*)?body(?=[^\s>+~]*\.experience-raycast(?![\w-]))/;
 
 const sheetsIn = (dir) => readdirSync(join(HERE, "assets", dir)).filter((name) => name.endsWith(".css")).map((name) => `${dir}/${name}`);
 const raycastSheets = () => sheetsIn("raycast");
-const structureSheets = () => { try { return sheetsIn("structures"); } catch { return []; } };
 
 function splitTop(text, sep) {
   const parts = [];
@@ -64,11 +63,11 @@ test("every region has its own sheet in app/assets/raycast, and nothing else liv
   assert.deepEqual(raycastSheets().sort(), REGIONS.map((one) => `raycast/${one}.css`).sort());
 });
 
-test("the raycast and structure sheets are linked after experience.css, served as css and shipped in the package", () => {
+test("the raycast sheets are linked after experience.css, served as css and shipped in the package", () => {
   const anchor = html.indexOf('<link rel="stylesheet" href="/assets/experience.css">');
   assert.ok(anchor > 0);
   let last = anchor;
-  for (const sheet of [...REGIONS.map((one) => `raycast/${one}.css`), ...structureSheets()]) {
+  for (const sheet of REGIONS.map((one) => `raycast/${one}.css`)) {
     const at = html.indexOf(`<link rel="stylesheet" href="/assets/${sheet}">`);
     assert.ok(at > last, `${sheet} is linked after the sheet before it`);
     last = at;
@@ -79,13 +78,13 @@ test("the raycast and structure sheets are linked after experience.css, served a
 });
 
 test("the scope check itself tells a scoped selector from a loose one", () => {
-  for (const ok of ["body.experience-raycast", "body.experience-raycast .tile", "body.look-dimension.experience-raycast #top", ":where(body.experience-raycast) .tile", "body:where(.experience-raycast).look-dimension .x", "html > body:where(.experience-raycast)", 'body.experience-raycast[data-structure="map"] #stage']) assert.match(ok, SCOPED, ok);
+  for (const ok of ["body.experience-raycast", "body.experience-raycast .tile", "body.look-dimension.experience-raycast #top", ":where(body.experience-raycast) .tile", "body:where(.experience-raycast).look-dimension .x", "html > body:where(.experience-raycast)"]) assert.match(ok, SCOPED, ok);
   for (const bad of [".tile", "body .tile", "body.experience-raycastish .tile", ":root", "#top body.experience-raycast", "body.experience-next .tile", "html body.look-dimension .tile.experience-raycast"]) assert.doesNotMatch(bad, SCOPED, bad);
   assert.deepEqual(selectorsOf("@font-face { font-family: X; } @keyframes k { from { opacity: 0 } } @media (x) { body.experience-raycast a, .b { c: d } } :root { e: f }"), ["body.experience-raycast a", ".b", ":root"]);
 });
 
-test("every selector in a raycast or structure sheet stays inside body.experience-raycast", () => {
-  for (const sheet of [...raycastSheets(), ...structureSheets()]) {
+test("every selector in a raycast sheet stays inside body.experience-raycast", () => {
+  for (const sheet of raycastSheets()) {
     const loose = selectorsOf(readFileSync(join(HERE, "assets", sheet), "utf8")).filter((one) => !SCOPED.test(one));
     assert.deepEqual(loose, [], `${sheet} styles outside the Raycast experience`);
   }
@@ -110,7 +109,7 @@ const flat = (text) => text.replace(/\s+/g, " ").replace(/\s*([{};,])\s*/g, "$1"
 
 test("a raycast sheet only redefines a keyframe of the app when its fallbacks give back the app's own frames", () => {
   const base = keyframesIn(html);
-  for (const sheet of [...raycastSheets(), ...structureSheets()]) {
+  for (const sheet of raycastSheets()) {
     for (const [name, body] of keyframesIn(readFileSync(join(HERE, "assets", sheet), "utf8"))) {
       if (!base.has(name)) { assert.match(name, /^rc-/, `${sheet}: a new keyframe is named rc-*, so it cannot shadow one of the app`); continue; }
       assert.equal(flat(unwrapFallbacks(body)), flat(base.get(name)), `${sheet} changes @keyframes ${name} with the flag off`);

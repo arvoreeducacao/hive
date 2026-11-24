@@ -1,4 +1,5 @@
 import { arrangeOn, canArrange, closeArrange, openArrange, paintArrange, render } from "./arrange.js";
+import { runningTerminalSay } from "./running-terminals.js";
 import { activeItems, blockNumber, blockTitle, blocksOf, detached, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, ofBlock, seatsToTradeOn, shelvedAway, soloSeat, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { svEvent } from "./chat-and-panes.js";
@@ -199,9 +200,8 @@ function snoozedRailModel() {
       const title = s.title || s.name;
       const why = offScreenWhy(s.name);
       return {
-        key: s.name, name: s.name, state: s.state, title, why,
-        hint: `${title} — ${why} · ${phrase("click to bring it back now")}`,
-        action: phrase("bring it back")
+        key: s.name, name: s.name, state: s.state, title, why: seatSection(s.name) === "settled" ? "" : why,
+        hint: `${title} — ${why} · ${phrase("click to bring it back now")}`
       };
     })
   };
@@ -327,18 +327,18 @@ function spanOf(ms) {
   return h < 48 ? `${h}h` : `${Math.floor(h / 24)}d`;
 }
 
-function seatMeta(s, now) {
-  if (s.state !== "working") workingFrom.delete(s.name);
-  else if (!workingFrom.has(s.name)) workingFrom.set(s.name, now);
-  if (s.state === "working") return { said: spanOf(now - workingFrom.get(s.name)), tone: "t" };
-  if (s.state === "needs") return { said: phrase("needs you"), tone: "need" };
-  if (s.state === "answered") return { said: phrase("answered"), tone: "t" };
-  if (s.state === "done") return { said: phrase("finished"), tone: "t" };
-  if (s.state === "stalled") {
-    const quiet = sawWorking.get(s.name);
-    return { said: quiet ? phrase("stalled {t}", { t: spanOf(now - quiet) }) : phrase("stalled"), tone: "t" };
+function workingFor(s, now) {
+  if (s.state !== "working") {
+    workingFrom.delete(s.name);
+    return "";
   }
-  return { said: s.state === "idle" ? "zzz" : "—", tone: "" };
+  if (!workingFrom.has(s.name)) workingFrom.set(s.name, now);
+  return spanOf(now - workingFrom.get(s.name));
+}
+
+function stateSaid(s, now) {
+  const quiet = s.state === "stalled" && sawWorking.get(s.name);
+  return quiet ? phrase("stalled {t}", { t: spanOf(now - quiet) }) : phrase(LABEL[s.state]);
 }
 
 const whole = (text) => ({ pre: text, hit: "", post: "" });
@@ -352,19 +352,18 @@ function raycastDraftItems() {
   return [...drafts.values()].map((d) => ({
     key: d.key, name: d.key, where: "local", state: "idle", title: phrase("new chat"), naming: false,
     hint: `${phrase("new chat")} — ${phrase("a chat with nothing in it yet")}`,
-    said: phrase("new chat"), meta: "—", tone: "", away: false
+    said: phrase("new chat"), meta: "", away: false
   }));
 }
 
 function seatRailItem(s, now) {
   const away = detached.has(s.name);
-  const meta = seatMeta(s, now);
-  const said = phrase(LABEL[s.state]);
+  const said = stateSaid(s, now);
   const live = liveTitle(s);
   return {
     key: s.name, name: s.name, where: s.where, state: s.state, title: s.anon ? phrase("anonymous") : s.title || s.name, naming: !!s.naming, anon: !!s.anon, regenerating: retitlingNow(s),
     hint: `${s.anon ? phrase("anonymous") : s.title || s.name} — ${away ? phrase("in a window of its own — click to bring it back") : said}${live ? ` · ${live}` : ""}`,
-    said, meta: meta.said, tone: meta.tone, away
+    said, meta: workingFor(s, now), away
   };
 }
 
@@ -407,11 +406,16 @@ function prBadgeOf(name) {
   };
 }
 
+function terminalBadgeOf(name) {
+  const say = runningTerminalSay(name);
+  return say ? { say } : null;
+}
+
 function markedRow(row) {
   const pinned = seatSection(row.key) === "pinned";
   return {
     ...row, tag: markTag(row.key), pinned, pinSay: pinned ? phrase("Unpin") : "", picked: isPicked(row.key),
-    pr: prBadgeOf(row.key), draft: hasDraft(row.key), draftSay: phrase("Discard draft")
+    pr: prBadgeOf(row.key), draft: hasDraft(row.key), draftSay: phrase("Discard draft"), term: terminalBadgeOf(row.key)
   };
 }
 
@@ -424,7 +428,7 @@ function shelfGroup(id, rows, picked, q) {
     : rows.sort((a, b) => (seatMark(b.key).settledAt || 0) - (seatMark(a.key).settledAt || 0));
   const shown = !open ? [] : snoozed || st.railShelves.more || q ? all : all.slice(0, SETTLED_SHOWN);
   return {
-    key: `shelf-${id}`, i: -1, here: false, label: phrase(snoozed ? "Snoozed" : "Settled"), hereSaid: "", keys: "", shelf: id,
+    key: `shelf-${id}`, i: -1, here: false, label: phrase(snoozed ? "Snoozed" : "Settled"), keys: "", shelf: id,
     fold: { open, count: rows.length },
     items: shown.map((row) => {
       const mark = seatMark(row.key);
@@ -465,7 +469,7 @@ function projectOf(name) {
 function pinnedGroup(pinned, picked) {
   if (!pinned.length) return [];
   return [{
-    key: "pinned", i: -1, here: false, label: phrase("Pinned"), hereSaid: "", keys: "",
+    key: "pinned", i: -1, here: false, label: phrase("Pinned"), keys: "",
     items: pinned.sort((a, b) => seatMark(a.key).pinnedAt - seatMark(b.key).pinnedAt).map(opened(picked))
   }];
 }
@@ -487,7 +491,6 @@ function blockGroups(rows, picked) {
     groups.push({
       key: b.id || `b${i}`, i: mine ? i : -1, here, items,
       label: mine ? block : `${spaceName(spaceOf(b.ws))} · ${block}`,
-      hereSaid: `· ${phrase("on screen")}`,
       keys: mine && n <= 9 && st.keys.block ? keyLabel(st.keys.block, n) : ""
     });
   }
@@ -495,7 +498,7 @@ function blockGroups(rows, picked) {
   if (loose.length) {
     const open = st.hiddenOpen || !!st.railQuery.trim();
     groups.push({
-      key: "loose", i: -1, here: false, label: phrase("off screen"), hereSaid: "", keys: "",
+      key: "loose", i: -1, here: false, label: phrase("off screen"), keys: "",
       fold: { open, count: loose.length },
       items: open ? loose.map((row) => ({
         ...row, why: offScreenWhy(row.key), sel: row.key === picked,
@@ -517,7 +520,7 @@ function projectGroups(rows, picked) {
   return [...folders].sort(([a], [b]) => a.localeCompare(b)).map(([repo, list]) => {
     const open = !st.railFoldersShut.has(repo) || !!q;
     return {
-      key: `project-${repo}`, i: -1, here: false, label: repo, hereSaid: "", keys: "", folder: repo, needsSaid: phrase("a chat here needs you"),
+      key: `project-${repo}`, i: -1, here: false, label: repo, keys: "", folder: repo, needsSaid: phrase("a chat here needs you"),
       fold: { open, count: list.length, needs: list.some((row) => row.state === "needs") },
       items: open ? list.map(opened(picked)) : []
     };
@@ -529,7 +532,7 @@ function workingGroup(working, picked) {
   const open = st.railShelves.working || !!st.railQuery.trim();
   const since = (row) => Date.parse(st.data.sessions.find((one) => one.name === row.key)?.turnSince || "") || 0;
   return [{
-    key: "shelf-working", i: -1, here: false, label: phrase("Working"), hereSaid: "", keys: "", shelf: "working",
+    key: "shelf-working", i: -1, here: false, label: phrase("Working"), keys: "", shelf: "working",
     fold: { open, count: working.length },
     items: open ? working.sort((a, b) => since(b) - since(a)).map(opened(picked)) : []
   }];
@@ -588,7 +591,7 @@ function treeHit(name, q) {
 function raycastRailViewModel() {
   const now = Date.now();
   const q = st.railQuery.trim().toLowerCase();
-  const all = [...raycastDraftItems(), ...st.data.sessions.map((s) => seatRailItem(s, now))];
+  const all = [...raycastDraftItems(), ...st.data.sessions.filter((s) => !s.of).map((s) => seatRailItem(s, now))];
   const tally = (where) => all.filter((row) => where === "all" || row.where === where).length;
   const shown = all.filter((row) => st.railShows === "all" || row.where === st.railShows);
   if (q) findInChats(st.railQuery);
@@ -612,7 +615,10 @@ function raycastRailViewModel() {
   const loading = !st.seatsKnown && !all.length;
   return {
     raycast: true,
-    shows: Object.entries(RAIL_SHOWS).map(([key, label]) => ({ key, label: phrase(label), count: tally(key), on: st.railShows === key })),
+    shows: Object.entries(RAIL_SHOWS)
+      .map(([key, label]) => ({ key, label: phrase(label), count: tally(key), on: st.railShows === key }))
+      .filter((one) => one.key !== "cloud" || one.count || one.on)
+      .map((one) => ({ ...one, hint: phrase(one.count === 1 ? "{n} chat" : "{n} chats", { n: one.count }) })),
     showsSaid: phrase("which machine"),
     searching: st.railSearching || !!q, query: st.railQuery,
     searchSaid: phrase("search a seat"), searchHint: phrase("search a seat ({k})", { k: "/" }), clearSaid: phrase("Clear the search"),
@@ -751,7 +757,7 @@ function railViewModel() {
     { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
     { key: "local", label: phrase("local · your machine"), icon: "i-local" }
   ]) {
-    const ofGroup = st.data.sessions.filter((s) => s.where === g.key && !isHidden(s.name) && !shelvedAway(s.name));
+    const ofGroup = st.data.sessions.filter((s) => s.where === g.key && !isHidden(s.name) && !shelvedAway(s.name) && !s.of);
     if (!ofGroup.length && g.key === "cloud" && !st.data.pod.up) continue;
     groups.push({
       key: g.key, label: g.label, icon: g.icon, count: ofGroup.length, emptyLabel: phrase("no sessions here"),
@@ -824,6 +830,12 @@ $("rail-sessions").addEventListener("click", (e) => {
   if (pr) return void openPrLink(pr.dataset.of, pr.dataset.prUrl);
   const discard = e.target.closest("[data-discard]");
   if (discard) return discardDraft(discard.dataset.discard);
+  const term = e.target.closest("[data-terminal-of]");
+  if (term) {
+    if (raycastOn() && st.railQuery) closeRailSearch();
+    leaveMirror();
+    return void document.dispatchEvent(new CustomEvent("hive:open-terminal", { detail: { name: term.dataset.terminalOf } }));
+  }
   if (e.target.closest("[data-hidden-toggle]")) return setHiddenOpen(!st.hiddenOpen);
   if (raycastOn()) {
     const block = e.target.closest(".group-title[data-i]");
@@ -1048,6 +1060,12 @@ let blocksSolid = null;
 
 const blockKey = (n) => (st.keys.block ? keyLabel(st.keys.block, n) : String(n));
 
+const seatsSaid = (n) => (n === 1 ? phrase("1 seat") : phrase("{n} seats", { n }));
+
+const blocksSaid = (n) => (n === 1 ? phrase("1 block") : phrase("{n} blocks", { n }));
+
+const blockTabTitle = (b, items, hint) => [blockTitle(b, items) || phrase("unnamed"), seatsSaid(items.length), hint].join(" · ");
+
 function raycastTab(b, i, at) {
   const items = ofBlock(b);
   const n = blockNumber(i);
@@ -1055,7 +1073,7 @@ function raycastTab(b, i, at) {
   return {
     key: `b${i}`, i, n, hint, at: 3 + at, name: labelOf(b, items).txt || phrase("unnamed"),
     calls: items.some((x) => x.state === "needs"), pressed: i === st.block ? "true" : "false",
-    title: [blockTitle(b, items) || phrase("unnamed"), hint].join(" · ")
+    title: blockTabTitle(b, items, hint)
   };
 }
 
@@ -1078,9 +1096,9 @@ function defaultBlocks() {
       ? st.spaces.map((x, i) => ({ key: x.id, id: x.id, n: i + 1, tint: x.tint, name: spaceName(x), count: blocksOf(x.id).length, on: x.id === st.space }))
       : null,
     chip: shut || st.holding === "space" ? null : {
-      tint: w.tint, name: spaceName(w), count: blocksOf(st.space).length,
+      tint: w.tint, name: spaceName(w),
       hint: keyHint("arrange"), expanded: arrangeOn() ? "true" : "false",
-      title: phrase("{name} — every workspace is a floor, and this opens the pile of them", { name: spaceName(w) })
+      title: [phrase("{name} — every workspace is a floor, and this opens the pile of them", { name: spaceName(w) }), blocksSaid(blocksOf(st.space).length), keyHint("arrange")].join(" · ")
     },
     tabs: st.blocks.flatMap((b, i) => {
       if (b.ws !== st.space) return [];
@@ -1088,9 +1106,9 @@ function defaultBlocks() {
       const r = labelOf(b, items);
       const n = blockNumber(i);
       return [{
-        key: `b${i}`, i, n, name: r.txt || phrase("unnamed"), tally: `${items.length}/${st.LIMIT}`,
+        key: `b${i}`, i, n, name: r.head || r.txt || phrase("unnamed"),
         calls: items.some((x) => x.state === "needs"), pressed: i === st.block ? "true" : "false",
-        title: `block ${n}: ${r.txt}`
+        title: blockTabTitle(b, items, blockKey(n))
       }];
     }),
     mirror: st.mirrorDev ? {
@@ -1211,4 +1229,4 @@ function openTrade(i, tab) {
   });
 }
 
-export { ARCH_OPEN_KEY, ARCH_SHOWN, HIDDEN_OPEN_KEY, MIRROR_LIVE_TICK, RAIL_SHOWS, RAIL_SHOWS_KEY, archKey, archNoteTimer, archiveSeatNow, cancelParking, offScreenWhy, parkWhen, wakeParkedNow, armMirrorLive, blockKey, blockTab, blocksSolid, blocksViewModel, closeMirrorChat, closeRailSearch, closeTrade, focusedSeat, forgetMirrorChats, mirrorChat, mirrorChatKey, mirrorReading, mirrorWait, openMirrorChat, openRailCursor, openRailSearch, openTrade, paintBlocks, paintRail, paintTeamRail, pullMirrorLive, railKeys, railSolid, railViewModel, reviveArchived, reviving, sayOnRail, searchRail, setArchOpen, setHiddenOpen, showOnRail, spanOf, stepRailCursor, sweepMirrorChats, teamChatPrefix, teamRailSolid, teamRailViewModel, teamSeatKey, tradeBox };
+export { ARCH_OPEN_KEY, ARCH_SHOWN, HIDDEN_OPEN_KEY, MIRROR_LIVE_TICK, RAIL_SHOWS, RAIL_SHOWS_KEY, archKey, archNoteTimer, archiveSeatNow, cancelParking, parkWhen, wakeParkedNow, armMirrorLive, blockKey, blockTab, blocksSolid, blocksViewModel, closeMirrorChat, closeRailSearch, closeTrade, focusedSeat, forgetMirrorChats, mirrorChat, mirrorChatKey, mirrorReading, mirrorWait, openMirrorChat, openRailCursor, openRailSearch, openTrade, paintBlocks, paintRail, paintTeamRail, pullMirrorLive, railKeys, railSolid, railViewModel, reviveArchived, reviving, sayOnRail, searchRail, setArchOpen, setHiddenOpen, showOnRail, spanOf, stepRailCursor, sweepMirrorChats, teamChatPrefix, teamRailSolid, teamRailViewModel, teamSeatKey, tradeBox, seatsSaid };

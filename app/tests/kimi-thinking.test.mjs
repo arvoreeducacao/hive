@@ -79,8 +79,8 @@ test("an open chat uses Kimi's confirmed level and refreshed choices after a pic
     openSeatPicker(d.e, "effort");
     [...d.e.menu.el.querySelectorAll(".sv-row")].at(-1).click();
     await new Promise(setImmediate);
-    assert.equal(sent[0].op, "setEffort");
-    assert.equal(sent[0].level, "on");
+    const set = sent.find((one) => one.op === "setEffort");
+    assert.equal(set?.level, "on", "the picker asks for the catalog when it opens, and the click still sets the level");
     assert.equal(d.e.effort, "high");
     assert.equal(d.e.host.querySelector(".sv-pill-effort .txt").textContent, "High");
     openSeatPicker(d.e, "effort");

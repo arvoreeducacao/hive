@@ -26,8 +26,8 @@ function hive() {
 const num = () => document.querySelector("#strip .num")?.textContent;
 const pressed = () => [...document.querySelectorAll("#blocks button[data-i]")].map((b) => b.getAttribute("aria-pressed"));
 const railNames = () => [...document.querySelectorAll("#rail-sessions .item")].map((i) => i.dataset.name);
-const tally = () => [...document.querySelectorAll("#blocks button[data-i] em")].map((e) => e.textContent);
-const tallyOf = (bs) => bs.filter((b) => b.ws === st.space).map((b) => `${b.keys.length}/${st.LIMIT}`);
+const tally = () => [...document.querySelectorAll("#blocks button[data-i]")].map((b) => b.title.split(" · ")[1]);
+const tallyOf = (bs) => bs.filter((b) => b.ws === st.space).map((b) => (b.keys.length === 1 ? "1 seat" : `${b.keys.length} seats`));
 
 test("a render that falls after the canvas does not leave the strip, the tabs and the rail deaf", () => {
   hive();

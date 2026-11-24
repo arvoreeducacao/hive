@@ -68,7 +68,7 @@ test("the flag dresses the existing bar into the Raycast shape and gives every n
   assert.equal(document.getElementById("clock").parentElement, document.getElementById("foot"));
   assert.deepEqual([...document.querySelectorAll("#meta > .it")].map((b) => b.id), ["btn-calls", "btn-tasks", "btn-prs", "btn-alerts"]);
   assert.equal(document.getElementById("btn-agents").parentElement.id, "more");
-  assert.equal(document.getElementById("foot").hidden, false, "the footer is always there, it carries the clock");
+  assert.equal(document.getElementById("foot").hidden, true, "the footer stays away until the setting or a lost connection asks for it");
   flag(false);
   assert.equal(topDressed(), false);
   render();
@@ -88,9 +88,11 @@ test("the block on screen is the command bar and the other blocks are keys to ju
     assert.ok(tabs[0].querySelector(".rc-dot.needs"), "a block with someone calling wears the dot");
     assert.ok(document.querySelector("#btn-space .chev"));
     assert.equal(document.querySelector("#strip .num").textContent, blockKey(1));
-    assert.equal(document.querySelector("#strip .seats").textContent, "4 seats");
-    assert.equal(document.getElementById("calls-say").textContent, "need you");
-    assert.match(document.getElementById("btn-calls").title, /^s2 · s5 · /);
+    assert.equal(document.querySelector("#strip .seats").textContent, "", "how many seats the block holds lives in its tooltip");
+    assert.ok(document.getElementById("strip").title.endsWith(` · 4 seats · ${blockKey(1)}`), "the strip tooltip counts the seats and ends in the key");
+    assert.equal(document.getElementById("btn-calls").textContent, "2", "the calls button is the dot and the number");
+    assert.equal(document.getElementById("btn-calls").getAttribute("aria-label"), "2 need you");
+    assert.match(document.getElementById("btn-calls").title, /^2 need you · s2 · s5 · /);
   } finally {
     flag(false);
   }
@@ -111,17 +113,18 @@ test("with the flag the label of a block is the first seat, and its title names 
     assert.equal(blockTitle(b, ofBlock(b)), "compras: validar editoras compra, apagar oc recebida");
     const model = stripViewModel(b, ofBlock(b));
     assert.equal(model.num, keyLabel(st.keys.block, 1));
-    assert.equal(model.seats, "2 seats");
+    assert.equal(model.seats, "");
     assert.equal(model.bold, "");
-    assert.equal(stripViewModel(b, ofBlock(b).slice(0, 1)).seats, "1 seat");
+    assert.equal(model.title, `compras: validar editoras compra, apagar oc recebida · 2 seats · ${model.num}`);
+    assert.match(stripViewModel(b, ofBlock(b).slice(0, 1)).title, / · 1 seat · /);
     const tab = blocksViewModel().tabs[0];
     assert.equal(tab.hint, keyLabel(st.keys.block, 1));
-    assert.equal(tab.title, `compras: validar editoras compra, apagar oc recebida · ${tab.hint}`);
+    assert.equal(tab.title, `compras: validar editoras compra, apagar oc recebida · 2 seats · ${tab.hint}`);
     assert.equal("tally" in tab, false);
   } finally {
     flag(false);
   }
-  assert.deepEqual(Object.keys(blocksViewModel().tabs[0]).sort(), ["calls", "i", "key", "n", "name", "pressed", "tally", "title"]);
+  assert.deepEqual(Object.keys(blocksViewModel().tabs[0]).sort(), ["calls", "i", "key", "n", "name", "pressed", "title"]);
 });
 
 test("the PR button names its state in words and a dot, and only with the flag", () => {

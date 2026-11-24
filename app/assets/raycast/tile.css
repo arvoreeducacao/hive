@@ -23,9 +23,6 @@
 :where(body.experience-raycast) .t-dot.failed { width: 14px; height: 14px; color: var(--yellow); }
 :where(body.experience-raycast) .t-ident { min-width: 6ch; flex: 0 1 auto; }
 :where(body.experience-raycast) .t-name { font-size: 14px; font-weight: 500; letter-spacing: .014em; }
-:where(body.experience-raycast) .t-say { flex: none; font-family: var(--mono); font-size: 11px; letter-spacing: .017em; color: var(--txt-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-:where(body.experience-raycast) .t-say.hi { color: var(--txt); }
-:where(body.experience-raycast) .t-say:empty { display: none; }
 :where(body.experience-raycast) .t-hchips { flex: 0 1000 auto; display: flex; align-items: center; gap: 4px; min-width: 0; margin-left: auto; overflow: hidden; }
 :where(body.experience-raycast) .t-hchips:not(:has(> :not([hidden]))) { display: none; }
 :where(body.experience-raycast) .t-hchips > :is(.c, .t-live, .t-canopy, .t-device, .t-page) { all: unset; box-sizing: border-box; flex: 0 1 auto; display: inline-flex; align-items: center; gap: 4px; min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--r1); background: var(--panel-3); font-family: var(--mono); font-size: 11px; letter-spacing: .01em; color: var(--txt-2); white-space: nowrap; overflow: hidden; }
@@ -103,7 +100,6 @@
 :where(body.experience-raycast) .sv-activity .clock { font-variant-numeric: tabular-nums; }
 :where(body.experience-raycast) .sv:has(.sv-suggest:not([hidden])) .sv-composer:not(.ready) .sv-activity.on { display: inline-flex; }
 :where(body.experience-raycast) .sv:has(.sv-activity.on) .sv-queue.on { margin-bottom: 8px; }
-:where(body.experience-raycast) .sv:has(.sv-activity.on):not(:has(.sv-queue.on)) .sv-subs.on { margin-bottom: 8px; }
 :where(body.experience-raycast) .sv-tool.running { border-color: currentColor; }
 :where(body.experience-raycast) .sv-tool.running .tstat { color: var(--txt-2); animation: none; }
 :where(body.experience-raycast) .sv-tool.running .tstat.bad { color: var(--yellow); }
@@ -186,7 +182,7 @@ body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .
 :where(body.experience-raycast) .tile.born { --rc-motion: kin 210ms var(--ease); }
 :where(body.experience-raycast) .tile.gone, :where(body.experience-raycast) .tile.gone[data-state="needs"] { --rc-motion: kout 210ms var(--ease) forwards; animation: var(--rc-motion); }
 :where(body.experience-raycast) .tile[data-state="answered"] { border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
-:where(body.experience-raycast) .t-tags .t-web, :where(body.experience-raycast) .t-tags .t-phone, :where(body.experience-raycast) .t-tags .t-edit { display: grid; }
+:where(body.experience-raycast) .tile .t-head .t-tags > :is(.t-web, .t-phone, .t-edit, .t-fold) { display: none; }
 :where(body.experience-raycast) .tile:hover .t-tags, :where(body.experience-raycast) .t-head:focus-within .t-tags, :where(body.experience-raycast) .tile.open .t-tags { display: flex; }
 :where(body.experience-raycast) .tile:hover .t-key, :where(body.experience-raycast) .t-head:focus-within .t-key, :where(body.experience-raycast) .tile.open .t-key { display: none; }
 @media (hover: none) {

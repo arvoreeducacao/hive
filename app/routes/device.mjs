@@ -86,13 +86,28 @@ async function deviceShot(name, { fresh = FRAME_FRESH } = {}) {
   return d.shooting;
 }
 
+export const DEVICES_OFF = "devices are turned off in the Hive settings — the person can turn them back on in Settings › Devices";
+export const AGENT_DEVICES_OFF = "the person turned the device tools off for agents in the Hive settings, so this chat cannot drive a phone";
+
+export async function deviceRefusal(asked, switches, { opening = false } = {}) {
+  const now = switches ? await switches() : { devices: true, agents: true };
+  if (opening && now.devices === false) return DEVICES_OFF;
+  if (bySeat(asked) && (now.devices === false || now.agents === false)) return now.devices === false ? DEVICES_OFF : AGENT_DEVICES_OFF;
+  return "";
+}
+
 export function registerDeviceRoutes(on, ctx) {
-  const { isSeatName, bodyOf } = ctx;
+  const { isSeatName, bodyOf, switches } = ctx;
 
   const found = async (req, json) => {
     const asked = await bodyOf(req);
     if (!isSeatName(asked.name)) {
       json({ error: "unknown session" }, 400);
+      return { refused: true };
+    }
+    const refused = await deviceRefusal(asked, switches);
+    if (refused) {
+      json({ error: refused }, 403);
       return { refused: true };
     }
     return { asked };
@@ -120,6 +135,8 @@ export function registerDeviceRoutes(on, ctx) {
   on("POST", "/api/device/open", async (req, res, url, json) => {
     const asked = await bodyOf(req);
     if (!isSeatName(asked.name)) return json({ error: "unknown session" }, 400);
+    const refused = await deviceRefusal(asked, switches, { opening: true });
+    if (refused) return json({ error: refused }, 403);
     const platform = String(asked.platform || "android").trim().toLowerCase();
     if (platform !== "android" && platform !== "ios") return json({ error: `device_open knows android and ios — not ${platform}` }, 400);
     const kit = driverOf(platform);
@@ -144,6 +161,8 @@ export function registerDeviceRoutes(on, ctx) {
   on("POST", "/api/device/shot", async (req, res, url, json) => {
     const asked = await bodyOf(req);
     if (!isSeatName(asked.name)) return json({ error: "unknown session" }, 400);
+    const refused = await deviceRefusal(asked, switches);
+    if (refused) return json({ error: refused }, 403);
     markUse(asked);
     const got = await deviceShot(asked.name, { fresh: 0 });
     if (got.error) return json(got, 502);

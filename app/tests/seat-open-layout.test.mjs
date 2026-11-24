@@ -62,6 +62,7 @@ test("a narrow composer says the same things in fewer characters", () => {
 test("the gauge writes both wordings and lets the width pick one", () => {
   assert.match(stretches, /<span class="pct"><span class="full"><\/span><span class="short"><\/span><\/span>/);
   const paint = cut(seats, "function paintActivity(e)", "function refreshContext", "structured-seats.js");
-  assert.match(paint, /\.pct \.full"\)\.textContent = `\$\{\(t \/ 1000\)/);
+  assert.match(paint, /const used = `\$\{\(t \/ 1000\)/);
+  assert.match(paint, /\.pct \.full"\)\.textContent = used;/);
   assert.match(paint, /\.pct \.short"\)\.textContent = pct;/);
 });

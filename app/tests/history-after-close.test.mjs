@@ -111,6 +111,26 @@ test("both ways a seat leaves fix the archive, and both do it before the fleet f
   }
 });
 
+test("archiving a chat whose window would not close keeps the chat and says so", () => {
+  const body = cut("archiveSeat");
+  const killed = body.indexOf("const said = await killSeatWindow(name, where);");
+  const refused = body.search(/if \(said\?\.ok === false\) throw new Error/);
+  assert.ok(killed > 0, "archiveSeat no longer reads what the kill said");
+  assert.ok(refused > killed, "a kill that failed does not stop the archive");
+  assert.ok(refused < body.indexOf("historyClosedSeat(") && refused < body.indexOf("forgetSeat("), "the chat is archived and forgotten before the failed kill is noticed");
+});
+
+test("a chat's terminal is reserved before the first wait, so an X at any moment of the opening is heard", () => {
+  const body = cut("openShell");
+  const reserved = body.indexOf("openingShells.add(wanted)");
+  const firstWait = body.indexOf("await ");
+  assert.ok(reserved > 0, "openShell no longer reserves the name it was asked for");
+  assert.ok(firstWait > 0 && reserved < firstWait, "the reservation comes after a wait, and an X in that gap is lost");
+  const failed = body.slice(body.indexOf("} catch (wrong) {"));
+  assert.match(failed, /openingShells\.delete\(wanted\)/, "a failed opening keeps its reservation forever");
+  assert.match(failed, /cancelledShells\.delete\(wanted\)/);
+});
+
 test("the repair reaches the route that closes a seat", () => {
   assert.match(SEAT_ROUTES, /^\s+historyClosedSeat,$/m, "routes/seats.mjs never takes historyClosedSeat from its context");
   assert.match(SERVER, /killSeatWindow, historyClosedSeat, forgetSeat/, "server.mjs never hands historyClosedSeat to registerSeatRoutes");

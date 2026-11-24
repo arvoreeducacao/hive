@@ -208,11 +208,23 @@ function agentsBehind() {
   return (st.providers || []).filter((one) => one.installed && one.enabled && one.behind);
 }
 
+function agentsAtRisk() {
+  return (st.providers || []).filter((one) => one.installed && one.enabled && one.compat);
+}
+
+function compatSay(one) {
+  if (!one?.compat) return "";
+  const wanted = String(one.compat.recommended || "");
+  const recommended = wanted.startsWith(">=") ? phrase("{version} or newer", { version: wanted.slice(2) }) : wanted;
+  const known = phrase("{name} {version} has a known problem with the hive. Use {recommended}.", { name: one.name || one.label || one.id, version: one.compat.version, recommended });
+  return one.compat.latestFixes ? `${known} ${phrase("Updating fixes it.")}` : known;
+}
+
 function updateShape(one) {
   if (!one.installed) return null;
   const done = st.agentUpdateSaid[one.id] || "";
   const behindTheHive = one.seatsRun ? phrase("chats use the claude that came with the hive ({version}) until this one is at least as new", { version: one.seatsRun }) : "";
-  const said = [behindTheHive, done].filter(Boolean).join("\n");
+  const said = [compatSay(one), behindTheHive, done].filter(Boolean).join("\n");
   if (one.updating) return { say: phrase("updating {name}…", { name: one.name }), go: "", busy: true, said };
   if (one.bundled) return { say: phrase("this claude came with the hive — install claude on this machine and the hive uses it, and keeps it up to date"), go: "", busy: false, said };
   if (one.behind && one.canUpdate) return { say: phrase("{version} is out", { version: one.latest }), go: phrase("update"), busy: false, said };
@@ -699,4 +711,4 @@ $("providers").addEventListener("input", (ev) => {
 });
 
 
-export { agentsBehind, updateAgentNow, versionSay, LOOKS_LIKE_EMAIL, NICKNAME_OK, PV_BEAT, accountRoomSay, accountSaid, checkedSay, closeLogin, closeProviders, configFormHtml, nicknameTrouble, openProviders, paintProviders, providerAccounts, providerColor, providerName, providerOf, providerReady, providerWhyNot, providersOnScreen, providersViewModel, pullAccounts, pullProviders, readyAgents, statusOf, whoSay };
+export { agentsAtRisk, agentsBehind, compatSay, updateAgentNow, versionSay, LOOKS_LIKE_EMAIL, NICKNAME_OK, PV_BEAT, accountRoomSay, accountSaid, checkedSay, closeLogin, closeProviders, configFormHtml, nicknameTrouble, openProviders, paintProviders, providerAccounts, providerColor, providerName, providerOf, providerReady, providerWhyNot, providersOnScreen, providersViewModel, pullAccounts, pullProviders, readyAgents, statusOf, whoSay };

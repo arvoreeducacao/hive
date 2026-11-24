@@ -9,7 +9,7 @@ import { createFileTile, dropEditor, updateFile } from "./files-editor.js";
 import { createDraftTile, updateDraft } from "./draft-seat.js";
 import { goTo, goToSpace, releaseKeyboard } from "./focus-navigation.js";
 import { keyHint, pool, tiles } from "./leader-key.js";
-import { blockKey, paintBlocks } from "./mirror.js";
+import { blockKey, paintBlocks, seatsSaid } from "./mirror.js";
 import { palOn, palPaint } from "./palette.js";
 import { paintPlane, planeShown, planeSlot } from "./plane.js";
 import { pullThreads } from "./prs.js";
@@ -17,7 +17,6 @@ import { calmly } from "./pure-helpers.js";
 import { born, flipEnd, flipStart, inARow, inAStrip, inFocusMode, vanish, watchFocusClicks } from "./seat-layout.js";
 import { closeSeatMenu, createJobTile, createOpeningTile, createTile, openSpaceMenu, update, updateJob, updateOpening } from "./seat-menu.js";
 import { followInStrip, forgetFollow, paintStripEdges, watchStripScroll } from "./strip.js";
-import { paintStructure } from "./structure.js";
 import { forgetStruct, structPool } from "./structured-seats.js";
 import { mirrorRow } from "./team.js";
 import { movePrPanel, moveThreadPanel } from "./thread.js";
@@ -696,12 +695,13 @@ function raycastStrip(b, list) {
   if (!b) return { key: "strip", mirrorOf: false, num: "—", seats: "", bold: "", rc: true, title: "" };
   const errands = new Set(list.map((i) => i.errand).filter(Boolean)).size;
   const askedFor = errands ? ` · ${errands === 1 ? phrase("1 errand of yours") : phrase("{n} errands of yours", { n: errands })}` : "";
+  const num = blockKey(blocksOf(st.space).indexOf(b) + 1);
   return {
     key: "strip", mirrorOf: false, rc: true, at: 3 + blocksOf(st.space).indexOf(b),
-    num: blockKey(blocksOf(st.space).indexOf(b) + 1),
-    seats: list.length === 1 ? phrase("1 seat") : phrase("{n} seats", { n: list.length }),
+    num,
+    seats: "",
     bold: "",
-    title: `${blockTitle(b, list)}${askedFor}`
+    title: `${blockTitle(b, list)} · ${seatsSaid(list.length)}${askedFor} · ${num}`
   };
 }
 
@@ -730,9 +730,10 @@ function layoutKey(onPlane) {
 
 function paintCalls() {
   const calling = st.data.sessions.filter((s) => s.state === "needs");
-  const say = $("calls-say");
-  if (say) say.textContent = calling.length === 1 ? phrase("needs you") : phrase("need you");
-  $("btn-calls").title = [...calling.map((s) => s.title || s.name), keyHint("calls")].join(" · ");
+  const said = `${calling.length} ${calling.length === 1 ? phrase("needs you") : phrase("need you")}`;
+  const btn = $("btn-calls");
+  btn.title = [said, ...calling.map((s) => s.title || s.name), keyHint("calls")].join(" · ");
+  btn.setAttribute("aria-label", said);
 }
 
 function paintEverything({ animate = true } = {}) {
@@ -744,7 +745,6 @@ function paintEverything({ animate = true } = {}) {
   $("plane").hidden = !onPlane;
   for (const id of ["btn-plane", "btn-plane-top"]) $(id).setAttribute("aria-pressed", st.planeOn ? "true" : "false");
   $("mirror").hidden = !st.mirrorDev;
-  const placed = paintStructure();
   if (st.mirrorDev) {
     paintStripEdges();
     paintYards();
@@ -762,13 +762,6 @@ function paintEverything({ animate = true } = {}) {
   const strip = !onPlane && !st.open && !focusing && inAStrip();
   document.body.classList.toggle("strip-on", !onPlane && !focusing && inAStrip());
   const shown = strip ? stripItems() : list.map((it, at) => ({ it, lane: 0, at, here: true }));
-  if (placed.size && !onPlane) {
-    for (const key of placed.keys()) {
-      if (shown.some(({ it }) => it.key === key)) continue;
-      const it = itemOf(key);
-      if (it) shown.push({ it, lane: 0, at: -1, here: false });
-    }
-  }
   if (st.focus >= list.length) st.focus = Math.max(0, list.length - 1);
   if (st.seatMenuFor && !st.data.sessions.some((i) => i.name === st.seatMenuFor)) closeSeatMenu();
   if (st.reviewChat && (st.open !== st.reviewChat || !list.some((i) => i.name === st.reviewChat))) st.reviewChat = null;
@@ -820,7 +813,7 @@ function paintEverything({ animate = true } = {}) {
         tiles.set(it.key, el);
       }
       if (it.kind === "job" && it.name && tiles.get(it.name) !== el) tiles.set(it.name, el);
-      const host = onPlane ? planeSlot(it.key) : placed.get(it.key) || c;
+      const host = onPlane ? planeSlot(it.key) : c;
       const fresh = !el.isConnected;
       if (el.parentElement !== host) host.appendChild(el);
       if (fresh && !el.classList.contains("opening")) born(el);
@@ -834,8 +827,7 @@ function paintEverything({ animate = true } = {}) {
       else update(el, it, pos);
     });
     if (!onPlane) {
-      const inCanvas = placed.size ? shown.filter(({ it: i }) => !placed.has(i.key)) : shown;
-      const wanted = inCanvas.map(({ it: i }) => tiles.get(i.key));
+      const wanted = shown.map(({ it: i }) => tiles.get(i.key));
       const onScreen = [...c.children].filter((x) => x.dataset.key && !x.dataset.gone);
       if (wanted.length !== onScreen.length || wanted.some((el, at) => el !== onScreen[at])) wanted.forEach((el) => c.appendChild(el));
     }
@@ -852,8 +844,7 @@ function paintEverything({ animate = true } = {}) {
   healStructuredScroll();
   const calls = st.data.sessions.filter((s) => s.state === "needs").length;
   $("n-calls").textContent = calls;
-  if (raycastOn()) paintCalls();
-  else $("btn-calls").classList.toggle("calls", calls > 0);
+  paintCalls();
   $("btn-calls").hidden = calls === 0;
   if (palOn()) palPaint();
   if (dayOnScreen()) paintDay();

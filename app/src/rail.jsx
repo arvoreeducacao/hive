@@ -58,8 +58,7 @@ function Snoozed(props) {
         <div class="item parked snoozed" data-name={one.name} data-state={one.state} title={one.hint}>
           <span class="dot-off"></span>
           <span class="name">{one.title}</span>
-          <span class="when">{one.why}</span>
-          <span class="revive">{one.action}</span>
+          <Show when={one.why}><span class="when">{one.why}</span></Show>
         </div>
       )}</For>
     </>
@@ -99,7 +98,7 @@ function RaycastSeat(props) {
       data-said={props.seat.said}
       title={props.seat.hint}
     >
-      <i class={`rc-dot ${props.seat.state}`} aria-hidden="true"></i>
+      <i class={`rc-dot ${props.seat.state}`} role="img" aria-label={props.seat.said}></i>
       <Show
         when={props.seat.why}
         fallback={<span class="name" classList={{ "title-regenerating": !!props.seat.regenerating }} aria-busy={props.seat.regenerating ? "true" : undefined}>{props.seat.naming ? "" : <Found parts={props.seat.parts} />}</span>}
@@ -120,13 +119,18 @@ function RaycastSeat(props) {
           <svg class="on" aria-hidden="true"><use href="#i-pen" /></svg><svg class="off" aria-hidden="true"><use href="#i-x" /></svg>
         </button>
       </Show>
+      <Show when={props.seat.term}>{(term) => (
+        <button type="button" class="rterm" data-terminal-of={props.seat.name} title={term().say} aria-label={term().say}>
+          <svg aria-hidden="true"><use href="#i-term" /></svg>
+        </button>
+      )}</Show>
       <Show when={props.seat.pr}>{(pr) => (
         <button type="button" class={`rpr pr-${pr().state}`} data-pr-url={pr().url} data-of={props.seat.name} title={pr().list}>
           <svg aria-hidden="true"><use href="#i-pr" /></svg>{pr().say}
         </button>
       )}</Show>
       <Show when={props.seat.tag}>{(tag) => <span class={`rtag ${tag().tone}`}>{tag().say}</span>}</Show>
-      <span class="meta" classList={{ t: props.seat.tone === "t", need: props.seat.tone === "need" }}>{props.seat.meta}</span>
+      <Show when={props.seat.meta}><span class="meta">{props.seat.meta}</span></Show>
       <Show
         when={props.seat.act}
         fallback={<span class="hint">{props.seat.open}<Show when={props.seat.openKey}><span class="rc-key">{props.seat.openKey}</span></Show></span>}
@@ -145,7 +149,6 @@ function RaycastGroup(props) {
         fallback={
           <div class="group-title" data-i={props.group.i >= 0 ? props.group.i : undefined}>
             <span>{props.group.label}</span>
-            <Show when={props.group.here}><span class="on-screen">{props.group.hereSaid}</span></Show>
             <Show when={props.group.keys} fallback={<b>{props.group.items.length}</b>}><span class="rc-key">{props.group.keys}</span></Show>
           </div>
         }
@@ -183,7 +186,7 @@ function RaycastHead(props) {
           <>
             <div class="rail-seg" role="group" aria-label={props.rail.showsSaid}>
               <For each={props.rail.shows}>{(one) => (
-                <button type="button" data-show={one.key} aria-pressed={one.on ? "true" : "false"}>{one.label}<b>{one.count}</b></button>
+                <button type="button" data-show={one.key} aria-pressed={one.on ? "true" : "false"} title={one.hint}>{one.label}</button>
               )}</For>
             </div>
             <button type="button" class="rail-ico" data-rail-search title={props.rail.searchHint} aria-label={props.rail.searchHint}><svg aria-hidden="true"><use href="#i-mag" /></svg></button>

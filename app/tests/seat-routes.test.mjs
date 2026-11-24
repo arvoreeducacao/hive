@@ -9,6 +9,7 @@ function seatHarness() {
   const calls = {
     erased: [],
     retitled: [],
+    guessed: [],
     jobs: [],
     says: [],
     answers: [],
@@ -25,7 +26,8 @@ function seatHarness() {
     forgotten: [],
     shotsForgotten: [],
     archived: [],
-    revived: []
+    revived: [],
+    retired: []
   };
   const spawning = new Map([["opening", { id: "opening" }]]);
   const archivedSeats = new Map([["local:seat", { name: "seat" }]]);
@@ -48,7 +50,9 @@ function seatHarness() {
     archive: { ok: true, archived: "seat" },
     archiveError: "",
     revive: { ok: true, name: "seat-2" },
-    errands: {}
+    errands: {},
+    opening: new Set(),
+    tied: new Set()
   };
   registerSeatRoutes((method, path, handler) => routes.set(path, { method, handler }), {
     bodyOf: async (req) => req.body || {},
@@ -80,8 +84,15 @@ function seatHarness() {
     invalidateFleetCache: () => { state.invalidations++; },
     renameSeat: (...args) => { calls.renamed.push(args); return "New title"; },
     regenerateSeatTitle: async (...args) => { calls.retitled.push(args); return args[0] === "seat" ? { ok: true, title: "Fresh title" } : { ok: false, error: "no such chat" }; },
+    guessNextPrompt: async (...args) => {
+      calls.guessed.push(args);
+      if (state.guessError) throw new Error(state.guessError);
+      return { text: "roda os testes de novo" };
+    },
     cloudReach: { putFile: async (...args) => { calls.uploads.push(args); return state.upload; } },
     killSeatWindow: async (...args) => { calls.killed.push(args); return state.kill; },
+    cancelOpeningShell: (name) => state.opening.has(name),
+    retireTiedShell: (name, where) => { calls.retired.push([name, where]); return state.tied.has(name); },
     historyClosedSeat: (...args) => { calls.archiveFixed.push(args); },
     forgetSeat: (...args) => { calls.forgotten.push(args); },
     forgetShots: async (name) => { calls.shotsForgotten.push(name); },
@@ -121,6 +132,7 @@ test("the seat room registers every extracted route as POST in server order", ()
     ["/api/spawning/forget", "POST"],
     ["/api/rename", "POST"],
     ["/api/retitle", "POST"],
+    ["/api/next-prompt", "POST"],
     ["/api/attach", "POST"],
     ["/api/screenshot", "POST"],
     ["/api/seat/leftovers", "POST"],
@@ -263,6 +275,16 @@ test("spawning forget, rename and attach retain cache and file contracts", async
   assert.deepEqual(await hive.call("/api/attach", { oversized: true }), [{ value: { error: "that is more than this app carries in one go" }, status: 413 }]);
 });
 
+test("the next-prompt guess names a seat, keeps local unless asked for cloud, and turns a failure into an empty guess", async () => {
+  const hive = seatHarness();
+  assert.deepEqual(await hive.call("/api/next-prompt", { name: "../x" }), [{ value: { error: "no seat to guess for" }, status: 400 }]);
+  assert.deepEqual(await hive.call("/api/next-prompt", { name: " seat " }), [{ value: { text: "roda os testes de novo" }, status: 200 }]);
+  assert.deepEqual(hive.calls.guessed, [["seat", "local"]]);
+  hive.state.guessError = "codex is not installed";
+  assert.deepEqual(await hive.call("/api/next-prompt", { name: "seat", where: "cloud" }), [{ value: { text: "", error: "codex is not installed" }, status: 200 }]);
+  assert.deepEqual(hive.calls.guessed.at(-1), ["seat", "cloud"]);
+});
+
 test("screenshot copies cloud files and only types paths when they are not attachments", async () => {
   const hive = seatHarness();
   hive.state.save = { files: ["/tmp/a.png", "/tmp/b.png"], error: "" };
@@ -364,4 +386,24 @@ test("a chat closing itself is answered before its window goes, and answered onc
   assert.deepEqual(hive.calls.killed, [["seat", "local"]]);
   assert.deepEqual(hive.calls.archiveFixed, [["local", "seat"]]);
   assert.deepEqual(hive.calls.forgotten, [["local", "seat"]]);
+});
+
+test("closing a chat's terminal that is still being opened only marks it, and the server drops it once it is made", async () => {
+  const hive = seatHarness();
+  hive.state.opening.add("seat");
+  assert.deepEqual(await hive.call("/api/kill", { name: "seat", where: "local" }), [{ value: { ok: true, cancelled: true }, status: 200 }]);
+  assert.deepEqual(hive.calls.killed, [], "nothing to kill yet");
+  assert.deepEqual(hive.calls.forgotten, []);
+});
+
+test("a chat's terminal that would not die is handed to the server's retry queue instead of failing", async () => {
+  const hive = seatHarness();
+  hive.state.kill = { ok: false, error: "seat would not close" };
+  hive.state.tied.add("seat");
+  assert.deepEqual(await hive.call("/api/kill", { name: "seat", where: "local" }), [{ value: { ok: true, retrying: true }, status: 200 }]);
+  assert.deepEqual(hive.calls.retired, [["seat", "local"]]);
+  assert.deepEqual(hive.calls.forgotten, [], "the queue forgets it only when the kill is confirmed");
+  const plain = seatHarness();
+  plain.state.kill = { ok: false, error: "seat would not close" };
+  assert.deepEqual(await plain.call("/api/kill", { name: "seat", where: "local" }), [{ value: { error: "seat would not close" }, status: 502 }], "a chat that would not close still says so");
 });

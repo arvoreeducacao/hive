@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync } from "node:fs";
-import { eventLine, lastSeq, compactLine, queueMiss, saidTrail, sayEvent, seatTitle, staleInterrupt, inlineImageMarks, peerSayText, seatPreamble, answerHold } from "./protocol.mjs";
+import { eventLine, lastSeq, compactLine, queueMiss, resayCommand, saidTrail, sayEvent, seatTitle, staleInterrupt, inlineImageMarks, peerSayText, seatPreamble, answerHold, queueItems, queueKeeper, KEPT_QUEUE_CEILING, FORCE_STOPPED } from "./protocol.mjs";
 import { agents, autocompactTokens, newTurnContext } from "./agents.mjs";
 import { stateDir, sideOf, seatSockPath } from "./paths.mjs";
 import { peerEntry } from "./peer-module.mjs";
@@ -85,12 +85,24 @@ const dirsTrail = makeDirsTrail(loadedMeta.dirs, persistSession);
 persistSession({ agent: agentName, cwd, model: model || null, model_id: model || null, ...(sessionId ? { session_id: sessionId } : {}) });
 dirsTrail.note(cwd);
 
-const queue = [];
+const queue = Array.isArray(loadedMeta.queue) ? queueItems(loadedMeta.queue.filter((item) => typeof item?.text === "string")).slice(0, KEPT_QUEUE_CEILING) : [];
 const gone = saidTrail();
 let current = null;
+let held = queue.length > 0;
+let heldShown = held;
+const keepQueue = queueKeeper(persistSession, (event) => emit(event));
+
+function queueMoved() {
+  if (!current && !queue.length) held = false;
+  const now = held && queue.length > 0;
+  keepQueue({ items: queueItems(queue), held: now, flipped: now !== heldShown });
+  heldShown = now;
+}
+
 const expecting = answerHold({
   deliver: ({ from, text, images, side }) => {
     queue.push({ text: peerSayText(from, text, side), images, cid: null });
+    queueMoved();
     pump();
   },
 });
@@ -143,8 +155,10 @@ function withPreamble(text) {
 }
 
 function pump() {
-  if (current || !queue.length) return;
-  runTurn(queue.shift());
+  if (current || !queue.length || held) return queueMoved();
+  const turn = queue.shift();
+  queueMoved();
+  runTurn(turn);
 }
 
 const SLASH_COMMANDS = ["model", "effort", "mcp"];
@@ -234,10 +248,11 @@ function runTurn(turn) {
 
 function interrupt(reply) {
   if (!current) {
-    queue.length = 0;
     emit({ type: "driver", subtype: "interrupted", ms: 0 });
     return reply({ ok: true });
   }
+  held = true;
+  queueMoved();
   const started = Date.now();
   current.interrupted = true;
   current.child.kill(agent.stopSignal || "SIGTERM");
@@ -333,7 +348,8 @@ function handleCommand(cmd, reply) {
     }
     emit(sayEvent(said, images, cmd.cid, from));
     queue.push({ text: from ? peerSayText(from, said, cmd.side) : said, images, cid: cmd.cid || null });
-    const queued = !!current;
+    if (!from && !cmd.steer) held = false;
+    const queued = !!current || held;
     pump();
     return reply({ ok: true, queued });
   }
@@ -351,15 +367,41 @@ function handleCommand(cmd, reply) {
     expecting.unexpect(String(cmd.from || "").trim());
     return reply({ ok: true });
   }
+  if (cmd.type === "resay") {
+    const held = {
+      resay: (cid, change) => {
+        const item = queue.find((t) => cid && t.cid === cid);
+        return item ? Object.assign(item, change) : null;
+      },
+      alreadyLeft: (cid) => gone.alreadyLeft(cid),
+    };
+    return reply(resayCommand(held, cmd, emit));
+  }
   if (cmd.type === "unsay") {
     const i = queue.findIndex((t) => cmd.target && t.cid === cmd.target);
     if (i < 0) return reply(queueMiss(gone, cmd.target));
     const [item] = queue.splice(i, 1);
+    queueMoved();
     emit({ type: "driver", subtype: "unsaid", cid: item.cid });
     return reply({ ok: true });
   }
   if (cmd.type === "saynow") {
     return reply({ ok: false, error: `${agent.label} runs one process per turn — a queued message cannot enter a turn that is already running` });
+  }
+  if (cmd.type === "resume") {
+    held = false;
+    const started = !current && queue.length > 0;
+    pump();
+    return reply({ ok: true, started, queued: queue.length });
+  }
+  if (cmd.type === "forceStop") {
+    if (!current) return reply({ ok: true, outcome: "idle" });
+    held = true;
+    queueMoved();
+    current.interrupted = true;
+    try { current.child.kill("SIGKILL"); } catch {}
+    emit({ type: "driver", subtype: "force_stopped", reason: FORCE_STOPPED });
+    return reply({ ok: true, outcome: "killed" });
   }
   if (cmd.type === "answer") return reply({ ok: false, error: `${agent.label} seats have no questions to answer` });
   if (cmd.type === "interrupt") {
@@ -370,7 +412,7 @@ function handleCommand(cmd, reply) {
     return interrupt(reply);
   }
   if (cmd.type === "state") {
-    return reply({ ok: true, name, side, agent: agentName, model, effort, session_id: sessionId, seq, questions: [], queued: queue.length, working: !!current, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
+    return reply({ ok: true, name, side, agent: agentName, model, effort, session_id: sessionId, seq, questions: [], queued: queue.length, held: held && queue.length > 0, queue: queueItems(queue), working: !!current, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
   }
   if (cmd.type === "control") {
     const ops = {

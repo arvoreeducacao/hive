@@ -33,7 +33,7 @@ const solidMounts = [];
 
 const renderKey = () => JSON.stringify([
   st.data, st.blocks, st.block, st.space, st.spaces, st.open, st.focus, st.typing, st.mirrorDev,
-  st.seatLayout, ...(raycastOn() ? [st.structure] : []), st.planeOn, st.holding, st.renaming, st.threadChat, st.reviewChat, st.webChat, st.deviceChat, st.cockChat, st.fieldPane, st.LIMIT
+  st.seatLayout, st.planeOn, st.holding, st.renaming, st.threadChat, st.reviewChat, st.webChat, st.deviceChat, st.cockChat, st.fieldPane, st.LIMIT
 ]);
 
 const RUNAWAY_RUNS = 50;
@@ -138,7 +138,15 @@ const builtinTheme = (name) => [...BUILTIN_THEMES, HIVE_CLASSIC_THEME].find((t) 
 
 const themeDef = (name) => builtinTheme(name)?.def || st.customThemes[name] || null;
 
-const wornThemeName = () => (themeDef(st.themeName) ? st.themeName : HIVE_THEME.name);
+st.appearance = "fixed";
+
+st.themeLight = "Bonsai Light";
+
+st.systemLight = false;
+
+const wantedThemeName = () => (st.appearance === "system" && st.systemLight && themeDef(st.themeLight) ? st.themeLight : st.themeName);
+
+const wornThemeName = () => (themeDef(wantedThemeName()) ? wantedThemeName() : HIVE_THEME.name);
 
 const fullThemeDef = (def) => ({ ui: { ...HIVE_THEME.def.ui, ...(def?.ui || {}) }, terminal: { ...HIVE_THEME.def.terminal, ...(def?.terminal || {}) } });
 
@@ -172,6 +180,7 @@ const sideShut = (name) => sidesShut.has(name);
 const experienceNext = () => document.body.classList.contains("experience-next");
 
 const raycastOn = () => document.body.classList.contains("experience-raycast");
+const composerShaped = () => raycastOn() || experienceNext();
 
 const statusFolded = (name) => (experienceNext() ? sideShut(name) : !unfolded.has(name));
 
@@ -261,8 +270,17 @@ const MAC_KEYS = {
   block: { alt: true, code: "Digit" },
   space: { meta: true, alt: true, code: "Digit" },
   arrange: { meta: true, alt: true, code: "Digit0" },
-  prevBlock: { meta: true, code: "BracketLeft" },
-  nextBlock: { meta: true, code: "BracketRight" },
+  prevBlock: { meta: true, alt: true, code: "BracketLeft" },
+  nextBlock: { meta: true, alt: true, code: "BracketRight" },
+  back: { meta: true, code: "BracketLeft" },
+  forward: { meta: true, code: "BracketRight" },
+  sidePanel: { meta: true, alt: true, code: "KeyB" },
+  sidePanelMax: { meta: true, alt: true, shift: true, code: "KeyB" },
+  details: { meta: true, shift: true, code: "KeyB" },
+  diff: { meta: true, code: "KeyD" },
+  browser: { meta: true, shift: true, code: "KeyJ" },
+  terminal: { meta: true, code: "KeyJ" },
+  openIn: { meta: true, code: "KeyO" },
   fullscreen: { meta: true, code: "Enter" },
   type: { code: "Enter" },
   release: { meta: true, code: "Escape" },
@@ -275,7 +293,7 @@ const MAC_KEYS = {
   openFile: { meta: true, code: "KeyP" },
   searchCode: { meta: true, shift: true, code: "KeyF" },
   find: { meta: true, code: "KeyF" },
-  talk: { meta: true, code: "KeyD" },
+  talk: { meta: true, shift: true, code: "KeyD" },
   dim: { alt: true, code: "KeyQ" },
   plane: { alt: true, code: "KeyL" },
   newChat: { meta: true, shift: true, code: "KeyO" },
@@ -284,6 +302,8 @@ const MAC_KEYS = {
   nextChat: { meta: true, shift: true, code: "BracketRight" },
   copyChat: { meta: true, shift: true, code: "KeyC" },
   copyPr: { meta: true, shift: true, code: "KeyK" },
+  settle: { meta: true, shift: true, code: "KeyS" },
+  pin: { meta: true, shift: true, code: "KeyP" },
   nextArea: { code: "F6" },
   prevArea: { shift: true, code: "F6" }
 };
@@ -309,8 +329,17 @@ const CTRL_KEYS = {
   block: { alt: true, code: "Digit" },
   space: { ctrl: true, alt: true, code: "Digit" },
   arrange: { ctrl: true, alt: true, code: "Digit0" },
-  prevBlock: { ctrl: true, code: "BracketLeft" },
-  nextBlock: { ctrl: true, code: "BracketRight" },
+  prevBlock: { ctrl: true, alt: true, code: "BracketLeft" },
+  nextBlock: { ctrl: true, alt: true, code: "BracketRight" },
+  back: { ctrl: true, code: "BracketLeft" },
+  forward: { ctrl: true, code: "BracketRight" },
+  sidePanel: { ctrl: true, alt: true, code: "KeyB" },
+  sidePanelMax: { ctrl: true, alt: true, shift: true, code: "KeyB" },
+  details: { ctrl: true, shift: true, code: "KeyB" },
+  diff: { ctrl: true, alt: true, code: "KeyD" },
+  browser: { ctrl: true, alt: true, code: "KeyJ" },
+  terminal: { ctrl: true, code: "Backquote" },
+  openIn: { ctrl: true, alt: true, code: "KeyO" },
   fullscreen: { ctrl: true, code: "Enter" },
   type: { code: "Enter" },
   release: { ctrl: true, code: "Period" },
@@ -332,6 +361,8 @@ const CTRL_KEYS = {
   nextChat: { ctrl: true, shift: true, code: "BracketRight" },
   copyChat: { ctrl: true, alt: true, code: "KeyC" },
   copyPr: { ctrl: true, alt: true, code: "KeyK" },
+  settle: { ctrl: true, alt: true, code: "KeyS" },
+  pin: { ctrl: true, alt: true, code: "KeyP" },
   nextArea: { code: "F6" },
   prevArea: { shift: true, code: "F6" }
 };
@@ -370,10 +401,10 @@ const CHAT_SCROLLS = { scrollUp: -1, scrollDown: 1 };
 const MOVE_MODES = ["navigate", "type"];
 
 const ACTION_GROUPS = [
-  ["chats", "Chats", ["new", "newChat", "term", "calls", "fullscreen", "detach", "rename", "retitle", "reconnect", "type", "release", "copy", "find", "scrollUp", "scrollDown", "copyChat", "copyPr", "archive", "kill"]],
+  ["chats", "Chats", ["new", "newChat", "term", "calls", "fullscreen", "detach", "rename", "retitle", "reconnect", "type", "release", "copy", "find", "scrollUp", "scrollDown", "copyChat", "copyPr", "settle", "pin", "archive", "kill", "details", "openIn", "terminal", "sidePanel", "sidePanelMax", "diff", "browser"]],
   ["screens", "Panels", ["palette", "openFile", "searchCode", "prs", "threads", "day", "tasks", "shelf", "memories", "history", "accounts", "extensions", "usage", "routines", "meetings", "worktrees", "themes", "help", "doctor", "alerts", "dim"]],
   ["talking", "Voice", ["talk"]],
-  ["moving", "Navigation", ["sidebar", "prevChat", "nextChat", "nextArea", "prevArea", "seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusMode", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
+  ["moving", "Navigation", ["sidebar", "prevChat", "nextChat", "back", "forward", "nextArea", "prevArea", "seat", "block", "space", "prevBlock", "nextBlock", "sendPrevBlock", "sendNextBlock", "sendBlock", "arrange", "plane", "focusMode", "focusLeft", "focusRight", "focusUp", "focusDown", "moveLeft", "moveRight", "moveUp", "moveDown"]],
   ["notices", "Notifications", ["sound", "answered"]]
 ];
 
@@ -390,6 +421,15 @@ const ACTION_SAID = {
   type: "type in the focused session (hands over the keyboard)",
   release: "release the terminal keyboard",
   copy: "copy the terminal selection",
+  back: "go back to the chat you were reading before",
+  forward: "go forward to the chat you came back from",
+  details: "the details of the open chat — machine, branch, changes and servers",
+  openIn: "open the chat's folder in your editor",
+  terminal: "the terminal of the open chat, in its folder",
+  sidePanel: "the panel on the right of the open chat",
+  sidePanelMax: "make the right panel fill the window, or give it its size back",
+  diff: "the diff of the open chat, in the right panel",
+  browser: "the browser of the open chat, in the right panel",
   scrollUp: "scroll the focused chat up half a screen",
   scrollDown: "scroll the focused chat down half a screen",
   find: "find in the focused chat — its whole history, not only what is on screen",
@@ -443,6 +483,8 @@ const ACTION_SAID = {
   nextChat: "open the chat below in the list",
   copyChat: "copy the link of the PR you are reading, or a link to this chat that pastes as a chip",
   copyPr: "copy the number of this chat's PR, with the #",
+  settle: "settle the open chat — it leaves the list and comes back with the next message; on a settled chat, it reopens it",
+  pin: "pin the open chat at the top of the list, or unpin it",
   nextArea: "move the focus to the next area — the list, the conversation, the composer and the panels",
   prevArea: "move the focus to the previous area"
 };
@@ -451,7 +493,7 @@ const ACTION_NAMES = {
   new: "New chat", newChat: "New chat · second shortcut", term: "New terminal", calls: "Next chat that needs you",
   fullscreen: "Toggle fullscreen", detach: "Open in its own window", rename: "Rename chat", reconnect: "Reconnect the terminal",
   type: "Type in the terminal", release: "Release the terminal", copy: "Copy the terminal selection", find: "Find in chat",
-  scrollUp: "Scroll chat up", scrollDown: "Scroll chat down", copyChat: "Copy PR link or chat", copyPr: "Copy PR number",
+  scrollUp: "Scroll chat up", scrollDown: "Scroll chat down", copyChat: "Copy PR link or chat", copyPr: "Copy PR number", settle: "Settle or reopen chat", pin: "Pin or unpin chat",
   archive: "Archive chat", kill: "Close chat",
   palette: "Command palette", openFile: "Go to file", searchCode: "Search project contents", prs: "Open pull requests",
   threads: "Open the Slack thread", day: "Your day", tasks: "Your tasks", shelf: "The shelf", memories: "Memories",
@@ -658,12 +700,17 @@ function paintFonts() {
   ignored.hidden = !st.configIgnored;
 }
 
+const FONT_AREA_FIELDS = ["prompt", "code", "terminal", "promptSize", "codeSize", "smoothing"];
+
 function fontFromPanel() {
   const size = Number($("f-term").value);
   const [low, high] = [8, 32];
   const line = Number($("f-chat-line").value);
   const gap = Number($("f-chat-gap").value);
+  const areas = {};
+  for (const field of FONT_AREA_FIELDS) if (st.fontPrefs?.[field] !== undefined) areas[field] = st.fontPrefs[field];
   return {
+    ...areas,
     sans: $("f-sans").value.trim() || st.fontDefaults.sans,
     mono: $("f-mono").value.trim() || st.fontDefaults.mono,
     terminalSize: size >= low && size <= high ? Math.round(size) : st.fontDefaults.terminalSize,
@@ -672,4 +719,4 @@ function fontFromPanel() {
   };
 }
 
-export { $, chordKeys, parseChord, ACTION_GROUPS, ACTION_NAMES, BLOB_FACE, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody };
+export { $, chordKeys, parseChord, ACTION_GROUPS, ACTION_NAMES, BLOB_FACE, composerShaped, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody, FONT_AREA_FIELDS };

@@ -217,6 +217,25 @@ addEventListener("mousemove", onMove, true);
 addEventListener("click", onClick, true);
 addEventListener("keydown", (e) => { if (picking && e.key === "Escape") { e.preventDefault(); setPicking(false); ipcRenderer.sendToHost("hive-pick-cancel", {}); } }, true);
 
+const MAC = process.platform === "darwin";
+const PAGE_CHORDS = new Set(["KeyF", "KeyL", "KeyR", "Period", "Equal", "Minus", "Digit0", "NumpadAdd", "NumpadSubtract", "Numpad0"]);
+const EDITING_CHORDS = new Set(["KeyA", "KeyC", "KeyV", "KeyX", "KeyZ", "KeyY"]);
+const chordOf = (e) => (MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey);
+const keySaid = (e) => ({ key: e.key, code: e.code, alt: e.altKey, ctrl: e.ctrlKey, meta: e.metaKey, shift: e.shiftKey });
+
+addEventListener("keydown", (e) => {
+  if (picking || e.isComposing) return;
+  const bareEscape = e.key === "Escape" && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey;
+  if (!bareEscape && !chordOf(e)) return;
+  if (!bareEscape && !e.altKey && PAGE_CHORDS.has(e.code)) {
+    e.preventDefault();
+    ipcRenderer.sendToHost("hive-key", keySaid(e));
+    return;
+  }
+  if (!bareEscape && EDITING_CHORDS.has(e.code) && !e.altKey) return;
+  setTimeout(() => { if (!e.defaultPrevented) ipcRenderer.sendToHost("hive-key", keySaid(e)); }, 0);
+}, true);
+
 const ASK_CEILING = 2000;
 
 const FACE = "ui-monospace,SFMono-Regular,Menlo,monospace";

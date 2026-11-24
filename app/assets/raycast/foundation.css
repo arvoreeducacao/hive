@@ -96,7 +96,6 @@ html > body:where(.experience-raycast.look-dimension) kbd.rc-key { border: 0; bo
 :where(body.experience-raycast) .md .md-diff .del { background: color-mix(in srgb, var(--red) 10%, transparent); color: color-mix(in srgb, var(--red) 60%, var(--txt)); }
 :where(body.experience-raycast) .sv-q { border: 1px solid color-mix(in srgb, var(--signal) 55%, var(--panel)); background: color-mix(in srgb, var(--signal) 6%, var(--panel)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--signal) 16%, transparent), 0 0 24px color-mix(in srgb, var(--signal) 16%, transparent), var(--e1); }
 :where(body.experience-raycast) .sv-queue { scrollbar-width: auto; }
-:where(body.experience-raycast) .sv-subs .sublist { scrollbar-width: auto; }
 :where(body.experience-raycast) .cap.needs { color: color-mix(in srgb, var(--signal) 35%, var(--txt)); border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); background: color-mix(in srgb, var(--signal) 10%, var(--panel)); }
 :where(body.experience-raycast) .errand.needs { border-color: color-mix(in srgb, var(--signal) 55%, var(--panel)); }
 :where(body.experience-raycast) .chip[data-state="merged"] { border-color: color-mix(in srgb, var(--blue) 30%, var(--panel)); }

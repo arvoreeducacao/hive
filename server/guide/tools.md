@@ -8,7 +8,7 @@ Every tool in this topic is a tool of the `hive` MCP server that each seat gets.
 
 - `read`: `browser_screenshot`, `browser_snapshot`, `browser_cookies`, `browser_console`, `browser_network`, `device_screenshot`, `device_tree`, `device_logs`, `html_preview`, `html_render`, `pull_request_read`, `pull_request_list`, `ci_logs`.
 - `operate`: everything that acts: `browser_navigate`, `browser_profile`, `browser_resize`, `browser_eval`, `browser_click`, `browser_hover`, `browser_type`, `browser_select_option`, `browser_press_key`, `browser_wait_for`, `browser_tabs`, `browser_back`, `browser_forward`, `browser_reload`, `browser_upload`, all other `device_*` tools, `park`, `task`, `buzz`, `reply_on_slack`, `ask_person`, `request_secret`, `pull_request_create`, `pull_request_update`, `pull_request_respond`, `ci_rerun`.
-- `full`: `browser_set_cookie` and `pull_request_merge` (plus `spawn` and `publish`).
+- `full`: `browser_set_cookie`, `pull_request_merge` and `theme_set` (plus `spawn` and `publish`). `theme_read` needs only `read`.
 
 A call above the ceiling fails with "this chat runs with a "<ceiling>" ceiling". The browser, device, task, secret, buzz, Slack and pull request tools also need a chat with a seat name; an agent outside the Hive (a plain terminal) gets an error that it has no seat. They talk to the Hive app on the same machine, so the app must be open there: otherwise the error is "no hive answering on this machine".
 
@@ -277,7 +277,6 @@ The PR panel follows the pull requests of the Hive's chats, with CI, diff, revie
 - "Comment, approve or ask for changes" posts a GitHub review. GitHub does not let you approve your own PR.
 - Merge: "Merge" (a merge commit), "merge when CI passes" (auto-merge) or "Force merge" (admin, over red or running CI). After the PR closes, "Delete the branch" removes it, except for a branch in a fork.
 - Views: "Views" in the panel's top bar keeps the filter and the search of the list under a name. "Save current view…" asks for the name (up to 80 characters, one name per view). Choosing a saved view brings back its filter and search. After a change the button shows `*` and the menu adds "Update saved view"; "Rename view…" and "Delete view" act on the chosen view. Enter or Space opens the menu, the arrows move in it, and Esc or Tab closes it and puts the focus back on the button.
-- The Inbox PR panel has the same "Views" button. A view chosen there opens the PR list with that filter and search.
 - The views live in the settings file under `prViews`, so every window of the Hive on this machine sees them.
 - The list is kept in `<hub>/.hive/prs.json` and the notes in `<hub>/.hive/pr-notes.json`.
 
@@ -347,10 +346,10 @@ An MCP tool can come with an app: a `ui://` page its server declares in the tool
 - Files are saved under `~/.hive/shots/<seat>/`, and the chat gets their paths.
 - Saved files older than 7 days are swept. `HIVE_SHOTS_DAYS` changes the number of days; `0` keeps them.
 
-## Other panels: memories, inbox marks, files, terminals
+## Other panels: memories, chat marks, files, terminals
 
 - Memories (⋯ menu, "memories", ⌥⇧M by default) shows your Claude Code memories, the open proposals to the team memory and what the team memory holds on `main`. Proposing and approving go through `gh`. See the "team-and-cloud" topic.
-- Inbox marks: in the inbox layout a chat can be "Pinned", "Snoozed", "Settled" or marked unread. The marks are kept in `~/.hive/inbox-marks.json` (see the "interface" topic).
+- Chat marks: a chat can be "Pinned", "Snoozed" or "Settled" from its menu. The marks are kept in `~/.hive/inbox-marks.json`.
 - The files editor opens a file of the seat's worktree and saves it where it lives (see the "seats" topic).
 - Terminals: ⋯ menu, "new terminal" (⌥T by default) or "new terminal on the server" (see the "seats" topic).
 

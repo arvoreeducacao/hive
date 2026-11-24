@@ -1,0 +1,50 @@
+html[data-glass] :is(.menu, #btrade, .sv-menu, .relpop, .plink-menu, .md-menu, .box, .pw, .pal-sheet, .sv-composer, .sv-queue, .sv-subs) {
+  background: color-mix(in srgb, var(--panel-2) var(--glass), transparent) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+}
+
+html.panel-moving :is(#shell, .tile.open) {
+  transition-property: grid-template-columns, grid-template-rows !important;
+  transition-duration: var(--panel-ms) !important;
+  transition-timing-function: var(--ease) !important;
+}
+html.panel-moving [data-panel-host] {
+  transition-property: width, height, transform, opacity, grid-template-columns, grid-template-rows !important;
+  transition-duration: var(--panel-ms) !important;
+  transition-timing-function: var(--ease) !important;
+}
+
+html[data-chat-width] .sv-scroll {
+  padding-inline: max(14px, calc((100% - var(--chat-max)) / 2)) !important;
+}
+html[data-chat-width] .sv-composer {
+  box-sizing: border-box;
+  width: min(var(--chat-max), calc(100% - 24px));
+  margin-inline: auto !important;
+}
+
+html[data-font-prompt] :is(.sv-composer textarea, .sv-composer .sv-ink) { font-family: var(--font-prompt) !important; }
+html[data-font-prompt-size] :is(.sv-composer textarea, .sv-composer .sv-ink) { font-size: var(--font-prompt-size) !important; }
+html[data-font-code] :is(.sv-msg code, .sv-msg pre, .md-code, .md-codebox code, .sv-user code) { font-family: var(--font-code) !important; }
+html[data-font-code-size] :is(.sv-msg code, .sv-msg pre, .md-code, .md-codebox code, .sv-user code) { font-size: var(--font-code-size) !important; }
+html[data-smoothing="thin"] body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+#help .set-row .set-ctl.font-areas { align-items: flex-start; }
+#help .font-areas-body { display: grid; gap: 10px; width: 100%; }
+#help .font-areas-grid { display: grid; grid-template-columns: 84px minmax(0, 1fr) 88px; gap: 8px 10px; align-items: center; }
+#help .font-areas-grid > label { margin: 0; font-size: 12.5px; letter-spacing: normal; text-transform: none; color: var(--txt-2); }
+#help .set-row .set-ctl .font-areas-grid > input { box-sizing: border-box; width: 100%; min-width: 0; max-width: none; }
+#help .font-areas-note { font-size: 11px; line-height: 1.3; color: var(--txt-3); }
+#help .font-preview { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px 12px; margin-top: 6px; padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--well); }
+#help .font-preview .fp-k { align-self: center; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--txt-3); }
+#help .font-preview .fp-v { overflow: hidden; font-size: 13px; color: var(--txt); white-space: nowrap; text-overflow: ellipsis; }
+#help .font-preview .fp-sans, #help .font-preview .fp-prompt { font-family: var(--sans); }
+#help .font-preview .fp-code { font-family: var(--mono); color: var(--blue); }
+#help .font-preview .fp-term { font-family: var(--mono); color: var(--green); }
+#help .font-preview.thin { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+:where(body.experience-raycast) #help .thm-marks { display: inline-flex; align-items: center; gap: 8px; }
+:where(body.experience-raycast) #help .thm-mark { display: inline-grid; place-items: center; width: 16px; height: 16px; color: var(--txt-3); }
+:where(body.experience-raycast) #help .thm-mark svg { width: 13px; height: 13px; }
+:where(body.experience-raycast) #help .thm-mark.worn { color: var(--accent); }

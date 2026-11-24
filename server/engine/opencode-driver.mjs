@@ -4,7 +4,7 @@ import { appendFile, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
-import { eventLine, lastSeq, compactLine, sayEvent, sayGate, queueMiss, seatTitle, staleInterrupt, peerSayText, seatPreamble, answerHold } from "./protocol.mjs";
+import { eventLine, lastSeq, compactLine, sayEvent, sayGate, queueMiss, resayCommand, seatTitle, staleInterrupt, peerSayText, seatPreamble, answerHold, queueKeeper, FORCE_STOPPED } from "./protocol.mjs";
 import { agents, autocompactTokens } from "./agents.mjs";
 import { stateDir, sideOf, seatSockPath } from "./paths.mjs";
 import { accountFailover } from "./failover.mjs";
@@ -114,7 +114,7 @@ function initEvent(extra = {}) {
   return { type: "system", subtype: "init", session_id: sessionId, model: model || "", effort, slash_commands: SLASH_COMMANDS, terminal_slash_commands: [], agent: AGENT, ...extra };
 }
 
-const gate = sayGate();
+const gate = sayGate({ kept: loadedMeta.queue, onChange: queueKeeper(persistSession, (event) => emit(event)) });
 const expecting = answerHold({
   deliver: ({ from, text, images, side }) => {
     const item = gate.push({ text: peerSayText(from, text, side), images, cid: null });
@@ -463,7 +463,7 @@ async function askTheDev(p) {
   }
   try {
     await api(client, `/question/${encodeURIComponent(id)}/reply`, { method: "POST", body: filled });
-    emit({ type: "driver", subtype: "question_answered", id });
+    emit({ type: "driver", subtype: "question_answered", id, answers: settled.answers });
   } catch (e) {
     emit({ type: "driver", subtype: "question_failed", id, error: String(e?.message || e) });
   }
@@ -550,7 +550,27 @@ async function interruptTurn() {
   return true;
 }
 
+function forceStop(reply) {
+  const held = client;
+  client = null;
+  opening = null;
+  gate.hold();
+  for (const [id, waiting] of pendingQuestions) {
+    pendingQuestions.delete(id);
+    waiting.resolve({ dismissed: FORCE_STOPPED });
+    emit({ type: "driver", subtype: "question_dismissed", id });
+  }
+  if (gate.busy) {
+    if (!interruptAskedAt) interruptAskedAt = Date.now();
+    endTurn({ type: "result", subtype: "interrupted", is_error: false, num_turns: 0, session_id: sessionId, result: FORCE_STOPPED });
+  }
+  held?.close();
+  emit({ type: "driver", subtype: "force_stopped", reason: FORCE_STOPPED });
+  return reply({ ok: true, outcome: held ? "killed" : "idle" });
+}
+
 function handleCommand(cmd, reply) {
+  if (cmd.type === "forceStop") return forceStop(reply);
   if (cmd.type === "say") {
     const images = Array.isArray(cmd.images) ? cmd.images.filter((p) => typeof p === "string") : [];
     if ((typeof cmd.text !== "string" || !cmd.text.trim()) && !images.length) return reply({ ok: false, error: "say needs text" });
@@ -565,6 +585,8 @@ function handleCommand(cmd, reply) {
     const goes = !dropped.length || images.length > 0;
     const item = goes ? gate.push({ text: from ? peerSayText(from, text, cmd.side) : text, images, cid: cmd.cid || null }) : null;
     if (item) dispatchSay(item);
+    const freed = goes && !from && !cmd.steer ? gate.release() : null;
+    if (freed) dispatchSay(freed);
     const answer = { ok: true, dismissed: dropped.length };
     if (goes) answer.queued = !item;
     return reply(answer);
@@ -583,6 +605,7 @@ function handleCommand(cmd, reply) {
     expecting.unexpect(String(cmd.from || "").trim());
     return reply({ ok: true });
   }
+  if (cmd.type === "resay") return reply(resayCommand(gate, cmd, emit));
   if (cmd.type === "unsay") {
     const item = gate.unsay(cmd.target);
     if (!item) return reply(queueMiss(gate, cmd.target));
@@ -590,9 +613,10 @@ function handleCommand(cmd, reply) {
     return reply({ ok: true });
   }
   if (cmd.type === "saynow") {
-    const item = gate.unsay(cmd.target);
+    const idle = !gate.busy;
+    const item = gate.take(cmd.target);
     if (!item) return reply(gate.alreadyLeft(cmd.target) ? { ok: true, already: true } : queueMiss(gate, cmd.target));
-    if (!client?.alive || !gate.busy) {
+    if (!client?.alive || idle) {
       dispatchSay(item);
       emit({ type: "driver", subtype: "said_now", cid: item.cid });
       return reply({ ok: true });
@@ -612,6 +636,11 @@ function handleCommand(cmd, reply) {
       });
     return;
   }
+  if (cmd.type === "resume") {
+    const item = gate.release();
+    if (item) dispatchSay(item);
+    return reply({ ok: true, started: !!item, queued: gate.queued });
+  }
   if (cmd.type === "answer") {
     const waiting = pendingQuestions.get(cmd.id);
     if (!waiting) return reply({ ok: false, error: `no pending question ${cmd.id}` });
@@ -625,6 +654,7 @@ function handleCommand(cmd, reply) {
       return reply({ ok: false, error: "this interrupt waited too long in the pipe and was dropped — press stop again if the turn still needs it" });
     }
     if (!gate.busy) return reply({ ok: false, error: "the seat was idle — there was no turn to stop" });
+    gate.hold();
     interruptAskedAt = Date.now();
     interruptTurn()
       .then((sent) => {
@@ -640,7 +670,7 @@ function handleCommand(cmd, reply) {
     return reply({ ok: true });
   }
   if (cmd.type === "state") {
-    return reply({ ok: true, name, side, agent: AGENT, model, effort, session_id: sessionId, seq, questions: [...pendingQuestions.keys()], queued: gate.queued, working: gate.busy, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
+    return reply({ ok: true, name, side, agent: AGENT, model, effort, session_id: sessionId, seq, questions: [...pendingQuestions.keys()], queued: gate.queued, held: gate.held, queue: gate.items(), working: gate.busy, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
   }
   if (cmd.type === "control") {
     const ops = {

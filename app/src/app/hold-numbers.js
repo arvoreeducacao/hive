@@ -7,7 +7,8 @@ import { attachFilesToSeat, seatReceiving } from "./chat-stretches.js";
 import { ROOM_KEYS } from "./composer-head.js";
 import { $, CHAT_SCROLLS, DIGIT_ACTIONS, FOCUS_MOVES, IS_MAC, MOVE_DIRS, experienceNext, isImageName, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { closeDay, dayOnScreen } from "./day.js";
-import { attachFilesToDraft, draftFrom, draftInFocus } from "./draft-seat.js";
+import { draftFrom, draftInFocus } from "./draft-seat.js";
+import { takeAttachments } from "./composer-attachments.js";
 import { faceSheetOpen, toggleFaceSheet } from "./face-door.js";
 import { closeTile, pull, releaseKeyboard } from "./focus-navigation.js";
 import { closeHistory, closePreview, closeReviveHow, reviveAs } from "./history.js";
@@ -24,13 +25,14 @@ import { arrowShot, closeShot, openShot, shotOnScreen, stepShotZoom, toggleShotZ
 import { closeConfirm, closePortaria, closeWorkspace, portariaOnScreen, wsOnScreen } from "./pod.js";
 import { roomTakesKey } from "./pure-helpers.js";
 import { answerWithDigit, stepQuestionCard } from "./seat-layout.js";
-import { closeFinish, closePrPop, closeSeatMenu, finishOn, prPopOpen, seatMenuOn } from "./seat-menu.js";
+import { closeFinish, closePrPop, closeSeatMenu, finishOn, prPopOpen, seatMenuBack, seatMenuOn } from "./seat-menu.js";
 import { aloneOn, setAlone } from "./canvas-alone.js";
 import { closeShelf, shelfBack, shelfOnScreen, shelfWideOn, toggleShelfWide } from "./shelf.js";
 import { structPool } from "./structured-seats.js";
 import { TALK_TAP_MS, startTalking, stopTalking, talking } from "./stt.js";
 import { answerNudge } from "./team.js";
 import { backToLive, copySelection, focusedTerminal, lookingBack, refit, terminalSelection } from "./terminal-history.js";
+import { terminalKeepsKey } from "./terminal-keys.js";
 import { backToThemeBrowse, closeHelp, closeThemes, run, showThemeView, themesOn } from "./themes.js";
 import { stepArea } from "./focus-areas.js";
 import { closePrs, closeThreadPanel, exitReview, markCurrent, pickPrTab, prsOnScreen, stepFile, stepPr, threadVisible, unmarkLast } from "./thread.js";
@@ -40,14 +42,40 @@ import { closeUsage, usageOnScreen } from "./usage.js";
 import { closeRoutines, routinesOnScreen } from "./routines.js";
 import { closeMeetings, meetingsOnScreen } from "./meetings.js";
 import { closeMemories, inMemoryEditor, memoriesOnScreen, memoryEscape, stepMemory } from "./memories.js";
+import { sidePanelHoldsWeb } from "./side-panel.js";
 import { welcomeOn } from "./welcome.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
 
 const HOLD_WAIT = 1000;
 
+const KEY_CAPS_WAIT = 200;
+
 const HOLD_WORD = { seat: "chat", block: "block", space: "workspace" };
 
 const MOD_KEYS = ["Meta", "Alt", "Control", "Shift"];
+
+const keyCapsAsked = (e) => e.altKey || (IS_MAC ? e.metaKey : e.ctrlKey);
+
+let keyCapsTimer = null;
+
+const keyCapsShown = () => document.body.classList.contains("key-caps");
+
+function showKeyCaps() {
+  keyCapsTimer = null;
+  document.body.classList.add("key-caps");
+}
+
+function hideKeyCaps() {
+  clearTimeout(keyCapsTimer);
+  keyCapsTimer = null;
+  document.body.classList.remove("key-caps");
+}
+
+function trackKeyCaps(e) {
+  if (!keyCapsAsked(e)) return hideKeyCaps();
+  if (keyCapsShown() || keyCapsTimer) return;
+  keyCapsTimer = setTimeout(showKeyCaps, KEY_CAPS_WAIT);
+}
 
 const holdAllowed = () => !st.pending && !st.capturing && !st.typing && !welcomeOn() && st.tourAt < 0;
 
@@ -108,10 +136,11 @@ function trackHold(e) {
   /* any real key means the person committed to a shortcut, so the marker gets out of the way
      instead of appearing a second later behind whatever the shortcut opened. */
   if (!MOD_KEYS.includes(e.key)) return dropHold();
+  trackKeyCaps(e);
   /* a level with a single target has no choice in it: showing "1…1" over the canvas reads
      like a defect, so the marker stays out of the way until there are two of something. */
   const level = heldLevel(e);
-  if (!level || holdSpan(level) < 2) return dropHold();
+  if (!level || holdSpan(level) < 2) return dropLevel();
   st.holdArmed = level;
   if (st.holding) {
     if (st.holding === level) return;
@@ -127,6 +156,11 @@ function trackHold(e) {
 }
 
 function dropHold() {
+  hideKeyCaps();
+  dropLevel();
+}
+
+function dropLevel() {
   clearTimeout(st.holdTimer);
   st.holdTimer = null;
   st.holdArmed = null;
@@ -187,7 +221,7 @@ document.addEventListener("keydown", (e) => {
   if (talking() && e.key === "Escape") { e.preventDefault(); return void stopTalking({ cancel: true }); }
   if (!$("nudge").hidden && e.key === "Escape") { e.preventDefault(); e.stopPropagation(); return answerNudge(false); }
   if (finishOn() && e.key === "Escape" && !st.typing) { e.preventDefault(); e.stopPropagation(); return closeFinish(); }
-  if (seatMenuOn() && e.key === "Escape" && !st.typing) { e.preventDefault(); e.stopPropagation(); return closeSeatMenu(); }
+  if (seatMenuOn() && e.key === "Escape" && !st.typing) { e.preventDefault(); e.stopPropagation(); return seatMenuBack() || closeSeatMenu(); }
   if (prPopOpen() && e.key === "Escape" && !st.typing) { e.preventDefault(); e.stopPropagation(); return closePrPop(); }
   if (limPopOpen() && e.key === "Escape" && !st.typing) { e.preventDefault(); e.stopPropagation(); return closeLimPop(); }
   if (faceSheetOpen() && e.key === "Escape" && !st.typing) { e.preventDefault(); e.stopPropagation(); return toggleFaceSheet(false); }
@@ -376,7 +410,7 @@ document.addEventListener("keydown", (e) => {
   }
 
   if (st.webChat && !inField) {
-    if (e.key === "Escape") { e.preventDefault(); return closeBrowser(); }
+    if (e.key === "Escape" && !sidePanelHoldsWeb(st.webChat)) { e.preventDefault(); return closeBrowser(); }
   }
 
   if (st.deviceChat && !inField) {
@@ -435,6 +469,7 @@ document.addEventListener("keydown", (e) => {
     return backToLive(back);
   }
 
+  if (terminalKeepsKey(e, whichAction(e)?.action || "")) return;
   const m = aMessageBoxKeepsEnter(e) ? null : whichAction(e);
 
   if (st.typing) {
@@ -578,30 +613,37 @@ function tuiAttachImage(e, path) {
   tuiTrayPaint(e);
 }
 
+const pastedFiles = (data, any) => [...(data?.items || [])]
+  .filter((i) => (i.kind === "file" || String(i.type || "").startsWith("image/")) && (any || String(i.type || "").startsWith("image/")))
+  .map((i) => i.getAsFile())
+  .filter(Boolean);
+
 document.addEventListener("paste", async (e) => {
-  const files = [...(e.clipboardData?.items || [])]
-    .filter((i) => i.type.startsWith("image/"))
-    .map((i) => i.getAsFile())
-    .filter(Boolean);
-  if (!files.length) return;
+  const anyFiles = pastedFiles(e.clipboardData, true);
+  if (!anyFiles.length) return;
+  const images = pastedFiles(e.clipboardData, false);
 
   const under = (e.target instanceof Element ? e.target : document.activeElement)?.closest?.(".tile");
   const draft = under ? draftFrom(under) : draftInFocus();
-  if (draft) {
+  if (draft?.e.files) {
     e.preventDefault();
-    const shots = await Promise.all(files.map(readFile));
-    const loaded = files.map((f, i) => ({ name: f.name, data: shots[i] })).filter((f) => f.data);
-    if (loaded.length) await attachFilesToDraft(draft, loaded);
+    takeAttachments(draft.e, anyFiles);
     return;
   }
   const byDom = under && st.data.sessions.find((s) => s.name === under.dataset.name);
   const target = byDom || (st.open ? st.data.sessions.find((s) => s.name === st.open) : activeItems()[st.focus]);
   if (!target || target.kind === "job") return;
-  e.preventDefault();
-  const shots = (await Promise.all(files.map(readFile))).filter(Boolean);
   const entry = target.structured && structPool.get(target.name);
+  if (entry?.files) {
+    e.preventDefault();
+    takeAttachments(entry, anyFiles);
+    return;
+  }
+  if (!images.length) return;
+  e.preventDefault();
+  const shots = (await Promise.all(images.map(readFile))).filter(Boolean);
   if (entry) return attachFilesToSeat(entry, shots);
   return sendFiles(target, shots);
 });
 
-export { HOLD_WAIT, HOLD_WORD, MOD_KEYS, SHOT_EDGE, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayPaint };
+export { HOLD_WAIT, HOLD_WORD, KEY_CAPS_WAIT, MOD_KEYS, SHOT_EDGE, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayPaint };

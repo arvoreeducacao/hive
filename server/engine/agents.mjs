@@ -613,3 +613,9 @@ export function autocompactFromConfig(config) {
   const k = autocompactThousands(config?.autocompact);
   return k ? `${k}k` : "";
 }
+
+export const PROMPT_SUGGESTIONS_ENV = "HIVE_PROMPT_SUGGESTIONS";
+
+export function promptSuggestionsWanted({ env = process.env, anonymous = false } = {}) {
+  return !anonymous && env?.[PROMPT_SUGGESTIONS_ENV] === "1";
+}

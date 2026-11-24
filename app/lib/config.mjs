@@ -1,5 +1,5 @@
 import { isFaceKey, isRetiredWear, parseWear, wearKey } from "../assets/avatar/avatar.mjs";
-import { AUTOCOMPACT_AUTO, AUTOCOMPACT_FLOOR_K, AUTOCOMPACT_CEILING_K, autocompactThousands } from "../../server/engine/agents.mjs";
+import { AUTOCOMPACT_AUTO, AUTOCOMPACT_FLOOR_K, AUTOCOMPACT_CEILING_K, PROMPT_SUGGESTIONS_ENV, autocompactThousands } from "../../server/engine/agents.mjs";
 import { STT_DEFAULT_MODEL, STT_MODELS } from "./stt-download.mjs";
 import { cleanQuietDays } from "./quiet-seats.mjs";
 import { cleanDiaryDays } from "./diary-prune.mjs";
@@ -7,6 +7,8 @@ import { cleanMeetingSettings } from "./meetings.mjs";
 import { TITLE_INSTRUCTIONS_CEILING, TITLE_PROJECTS_CEILING, TITLE_PROJECT_NAME_CEILING, noTitleInstructions } from "../assets/title-instructions.mjs";
 import { cleanThreads } from "../assets/thread-rules.mjs";
 import { PR_VIEWS_MAX, PR_VIEW_FILTERS, PR_VIEW_NAME_MAX, PR_VIEW_QUERY_MAX, cleanPrView } from "../assets/pr-views.mjs";
+import { cleanBehaviorPatch } from "./behavior-config.mjs";
+import { themeCssProblem } from "../assets/theme-css.mjs";
 
 export const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -18,6 +20,9 @@ export const FONT_DEFAULTS = {
   chatSpacing: 10
 };
 const TERMINAL_SIZE_RANGE = [8, 32];
+export const FONT_AREAS = ["prompt", "code", "terminal"];
+export const FONT_AREA_SIZES = { promptSize: [10, 24], codeSize: [9, 24] };
+export const FONT_SMOOTHING_CHOICES = ["auto", "thin"];
 export const CHAT_LINE_HEIGHT_RANGE = [1, 2.5];
 export const CHAT_SPACING_RANGE = [0, 40];
 
@@ -58,7 +63,29 @@ export function cleanFont(raw, where, problems) {
     if (typeof raw.chatSpacing === "number" && raw.chatSpacing >= low && raw.chatSpacing <= high) font.chatSpacing = Math.round(raw.chatSpacing);
     else problems.push(`${where}: font.chatSpacing should be a number between ${low} and ${high}`);
   }
+  for (const area of FONT_AREAS) {
+    const value = raw[area];
+    if (value === undefined) continue;
+    if (typeof value === "string" && value.trim()) font[area] = value.trim();
+    else problems.push(`${where}: font.${area} should be a non-empty string`);
+  }
+  for (const [field, [low, high]] of Object.entries(FONT_AREA_SIZES)) {
+    const value = raw[field];
+    if (value === undefined) continue;
+    if (typeof value === "number" && value >= low && value <= high) font[field] = Math.round(value);
+    else problems.push(`${where}: font.${field} should be a number between ${low} and ${high}`);
+  }
+  if (raw.smoothing !== undefined) {
+    if (FONT_SMOOTHING_CHOICES.includes(raw.smoothing)) font.smoothing = raw.smoothing;
+    else problems.push(`${where}: font.smoothing should be ${FONT_SMOOTHING_CHOICES.join(", ")}`);
+  }
   return font;
+}
+
+export function fontPatchOf(font) {
+  const kept = { sans: font.sans, mono: font.mono, terminalSize: font.terminalSize, chatLineHeight: font.chatLineHeight, chatSpacing: font.chatSpacing };
+  for (const field of [...FONT_AREAS, ...Object.keys(FONT_AREA_SIZES), "smoothing"]) if (font[field] !== undefined) kept[field] = font[field];
+  return kept;
 }
 
 export function cleanKeys(raw, where, problems) {
@@ -143,8 +170,6 @@ export const GAZE_DEFAULT = "screen";
 
 export const LOOK_CHOICES = ["classic", "dimension"];
 export const LOOK_DEFAULT = "classic";
-export const STRUCTURE_CHOICES = ["classic", "launcher", "inbox", "atmosphere", "cockpit", "stage", "map", "ember", "island"];
-export const STRUCTURE_DEFAULT = "classic";
 export const EXPERIENCE_DEFAULT = "raycast";
 export const EXPERIENCE_CHOICES = ["raycast", "experimental"];
 const EXPERIENCES_RETIRED = ["current"];
@@ -170,6 +195,16 @@ export const CONTEXT_USAGE_ENV = "CLAUDE_CODE_ENABLE_TOKEN_USAGE_ATTACHMENT";
 
 export function contextUsageEnv(config) {
   return config?.contextUsage ? { [CONTEXT_USAGE_ENV]: "1" } : {};
+}
+
+export const LIMITS_FOOT_DEFAULT = false;
+
+export { PROMPT_SUGGESTIONS_ENV };
+
+export const SEAT_TUNING_ENVS = [CONTEXT_USAGE_ENV, PROMPT_SUGGESTIONS_ENV];
+
+export function seatTuningEnv(config) {
+  return { ...contextUsageEnv(config), ...(config?.promptSuggestions ? { [PROMPT_SUGGESTIONS_ENV]: "1" } : {}) };
 }
 
 export function cleanFlag(raw, name, where, problems, fallback = true) {
@@ -216,6 +251,17 @@ export function cleanTerminal(raw, where, problems) {
   if (typeof raw === "string" && TERMINAL_CHOICES.includes(raw.trim())) return raw.trim();
   problems.push(`${where}: terminal should be ${TERMINAL_CHOICES.join(" or ")}`);
   return TERMINAL_CHOICES[0];
+}
+
+export const TERMINAL_SHELL_MAX = 200;
+const TERMINAL_SHELL_SHAPE = /^(?:\/[\w@%+=:,./ -]*[\w@%+=:,./-]|[\w@%+=:,.-]+)$/;
+
+export function cleanTerminalShell(raw, where, problems) {
+  if (raw === undefined || raw === null) return "";
+  const said = typeof raw === "string" ? raw.trim() : null;
+  if (said === "" || (said && said.length <= TERMINAL_SHELL_MAX && TERMINAL_SHELL_SHAPE.test(said))) return said;
+  problems.push(`${where}: terminalShell should be empty, for your login shell, or the name or the full path of a shell, like fish or /opt/homebrew/bin/fish`);
+  return "";
 }
 
 export function cleanLanguage(raw, where, problems) {
@@ -342,13 +388,6 @@ export function cleanLook(raw, where, problems) {
   return LOOK_DEFAULT;
 }
 
-export function cleanStructure(raw, where, problems) {
-  if (raw === undefined) return STRUCTURE_DEFAULT;
-  if (typeof raw === "string" && STRUCTURE_CHOICES.includes(raw.trim())) return raw.trim();
-  problems.push(`${where}: structure should be ${STRUCTURE_CHOICES.join(", ")}`);
-  return STRUCTURE_DEFAULT;
-}
-
 export function cleanVisual(raw, where, problems) {
   if (raw === undefined) return VISUAL_DEFAULT;
   if (typeof raw === "string" && VISUAL_CHOICES.includes(raw.trim())) return raw.trim();
@@ -363,9 +402,41 @@ export function cleanGaze(raw, where, problems) {
   return GAZE_DEFAULT;
 }
 
+export const SEND_SHORTCUT_CHOICES = ["enter", "mod-enter-multiline", "mod-enter"];
+export const SEND_SHORTCUT_DEFAULT = "enter";
+export const FOLLOW_UP_CHOICES = ["steer", "queue"];
+export const FOLLOW_UP_DEFAULT = "steer";
+
+export function cleanSendShortcut(raw, where, problems) {
+  if (raw === undefined) return SEND_SHORTCUT_DEFAULT;
+  if (typeof raw === "string" && SEND_SHORTCUT_CHOICES.includes(raw.trim())) return raw.trim();
+  problems.push(`${where}: sendShortcut should be ${SEND_SHORTCUT_CHOICES.join(", ")}`);
+  return SEND_SHORTCUT_DEFAULT;
+}
+
+export function cleanFollowUp(raw, where, problems) {
+  if (raw === undefined) return FOLLOW_UP_DEFAULT;
+  if (typeof raw === "string" && FOLLOW_UP_CHOICES.includes(raw.trim())) return raw.trim();
+  problems.push(`${where}: followUp should be ${FOLLOW_UP_CHOICES.join(", ")}`);
+  return FOLLOW_UP_DEFAULT;
+}
+
 const THEME_NAME_MAX = 60;
 const THEMES_MAX = 40;
 const THEME_HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const THEME_AUTHORS = ["agent"];
+export const APPEARANCE_CHOICES = ["fixed", "system"];
+export const APPEARANCE_DEFAULT = "fixed";
+export const THEME_LIGHT_DEFAULT = "Bonsai Light";
+export const CONTRAST_RANGE = [0, 100];
+export const CONTRAST_DEFAULT = 0;
+export const GLASS_RANGE = [0, 100];
+export const GLASS_AUTO = null;
+export const PANEL_MOTION_RANGE = [0, 400];
+export const PANEL_MOTION_DEFAULT = 0;
+export const CHAT_WIDTH_WORDS = ["auto", "full"];
+export const CHAT_WIDTH_RANGE = [480, 1600];
+export const CHAT_WIDTH_DEFAULT = "auto";
 export const THEME_UI_KEYS = ["bg", "panel", "panel2", "panel3", "well", "line", "line2", "line3", "txt", "txt2", "txt3", "accent", "accentD", "accentHi", "accentBg", "green", "yellow", "blue", "violet"];
 export const THEME_TERMINAL_KEYS = ["background", "foreground", "cursor", "selectionBackground", "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "brightBlack", "brightRed", "brightGreen", "brightYellow", "brightBlue", "brightMagenta", "brightCyan", "brightWhite"];
 
@@ -414,12 +485,61 @@ export function cleanThemes(raw, where, problems) {
     if (Object.keys(themes).length >= THEMES_MAX) { problems.push(`${where}: themes keeps at most ${THEMES_MAX} palettes — the rest were ignored`); break; }
     if (!name.trim() || name.trim().length > THEME_NAME_MAX) { problems.push(`${where}: a theme needs a name of at most ${THEME_NAME_MAX} characters`); continue; }
     if (!isPlainObject(def)) { problems.push(`${where}: themes.${name} should be an object with ui and terminal`); continue; }
-    themes[name.trim()] = {
+    const kept = {
       ui: cleanThemeColors(def.ui, THEME_UI_KEYS, `${where}: themes.${name}.ui`, problems),
       terminal: cleanThemeColors(def.terminal, THEME_TERMINAL_KEYS, `${where}: themes.${name}.terminal`, problems)
     };
+    if (def.css !== undefined && def.css !== "") {
+      const wrong = themeCssProblem(def.css);
+      if (wrong) problems.push(`${where}: themes.${name}.css was left out — ${wrong}`);
+      else kept.css = def.css;
+    }
+    if (def.by !== undefined) {
+      if (THEME_AUTHORS.includes(def.by)) kept.by = def.by;
+      else problems.push(`${where}: themes.${name}.by should be ${THEME_AUTHORS.join(", ")}`);
+    }
+    themes[name.trim()] = kept;
   }
   return themes;
+}
+
+export function cleanAppearance(raw, where, problems) {
+  if (raw === undefined) return APPEARANCE_DEFAULT;
+  if (APPEARANCE_CHOICES.includes(raw)) return raw;
+  problems.push(`${where}: appearance should be ${APPEARANCE_CHOICES.join(", ")}`);
+  return APPEARANCE_DEFAULT;
+}
+
+export function cleanThemeLight(raw, where, problems) {
+  if (raw === undefined) return THEME_LIGHT_DEFAULT;
+  if (typeof raw === "string" && raw.trim() && raw.trim().length <= THEME_NAME_MAX) return raw.trim();
+  problems.push(`${where}: themeLight should be the name of a theme`);
+  return THEME_LIGHT_DEFAULT;
+}
+
+function cleanWhole(raw, name, [low, high], fallback, where, problems) {
+  if (raw === undefined) return fallback;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= low && raw <= high) return Math.round(raw);
+  problems.push(`${where}: ${name} should be a number between ${low} and ${high}`);
+  return fallback;
+}
+
+export const cleanContrast = (raw, where, problems) => cleanWhole(raw, "contrast", CONTRAST_RANGE, CONTRAST_DEFAULT, where, problems);
+
+export const cleanPanelMotion = (raw, where, problems) => cleanWhole(raw, "panelMotion", PANEL_MOTION_RANGE, PANEL_MOTION_DEFAULT, where, problems);
+
+export function cleanGlass(raw, where, problems) {
+  if (raw === undefined || raw === GLASS_AUTO) return GLASS_AUTO;
+  return cleanWhole(raw, "glass", GLASS_RANGE, GLASS_AUTO, where, problems);
+}
+
+export function cleanChatWidth(raw, where, problems) {
+  if (raw === undefined) return CHAT_WIDTH_DEFAULT;
+  if (CHAT_WIDTH_WORDS.includes(raw)) return raw;
+  const [low, high] = CHAT_WIDTH_RANGE;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= low && raw <= high) return Math.round(raw);
+  problems.push(`${where}: chatWidth should be ${CHAT_WIDTH_WORDS.join(", ")} or a number of pixels between ${low} and ${high}`);
+  return CHAT_WIDTH_DEFAULT;
 }
 
 /* what the face wears, as the file keeps it: "glasses:round hat:wizard". a piece the catalogue
@@ -572,10 +692,7 @@ export function cleanPatch(patch) {
   const problems = [];
   const clean = {};
   if (!isPlainObject(patch)) return { clean, problems: ["the patch should be an object"] };
-  if (patch.font !== undefined) {
-    const font = cleanFont(patch.font, "patch", problems);
-    clean.font = { sans: font.sans, mono: font.mono, terminalSize: font.terminalSize, chatLineHeight: font.chatLineHeight, chatSpacing: font.chatSpacing };
-  }
+  if (patch.font !== undefined) clean.font = fontPatchOf(cleanFont(patch.font, "patch", problems));
   if (patch.sound !== undefined) clean.sound = cleanSound(patch.sound, "patch", problems);
   if (patch.answered !== undefined) clean.answered = cleanFlag(patch.answered, "answered", "patch", problems, false);
   if (patch.sounds !== undefined) clean.sounds = cleanSounds(patch.sounds, "patch", problems);
@@ -584,9 +701,12 @@ export function cleanPatch(patch) {
   if (patch.blockSize !== undefined) clean.blockSize = cleanBlockSize(patch.blockSize, "patch", problems);
   if (patch.language !== undefined) clean.language = cleanLanguage(patch.language, "patch", problems);
   if (patch.terminal !== undefined) clean.terminal = cleanTerminal(patch.terminal, "patch", problems);
+  if (patch.terminalShell !== undefined) clean.terminalShell = cleanTerminalShell(patch.terminalShell, "patch", problems);
   if (patch.pet !== undefined) clean.pet = cleanPet(patch.pet, "patch", problems);
   if (patch.brandFace !== undefined) clean.brandFace = cleanBrandFace(patch.brandFace, "patch", problems);
   if (patch.gaze !== undefined) clean.gaze = cleanGaze(patch.gaze, "patch", problems);
+  if (patch.sendShortcut !== undefined) clean.sendShortcut = cleanSendShortcut(patch.sendShortcut, "patch", problems);
+  if (patch.followUp !== undefined) clean.followUp = cleanFollowUp(patch.followUp, "patch", problems);
   if (patch.experience !== undefined) clean.experience = cleanExperience(patch.experience, "patch", problems);
   if (patch.experienceOff !== undefined) clean.experienceOff = cleanExperienceOff(patch.experienceOff, "patch", problems);
   if (patch.infoWidth !== undefined) clean.infoWidth = cleanInfoWidth(patch.infoWidth, "patch", problems);
@@ -595,19 +715,26 @@ export function cleanPatch(patch) {
   if (patch.paneWidth !== undefined) clean.paneWidth = cleanPaneWidth(patch.paneWidth, "patch", problems);
   if (patch.splitsLearned !== undefined) clean.splitsLearned = cleanFlag(patch.splitsLearned, "splitsLearned", "patch", problems, false);
   if (patch.look !== undefined) clean.look = cleanLook(patch.look, "patch", problems);
-  if (patch.structure !== undefined) clean.structure = cleanStructure(patch.structure, "patch", problems);
   if (patch.theme !== undefined) clean.theme = cleanThemeName(patch.theme, "patch", problems);
   if (patch.themes !== undefined) clean.themes = cleanThemes(patch.themes, "patch", problems);
+  if (patch.appearance !== undefined) clean.appearance = cleanAppearance(patch.appearance, "patch", problems);
+  if (patch.themeLight !== undefined) clean.themeLight = cleanThemeLight(patch.themeLight, "patch", problems);
+  if (patch.contrast !== undefined) clean.contrast = cleanContrast(patch.contrast, "patch", problems);
+  if (patch.glass !== undefined) clean.glass = cleanGlass(patch.glass, "patch", problems);
+  if (patch.panelMotion !== undefined) clean.panelMotion = cleanPanelMotion(patch.panelMotion, "patch", problems);
+  if (patch.chatWidth !== undefined) clean.chatWidth = cleanChatWidth(patch.chatWidth, "patch", problems);
   if (patch.dim !== undefined) clean.dim = cleanFlag(patch.dim, "dim", "patch", problems);
   if (patch.visual !== undefined) clean.visual = cleanVisual(patch.visual, "patch", problems);
   if (patch.autocompact !== undefined) clean.autocompact = cleanAutocompact(patch.autocompact, "patch", problems);
   if (patch.contextUsage !== undefined) clean.contextUsage = cleanFlag(patch.contextUsage, "contextUsage", "patch", problems, false);
+  if (patch.limitsFoot !== undefined) clean.limitsFoot = cleanFlag(patch.limitsFoot, "limitsFoot", "patch", problems, LIMITS_FOOT_DEFAULT);
   if (patch.toolCalls !== undefined) clean.toolCalls = cleanToolCalls(patch.toolCalls, "patch", problems);
   if (patch.titleInstructions !== undefined) clean.titleInstructions = cleanTitleInstructions(patch.titleInstructions, "patch", problems);
   if (patch.timeFormat !== undefined) clean.timeFormat = cleanTimeFormat(patch.timeFormat, "patch", problems);
   if (patch.quitShortcut !== undefined) clean.quitShortcut = cleanQuitShortcut(patch.quitShortcut, "patch", problems);
   if (patch.screenReaderAnnouncements !== undefined) clean.screenReaderAnnouncements = cleanScreenReader(patch.screenReaderAnnouncements, "patch", problems);
   if (patch.screenReaderWindowTitle !== undefined) clean.screenReaderWindowTitle = cleanFlag(patch.screenReaderWindowTitle, "screenReaderWindowTitle", "patch", problems, false);
+  if (patch.promptSuggestions !== undefined) clean.promptSuggestions = cleanFlag(patch.promptSuggestions, "promptSuggestions", "patch", problems, false);
   if (patch.autoUpdateAgents !== undefined) clean.autoUpdateAgents = cleanFlag(patch.autoUpdateAgents, "autoUpdateAgents", "patch", problems, true);
   if (patch.keepAwakeWhileAgentsWork !== undefined) clean.keepAwakeWhileAgentsWork = cleanFlag(patch.keepAwakeWhileAgentsWork, "keepAwakeWhileAgentsWork", "patch", problems, true);
   if (patch.closeQuietAfterDays !== undefined) clean.closeQuietAfterDays = cleanQuietDays(patch.closeQuietAfterDays, "patch", problems);
@@ -630,5 +757,6 @@ export function cleanPatch(patch) {
   if (patch.providers !== undefined) clean.providers = cleanProviders(patch.providers, "patch", problems);
   if (patch.extensions !== undefined) clean.extensions = cleanExtensions(patch.extensions, "patch", problems);
   if (patch.prViews !== undefined) clean.prViews = cleanPrViews(patch.prViews, "patch", problems);
+  Object.assign(clean, cleanBehaviorPatch(patch, problems));
   return { clean, problems };
 }

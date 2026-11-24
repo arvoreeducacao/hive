@@ -9,6 +9,8 @@ const IMAGE_MARK = /\[Image #(\d+)\]/g;
 
 const AT_PATH = /(^|[\s([{'"])@([\w./~-]*[\w/~-])/g;
 
+const AT_QUOTED_PATH = /(^|[\s([{'"])@"([^"\n]+)"/g;
+
 const HANDLE = /(^|[\s([{'"])([#~])([\w.-]{1,64})/g;
 
 const GLYPH = { pr: "i-pr", chat: "i-hash", person: "i-user", file: "i-file", folder: "i-folder", image: "i-image" };
@@ -21,7 +23,7 @@ function prOf(url) {
   const m = ONE_PR.exec(String(url || ""));
   if (!m) return null;
   const key = prKey(m[1], m[2], m[3]);
-  const known = (st.prs || []).find((p) => p.key === key);
+  const known = (st.prs || []).find((p) => p.key === key) || st.prSeen?.get(key);
   return { key, repo: m[2], number: m[3], state: PR_STATES.includes(known?.state) ? known.state : "", title: known?.title || "" };
 }
 
@@ -45,6 +47,10 @@ function chipSpans(text, { sessions, devs } = {}) {
   for (const m of said.matchAll(AT_PATH)) {
     const start = m.index + m[1].length;
     spans.push({ start, end: start + 1 + m[2].length, kind: pathKind(m[2]), path: m[2] });
+  }
+  for (const m of said.matchAll(AT_QUOTED_PATH)) {
+    const start = m.index + m[1].length;
+    spans.push({ start, end: start + 3 + m[2].length, kind: pathKind(m[2]), path: m[2] });
   }
   for (const m of said.matchAll(HANDLE)) {
     const start = m.index + m[1].length;
@@ -187,7 +193,7 @@ function tintFromPicture(chip) {
 /* the bubble html is reused on every reconcile, but a PR's state keeps moving after the message was sent. */
 function wireChips(root) {
   for (const chip of root.querySelectorAll(".ctx-chip[data-kind=pr][data-pr]")) {
-    const known = (st.prs || []).find((p) => p.key === chip.dataset.pr);
+    const known = (st.prs || []).find((p) => p.key === chip.dataset.pr) || st.prSeen?.get(chip.dataset.pr);
     if (PR_STATES.includes(known?.state)) chip.dataset.state = known.state;
   }
   for (const chip of root.querySelectorAll(".ctx-chip[data-kind=image][data-path]")) tintFromPicture(chip);

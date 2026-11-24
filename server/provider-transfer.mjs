@@ -173,20 +173,20 @@ export function createProviderTransfers({ base, command, start, stop, validate =
       await stop(name);
       source = await metaOf(name);
       await saveMetaSnapshot(directory, source);
-      const context = await prepareContext({ eventsFile: join(base, "events", `${name}.ndjson`), directory, source, target: job, fresh: !!job.fresh });
+      const context = job.clean ? null : await prepareContext({ eventsFile: join(base, "events", `${name}.ndjson`), directory, source, target: job, fresh: !!job.fresh });
       const target = {
         ...(job.fresh ? freshMeta(source, job) : {
           agent: job.agent, model: job.model, model_id: job.model, cwd: source.cwd,
           title: source.title, errand: source.errand
         }),
-        provider_switching: true, provider_context: context, provider_previous: join(directory, "source.json")
+        provider_switching: true, ...(context ? { provider_context: context } : {}), provider_previous: join(directory, "source.json")
       };
       await saveMeta(name, target);
       await phase(name, job, "starting");
       await start(name, target);
       await ready(name, job.agent, job.fresh ? "" : job.model);
       const release = job.fresh
-        ? { type: "control", op: "releaseTransfer", fresh: true, history: context.history }
+        ? { type: "control", op: "releaseTransfer", fresh: true, history: context?.history || "", clean: !!job.clean }
         : { type: "control", op: "releaseTransfer", provider: job.agent, model: job.model };
       const released = await command(name, release, 5000);
       if (!released?.ok) throw new Error(words.refused);
@@ -268,11 +268,11 @@ export function createProviderTransfers({ base, command, start, stop, validate =
     },
     busy(name) { return !!jobs.get(name) && !["done", "failed"].includes(jobs.get(name).phase); },
     busyError(name) { return jobs.get(name)?.fresh ? "this chat is starting fresh; send the message when it finishes" : "this chat is changing providers; send the message when it finishes"; },
-    async fresh(name) {
+    async fresh(name, { clean = false } = {}) {
       if (this.busy(name)) return { ok: false, error: jobs.get(name).fresh ? "this chat is already starting fresh" : "this chat is already changing providers" };
       const source = await metaOf(name);
       if (!source.session_id) return { ok: false, error: "this chat has no conversation to start over from" };
-      const job = { id: randomUUID(), agent: source.agent || "claude", model: source.model_id || source.model || "", fresh: true, phase: "preparing" };
+      const job = { id: randomUUID(), agent: source.agent || "claude", model: source.model_id || source.model || "", fresh: true, ...(clean ? { clean: true } : {}), phase: "preparing" };
       jobs.set(name, job);
       try { await keep(name, job); } catch (error) { jobs.delete(name); throw error; }
       void run(name, job).catch((error) => { job.phase = "failed"; job.error = String(error?.message || error); });

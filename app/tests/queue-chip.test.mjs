@@ -113,13 +113,13 @@ test("what the panel remembers has a floor to stand on — old cids fall off", (
 });
 
 test("take back on a message already in the turn puts it in the chat instead of leaving the chip dead", () => {
-  const buttons = slice(stretches, "const takeBack = (item)", "const say = (cutIn = false) =>", "chat-stretches.js");
-  assert.match(buttons, /if \(r\?\.gone\) svDequeue\(e, item\);/);
+  const buttons = slice(stretches, "const takeBack = (item)", "const resay = (item, out)", "chat-stretches.js");
+  assert.equal((buttons.match(/if \(r\?\.gone\) svDequeue\(e, item\);/g) || []).length, 2, "take back and remove both let a message already in the turn go");
 });
 
-test("both queue buttons hand a refusal to the chat instead of dropping it", () => {
-  const buttons = slice(stretches, "const sendNow = (item)", "const say = (cutIn = false) =>", "chat-stretches.js");
-  assert.equal((buttons.match(/svQueueRefused\(e, r\)/g) || []).length, 2, "send now and take back both answer");
+test("every queue button hands a refusal to the chat instead of dropping it", () => {
+  const buttons = slice(stretches, "const sendNow = (item)", "const resay = (item, out)", "chat-stretches.js");
+  assert.equal((buttons.match(/svQueueRefused\(e, r\)/g) || []).length, 3, "send now, take back and remove all answer");
   assert.equal(/if \(!r\?\.ok\) return;/.test(buttons), false, "a silent return is a button that reads as broken");
 });
 

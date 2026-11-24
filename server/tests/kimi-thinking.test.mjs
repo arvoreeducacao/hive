@@ -71,7 +71,7 @@ function driverOpening({ effort = "max", sessionId = "", failEffort = false } = 
   const rpc = fakeRpc({ failEffort }), events = [], saved = [];
   const driver = new Function("acp", "rpc", "initial", "events", "saved", `
     const { modelsFromConfigOptions, currentModel, currentEffort, setEffortParams, acpArgs, initializeParams, loadSessionParams, newSessionParams, setModeParams, setModelParams, resumeFellThrough } = acp;
-    let client = null, opening = null, sessionId = initial.sessionId;
+    let client = null, opening = null, openEpoch = 0, sessionId = initial.sessionId;
     let model = "${K3}", effort = initial.effort, configOptions = [], catalog = [];
     const cwd = "/tmp", childEnv = {}, mcpServers = [], freshEventsFile = true, ctx = {};
     const spawn = () => ({}), createRpcClient = () => rpc;
@@ -80,7 +80,7 @@ function driverOpening({ effort = "max", sessionId = "", failEffort = false } = 
     const noteTrouble = (message) => events.push({ message });
     const initEvent = () => ({ type: "system", model, effort, session_id: sessionId });
     ${source.slice(from, to)}
-    return { open: openAcp, change: (level) => changeEffort(rpc, level) };
+    return { open: openAcp, change: (level) => changeEffort(rpc, level), forceStopped: () => { opening = null; openEpoch += 1; }, client: () => client };
   `)(acp, rpc, { effort, sessionId }, events, saved);
   return { ...driver, rpc, events, saved };
 }
@@ -120,5 +120,15 @@ test("a rejected thinking selection fails opening instead of pretending it was a
   const driver = driverOpening({ failEffort: true });
   await assert.rejects(driver.open(), /thinking change refused/);
   assert.ok(driver.rpc.closed);
+  assert.ok(!driver.events.some((event) => event.type === "system"));
+});
+
+test("a force stop while the chat opens closes the new connection instead of adopting it", async () => {
+  const driver = driverOpening();
+  const opened = driver.open();
+  driver.forceStopped();
+  await assert.rejects(opened, /force-stopped/);
+  assert.ok(driver.rpc.closed);
+  assert.equal(driver.client(), null);
   assert.ok(!driver.events.some((event) => event.type === "system"));
 });

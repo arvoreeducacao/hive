@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer, webUtils } = require("electron");
 
 const listeners = new Map();
 const page = globalThis.crypto?.randomUUID?.() || `p${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
@@ -53,6 +53,9 @@ contextBridge.exposeInMainWorld("hiveMenu", {
 });
 
 contextBridge.exposeInMainWorld("hiveFiles", {
+  pathOf: (file) => {
+    try { return webUtils.getPathForFile(file) || ""; } catch { return ""; }
+  },
   drag: (ask) => ipcRenderer.invoke("hive:file-drag", { name: String(ask?.name || ""), path: String(ask?.path || "") })
 });
 
@@ -62,6 +65,12 @@ contextBridge.exposeInMainWorld("hiveSystemSound", {
 
 contextBridge.exposeInMainWorld("hiveMicrophone", {
   ask: () => ipcRenderer.invoke("hive:microphone")
+});
+
+contextBridge.exposeInMainWorld("hiveMacPermissions", {
+  now: () => ipcRenderer.invoke("hive:permissions"),
+  open: (kind) => ipcRenderer.invoke("hive:permission-open", String(kind)),
+  hear: (heard) => ipcRenderer.on("hive:permission-changed", (_event, kind, status) => heard(kind, status))
 });
 
 contextBridge.exposeInMainWorld("hiveWindow", {

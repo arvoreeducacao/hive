@@ -62,7 +62,7 @@ function onWheel(e, ev) {
 
 async function lookBack(e, rows) {
   const well = e.host.parentElement;
-  if (!well || e.lookingBack || e.loadingBack) return;
+  if (!well || e.lookingBack || e.loadingBack) return false;
   e.loadingBack = true;
   let text = "";
   try {
@@ -71,23 +71,57 @@ async function lookBack(e, rows) {
   } catch {}
   e.loadingBack = false;
   const body = text.replace(/\s+$/, "");
-  if (!body || body.split("\n").length <= e.term.rows) {
-    return;
-  }
-  if (e.lookingBack || e.host.parentElement !== well) return;
+  if (!body || body.split("\n").length <= e.term.rows) return false;
+  if (e.lookingBack || e.host.parentElement !== well) return false;
   const h = historyOf(e);
   e.lookingBack = true;
   well.appendChild(h.wrap);
   if (!h.opened) { h.term.open(h.host); h.opened = true; }
-  requestAnimationFrame(() => {
-    try { h.fit.fit(); } catch {}
-    if (!e.lookingBack) return;
-    h.term.reset();
-    h.term.write(body.replace(/\r?\n/g, "\r\n"), () => {
-      h.term.scrollToBottom();
-      h.term.scrollLines(-rows);
+  return new Promise((done) => {
+    requestAnimationFrame(() => {
+      try { h.fit.fit(); } catch {}
+      if (!e.lookingBack) return done(false);
+      h.term.reset();
+      h.term.write(body.replace(/\r?\n/g, "\r\n"), () => {
+        h.term.scrollToBottom();
+        h.term.scrollLines(-rows);
+        done(true);
+      });
     });
   });
+}
+
+const pageRows = (term) => Math.max(1, (term?.rows || 24) - 1);
+
+async function selectEverything(e) {
+  if (!e.lookingBack) await lookBack(e, 0);
+  const term = e.lookingBack ? e.hist?.term : e.term;
+  term?.selectAll?.();
+}
+
+async function navigateTerminal(e, how) {
+  if (how === "select-all") return selectEverything(e);
+  if (how === "bottom") {
+    backToLive(e);
+    e.term.scrollToBottom();
+    return;
+  }
+  const back = e.lookingBack ? e.hist?.term : null;
+  if (how === "page-down") {
+    if (!back) return e.term.scrollLines(pageRows(e.term));
+    if (atBottom(back)) return backToLive(e);
+    return back.scrollLines(pageRows(back));
+  }
+  if (how === "page-up") {
+    if (back) return back.scrollLines(-pageRows(back));
+    if (!(await lookBack(e, pageRows(e.term)))) e.term.scrollLines(-pageRows(e.term));
+    return;
+  }
+  if (how === "top") {
+    if (back) return back.scrollToTop?.();
+    if (await lookBack(e, 0)) return e.hist?.term.scrollToTop?.();
+    e.term.scrollToTop?.();
+  }
 }
 
 function backToLive(e) {
@@ -349,4 +383,4 @@ function reconnect(name) {
   connect(e);
 }
 
-export { HiveSocket, RETRY_AFTER, atBottom, backToLive, paintWellKeys, blockText, boxText, connect, copySelection, dropStructured, dropTerminal, focusedTerminal, historyOf, htmlToClipboard, keepTerminalsUp, lookBack, lookingBack, mount, notches, observer, onWheel, reconnect, refit, terminalSelection, toClipboard, tracksMouse, wheelReports, wheelToPane };
+export { HiveSocket, RETRY_AFTER, atBottom, backToLive, paintWellKeys, blockText, boxText, connect, copySelection, dropStructured, dropTerminal, focusedTerminal, historyOf, htmlToClipboard, keepTerminalsUp, lookBack, lookingBack, mount, navigateTerminal, notches, observer, onWheel, reconnect, refit, selectEverything, terminalSelection, toClipboard, tracksMouse, wheelReports, wheelToPane };

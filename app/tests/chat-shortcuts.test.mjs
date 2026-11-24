@@ -6,7 +6,8 @@ const st = await state();
 await views();
 const { $, ACTION_GROUPS, ACTION_NAMES, ACTION_SAID, CTRL_KEYS, DEFAULT_KEYS, MAC_KEYS, formatKey, overrides } = await app("core");
 const { applyBindings } = await app("shared");
-const { chatOrder, copyChatLink, copyPrNumber, stepChat, toggleSidebar } = await app("chat-shortcuts");
+const { chatOrder, copyChatLink, copyPrNumber, pinFocused, settleFocused, stepChat, toggleSidebar } = await app("chat-shortcuts");
+const { seatSection } = await app("seat-marks");
 const { whichAction } = await app("brand-face");
 await app("themes");
 await app("hold-numbers");
@@ -65,9 +66,11 @@ test("the new shortcuts sit on both key families, in the list, with a name and a
   assert.deepEqual(MAC_KEYS.sidebar, { meta: true, code: "KeyB" });
   assert.deepEqual(MAC_KEYS.copyChat, { meta: true, shift: true, code: "KeyC" });
   assert.deepEqual(MAC_KEYS.copyPr, { meta: true, shift: true, code: "KeyK" });
+  assert.deepEqual(MAC_KEYS.settle, { meta: true, shift: true, code: "KeyS" });
+  assert.deepEqual(MAC_KEYS.pin, { meta: true, shift: true, code: "KeyP" });
   assert.deepEqual(MAC_KEYS.nextArea, { code: "F6" });
   assert.deepEqual(MAC_KEYS.prevArea, { shift: true, code: "F6" });
-  for (const action of ["prevChat", "nextChat", "newChat", "sidebar", "copyChat", "copyPr", "nextArea", "prevArea"]) {
+  for (const action of ["prevChat", "nextChat", "newChat", "sidebar", "copyChat", "copyPr", "settle", "pin", "nextArea", "prevArea"]) {
     assert.ok(CTRL_KEYS[action], `${action} has a key on the ctrl family`);
     assert.ok(ACTION_SAID[action] && ACTION_NAMES[action], `${action} has a sentence and a name`);
     assert.ok(ACTION_GROUPS.some(([, , actions]) => actions.includes(action)), `${action} sits in a group`);
@@ -170,4 +173,39 @@ test("the copy shortcuts answer with the focus in a text field, the way the comp
   assert.equal(ev.defaultPrevented, true);
   assert.deepEqual(clipped, ["hive://seat/uma"]);
   field.remove();
+});
+
+test("settle marks the open chat and closes its tile, reopens a settled chat, and pin toggles", () => {
+  hive(["uma", "outra"], { open: "uma" });
+  settleFocused();
+  assert.equal(seatSection("uma"), "settled");
+  assert.notEqual(st.open, "uma", "settling the open chat closes its tile, as the chat menu does");
+  st.open = "uma";
+  settleFocused();
+  assert.notEqual(seatSection("uma"), "settled");
+  assert.equal(st.open, "uma", "reopening keeps the chat open");
+  pinFocused();
+  assert.equal(seatSection("uma"), "pinned");
+  assert.notEqual(seatSection("outra"), "pinned");
+  pinFocused();
+  assert.notEqual(seatSection("uma"), "pinned");
+});
+
+test("settle and pin answer with the focus in a text field, and say so when no chat is open", async () => {
+  hive(["dois"], { open: "dois" });
+  const field = document.createElement("textarea");
+  document.body.append(field);
+  field.focus();
+  const pinned = press({ key: "P", code: "KeyP", ctrlKey: true, altKey: true });
+  await settle();
+  assert.equal(pinned.defaultPrevented, true);
+  assert.equal(seatSection("dois"), "pinned");
+  const settled = press({ key: "S", code: "KeyS", ctrlKey: true, altKey: true });
+  await settle();
+  assert.equal(settled.defaultPrevented, true);
+  assert.equal(seatSection("dois"), "settled");
+  field.remove();
+  hive([], { focus: 0 });
+  settleFocused();
+  assert.match($("hud").textContent, /No chat to mark/);
 });

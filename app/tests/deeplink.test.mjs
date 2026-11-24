@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from "node:fs";
 
 import { shelfDeepLink } from "../../server/door.mjs";
 
-const { SHELF_HOST, JOIN_HOST, SEAT_HOST, shelfLinkOf, joinLinkOf, seatLinkOf, linkOf, deliverLink } = createRequire(import.meta.url)("../main/deeplink.js");
+const { SHELF_HOST, JOIN_HOST, SEAT_HOST, PROMPT_KIND, shelfLinkOf, joinLinkOf, seatLinkOf, promptLinkOf, linkOf, deliverLink } = createRequire(import.meta.url)("../main/deeplink.js");
 const main = readFileSync(new URL("../main.js", import.meta.url), "utf8");
 const SRC = new URL("../src/app/", import.meta.url);
 const app = readdirSync(SRC).filter((one) => one.endsWith(".js")).map((one) => readFileSync(new URL(one, SRC), "utf8")).join("\n");
@@ -133,4 +133,19 @@ test("a window that throws is a page not ready, not a lost link", async () => {
   const taken = await deliverLink({ asked: { slug: "uma-pagina" }, offer, again: (retry) => retry() });
   assert.equal(taken, true);
   assert.equal(asked, 3);
+});
+
+test("a prompt link goes to the page whole, so the page reads and cleans it; a plain chat link is still a chat link", () => {
+  const raw = "hive://new?prompt=review%20the%20queue&repo=o/r";
+  assert.deepEqual(linkOf(raw), { kind: PROMPT_KIND, asked: { link: raw } });
+  assert.deepEqual(promptLinkOf("hive://seat/fix-login?prompt=x"), { link: "hive://seat/fix-login?prompt=x" });
+  assert.deepEqual(linkOf("hive://seat/fix-login"), { kind: SEAT_HOST, asked: "fix-login" });
+  assert.equal(promptLinkOf("hive://new/extra?prompt=x"), null);
+  assert.equal(promptLinkOf("hive://seat/a%20b?prompt=x"), null);
+  assert.equal(promptLinkOf("https://example.com/new?prompt=x"), null);
+});
+
+test("the window hands a prompt link to the page's own opener", () => {
+  assert.match(main, /prompt: "hiveOpenPromptLink"/);
+  assert.match(app, /window\.hiveOpenPromptLink = /);
 });

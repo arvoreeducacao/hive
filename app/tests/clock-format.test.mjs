@@ -51,10 +51,10 @@ test("the server reads the choice back out of the file", () => {
 });
 
 test("every place that writes an hour goes through the choice", () => {
-  const files = ["src/app/tasks.js", "src/app/limit-chip.js", "src/app/timeline-rows.js", "src/app/usage.js", "src/app/subagents-dock.js", "src/app/mirror.js", "src/app/routines.js", "src/app/focus-navigation.js", "src/app/worktrees.js", "src/structures/cockpit.js", "src/structures/inbox.js", "src/structures/atmosphere.js"];
+  const files = ["src/app/tasks.js", "src/app/limit-chip.js", "src/app/timeline-rows.js", "src/app/usage.js", "src/app/subagents-dock.js", "src/app/mirror.js", "src/app/routines.js", "src/app/focus-navigation.js", "src/app/worktrees.js"];
   for (const file of files) {
     const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-    assert.match(source, /from "(\.\/|\.\.\/app\/)clock-format\.js"/, `${file} should take the time format`);
+    assert.match(source, /from "\.\/clock-format\.js"/, `${file} should take the time format`);
     for (const line of source.split("\n").filter((one) => /toLocale(Time|Date)?String\(/.test(one) && /hour/.test(one))) assert.match(line, /clockOptions\(/, `${file}: ${line.trim()}`);
   }
 });

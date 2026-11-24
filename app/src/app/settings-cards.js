@@ -5,7 +5,6 @@ const fontDefault = (field) => () => st.fontDefaults?.[field] ?? null;
 const SETTING_DEFAULTS = {
   "f-look": "classic",
   "f-clock": "system",
-  "f-structure": "classic",
   "f-sans": "",
   "f-mono": "",
   "f-term": fontDefault("terminalSize"),
@@ -26,9 +25,15 @@ const SETTING_DEFAULTS = {
   "f-tools": "all",
   "f-compact": "",
   "t-context-usage": false,
+  "t-limits-foot": false,
   "t-agent-updates": true,
   "f-quiet-days": ["2", ""],
-  "f-diary-days": ["30", ""]
+  "f-diary-days": ["30", ""],
+  "btn-dim": true,
+  "btn-share": true,
+  "btn-phone": false,
+  "btn-machines": false,
+  "in-machine": ""
 };
 
 const foldText = (text) => String(text || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -43,7 +48,7 @@ function valueOf(el) {
   if (isSwitch(el)) return el.classList.contains("on");
   if (isRadioList(el)) {
     const picked = el.querySelector('[aria-checked="true"]');
-    return picked ? picked.dataset.value ?? picked.dataset.structure ?? null : null;
+    return picked ? picked.dataset.value ?? null : null;
   }
   return el.value;
 }
@@ -72,7 +77,7 @@ function resetControl(el) {
     return;
   }
   if (isRadioList(el)) {
-    el.querySelector(`[data-value="${CSS.escape(String(want))}"], [data-structure="${CSS.escape(String(want))}"]`)?.click();
+    el.querySelector(`[data-value="${CSS.escape(String(want))}"]`)?.click();
     return;
   }
   el.value = String(want);

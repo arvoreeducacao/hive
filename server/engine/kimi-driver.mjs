@@ -3,7 +3,7 @@ import { spawn } from "node:child_process";
 import { appendFile, mkdir, readFile, rm } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { extname, join } from "node:path";
-import { eventLine, lastSeq, compactLine, sayEvent, sayGate, queueMiss, seatTitle, staleInterrupt, peerSayText, seatPreamble, answerHold } from "./protocol.mjs";
+import { eventLine, lastSeq, compactLine, sayEvent, sayGate, queueMiss, resayCommand, seatTitle, staleInterrupt, peerSayText, seatPreamble, answerHold, queueKeeper, FORCE_STOPPED } from "./protocol.mjs";
 import { stateDir, sideOf, seatSockPath } from "./paths.mjs";
 import { accountFailover } from "./failover.mjs";
 import { accountDirFromEnv, providerEnv, providerEnvName, providerRanDry } from "./providers.mjs";
@@ -119,7 +119,7 @@ function initEvent(extra = {}) {
   return { type: "system", subtype: "init", session_id: sessionId, model: model || "", effort, working: gate.busy, slash_commands: SLASH_COMMANDS, terminal_slash_commands: [], agent: AGENT, ...extra };
 }
 
-const gate = sayGate();
+const gate = sayGate({ kept: loadedMeta.queue, onChange: queueKeeper(persistSession, (event) => emit(event)) });
 const expecting = answerHold({
   deliver: ({ from, text, images, side }) => {
     const item = gate.push({ text: peerSayText(from, text, side), images, cid: null });
@@ -128,6 +128,7 @@ const expecting = answerHold({
 });
 let client = null;
 let opening = null;
+let openEpoch = 0;
 let ctx = newSessionContext();
 let turning = null;
 let turnLive = false;
@@ -274,6 +275,7 @@ async function openAcp() {
   if (client?.alive) return client;
   if (opening) return opening;
   opening = (async () => {
+    const epoch = openEpoch;
     const wantedModel = model;
     const wantedEffort = effort;
     const child = spawn("kimi", acpArgs(), { cwd, env: childEnv, stdio: ["pipe", "pipe", "pipe"] });
@@ -311,6 +313,7 @@ async function openAcp() {
         takeConfig(await rpc.request("session/set_config_option", setModelParams(sessionId, wantedModel)));
       }
       if (wantedEffort) await changeEffort(rpc, wantedEffort);
+      if (epoch !== openEpoch) throw new Error("the chat was force-stopped while it opened");
       client = rpc;
       emit(initEvent());
       return rpc;
@@ -320,7 +323,7 @@ async function openAcp() {
       rpc.close();
       throw e;
     } finally {
-      opening = null;
+      if (epoch === openEpoch) opening = null;
     }
   })();
   return opening;
@@ -414,7 +417,23 @@ async function interruptTurn() {
   return true;
 }
 
+function forceStop(reply) {
+  const rpc = client;
+  client = null;
+  opening = null;
+  openEpoch += 1;
+  gate.hold();
+  if (turnLive) {
+    if (!interruptAskedAt) interruptAskedAt = Date.now();
+    endTurn(finishTurn(ctx, "cancelled", sessionId));
+  }
+  rpc?.close();
+  emit({ type: "driver", subtype: "force_stopped", reason: FORCE_STOPPED });
+  return reply({ ok: true, outcome: rpc ? "killed" : "idle" });
+}
+
 function handleCommand(cmd, reply) {
+  if (cmd.type === "forceStop") return forceStop(reply);
   if (cmd.type === "say") {
     const images = Array.isArray(cmd.images) ? cmd.images.filter((p) => typeof p === "string") : [];
     if ((typeof cmd.text !== "string" || !cmd.text.trim()) && !images.length) return reply({ ok: false, error: "say needs text" });
@@ -427,6 +446,8 @@ function handleCommand(cmd, reply) {
     emit(sayEvent(text, images, cmd.cid, from));
     const item = gate.push({ text: from ? peerSayText(from, text, cmd.side) : text, images, cid: cmd.cid || null });
     if (item) dispatchSay(item);
+    const freed = !from && !cmd.steer ? gate.release() : null;
+    if (freed) dispatchSay(freed);
     const answer = { ok: true, dismissed: 0, queued: !item };
     return reply(answer);
   }
@@ -444,6 +465,7 @@ function handleCommand(cmd, reply) {
     expecting.unexpect(String(cmd.from || "").trim());
     return reply({ ok: true });
   }
+  if (cmd.type === "resay") return reply(resayCommand(gate, cmd, emit));
   if (cmd.type === "unsay") {
     const item = gate.unsay(cmd.target);
     if (!item) return reply(queueMiss(gate, cmd.target));
@@ -451,7 +473,7 @@ function handleCommand(cmd, reply) {
     return reply({ ok: true });
   }
   if (cmd.type === "saynow") {
-    const item = gate.unsay(cmd.target);
+    const item = gate.take(cmd.target);
     if (!item) return reply(gate.alreadyLeft(cmd.target) ? { ok: true, already: true } : queueMiss(gate, cmd.target));
     if (!turning) {
       dispatchSay(item);
@@ -460,6 +482,11 @@ function handleCommand(cmd, reply) {
     }
     gate.push(item);
     return reply({ ok: false, error: `${LABEL} cannot take a message in the middle of a turn — it stays first in line` });
+  }
+  if (cmd.type === "resume") {
+    const item = gate.release();
+    if (item) dispatchSay(item);
+    return reply({ ok: true, started: !!item, queued: gate.queued });
   }
   if (cmd.type === "answer") {
     return reply({ ok: false, error: `${LABEL} seats have no question cards to answer` });
@@ -470,6 +497,7 @@ function handleCommand(cmd, reply) {
       return reply({ ok: false, error: "this interrupt waited too long in the pipe and was dropped — press stop again if the turn still needs it" });
     }
     if (!gate.busy && !turning) return reply({ ok: false, error: "the seat was idle — there was no turn to stop" });
+    gate.hold();
     interruptAskedAt = Date.now();
     interruptTurn()
       .then((sent) => {
@@ -485,7 +513,7 @@ function handleCommand(cmd, reply) {
     return reply({ ok: true });
   }
   if (cmd.type === "state") {
-    return reply({ ok: true, name, side, agent: AGENT, model, effort, session_id: sessionId, seq, questions: [], queued: gate.queued, working: gate.busy, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
+    return reply({ ok: true, name, side, agent: AGENT, model, effort, session_id: sessionId, seq, questions: [], queued: gate.queued, held: gate.held, queue: gate.items(), working: gate.busy, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
   }
   if (cmd.type === "control") {
     const ops = {

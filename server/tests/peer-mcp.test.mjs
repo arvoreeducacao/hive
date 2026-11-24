@@ -91,7 +91,7 @@ test("the peer tools introduce themselves the way an mcp server has to", async (
     assert.equal(hello.result.serverInfo.name, "hive");
     assert.ok(hello.result.capabilities.tools);
     const list = (await client.call("tools/list", {})).result.tools.map((t) => t.name);
-    assert.deepEqual(list, ["peers", "message", "ask", "peek", "read_chat", "guide", "publish", "reply_on_page", "html_preview", "html_render", "browser_navigate", "browser_screenshot", "browser_profile", "browser_set_cookie", "browser_cookies", "browser_resize", "browser_eval", "browser_snapshot", "browser_click", "browser_hover", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for", "browser_tabs", "browser_back", "browser_forward", "browser_reload", "browser_upload", "browser_network", "browser_console", "device_open", "device_screenshot", "device_tap", "device_swipe", "device_type", "device_key", "device_tree", "device_logs", "device_close", "spawn", "close", "rename", "link_pr", "unlink_pr", "park", "task", "buzz", "reply_on_slack", "request_secret", "ask_person", "pull_request_read", "pull_request_list", "pull_request_create", "pull_request_update", "pull_request_respond", "pull_request_merge", "ci_logs", "ci_rerun"]);
+    assert.deepEqual(list, ["peers", "message", "ask", "peek", "read_chat", "guide", "publish", "reply_on_page", "html_preview", "html_render", "browser_navigate", "browser_screenshot", "browser_profile", "browser_set_cookie", "browser_cookies", "browser_resize", "browser_eval", "browser_snapshot", "browser_click", "browser_hover", "browser_type", "browser_select_option", "browser_press_key", "browser_wait_for", "browser_tabs", "browser_back", "browser_forward", "browser_reload", "browser_upload", "browser_network", "browser_console", "device_open", "device_screenshot", "device_tap", "device_swipe", "device_type", "device_key", "device_tree", "device_logs", "device_close", "spawn", "close", "rename", "link_pr", "unlink_pr", "park", "task", "buzz", "reply_on_slack", "request_secret", "ask_person", "pull_request_read", "pull_request_list", "pull_request_create", "pull_request_update", "pull_request_respond", "pull_request_merge", "ci_logs", "ci_rerun", "theme_read", "theme_set"]);
   } finally {
     client.stop();
     await rm(base, { recursive: true, force: true });
@@ -244,6 +244,39 @@ test("ask never waits past the point where the agent's mcp client cuts a silent 
     assert.match(ask.inputSchema.properties.timeout_seconds.description, /max 270/);
   } finally {
     client.stop();
+    await rm(base, { recursive: true, force: true });
+  }
+});
+
+test("theme_read and theme_set talk to the app on this machine, and an error comes back as one", async () => {
+  const base = await hive();
+  const asked = [];
+  const door = createHttpServer((req, res) => {
+    let buf = "";
+    req.on("data", (piece) => { buf += piece; });
+    req.on("end", () => {
+      asked.push({ method: req.method, path: req.url, body: JSON.parse(buf || "{}") });
+      res.writeHead(200, { "content-type": "application/json" });
+      if (req.method === "GET") return res.end(JSON.stringify({ current: { theme: "Hive" }, builtIn: ["Hive"], rules: ["no url()"] }));
+      if (asked.at(-1).body.css) return res.end(JSON.stringify({ error: "css cannot @import a file" }));
+      res.end(JSON.stringify({ ok: true, wearing: asked.at(-1).body.name || asked.at(-1).body.use, appearance: "fixed" }));
+    });
+  });
+  await new Promise((up) => door.listen(socketPathFor({ home: base }), up));
+  const client = mcp(base, "asker");
+  try {
+    const read = await client.call("tools/call", { name: "theme_read", arguments: {} });
+    assert.match(JSON.stringify(read.result), /no url\(\)/);
+    const set = await client.call("tools/call", { name: "theme_set", arguments: { name: "Nightfall", canvas: "#1A1B26", accent: "#7AA2F7" } });
+    assert.match(JSON.stringify(set.result), /now wears \\"Nightfall\\"/);
+    const refused = await client.call("tools/call", { name: "theme_set", arguments: { name: "Leak", canvas: "#000000", accent: "#FFFFFF", css: "@import 'x';" } });
+    assert.equal(refused.result.isError, true);
+    assert.match(JSON.stringify(refused.result), /@import/);
+    assert.deepEqual(asked.map(({ method, path }) => `${method} ${path}`), ["GET /api/themes/agent", "POST /api/themes/agent", "POST /api/themes/agent"]);
+    assert.deepEqual(asked[1].body, { name: "Nightfall", canvas: "#1A1B26", accent: "#7AA2F7" });
+  } finally {
+    client.stop();
+    door.close();
     await rm(base, { recursive: true, force: true });
   }
 });

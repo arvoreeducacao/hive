@@ -12,8 +12,6 @@ let polling = 0;
 
 const KEY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"/><path d="m21 2-9.6 9.6"/><circle cx="7.5" cy="15.5" r="5.5"/></svg>';
 
-const secretAskOf = (seat) => st.secretAsks.find((one) => one.seat === seat) || null;
-
 const siteOf = (url) => { try { return new URL(url).host; } catch { return ""; } };
 
 function openOutside(url) {
@@ -120,4 +118,4 @@ function startSecretAsks() {
 
 startSecretAsks();
 
-export { secretAskOf, startSecretAsks };
+export { startSecretAsks };

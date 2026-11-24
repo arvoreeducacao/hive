@@ -31,10 +31,7 @@ const { tiles } = await app("leader-key");
 const { retitle, retitlingNow } = await app("chat-name");
 const { seatMenuCommands, seatMenuRows } = await app("seat-menu");
 const { run } = await app("themes");
-const { setStructure } = await app("structure");
 const { paintRail, railViewModel } = await app("mirror");
-await import(new URL("../src/structures/island.js", import.meta.url).href);
-await import(new URL("../src/structures/inbox.js", import.meta.url).href);
 
 bootSolid();
 
@@ -146,37 +143,6 @@ test("the shortcut does nothing while the server is already regenerating, or wit
   assert.deepEqual(asked, []);
 });
 
-test("the island's chat header glimmers while its title regenerates", () => {
-  raycast(true);
-  lay([seat("a", { retitling: true }), seat("b")]);
-  setStructure("island", { quiet: true });
-  const title = $("structure-root").querySelector(".il-title");
-  assert.ok(title.classList.contains("title-regenerating"));
-  assert.equal(title.getAttribute("aria-busy"), "true");
-  lay([seat("a"), seat("b")]);
-  assert.equal($("structure-root").querySelector(".il-title").classList.contains("title-regenerating"), false);
-  setStructure("classic", { quiet: true });
-  raycast(false);
-});
-
-test("the inbox's chat header glimmers while its title regenerates", async () => {
-  raycast(true);
-  lay([seat("a", { retitling: true })]);
-  setStructure("inbox", { quiet: true });
-  await settle();
-  render();
-  const crumb = $("structure-root").querySelector(".tx-crumb-title");
-  assert.ok(crumb, "the inbox paints the reading header");
-  assert.ok(crumb.querySelector(".title-regenerating"), "the title inside the crumb glimmers");
-  assert.equal(crumb.getAttribute("aria-busy"), "true");
-  lay([seat("a")]);
-  await settle();
-  render();
-  assert.equal($("structure-root").querySelector(".tx-crumb-title .title-regenerating"), null);
-  setStructure("classic", { quiet: true });
-  raycast(false);
-});
-
 const railName = (name) => $("rail").querySelector(`.item[data-name="${name}"] .name`);
 
 test("the rail row of a chat glimmers while its title regenerates, in both looks", async () => {
@@ -204,27 +170,6 @@ test("the rail row of a chat glimmers while its title regenerates, in both looks
   paintRail();
   await settle();
   assert.equal(railName("b").classList.contains("title-regenerating"), false);
-  raycast(false);
-});
-
-test("the inbox row of a chat glimmers while its title regenerates", async () => {
-  raycast(true);
-  lay([seat("a"), seat("b", { retitling: true })]);
-  setStructure("inbox", { quiet: true });
-  await settle();
-  render();
-  const title = (key) => $("structure-root").querySelector(`.tx-row[data-key="${key}"] .tx-title`);
-  assert.ok(title("b"), "the inbox lists the chat");
-  assert.ok(title("b").classList.contains("title-regenerating"));
-  assert.equal(title("b").getAttribute("aria-busy"), "true");
-  assert.equal(title("b").textContent, "title of b");
-  assert.equal(title("a").classList.contains("title-regenerating"), false);
-  lay([seat("a"), seat("b")]);
-  await settle();
-  render();
-  assert.equal(title("b").classList.contains("title-regenerating"), false);
-  assert.equal(title("b").hasAttribute("aria-busy"), false);
-  setStructure("classic", { quiet: true });
   raycast(false);
 });
 

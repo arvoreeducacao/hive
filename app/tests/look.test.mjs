@@ -229,6 +229,9 @@ test("the placeholder of a shrunk composer is short enough to be a whole sentenc
   structPool.set(e.name, e);
   try {
     const tile = document.createElement("div");
+    tile.className = "tile";
+    document.body.appendChild(tile);
+    tile.appendChild(e.host);
     const ta = e.host.querySelector("textarea");
     paintSlim(e.name, tile);
     assert.equal(ta.placeholder, phrase(SV_ASK_SLIM));

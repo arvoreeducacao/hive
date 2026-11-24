@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, desktopCapturer, Notification, nativeImage, dialog, powerMonitor, screen, session, shell, ipcMain, systemPreferences, webContents, WebContentsView } = require("electron");
+const { app, BrowserWindow, Menu, clipboard, desktopCapturer, Notification, nativeImage, dialog, powerMonitor, screen, session, shell, ipcMain, systemPreferences, webContents, WebContentsView } = require("electron");
 const { spawn, execFile } = require("node:child_process");
 const { readFileSync, writeFileSync, existsSync, accessSync, constants } = require("node:fs");
 const { join } = require("node:path");
@@ -18,6 +18,7 @@ const nodeLookup = require("./main/node-lookup.js");
 const { quitShortcut } = require("./main/quit-hold.js");
 const { bindingHits, cleanBinding, hiveAppMenu } = require("./main/app-menu.js");
 const { fileDragHandler, hubOf } = require("./main/file-drag.js");
+const macPermissions = require("./main/mac-permissions.js");
 
 delete process.env.ARGV0;
 
@@ -578,9 +579,13 @@ function createWindow() {
     window_.webContents.executeJavaScript(`document.documentElement.classList.toggle("fullscreen", ${on})`).catch(() => {});
   };
   window_.webContents.on("context-menu", (_event, params) => {
-    if (!params.isEditable && !params.selectionText) return;
+    const image = params.mediaType === "image";
+    const link = /^https?:/i.test(params.linkURL || "") ? params.linkURL : "";
+    if (!params.isEditable && !params.selectionText && !image && !link) return;
     const can = params.editFlags || {};
     Menu.buildFromTemplate([
+      ...(link ? [{ label: "Copy Link", click: () => clipboard.writeText(link) }, { type: "separator" }] : []),
+      ...(image ? [{ label: "Copy Image", click: () => window_.webContents.copyImageAt(params.x, params.y) }, { type: "separator" }] : []),
       { role: "cut", enabled: !!(params.isEditable && can.canCut) },
       { role: "copy", enabled: !!can.canCopy },
       { role: "paste", enabled: !!(params.isEditable && can.canPaste) },
@@ -881,6 +886,30 @@ function createWindow() {
     return { allowed: !!said, state: said ? "granted" : "denied" };
   });
 
+  const permissionDeps = { systemPreferences, home: HOME };
+  const permissionWatch = macPermissions.createPermissionWatch({
+    status: (kind) => macPermissions.permissionStatus(kind, permissionDeps),
+    tell: (kind, status) => {
+      if (window_ && !window_.isDestroyed()) window_.webContents.send("hive:permission-changed", kind, status);
+    }
+  });
+  const fromMainWindow = (event) => !!window_ && !window_.isDestroyed() && event.sender === window_.webContents;
+  ipcMain.handle("hive:permissions", (event) => {
+    if (!fromMainWindow(event)) return { error: "only the hive window may ask" };
+    return IS_MAC ? { mac: true, now: macPermissions.permissionsNow(permissionDeps) } : { mac: false, now: {} };
+  });
+  ipcMain.handle("hive:permission-open", async (event, kind) => {
+    if (!fromMainWindow(event)) return { error: "only the hive window may ask" };
+    if (!IS_MAC || !macPermissions.isPermission(kind)) return { error: "no such permission on this machine" };
+    if (kind === "microphone" && macPermissions.permissionStatus(kind, permissionDeps) === "unasked") {
+      await systemPreferences.askForMediaAccess("microphone").catch(() => false);
+      return { ok: true, status: macPermissions.permissionStatus(kind, permissionDeps) };
+    }
+    await shell.openExternal(macPermissions.settingsUrlOf(kind)).catch(() => {});
+    permissionWatch.watch(kind);
+    return { ok: true, status: macPermissions.permissionStatus(kind, permissionDeps) };
+  });
+
   ipcMain.handle("seat-browser:external", (_e, url) => {
     if (/^https?:/.test(String(url || ""))) shell.openExternal(url);
     return { ok: true };
@@ -1090,7 +1119,7 @@ function buildMenu() {
   ]));
 }
 
-const OPENER = { shelf: "hiveOpenPage", join: "hiveOpenJoin", seat: "hiveGoTo" };
+const OPENER = { shelf: "hiveOpenPage", join: "hiveOpenJoin", seat: "hiveGoTo", prompt: "hiveOpenPromptLink" };
 
 let linkWaiting = null;
 

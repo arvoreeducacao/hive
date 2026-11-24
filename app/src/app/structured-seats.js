@@ -1,16 +1,16 @@
 import { paintMentions, paintPills, svEvent, svUserThumb } from "./chat-and-panes.js";
 import { svCmd } from "./chat-stretches.js";
+import { composerDriverState, composerHeard, paintQueue, pruneAsks } from "./composer.js";
 import { svConvAppend, svConvLine } from "./conversation-model.js";
 import { commandOf, every, isNativeCommand, phrase, raycastOn } from "./core.js";
 import { fullTimeOf } from "./timeline-rows.js";
 import { spokenNow } from "/assets/i18n.mjs";
 import { ago } from "./pod.js";
 import { splitPeerHandle } from "./pure-helpers.js";
-import { paintSubs } from "./subagents-dock.js";
+import { structPool } from "./seat-pool.js";
 import { screenReaderHeard } from "./screen-reader.js";
 import { blockText, toClipboard } from "./terminal-history.js";
 
-const structPool = new Map();
 
 function forgetStruct(name) {
   const e = structPool.get(name);
@@ -33,6 +33,7 @@ function paintActivity(e) {
   if (!strip) return;
   const composer = e.host.querySelector(".sv-composer");
   composer.classList.toggle("running", !!e.turnOpen);
+  composerHeard(e);
   const gauge = e.host.querySelector(".sv-ctx");
   if (e.context) {
     const { t, m, p } = e.context;
@@ -40,8 +41,11 @@ function paintActivity(e) {
     gauge.classList.toggle("warm", p >= 70 && p < 90);
     gauge.classList.toggle("hot", p >= 90);
     gauge.querySelector(".bar i").style.width = `${Math.min(100, Math.max(2, p))}%`;
+    gauge.style.setProperty("--cp-used", `${Math.min(100, Math.max(2, p))}%`);
     const pct = `${Math.round(p)}%`;
-    gauge.querySelector(".pct .full").textContent = `${(t / 1000).toFixed(t >= 99500 ? 0 : 1)}k / ${Math.round(m / 1000)}k · ${pct}`;
+    const used = `${(t / 1000).toFixed(t >= 99500 ? 0 : 1)}k / ${Math.round(m / 1000)}k · ${pct}`;
+    gauge.querySelector(".pct .full").textContent = used;
+    gauge.title = phrase("{used} of the context window — click for the breakdown and to compact", { used });
     gauge.querySelector(".pct .short").textContent = pct;
   }
   if (raycastOn()) return paintRaycastActivity(e, strip);
@@ -84,7 +88,11 @@ async function refreshDriverState(e) {
   if (state.agent && !e.agent) e.agent = state.agent;
   if (state.model && !e.model) e.model = state.model;
   if (typeof state.effort === "string" && !e.effort) e.effort = state.effort;
-  if (wasUnknown && (e.agent || e.model)) paintPills(e);
+  const fastMoved = typeof state.fast === "boolean" && state.fast !== !!e.fast;
+  if (fastMoved) e.fast = state.fast;
+  if ((wasUnknown && (e.agent || e.model)) || fastMoved) paintPills(e);
+  pruneAsks(e, state.questions);
+  composerDriverState(e, state);
   if (Number.isFinite(state.seq) && state.seq < (e.lastSeq || 0)) return state;
   if (state.working) {
     if (!e.turnOpen) svEvent(e, { type: "driver", subtype: "turn_started" });
@@ -98,7 +106,6 @@ every("activity", 1000, () => {
   for (const e of structPool.values()) {
     if (!e.host.isConnected) continue;
     if (e.activity) paintActivity(e);
-    if (e.subs?.size) paintSubs(e);
   }
 });
 
@@ -135,8 +142,7 @@ function svDequeue(e, held) {
     for (const path of JSON.parse(item.dataset.images || "[]")) svUserThumb(e, bubble, path);
     item.remove();
   }
-  const tray = e.host.querySelector(".sv-queue");
-  if (tray) tray.classList.toggle("on", !!(e.queuedEls || []).length);
+  paintQueue(e);
 }
 
 const WORK_KINDS = ["read", "write", "run", "web", "agent"];

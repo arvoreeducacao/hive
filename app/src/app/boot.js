@@ -13,7 +13,6 @@ import { bootBrandFace, bootGaze, bootLanguage, bootPet } from "./preferences.js
 import { pullThreads } from "./prs.js";
 import { CALM_KEY, DIM_KEY, paintCalm, paintPrefs } from "./pure-helpers.js";
 import { bootLayout } from "./seat-layout.js";
-import { bootStructure } from "./structure.js";
 import { bootSolid } from "./shared.js";
 import { bootSttPrefs } from "./stt-prefs.js";
 import { DICTATION_BEAT, pullDictation } from "./stt.js";
@@ -59,8 +58,6 @@ setSound(false, true);
 setAnswered(false, true);
 
 bootLayout();
-
-bootStructure();
 
 bootPlane();
 

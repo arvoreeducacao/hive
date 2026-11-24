@@ -32,8 +32,6 @@
 .sv-place-menu .list button.at { background: var(--panel-3, var(--line)); }
 .sv-place-menu .list .sep { height: 1px; margin: 4px 6px; background: var(--line); }
 .sv-place-menu .list .none { padding: 10px; font-size: 12px; color: var(--txt-3); }
-body.experience-raycast[data-structure="inbox"] .tx-host .sv-draft .sv-place { margin: -18px 20px 22px; }
-body.experience-raycast[data-structure="inbox"] .tx-host .sv-draft .sv-place-line { font-size: 14px; }
 :where(body.experience-raycast) .rail-head:has(.rail-new) { flex-wrap: wrap; row-gap: 6px; }
 :where(body.experience-raycast) .rail-new { order: 3; flex: 1 0 100%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 30px; margin-right: -32px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r2); background: none; font-size: 12.5px; color: var(--txt-2); cursor: pointer; }
 :where(body.experience-raycast) .rail-new:hover { background: var(--rail-hover); color: var(--txt); }

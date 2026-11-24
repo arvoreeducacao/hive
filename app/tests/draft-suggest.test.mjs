@@ -103,13 +103,14 @@ test("a file is looked up in the hub, since the chat has no directory of its own
   const b = bench({
     "/api/index?where=local&q=serv&limit=20": { files: [
       { repo: "dev-workspaces", name: "dev-workspaces", branch: "main", path: "app/server.mjs" },
-      { repo: "leaf", name: "leaf", branch: "main", path: "src/server.ts" }
+      { repo: "wiki", name: "wiki", branch: "main", path: "src/server.ts" }
     ] }
   });
   type(b.box, "abre @serv");
   assert.equal(b.suggest.hidden, false, "the menu opens at once and says it is searching");
   await new Promise((again) => setTimeout(again, 220));
-  assert.deepEqual(rows(b), ["dev-workspaces/app/server.mjs", "leaf/src/server.ts"]);
+  assert.deepEqual(rows(b), ["server.mjs", "server.ts"], "each row leads with the file's name");
+  assert.deepEqual([...b.suggest.querySelectorAll(".sg .desc")].map((el) => el.textContent), ["dev-workspaces/app", "wiki/src"], "and dims the folder it sits in, repo first");
   press(b.box, "Tab");
   assert.equal(b.box.value, "abre @dev-workspaces/app/server.mjs ");
   shut(b);

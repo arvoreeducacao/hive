@@ -61,7 +61,7 @@ test("a chat mention is a focusable link with a spoken name", () => {
   drop();
 });
 
-test("hovering a chat chip shows the chat's card after the Inbox delay, with its title, repo, branch, model and PR", () => {
+test("hovering a chat chip shows the chat's card after a short delay, with its title, repo, branch, model and PR", () => {
   known();
   const time = clock();
   const { chip, drop } = sentChip();
@@ -70,7 +70,7 @@ test("hovering a chat chip shows the chat's card after the Inbox delay, with its
     assert.equal(chip.hasAttribute("title"), false, "the native title still competes with the card");
     assert.ok(chip.getAttribute("aria-label"), "the chip lost its spoken name with the title");
     time.tick(599);
-    assert.equal(card(), null, "the card came before the Inbox delay");
+    assert.equal(card(), null, "the card came before the delay");
     time.tick(1);
     const shown = card();
     assert.ok(shown, "the card never came");
@@ -194,22 +194,3 @@ test("the chat chip in an answer is focusable and shows the same card", () => {
   }
 });
 
-test("inside a structure the card hangs in its root, where the structure's look reaches it", () => {
-  known();
-  const time = clock();
-  const root = document.createElement("div");
-  root.id = "structure-root";
-  const said = document.createElement("div");
-  said.textContent = "fala #bruno";
-  paintSaidChips(said);
-  root.append(said);
-  document.body.append(root);
-  try {
-    over(said.querySelector(".ctx-chip"));
-    time.tick(600);
-    assert.ok(card()?.parentElement === root);
-  } finally {
-    time.stop();
-    root.remove();
-  }
-});

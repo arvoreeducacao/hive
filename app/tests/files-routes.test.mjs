@@ -113,7 +113,10 @@ test("index and code retain query coercion, timing, cache stamp, and machine tag
     },
     status: 200
   }]);
-  assert.deepEqual(hive.calls.at(-1), ["searchCode", { q: "Alpha", where: "local", glob: "*.mjs" }]);
+  assert.deepEqual(hive.calls.at(-1), ["searchCode", { q: "Alpha", where: "local", glob: "*.mjs", matchCase: false, wholeWord: false, regex: false }]);
+
+  await hive.call("/api/code?where=cloud&q=run%5Cw%2B&case=1&word=1&regex=1");
+  assert.deepEqual(hive.calls.at(-1), ["searchCode", { q: "run\\w+", where: "cloud", glob: "", matchCase: true, wholeWord: true, regex: true }]);
 });
 
 test("POST file rejects oversized bodies and preserves write arguments and status", async () => {

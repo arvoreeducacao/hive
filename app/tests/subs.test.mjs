@@ -12,7 +12,7 @@ const { svConvSeed } = await app("conversation-model");
 const { svEvent } = await app("chat-and-panes");
 const { getStructured } = await app("chat-stretches");
 const { structPool } = await app("structured-seats");
-const { mountSubs } = await import(new URL("../src/views.js", import.meta.url).href);
+const { backgroundWorkLine, openBackgroundWork } = await app("background-work");
 
 let seq = 0;
 
@@ -20,15 +20,17 @@ function seat(at) {
   const name = `subs-${++seq}`;
   const e = getStructured({ name, where: "local" });
   e.conv = svConvSeed();
-  e.subsView = mountSubs(e.host.querySelector(".sv-subs .sublist"));
   if (at) e.at = at;
   return e;
 }
 
 const call = (id, input) => ({ id, name: "Agent", input });
 const pinned = (e) => e.conv.subs.length;
-const rows = (e) => [...e.host.querySelectorAll(".sv-subs .sublist .sv-sub")];
-const dock = (e) => e.host.querySelector(".sv-subs");
+const rows = (e) => {
+  openBackgroundWork(e);
+  return e.bgDialog?.open ? [...e.bgDialog.querySelectorAll(".bgw-item")] : [];
+};
+const line = (e) => backgroundWorkLine(e);
 const item = (e, id) => e.subs.get(id);
 const steps = (e, id) => item(e, id).steps.map((one) => one.text);
 
@@ -43,11 +45,11 @@ test("a launched subagent takes a seat above the box, wearing its type and its e
   const e = seat();
   svSubPin(e, call("t1", { subagent_type: "Explore", description: "Demo subagent", prompt: "list the repo" }));
   assert.equal(pinned(e), 1);
-  assert.ok(dock(e).classList.contains("on"));
+  assert.ok(line(e));
   assert.equal(item(e, "t1").name, "Explore");
   assert.equal(item(e, "t1").arg, "Demo subagent");
-  assert.equal(rows(e)[0].querySelector(".sname").textContent, "Explore");
-  assert.equal(rows(e)[0].querySelector(".sarg").textContent, "Demo subagent");
+  assert.equal(rows(e)[0].querySelector(".bgw-name").title, "Explore");
+  assert.equal(rows(e)[0].querySelector(".bgw-name").textContent, "Demo subagent");
   structPool.delete(e.name);
 });
 
@@ -59,13 +61,12 @@ test("with no description the errand is the prompt itself, on one line", () => {
   structPool.delete(e.name);
 });
 
-test("opening it shows the errand in full, and the errand stays put while the run happens", () => {
+test("the errand stays put while the run happens", () => {
   const e = seat();
   svSubPin(e, call("t1", { description: "short", prompt: "the whole brief" }));
   assert.equal(item(e, "t1").body, "the whole brief");
   svSubEcho(e, "t1", "reading the third file");
   assert.equal(item(e, "t1").body, "the whole brief");
-  assert.equal(rows(e)[0].querySelector(".sbody").textContent, "the whole brief");
   structPool.delete(e.name);
 });
 
@@ -75,16 +76,17 @@ test("what it says stacks up — the run is every line, not the last one", () =>
   svSubEcho(e, "t1", "I'll explore both repos");
   svSubEcho(e, "t1", "found the screen, reading it now");
   assert.deepEqual(steps(e, "t1"), ["I'll explore both repos", "found the screen, reading it now"]);
-  assert.deepEqual([...rows(e)[0].querySelectorAll(".stxt")].map((one) => one.textContent), ["I'll explore both repos", "found the screen, reading it now"]);
+  assert.equal(rows(e)[0].querySelector(".bgw-current .bgw-text").textContent, "found the screen, reading it now");
+  assert.deepEqual([...rows(e)[0].querySelectorAll(".bgw-steps .bgw-text")].map((one) => one.textContent), ["I'll explore both repos"]);
   structPool.delete(e.name);
 });
 
 test("the log is empty until there is a run to show", () => {
   const e = seat();
   svSubPin(e, call("t1", { description: "short" }));
-  assert.equal(rows(e)[0].querySelector(".slog").classList.contains("on"), false);
+  assert.equal(rows(e)[0].querySelector(".bgw-current"), null);
   svSubEcho(e, "t1", "starting");
-  assert.equal(rows(e)[0].querySelector(".slog").classList.contains("on"), true);
+  assert.ok(rows(e)[0].querySelector(".bgw-current"));
   structPool.delete(e.name);
 });
 
@@ -95,7 +97,7 @@ test("the calls it makes are steps too, wearing the face of the tool", () => {
   assert.equal(step.face, "run");
   assert.equal(step.text, "Bash grep -rn foo .");
   assert.equal(step.of, "c1");
-  assert.equal(rows(e)[0].querySelector(".sstep").dataset.kind, "run");
+  assert.equal(rows(e)[0].querySelector(".bgw-step").dataset.kind, "run");
   structPool.delete(e.name);
 });
 
@@ -117,7 +119,7 @@ test("a call is open until its result lands, and then it is ticked", () => {
   assert.equal(step.open, false);
   assert.equal(step.landed, true);
   assert.equal(step.bad, false);
-  assert.match(rows(e)[0].querySelector(".sok").innerHTML, /#i-check/);
+  assert.ok(!rows(e)[0].querySelector(".bgw-step").classList.contains("bad"));
   structPool.delete(e.name);
 });
 
@@ -127,8 +129,7 @@ test("a call that came back an error says so instead of pretending it landed", (
   const step = svSubCall(e, "t1", { id: "c1", name: "Read", input: { file_path: "/tmp/x.ts" } });
   svSubLanded(e, "t1", "c1", true);
   assert.equal(step.bad, true);
-  assert.match(rows(e)[0].querySelector(".sok").innerHTML, /#i-x/);
-  assert.ok(rows(e)[0].querySelector(".sstep").classList.contains("bad"));
+  assert.ok(rows(e)[0].querySelector(".bgw-step").classList.contains("bad"));
   structPool.delete(e.name);
 });
 
@@ -176,7 +177,7 @@ test("a landed subagent leaves the dock — the chat card is the only place it l
   assert.equal(pinned(e), 0);
   assert.equal(e.subs.size, 0);
   assert.equal(rows(e).length, 0);
-  assert.ok(!dock(e).classList.contains("on"));
+  assert.equal(line(e), null);
   structPool.delete(e.name);
 });
 
@@ -205,31 +206,21 @@ test("the launch metadata of a background agent is a start, not an answer", () =
   assert.ok(!ASYNC_LAUNCH.test("Confirmed: the crop calls omit aspect_ratio"));
 });
 
-test("a background run says so, and says it out loud on the pill", () => {
+test("a background run is marked as one", () => {
   const e = seat();
   svSubPin(e, call("t1", { description: "one" }));
-  assert.equal(rows(e)[0].querySelector(".sbg").hidden, true);
+  assert.equal(item(e, "t1").dataset.bg, "");
   svSubAsync(e, "t1");
   assert.equal(item(e, "t1").dataset.bg, "1");
-  assert.equal(rows(e)[0].querySelector(".sbg").hidden, false);
-  structPool.delete(e.name);
-});
-
-test("the clock only starts reading once there is something to read", () => {
-  const e = seat();
-  svSubPin(e, call("t1", { description: "one" }));
-  assert.equal(item(e, "t1").ms, "");
-  item(e, "t1").dataset.t0 = String(Date.now() - 13000);
-  paintSubs(e);
-  assert.equal(item(e, "t1").ms, "13s");
-  assert.equal(rows(e)[0].querySelector(".sms").textContent, "13s");
   structPool.delete(e.name);
 });
 
 test("the clock of a pin is the clock of the launch, so a reload does not restart it", () => {
-  const e = seat(Date.now() - 90000);
+  const at = Date.now() - 90000;
+  const e = seat(at);
   svSubPin(e, call("t1", { description: "one" }));
-  assert.equal(item(e, "t1").ms, "90s");
+  assert.equal(item(e, "t1").dataset.t0, String(at));
+  assert.equal(line(e).t0, at);
   structPool.delete(e.name);
 });
 
@@ -325,9 +316,8 @@ test("a seat with nothing pinned does not care about tasks at all", () => {
   structPool.delete(e.name);
 });
 
-test("a seat with no dock in it is left alone", () => {
+test("painting a seat that is not on screen is not an error", () => {
   const e = seat();
-  e.host.querySelector(".sv-subs").remove();
   svSubPin(e, call("t1", { description: "one" }));
   assert.doesNotThrow(() => paintSubs(e));
   structPool.delete(e.name);
@@ -349,14 +339,14 @@ function backgroundAgent(e, id) {
   svSubTask(e, started(id, `task-${id}`));
 }
 
-test("a message sent while a background agent runs keeps it in the dock", () => {
+test("a message sent while a background agent runs keeps it on the line", () => {
   const e = seat();
   e.driverDequeues = true;
   backgroundAgent(e, "t1");
   svEvent(e, { type: "result" });
   svEvent(e, { type: "system", subtype: "init" });
   assert.equal(pinned(e), 1);
-  assert.ok(dock(e).classList.contains("on"));
+  assert.ok(line(e));
   structPool.delete(e.name);
 });
 

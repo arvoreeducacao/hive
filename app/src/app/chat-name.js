@@ -11,7 +11,6 @@ st.retitlingAsked = new Set();
 
 const retitlingNow = (s) => !!s && (!!s.retitling || st.retitlingAsked.has(s.name));
 
-const retitlingNamed = (name) => retitlingNow((st.data?.sessions || []).find((x) => x.name === name));
 
 function nameHint(s) {
   if (behaviorOn("titleClick")) return phrase("click to rename this chat");
@@ -105,4 +104,4 @@ function startRename(name) {
   inp.select();
 }
 
-export { nameHint, paintName, rename, retitle, retitleChat, retitlingNamed, retitlingNow, startRename };
+export { nameHint, paintName, rename, retitle, retitleChat, retitlingNow, startRename };

@@ -101,7 +101,7 @@ const leanBackground = (surface) => {
 };
 
 test("lean paints every blurred surface on a solid panel, so nothing shows through", () => {
-  const surfaces = [".menu", "#btrade", ".sv-menu", ".box", ".pal-sheet", ".relpop", "#plane-hud", ".plink-menu", ".pbar", "#plane-said", "#plane-map", ".sv-queue", ".sv-subs", ".sv-suggest::before", ".sv-jump", ".w-bar"];
+  const surfaces = [".menu", "#btrade", ".sv-menu", ".box", ".pal-sheet", ".relpop", "#plane-hud", ".plink-menu", ".pbar", "#plane-said", "#plane-map", ".sv-queue", ".sv-suggest::before", ".sv-jump", ".w-bar"];
   for (const one of surfaces) {
     const background = leanBackground(one);
     assert.match(background || "", /^var\(--(panel|panel-2|well)\)$/, `${one} stays see-through under lean: ${background}`);

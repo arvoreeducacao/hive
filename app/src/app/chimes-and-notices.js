@@ -2,47 +2,47 @@ import { render } from "./arrange.js";
 import { mugPlay } from "./avatars.js";
 import { saveConfig } from "./brand-face.js";
 import { frameUrlOf, openCockpit, tabsSaid } from "./chat-and-panes.js";
-import { activeItems, blockNumber, soloSeat } from "./blocks.js";
+import { activeItems, soloSeat } from "./blocks.js";
 import { $, LABEL, esc, phrase, raycastOn, st } from "./core.js";
 import { focusSeat, goTo } from "./focus-navigation.js";
-import { keyCaps, keyHint, markSeatRead, pool, previousState, readMark, seatMark } from "./leader-key.js";
+import { keyHint, keyTip, markSeatRead, pool, previousState, readMark, seatMark } from "./leader-key.js";
 import { ASKS_FOR_YOU, WORKING_EXIT_GRACE_MS, createNoticeGate, mutedBy, observationOf, titleOf, waitsForYou } from "./notice-gate.js";
 import { agentIcon } from "./palette.js";
 import { structPool } from "./structured-seats.js";
 
 const SOUNDS = [
-  { id: "chime", say: "chime — the rising one, the hive default", steps: [{ wave: "triangle", from: 660, to: 988, at: 0, dur: 0.16, peak: 1 }] },
-  { id: "settle", say: "settle — the same one falling, softer", steps: [{ wave: "sine", from: 988, to: 587, at: 0, dur: 0.24, peak: 0.8 }] },
-  { id: "coin", say: "coin — the arcade pickup", steps: [
+  { id: "chime", name: "Chime", steps: [{ wave: "triangle", from: 660, to: 988, at: 0, dur: 0.16, peak: 1 }] },
+  { id: "settle", name: "Landing", steps: [{ wave: "sine", from: 988, to: 587, at: 0, dur: 0.24, peak: 0.8 }] },
+  { id: "coin", name: "Coin", steps: [
     { wave: "square", from: 988, to: 988, at: 0, dur: 0.07, peak: 0.62 },
     { wave: "square", from: 1319, to: 1319, at: 0.06, dur: 0.22, peak: 0.62 }
   ] },
-  { id: "power-up", say: "power-up — three steps up the ladder", steps: [
+  { id: "power-up", name: "Power-up", steps: [
     { wave: "square", from: 523, to: 523, at: 0, dur: 0.07, peak: 0.6 },
     { wave: "square", from: 784, to: 784, at: 0.06, dur: 0.07, peak: 0.6 },
     { wave: "square", from: 1047, to: 1047, at: 0.12, dur: 0.16, peak: 0.6 }
   ] },
-  { id: "ladder", say: "ladder — three steps down", steps: [
+  { id: "ladder", name: "Ladder", steps: [
     { wave: "square", from: 1047, to: 1047, at: 0, dur: 0.07, peak: 0.6 },
     { wave: "square", from: 784, to: 784, at: 0.06, dur: 0.07, peak: 0.6 },
     { wave: "square", from: 523, to: 523, at: 0.12, dur: 0.18, peak: 0.6 }
   ] },
-  { id: "blip", say: "blip — one short square, and done", steps: [{ wave: "square", from: 880, to: 880, at: 0, dur: 0.07, peak: 0.68 }] },
-  { id: "bubble", say: "bubble — a pop coming up from below", steps: [{ wave: "sine", from: 220, to: 1200, at: 0, dur: 0.16, peak: 0.9 }] },
-  { id: "marimba", say: "marimba — two wooden notes", steps: [
+  { id: "blip", name: "Blip", steps: [{ wave: "square", from: 880, to: 880, at: 0, dur: 0.07, peak: 0.68 }] },
+  { id: "bubble", name: "Bubble", steps: [{ wave: "sine", from: 220, to: 1200, at: 0, dur: 0.16, peak: 0.9 }] },
+  { id: "marimba", name: "Marimba", steps: [
     { wave: "sine", from: 784, to: 784, at: 0, dur: 0.2, peak: 0.9 },
     { wave: "sine", from: 1175, to: 1175, at: 0.11, dur: 0.3, peak: 0.75 }
   ] },
-  { id: "doorbell", say: "doorbell — ding, then dong", steps: [
+  { id: "doorbell", name: "Doorbell", steps: [
     { wave: "sine", from: 784, to: 784, at: 0, dur: 0.3, peak: 0.95 },
     { wave: "sine", from: 587, to: 587, at: 0.2, dur: 0.45, peak: 0.95 }
   ] },
-  { id: "pulse", say: "pulse — three quick knocks on the same note", steps: [
+  { id: "pulse", name: "Pulse", steps: [
     { wave: "triangle", from: 740, to: 740, at: 0, dur: 0.06, peak: 0.7 },
     { wave: "triangle", from: 740, to: 740, at: 0.1, dur: 0.06, peak: 0.7 },
     { wave: "triangle", from: 740, to: 740, at: 0.2, dur: 0.09, peak: 0.7 }
   ] },
-  { id: "nudge", say: "nudge — the one from MSN, and the window shakes with it", src: "/assets/nudge.mp3" }
+  { id: "nudge", name: "Nudge", src: "/assets/nudge.mp3" }
 ];
 
 const SOUND_IDS = SOUNDS.map((s) => s.id);
@@ -162,11 +162,10 @@ const noticeIsOn = (kind) => (kind === "needs" ? st.sound : st.answeredAlert);
 const flipNotice = (kind) => (kind === "needs" ? setSound(!st.sound) : setAnswered(!st.answeredAlert));
 
 function paintNotices() {
-  $("s-asked-say").textContent = phrase(soundOf(DEFAULT_SOUNDS.asked).say);
   paintKnocksSwitch();
   for (const kind of SWITCHED) {
     const pick = $(`s-${kind}`);
-    if (pick.options.length !== SOUNDS.length) pick.innerHTML = SOUNDS.map((s) => `<option value="${s.id}">${esc(phrase(s.say))}</option>`).join("");
+    if (pick.options.length !== SOUNDS.length) pick.innerHTML = SOUNDS.map((s) => `<option value="${s.id}">${esc(phrase(s.name))}</option>`).join("");
     if (pick !== document.activeElement) pick.value = st.sounds[kind];
     const on = noticeIsOn(kind);
     const key = st.keys[ACTION_OF_NOTICE[kind]] || st.chords[ACTION_OF_NOTICE[kind]] ? ` — ${keyHint(ACTION_OF_NOTICE[kind])}` : "";
@@ -349,8 +348,9 @@ window.addEventListener("blur", () => paintBadge());
 const SEAT_NOTICE_STAYS = 14000;
 
 function seatNoticeModel(s, kind = s.state === "needs" ? "attention" : "completion", look = lookOf(s)) {
-  const bi = st.blocks.findIndex((b) => b.keys.includes(s.name));
   const attention = kind !== "completion";
+  const go = phrase("Open thread");
+  const keys = keyTip(keyHint("calls"));
   return {
     seat: s.name,
     state: s.state,
@@ -360,10 +360,10 @@ function seatNoticeModel(s, kind = s.state === "needs" ? "attention" : "completi
     icon: agentIcon(s),
     name: s.title || s.name,
     title: phrase(titleOf(kind, look.status)),
-    at: [bi >= 0 ? `b${blockNumber(bi)}` : "", phrase("now")].filter(Boolean).join(" · "),
     say: s.title || s.name,
-    go: phrase("Open thread"),
-    keys: keyHint("calls"),
+    go,
+    goTip: keys ? `${go} (${keys})` : go,
+    later: phrase("Later"),
     stays: !(attention && ASKS_FOR_YOU.has(look.status || "input"))
   };
 }
@@ -381,10 +381,11 @@ function seatNoticeOf(s, kind, look) {
   card.innerHTML = `
     <span class="cn-ic"><svg aria-hidden="true"><use href="#${esc(said.icon)}"/></svg><i class="rc-dot ${esc(said.state)}" aria-hidden="true"></i></span>
     <div class="cn-body">
-      <div class="cn-head"><span class="cn-name">${esc(said.title)}</span><span class="cn-at">${esc(said.at)}</span></div>
+      <div class="cn-head"><span class="cn-name">${esc(said.title)}</span></div>
       <div class="cn-say">${esc(said.say)}</div>
-      <div class="cn-acts"><button type="button" class="cn-go">${esc(said.go)}${keyCaps(said.keys)}</button><button type="button" class="cn-later">${esc(phrase("Later"))}</button></div>
-    </div>`;
+      <div class="cn-acts"><button type="button" class="cn-go" title="${esc(said.goTip)}">${esc(said.go)}</button></div>
+    </div>
+    <button type="button" class="cn-later" aria-label="${esc(said.later)}" title="${esc(said.later)}"><svg aria-hidden="true"><use href="#i-x"/></svg></button>`;
   card.title = phrase(LABEL[said.state] || "idle");
   const go = (ev) => { ev.stopPropagation(); openChatFromNotice(said.seat); dropCanopyNotice(card); };
   card.addEventListener("click", go);

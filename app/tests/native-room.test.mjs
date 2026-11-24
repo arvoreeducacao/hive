@@ -268,3 +268,15 @@ test("the keys the sign-in takes are the bytes a terminal sends for them", () =>
   assert.equal(KEY_BYTES["C-c"], "\x03");
   assert.equal(KEY_BYTES.BSpace, "\x7f");
 });
+
+test("a window whose process refuses the kill stays listed, so whoever asked can tell it is still alive", async () => {
+  const { room, spawned } = roomWith();
+  await room.open({ name: "ada-terminal", kind: "shell", cwd: "C:\\hub" });
+  await settled();
+  spawned[0].child.kill = () => { throw new Error("access denied"); };
+  assert.equal(room.kill("ada-terminal"), false);
+  assert.ok(room.list().some((one) => one.name === "ada-terminal"), "the window is still there");
+  spawned[0].child.kill = () => {};
+  assert.equal(room.kill("ada-terminal"), true);
+  assert.ok(!room.list().some((one) => one.name === "ada-terminal"));
+});

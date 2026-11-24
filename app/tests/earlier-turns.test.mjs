@@ -197,7 +197,7 @@ test("turns brought back from memory fold again once the reader is back at the b
 });
 
 test("the jump button and the scroll that reaches the bottom both fold the chat back", () => {
-  const wiring = between('scroll.addEventListener("scroll", () => {', "const subsHead =");
+  const wiring = between('scroll.addEventListener("scroll", () => {', "let roomFrame = 0;");
   assert.match(wiring, /const wasBottom = e\.atBottom;/);
   assert.match(wiring, /if \(e\.settling\) e\.settling = false;\s*else if \(svConvTimelineOn\(e\)\) svConvScrolled\(e\);\s*else if \(y < \(e\.lastScrollY \|\| 0\)\) e\.atBottom = bottom;/, "the scroll an unfold makes to hold the page still is swallowed once");
   assert.match(wiring, /if \(e\.atBottom && !wasBottom\) svTrimTurns\(e\);/, "reaching the bottom folds");

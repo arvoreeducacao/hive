@@ -68,7 +68,7 @@ async function driverBirth(argv, seat) {
   const said = [];
   return new AsyncFunction(
     "aBirthCarriesAMission", "forgetWhatTheNameHeld", "arg", "mkdir", "readFile", "emit",
-    "name", "promptFile", "sessionFile", "eventsFile", "shotsDir", "chosenModel", "currentModel", "effortLevel", "homeAccount", "said",
+    "name", "promptFile", "sessionFile", "eventsFile", "shotsDir", "chosenModel", "currentModel", "effortLevel", "homeAccount", "said", "bornFast",
     source
   )(
     aBirthCarriesAMission,
@@ -86,7 +86,8 @@ async function driverBirth(argv, seat) {
     seat.eventsFile,
     seat.shotsDir,
     "", "", "", "",
-    said
+    said,
+    false
   );
 }
 

@@ -75,12 +75,13 @@ test("the menu of a block that does not exist opens nothing", () => {
   assert.equal(document.getElementById("seatmenu").classList.contains("on"), false);
 });
 
-test("the menu of a block that exists is titled by the block", () => {
+test("the menu of a block that exists is named after the block, without a caption row", () => {
   hive([{ label: "paraná", keys: ["a"] }], { sessions: [seat("a")] });
   openBlockMenu(0, 10, 10);
   const menu = document.getElementById("seatmenu");
   assert.equal(menu.classList.contains("on"), true);
-  assert.equal(menu.querySelector(".cap").textContent, "paraná");
+  assert.equal(menu.getAttribute("aria-label"), "paraná");
+  assert.equal(menu.querySelector(".cap"), null);
   menu.classList.remove("on");
 });
 

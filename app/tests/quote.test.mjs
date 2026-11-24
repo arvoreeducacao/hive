@@ -165,6 +165,9 @@ test("only a stretch inside one block can be quoted", async () => {
   await selecting((range) => range.selectNodeContents(one));
   assert.equal(pop.classList.contains("on"), true, "a stretch of one answer was not offered as a quote");
   pop.click();
+  const note = e.host.querySelector(".cp-quote-note");
+  assert.ok(note, "picking a quote opens the note for an optional comment");
+  note.querySelector('[data-act="save"]').click();
   assert.deepEqual(e.quotes.pinned(), [{ said: "primeira resposta", kind: "what it answered" }]);
 
   e.quotes.clear();
@@ -207,14 +210,12 @@ test("the queue carries the quotes beside the message, the way it carries images
     const item = e.host.querySelector(".sv-qitem");
     assert.ok(item, "nothing was queued");
     assert.deepEqual(JSON.parse(item.dataset.quotes), [{ said: "primeiro", kind: "what it answered" }]);
-    assert.equal(item.querySelector(".qtxt").textContent, "e daí?", "the queued line shows the quote markers instead of what you wrote");
-    assert.equal(item.querySelector(".qmarks b").textContent, "1");
+    assert.equal(item.querySelector(".cp-q-text").textContent.includes("> primeiro"), true, "the queued row shows what goes out, quote and words");
 
-    item.querySelector(".qdrop").click();
+    item.querySelector('[data-act="q-edit"]').click();
     await tick();
     assert.equal(box.value, "e daí?", "the words came back with the quote markers glued on");
     assert.deepEqual(e.quotes.pinned(), [{ said: "primeiro", kind: "what it answered" }], "the quote did not come back onto the tray");
-    assert.equal(e.host.querySelector(".sv-qitem"), null);
   });
 });
 

@@ -21,12 +21,12 @@ function Blocks(props) {
           when={props.model.rc}
           fallback={
             <button class="ws-btn" id="btn-space" aria-expanded={chip().expanded} title={chip().title}>
-              <i class="swatch" style={{ background: chip().tint }}></i><span>{chip().name}</span><em>{chip().count}</em><kbd>{chip().hint}</kbd>
+              <i class="swatch" style={{ background: chip().tint }}></i><span>{chip().name}</span><kbd>{chip().hint}</kbd>
             </button>
           }
         >
           <button class="ws-btn" id="btn-space" aria-expanded={chip().expanded} title={chip().title}>
-            <span>{chip().name}</span><em>{chip().count}</em><svg class="chev" aria-hidden="true"><use href="#i-chev" /></svg><kbd class="rc-key">{chip().hint}</kbd>
+            <span>{chip().name}</span><svg class="chev" aria-hidden="true"><use href="#i-chev" /></svg><kbd class="rc-key">{chip().hint}</kbd>
           </button>
         </Show>
       )}</Show>
@@ -35,7 +35,7 @@ function Blocks(props) {
           when={props.model.rc}
           fallback={
             <button data-i={tab.i} aria-pressed={tab.pressed} class={tab.calls ? "calls" : ""} title={tab.title}>
-              <i>{tab.n}</i><span>{tab.name}</span><em>{tab.tally}</em>
+              <i>{tab.n}</i><span>{tab.name}</span>
             </button>
           }
         >

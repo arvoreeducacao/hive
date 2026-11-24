@@ -4,15 +4,17 @@ import { mountView } from "./view.jsx";
 function RaycastMenu(props) {
   return (
     <>
-      <div class="mhead">
-        <Show when={props.model.back}>
-          <button type="button" class="mback" aria-label={props.model.backSay} onClick={() => props.actions.back?.()}>
-            <svg aria-hidden="true"><use href="#i-chev" /></svg>
-          </button>
-        </Show>
-        <div class="cap">{props.model.cap}</div>
-        <Show when={props.model.at}><span class="cap-at">{props.model.at}</span></Show>
-      </div>
+      <Show when={props.model.head}>
+        <div class="mhead">
+          <Show when={props.model.back}>
+            <button type="button" class="mback" aria-label={props.model.backSay} onClick={() => props.actions.back?.()}>
+              <svg aria-hidden="true"><use href="#i-chev" /></svg>
+            </button>
+          </Show>
+          <div class="cap">{props.model.cap}</div>
+          <Show when={props.model.at}><span class="cap-at">{props.model.at}</span></Show>
+        </div>
+      </Show>
       <For each={props.model.rows}>{(row) => (
         <Show when={!row.sep} fallback={<div class="sep"></div>}>
           <button
@@ -20,6 +22,7 @@ function RaycastMenu(props) {
             classList={{ danger: row.danger, sel: row.sel }}
             role="menuitem"
             data-i={row.at}
+            title={row.tip || undefined}
             attr:disabled={row.off ? "" : undefined}
             onMouseMove={() => props.actions.hover?.(row.at)}
             onClick={(ev) => props.actions.pick(row.at, ev.currentTarget.getBoundingClientRect())}
@@ -37,7 +40,7 @@ function RaycastMenu(props) {
         </Show>
       )}</For>
       <Show when={props.model.find}>
-        <label class="mfind">
+        <label class="mfind" classList={{ typed: !!props.model.q }}>
           <svg aria-hidden="true"><use href="#i-mag" /></svg>
           <input
             class="mi-q"
@@ -59,18 +62,27 @@ function Menu(props) {
   return (
     <Show when={props.model.on}>
       <Show when={!props.model.raycast} fallback={<RaycastMenu model={props.model} actions={props.actions} />}>
-        <div class="cap">{props.model.cap}</div>
+        <Show when={props.model.back}>
+          <button type="button" class="ghost mback" aria-label={props.model.backSay} title={props.model.backSay} onClick={() => props.actions.back?.()}>
+            <svg class="mi-back" aria-hidden="true"><use href="#i-chev" /></svg>{props.model.cap}
+          </button>
+          <div class="sep"></div>
+        </Show>
         <For each={props.model.rows}>{(row) => (
           <Show when={!row.sep} fallback={<div class="sep"></div>}>
             <button
               class="ghost"
-              classList={{ danger: row.danger }}
+              classList={{ danger: row.danger, sub: row.sub }}
               data-i={row.at}
+              title={row.note || undefined}
+              aria-haspopup={row.sub ? "menu" : undefined}
+              aria-checked={row.on ? "true" : undefined}
               attr:disabled={row.off ? "" : undefined}
               onClick={(ev) => props.actions.pick(row.at, ev.currentTarget.getBoundingClientRect())}
             >
               {row.label}
-              <Show when={row.note}><b>{row.note}</b></Show>
+              <Show when={row.sub}><svg class="mi-sub" aria-hidden="true"><use href="#i-chev" /></svg></Show>
+              <Show when={row.on}><svg class="mi-on" aria-hidden="true"><use href="#i-check" /></svg></Show>
             </button>
           </Show>
         )}</For>
