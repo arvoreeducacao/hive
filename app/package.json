@@ -49,8 +49,8 @@
     "solid-js": "^1.9.15"
   },
   "overrides": {
-    "dompurify@>=3.4.0 <3.4.17": "3.4.17",
-    "seroval@>=1.5.0 <1.6.8": "1.6.8"
+    "dompurify": "3.4.17",
+    "seroval": "1.6.8"
   },
   "build": {
     "appId": "dev.hive.app",
