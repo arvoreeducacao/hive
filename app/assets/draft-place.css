@@ -13,9 +13,11 @@
 .sv-place-pick.none .v { color: var(--txt-2); }
 .sv-place-pick:disabled { cursor: default; background: transparent; }
 .sv-place-pick:disabled svg:last-child { display: none; }
-.sv-place-keys { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 11px; color: var(--txt-3); }
-.sv-place-keys kbd { margin-right: 5px; font: 10.5px var(--mono, ui-monospace, monospace); color: var(--txt-2); }
-.sv-draft.sending .sv-place-keys { visibility: hidden; }
+.sv-place-mode .ic { display: inline-flex; }
+.sv-draft .sv-btns .sv-behind { display: none; color: var(--txt-3); }
+.sv-draft .sv-composer.ready .sv-btns .sv-behind { display: grid; }
+.sv-draft .sv-btns .sv-behind:hover { color: var(--txt); background: var(--panel-3, var(--line)); }
+.sv-draft .sv-btns .sv-behind:disabled { opacity: .4; cursor: default; }
 .sv-place-menu { position: absolute; z-index: 40; display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(320px, 86vw); max-height: 320px; overflow: hidden; text-align: left; background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--float-e, 0 18px 50px rgba(0, 0, 0, .5)); }
 .sv-place-menu .q { display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--txt-3); }
 .sv-place-menu .q svg { flex: none; width: 12px; height: 12px; }

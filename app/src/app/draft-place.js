@@ -12,7 +12,11 @@ const branches = new Map();
 
 const fold = (text) => String(text || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-const BEHIND_KEY = IS_MAC ? "⌘↵" : "Ctrl+↵";
+const BEHIND_KEY = IS_MAC ? "⌥⌘↵" : "Ctrl+Alt+↵";
+
+const isBehindKey = (ev) => ev.key === "Enter" && ev.altKey && !ev.shiftKey && (IS_MAC ? ev.metaKey && !ev.ctrlKey : ev.ctrlKey && !ev.metaKey);
+
+const hubName = () => projects.hub || "hub";
 
 function pullProjects(force = false) {
   if (!force && projects.at && Date.now() - projects.at < PROJECTS_FRESH) return Promise.resolve(projects);
@@ -81,10 +85,10 @@ function placeMarkup() {
     <div class="sv-place-line">
       <span class="sv-place-in">${esc(phrase("New chat in"))}</span>
       <button type="button" class="sv-place-pick" data-place="project" aria-haspopup="listbox" aria-expanded="false">${svgIcon("i-folder")}<span class="v"></span>${svgIcon("i-chev")}</button>
+      <button type="button" class="sv-place-pick sv-place-mode" data-place="mode" aria-pressed="false"><span class="ic"></span><span class="v"></span>${svgIcon("i-swap")}</button>
       <span class="sv-place-from"></span>
       <button type="button" class="sv-place-pick" data-place="base" aria-haspopup="listbox" aria-expanded="false">${svgIcon("i-fork")}<span class="v"></span>${svgIcon("i-chev")}</button>
     </div>
-    <div class="sv-place-keys"><span><kbd>↵</kbd>${esc(phrase("opens it here"))}</span><span><kbd>${esc(BEHIND_KEY)}</kbd>${esc(phrase("starts it in the background"))}</span></div>
   </div>`;
 }
 
@@ -93,9 +97,11 @@ function placeSaid(place) {
   const checkout = !!project && !place.tree && !place.worktree;
   const base = place.tree ? place.treeBranch : checkout ? projectNamed(project)?.branch || "" : place.base || baseOf(project);
   return {
-    project: project || phrase("No project"),
-    from: place.tree ? phrase("in the same folder, on") : checkout ? phrase("in its own checkout, on") : phrase("in a new worktree from"),
+    project: project || hubName(),
+    mode: checkout ? phrase("in its checkout") : phrase("in a new worktree"),
+    from: place.tree ? phrase("in the same folder, on") : checkout ? phrase("on the branch") : phrase("starting from"),
     base: base || phrase("its default branch"),
+    showsMode: !!project && !place.tree,
     showsBase: !!project,
     fixedBase: !!place.tree || checkout
   };
@@ -107,9 +113,16 @@ function paintPlace(host, place) {
   const said = placeSaid(place);
   const project = box.querySelector('[data-place="project"]');
   const base = box.querySelector('[data-place="base"]');
+  const mode = box.querySelector('[data-place="mode"]');
   project.querySelector(".v").textContent = said.project;
   project.classList.toggle("none", !place.project);
-  project.title = place.project ? phrase("the project this chat starts in — click to change") : phrase("no project: the chat runs in the hub folder — click to pick one");
+  project.title = place.project ? phrase("the project this chat starts in — click to change") : phrase("the chat runs in the hub folder — click to pick a project");
+  mode.hidden = !said.showsMode;
+  mode.disabled = !!place.sending;
+  mode.setAttribute("aria-pressed", String(!!place.worktree));
+  mode.querySelector(".ic").innerHTML = svgIcon(place.worktree ? "i-fork" : "i-folder");
+  mode.querySelector(".v").textContent = said.mode;
+  mode.title = place.worktree ? phrase("a folder and a branch of its own — click to use the project's checkout") : phrase("the project's own folder — click to open a new worktree instead");
   box.querySelector(".sv-place-from").textContent = said.from;
   box.querySelector(".sv-place-from").hidden = !said.showsBase;
   base.hidden = !said.showsBase;
@@ -124,9 +137,9 @@ function projectItems(place, recent) {
   const first = recent && projectNamed(recent) ? [recent] : [];
   const rest = projects.list.map((one) => one.name).filter((name) => !first.includes(name));
   return [
-    ...[...first, ...rest].map((name) => ({ value: name, label: name, icon: "i-folder", note: name === recent ? phrase("last used") : "", on: name === place.project })),
+    { value: NO_PROJECT, label: hubName(), icon: "i-folder", note: phrase("default"), on: !place.project },
     { sep: true },
-    { value: NO_PROJECT, label: phrase("No project"), icon: "i-answered", note: phrase("runs in the hub folder"), on: !place.project }
+    ...[...first, ...rest].map((name) => ({ value: name, label: name, icon: "i-folder", note: name === recent ? phrase("last used") : "", on: name === place.project }))
   ];
 }
 
@@ -229,6 +242,6 @@ function repaintPlaceMenu(kind, more) {
 }
 
 export {
-  BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, openPlaceMenu, paintPlace, placeMarkup,
+  BEHIND_KEY, NO_PROJECT, baseItems, isBehindKey, baseOf, branchPlaceOf, closePlaceMenu, openPlaceMenu, paintPlace, placeMarkup,
   projectItems, projectNamed, projectOfRepo, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu
 };
