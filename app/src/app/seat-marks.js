@@ -3,6 +3,7 @@ import { clockOptions } from "./clock-format.js";
 import { esc, phrase, st } from "./core.js";
 import { hudUndo } from "./hud.js";
 import { ask } from "./pod.js";
+import { confirmBefore } from "./confirmations.js";
 
 const MARKS_ROUTE = "/api/inbox/marks";
 const LOCAL_MARKS_KEY = "hive.inbox.marks";
@@ -151,7 +152,7 @@ const wakeSeats = (keys) => change(keys, (m) => {
   delete m.snoozedAt;
 });
 
-const asksBefore = (action) => st.confirm?.[action] === true;
+const asksBefore = (action) => confirmBefore(action);
 
 async function togglePinSeat(key, { confirmed = false } = {}) {
   const pinned = !!marks[key]?.pinnedAt;
@@ -170,7 +171,6 @@ async function togglePinSeat(key, { confirmed = false } = {}) {
 
 const setNeverSettles = (key, on) => change([key], (m) => { if (on) m.neverSettles = true; else delete m.neverSettles; });
 
-const markUnreadSeat = (key) => change([key], (m) => { m.unread = true; });
 
 function seenSeat(key) {
   const m = marks[key];
@@ -294,7 +294,6 @@ function openCustomSnooze(keys, { host = document.body, onSnooze = null } = {}) 
   return scrim;
 }
 
-const customSnoozeOpen = () => !!dialog;
 
 function spanSaid(ms) {
   const min = Math.floor(ms / 60000);
@@ -328,8 +327,4 @@ function marksStatusAct(name, act) {
   return null;
 }
 
-export {
-  asksBefore, adoptSeatMarks, adoptThreads, closeCustomSnooze, customSnoozeOpen, forgetSeatMark, isShelved, markUnreadSeat, marksStatusAct, marksStatusLines, openCustomSnooze, seatMark,
-  seatSection, seenSeat, setNeverSettles, settleSeat, settleSeats, snoozeChoicesNow, snoozeSeats, stampOf, sweepSeatMarks, togglePinSeat,
-  unsettleSeats, wakeSaid, wakeSeats
-};
+export { asksBefore, adoptSeatMarks, adoptThreads, forgetSeatMark, isShelved, marksStatusAct, marksStatusLines, openCustomSnooze, seatMark, seatSection, seenSeat, setNeverSettles, settleSeat, settleSeats, snoozeChoicesNow, snoozeSeats, stampOf, sweepSeatMarks, togglePinSeat, unsettleSeats, wakeSaid, wakeSeats };

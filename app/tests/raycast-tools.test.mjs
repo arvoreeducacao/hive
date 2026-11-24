@@ -14,10 +14,7 @@ const { suggestMarkup, suggestMenu } = await app("suggest-menu");
 const { openSeatPicker, closeSeatPicker } = await app("chat-and-panes");
 const { providerTransferState } = await app("provider-transfer");
 const { getStructured } = await app("chat-stretches");
-const { svSubPin } = await app("subagents-dock");
-const { svConvSeed } = await app("conversation-model");
 const { structPool } = await app("structured-seats");
-const { mountSubs } = await import(new URL("../src/views.js", import.meta.url).href);
 
 const sheet = readFileSync(new URL("../assets/raycast/tools.css", import.meta.url), "utf8");
 
@@ -174,7 +171,7 @@ function slashBench() {
   return { host, suggest, type };
 }
 
-test("the slash menu underlines the typed part and draws its keys only with the flag", (t) => {
+test("the slash menu underlines the typed part and drops the key legend with the flag", (t) => {
   const off = slashBench();
   t.after(() => { off.host.remove(); wear(false); });
   wear(false);
@@ -187,8 +184,8 @@ test("the slash menu underlines the typed part and draws its keys only with the 
   wear(true);
   on.type("/co");
   assert.equal(on.suggest.querySelector(".sg u").textContent, "co");
-  assert.ok(on.suggest.querySelector(".sgkeys .rc-key"));
-  assert.match(on.suggest.querySelector(".sgkeys .n").textContent, /3/);
+  assert.equal(on.suggest.querySelector(".sgkeys").hidden, true, "arrows, Enter, Tab and Esc work as in any menu, so no legend sits under the list");
+  assert.equal(on.suggest.querySelector(".sg .rc-key"), null);
   on.type("/zz");
   assert.ok(on.suggest.querySelector(".none b"));
 });
@@ -203,7 +200,7 @@ function pickerSeat() {
   };
 }
 
-test("model and thinking share one picker with its keys drawn, only with the flag", (t) => {
+test("model and thinking share one picker in three columns, only with the flag", (t) => {
   const e = pickerSeat();
   t.after(() => { closeSeatPicker(e); e.host.remove(); wear(false); });
   wear(false);
@@ -216,9 +213,10 @@ test("model and thinking share one picker with its keys drawn, only with the fla
   openSeatPicker(e, "effort");
   assert.equal(e.menu.kind, "model");
   assert.equal(e.menu.asked, "effort");
-  assert.ok(e.menu.el.querySelector(".mf .rc-key"));
-  assert.ok(e.menu.el.querySelector(".grp.thinking"));
-  assert.deepEqual([...e.menu.el.querySelectorAll(".sv-row.effort")].map((row) => row.querySelector("b").textContent), ["low", "high"]);
+  assert.ok(e.menu.el.classList.contains("cp-pick"), "provider, model and thinking sit side by side in three columns");
+  assert.equal(e.menu.el.querySelector(".fx").hidden, false, "the thinking column is open");
+  const levels = [...e.menu.el.querySelectorAll(".fxl .sv-row.effort")].map((row) => row.querySelector("b").textContent);
+  assert.ok(levels.includes("Low") && levels.includes("High"), `the levels of the model are in the column: ${levels.join(", ")}`);
 });
 
 test("a failed provider change offers to try again, only with the flag", (t) => {
@@ -243,22 +241,6 @@ test("a failed provider change offers to try again, only with the flag", (t) => 
   providerTransferState(e, failed);
   assert.equal(bar.classList.contains("failed"), false);
   assert.equal(bar.children.length, 0);
-});
-
-test("the dock counts the minutes of the oldest subagent only with the flag", (t) => {
-  const e = getStructured({ name: "tools-subs", where: "local" });
-  e.conv = svConvSeed();
-  e.subsView = mountSubs(e.host.querySelector(".sv-subs .sublist"));
-  t.after(() => { structPool.delete(e.name); wear(false); });
-  wear(false);
-  svSubPin(e, { id: "t1", name: "Agent", input: { subagent_type: "Explore", description: "map the repo" } });
-  e.conv.subs[0].dataset.t0 = String(Date.now() - 5 * 60000);
-  svSubPin(e, { id: "t2", name: "Agent", input: { subagent_type: "Explore", description: "read the tests" } });
-  const count = () => e.host.querySelector(".sv-subs .scount").textContent;
-  assert.equal(count(), "2");
-  wear(true);
-  svSubPin(e, { id: "t3", name: "Agent", input: { subagent_type: "Plan", description: "plan it" } });
-  assert.match(count(), /^3 · 5 /);
 });
 
 test("the tools sheet resets before it sets, and names its own keyframe", () => {

@@ -1,5 +1,5 @@
 import { $, esc, phrase } from "./core.js";
-import { nameSlug } from "./pure-helpers.js";
+import { hostOf, nameSlug } from "./pure-helpers.js";
 import { W_SERVER_STEPS, facePicker, myFaceSvg, wAct, wDone, wFetch, wb } from "./welcome.js";
 
 const START = "start";
@@ -96,7 +96,8 @@ function youHtml(s) {
 
 function serverHtml(s) {
   const rows = W_SERVER_STEPS.map((id) => ({ name: phrase(SERVER_LABELS[id]), ready: wDone(id, s), says: wDone(id, s) ? phrase("ready") : phrase("after Start, one step at a time") }));
-  const where = s?.server?.url ? `<p class="wp-note">${esc(new URL(s.server.url).host)}</p>` : "";
+  const host = hostOf(s?.server?.url);
+  const where = host ? `<p class="wp-note">${esc(host)}</p>` : "";
   return `<ul class="wp-rows">${rows.map((row) => rowHtml(row.name, row)).join("")}</ul>${where}`;
 }
 

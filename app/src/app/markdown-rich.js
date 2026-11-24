@@ -1,8 +1,8 @@
-import { esc, phrase, raycastOn, st } from "./core.js";
+import { esc, phrase, st } from "./core.js";
 import { middleCut } from "./context-chips.js";
 import { openInEditor } from "./files-editor.js";
 import { seatLabel, seatSays } from "./pure-helpers.js";
-import { changes, openDiff, openInMachineEditor } from "./seat-changes.js";
+import { openInMachineEditor } from "./seat-changes.js";
 import { tableAsHtml } from "./table-html.js";
 import { boxText, htmlToClipboard, toClipboard } from "./terminal-history.js";
 import { canDragFilesOf } from "./file-drag.js";
@@ -14,6 +14,12 @@ const LIVE_HIGHLIGHT_CAP = 6000;
 const KATEX_CSS = "/assets/dist/lazy/katex/katex.min.css";
 
 const COPIED_FOR = 1200;
+
+const RUN_LANGS = new Set(["sh", "bash", "zsh"]);
+
+const RUN_ICON = '<svg class="md-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>';
+
+const UNSAFE_TO_RUN = /[\p{Cc}\p{Cf}]/u;
 
 function lru(limit) {
   const held = new Map();
@@ -304,11 +310,44 @@ function paintSeat(el) {
   el.replaceWith(kept);
 }
 
+function runnableCommand(box) {
+  if (!RUN_LANGS.has(String(box.dataset.lang || "").toLowerCase()) || box.hasAttribute("data-open")) return "";
+  const pre = box.querySelector(":scope > pre.md-code");
+  const command = pre ? boxText(pre).trim() : "";
+  return command && !command.endsWith("\\") && !UNSAFE_TO_RUN.test(command) ? command : "";
+}
+
+function paintRun(box, seat) {
+  const acts = box.querySelector(":scope > .md-codehead > .md-codeacts");
+  if (!acts || acts.querySelector(":scope > .md-runterm") || box.closest(".sv-user")) return;
+  if (seat.where === "cloud" || seat.mirror || !runnableCommand(box)) return;
+  const run = document.createElement("button");
+  run.type = "button";
+  run.className = "md-runterm";
+  run.dataset.seat = seat.name;
+  run.title = phrase("Run in terminal");
+  run.setAttribute("aria-label", phrase("Run in terminal"));
+  run.innerHTML = RUN_ICON;
+  run.addEventListener("click", (ev) => {
+    ev.preventDefault();
+    runInTerminal(run);
+  });
+  acts.insertBefore(run, acts.querySelector(":scope > .md-copy"));
+}
+
+function runInTerminal(button) {
+  const box = button.closest(".md-codebox");
+  const command = box ? runnableCommand(box) : "";
+  if (!command || !button.dataset.seat) return;
+  document.dispatchEvent(new CustomEvent("hive:run-in-terminal", { detail: { name: button.dataset.seat, command } }));
+}
+
 export function enrichMarkdown(root, { seat = null } = {}) {
   if (!root?.querySelectorAll) return root;
   for (const box of within(root, ".md-codebox")) {
     paintCode(box);
     if (box.hasAttribute("data-mermaid")) paintDiagram(box);
+    if (seat?.name) paintRun(box, seat);
   }
   for (const math of within(root, ".md-math")) paintMath(math);
   if (seat?.name) for (const one of within(root, "code.md-pathish, a.md-file")) paintFile(one, seat);
@@ -420,8 +459,6 @@ function openTableMenu(button) {
   menu.querySelector("button")?.focus({ preventScroll: true });
 }
 
-const canvasCovered = () => raycastOn() && document.getElementById("structure-root")?.hidden === false;
-
 const leavesForEditor = (ev) => (/mac|iphone|ipad/i.test(navigator.platform || navigator.userAgent || "") ? !!ev.metaKey : !!ev.ctrlKey);
 
 function repoOf(seat, rel) {
@@ -442,10 +479,6 @@ function openChatFile(chip, ev) {
   const line = Number(chip.dataset.line) || 0;
   if (!seat.name || !rel) return;
   if (leavesForEditor(ev)) return void openInMachineEditor(seat.name, rel, line || 1);
-  if (canvasCovered()) {
-    if ((changes.get(seat.name)?.data?.files || []).some((one) => one.path === rel)) return void openDiff(seat.name, rel);
-    return void openInMachineEditor(seat.name, rel, line || 1);
-  }
   const at = repoOf(seat, rel);
   if (!at) return void openInMachineEditor(seat.name, rel, line || 1);
   openInEditor({ ...at, where: seat.where, line });
@@ -501,4 +534,4 @@ if (typeof document !== "undefined") {
   document.addEventListener("scroll", (ev) => { if (menu && ev.target?.contains?.(menu.owner)) closeMenu(); }, true);
 }
 
-export { closeMenu as closeTableMenu, landingOf };
+export { closeMenu as closeTableMenu, landingOf, onClick as markdownClick };

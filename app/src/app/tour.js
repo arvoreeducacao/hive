@@ -179,7 +179,9 @@ const releasesUrl = () => (st.updateState.releaseRepo ? `https://github.com/${st
 
 const NOTE_TAG = { new: "new", fixed: "fix", faster: "fast", changed: "changed" };
 
-const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const changesSaid = (n) => (n === 1 ? phrase("1 change") : phrase("{n} changes", { n }));
+
+const housekeepingSaid = (n) => (n === 1 ? phrase("1 housekeeping commit") : phrase("{n} housekeeping commits", { n }));
 
 function versionOf(tag, number) {
   if (number > 0) return `#${number}`;
@@ -199,6 +201,8 @@ function paintRunning(mine) {
   const numbered = running.number > 0;
   const label = numbered || running.tag ? versionOf(running.tag, running.number) : (running.sha || "").slice(0, 7);
   el.hidden = !label;
+  const row = el.closest(".set-row");
+  if (row) row.hidden = !label;
   el.textContent = label;
   const where = releasesUrl();
   if (running.tag && where) el.href = `${where}/tag/${encodeURIComponent(running.tag)}`;
@@ -218,10 +222,9 @@ function paintUpdate(d) {
   const b = $("btn-update");
   const behind = st.updateState.behind || 0;
   b.hidden = !behind && !st.held;
-  $("n-update").textContent = behind ? String(behind) : "";
-  b.title = st.held ? st.held.why
-    : behind ? phrase("{what} since your build — click to read them", { what: plural(behind, phrase("change")) })
-    : "";
+  const offer = behind ? `${phrase("Update Hive")} · ${phrase("{what} since your build — click to read them", { what: changesSaid(behind) })}` : "";
+  $("upd-said").textContent = offer;
+  b.title = st.held ? st.held.why : offer;
   if (!behind && !st.held) closeRelnotes();
   else if (!$("relnotes").hidden) paintRelnotes();
 }
@@ -254,8 +257,8 @@ function relnotesViewModel() {
     : d.packaged ? phrase("Your machine rebuilds the app, which takes a few minutes.") : phrase("The checkout pulls and installs.");
   return {
     ver: versionOf(d.tag, d.number),
-    count: plural(d.behind || all.length, phrase("change")),
-    sub: d.quiet ? `${how} ${phrase("{what} stayed out of this list.", { what: plural(d.quiet, phrase("housekeeping commit")) })}` : how,
+    count: changesSaid(d.behind || all.length),
+    sub: d.quiet ? `${how} ${phrase("{what} stayed out of this list.", { what: housekeepingSaid(d.quiet) })}` : how,
     notes: shown.map((note, at) => ({
       key: `${at}:${note.text}`, kind: note.kind || "", tag: phrase(NOTE_TAG[note.kind] || "·"),
       text: note.text, delay: `${40 + at * 45}ms`
@@ -365,4 +368,4 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && !$("relnotes").hidden) { e.preventDefault(); e.stopPropagation(); closeRelnotes(); }
 }, true);
 
-export { NOTE_TAG, TOUR, applyUpdate, bootWelcome, clearHeld, closeRelnotes, endTour, holdUpdate, megabytes, notesIn, openRelnotes, paintRelnotes, paintRunning, paintTour, paintUpdate, plural, pullUpdate, releasesUrl, relnotesSolid, relnotesViewModel, sayHelpful, startPhase, startTour, stopPhase, tourKeys, tourSaid, tourSolid, tourViewModel, versionOf };
+export { NOTE_TAG, TOUR, applyUpdate, bootWelcome, clearHeld, closeRelnotes, endTour, holdUpdate, megabytes, notesIn, openRelnotes, paintRelnotes, paintRunning, paintTour, paintUpdate, pullUpdate, releasesUrl, relnotesSolid, relnotesViewModel, sayHelpful, startPhase, startTour, stopPhase, tourKeys, tourSaid, tourSolid, tourViewModel, versionOf };

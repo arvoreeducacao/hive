@@ -1,11 +1,13 @@
 import { packDrop } from "/assets/drops.mjs";
 import { attachFilesToSeat, seatReceiving, seatRefused, svLoadingChips } from "./chat-stretches.js";
+import { takeAttachments } from "./composer-attachments.js";
 import { phrase, st } from "./core.js";
 import { attachFilesToDraft, draftFrom, draftLoadingChips, draftRefused } from "./draft-seat.js";
+import { addFolders } from "./folder-drop.js";
 import { readFile, sendFiles } from "./hold-numbers.js";
 import { structPool, svLine } from "./structured-seats.js";
 
-const ROW_OF_A_CHAT = "#rail-sessions .item[data-name], .tx-row[data-key], [data-shelves-open]";
+const ROW_OF_A_CHAT = "#rail-sessions .item[data-name]";
 
 function rowZoneOf(node) {
   const row = node?.closest?.(ROW_OF_A_CHAT);
@@ -46,8 +48,26 @@ async function sendBatch(zone, entry, batch) {
   return read.filter((f) => !f.data).map((f) => phrase("{name} could not be read", { name: f.name }));
 }
 
+function composerOfZone(zone) {
+  if (zone.draft) {
+    const d = zone.draft;
+    return { e: d.e, where: d.where === "cloud" ? "cloud" : "local", busy: () => !!d.sending };
+  }
+  const entry = zone.session?.structured ? structPool.get(zone.session.name) : null;
+  if (!entry?.files) return null;
+  return { e: entry, where: entry.where === "cloud" ? "cloud" : "local", busy: () => !!entry.ask?.saved || !!entry.sending };
+}
+
 async function takeFiles(zone, files, folders = new Set()) {
   if (!files.length || !zone) return;
+  const composer = composerOfZone(zone);
+  if (composer) {
+    const box = composer.e.host?.querySelector(".sv-composer textarea");
+    addFolders(box, files.filter((f) => folders.has(f.name)), { where: composer.where, busy: composer.busy });
+    const plain = files.filter((f) => !folders.has(f.name));
+    if (plain.length) takeAttachments(composer.e, plain);
+    return;
+  }
   const asFolder = files.filter((f) => folders.has(f.name));
   const { batches, refused } = packDrop(files.filter((f) => !folders.has(f.name)));
   const said = [...asFolder.map((f) => phrase("{name} is a folder — drop the files inside it", { name: f.name })), ...refused];
@@ -62,4 +82,4 @@ async function takeFiles(zone, files, folders = new Set()) {
   sayRefused(zone, entry, said);
 }
 
-export { takeFiles, zoneOf };
+export { composerOfZone, takeFiles, zoneOf };

@@ -142,7 +142,7 @@ test("the scroll is watched by an observer of its own, which tells the gutter th
 });
 
 test("everything floating over the scroll stops before the bar, on the right only", () => {
-  for (const name of [".sv-composer", ".sv-queue", ".sv-subs"]) {
+  for (const name of [".sv-composer", ".sv-queue"]) {
     const css = page.split("\n").find((line) => line.trim().startsWith(`${name} {`));
     assert.ok(css, `no rule for ${name}`);
     assert.match(css, /calc\(12px \+ var\(--sv-bar\)\) [^;]*12px/, `${name} still ends flush against the bar`);

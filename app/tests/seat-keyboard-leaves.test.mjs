@@ -190,3 +190,24 @@ test("every id the page reads exists in the markup", () => {
   const missing = [...new Set(asked)].filter((id) => !built(id));
   assert.deepEqual(missing, [], `getElementById of ids that nothing on the page ever writes: ${missing.join(", ")}`);
 });
+
+test("letting go of the keyboard puts the state back on the dot and on the glyph, never as a word in the head", async () => {
+  const { PILL_LABEL } = await app("core");
+  document.body.classList.add("experience-raycast");
+  try {
+    const { tile } = chatSeat("ana");
+    takeKeyboard("ana");
+    releaseKeyboard();
+    const dot = tile.querySelector(".t-dot");
+    assert.equal(dot.getAttribute("aria-label"), phrase(LABEL.idle));
+    assert.equal(dot.getAttribute("title"), phrase(LABEL.idle));
+    assert.equal(tile.querySelector(".t-say"), null);
+  } finally { document.body.classList.remove("experience-raycast"); }
+  const { tile } = chatSeat("bia");
+  takeKeyboard("bia");
+  releaseKeyboard();
+  const glyph = tile.querySelector(".t-glyph");
+  assert.equal(glyph.querySelector("use").getAttribute("href"), "#g-idle");
+  assert.equal(glyph.getAttribute("aria-label"), phrase(PILL_LABEL.idle));
+  assert.equal(glyph.querySelector("title").textContent, phrase(PILL_LABEL.idle));
+});

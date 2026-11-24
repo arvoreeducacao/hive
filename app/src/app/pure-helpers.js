@@ -46,6 +46,10 @@ function nameSlug(text) {
     .replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
 }
 
+function hostOf(url) {
+  try { return new URL(url).host; } catch { return ""; }
+}
+
 function peerChoices(sessions, q, mine) {
   const want = String(q || "").toLowerCase();
   return sessions
@@ -306,21 +310,23 @@ st.dimOn = true;
 
 const DIM_KEY = "hive.dim";
 
+function paintSwitch(id, on) {
+  const flip = $(id);
+  if (!flip) return;
+  flip.textContent = on ? "on" : "off";
+  flip.classList.toggle("on", on);
+}
+
 function paintShare() {
-  const b = $("btn-share");
-  if (!b) return;
-  b.setAttribute("aria-pressed", st.team.sharing ? "true" : "false");
+  paintSwitch("btn-share", !!st.team.sharing);
 }
 
 function paintPhone() {
-  const b = $("btn-phone");
-  if (!b) return;
-  b.setAttribute("aria-pressed", st.team.phone ? "true" : "false");
+  paintSwitch("btn-phone", !!st.team.phone);
 }
 
 function paintMachines() {
-  const b = $("btn-machines");
-  if (b) b.setAttribute("aria-pressed", st.team.machines ? "true" : "false");
+  paintSwitch("btn-machines", !!st.team.machines);
   const f = $("in-machine");
   if (f && document.activeElement !== f) {
     f.value = st.team.machine || "";
@@ -330,8 +336,7 @@ function paintMachines() {
 
 function paintPrefs() {
   document.body.classList.toggle("no-dim", !st.dimOn);
-  const d = $("btn-dim");
-  if (d) d.setAttribute("aria-pressed", String(st.dimOn));
+  paintSwitch("btn-dim", st.dimOn);
 }
 
 function setPref(which, on, quiet) {
@@ -500,4 +505,4 @@ function setDiaryDays(raw) {
   saveConfig({ pruneDiariesAfterDays: diaryDays(raw) }).then((r) => adoptDiaryDays(r)).catch(() => {});
 }
 
-export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptAutoUpdateAgents, paintAutoUpdateAgents, setAutoUpdateAgents, adoptKeepAwake, paintKeepAwake, setKeepAwake, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };
+export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptAutoUpdateAgents, paintAutoUpdateAgents, setAutoUpdateAgents, adoptKeepAwake, paintKeepAwake, setKeepAwake, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, hostOf, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };

@@ -67,5 +67,7 @@ export const PIXEL_ICONS = {
   "i-x": "<path fill=\"currentColor\" stroke=\"none\" d=\"M7 19H5V17H7V19ZM19 19H17V17H19V19ZM9 15V17H7V15H9ZM17 17H15V15H17V17ZM11 15H9V13H11V15ZM15 15H13V13H15V15ZM13 13H11V11H13V13ZM11 11H9V9H11V11ZM15 11H13V9H15V11ZM9 9H7V7H9V9ZM17 9H15V7H17V9ZM7 7H5V5H7V7ZM19 7H17V5H19V7Z\"/>",
   "i-minus": "<path fill=\"currentColor\" stroke=\"none\" d=\"M4 11h16v2H4z\"/>",
   "i-plus": "<path fill=\"currentColor\" stroke=\"none\" d=\"M13 11h7v2h-7v7h-2v-7H4v-2h7V4h2v7Z\"/>",
+  "i-gauge": "<path fill=\"currentColor\" stroke=\"none\" d=\"M8 4h8v2H8zM6 6h2v2H6zm10 0h2v2h-2zM4 8h2v2H4zm14 0h2v2h-2zM2 10h2v8H2zm18 0h2v8h-2zm-10 6h4v2h-4zm2-2h2v2h-2zm2-2h2v2h-2zm2-2h2v2h-2z\"/>",
+  "i-more": "<path fill=\"currentColor\" stroke=\"none\" d=\"M3 9h2v2H3zm8 0h2v2h-2zm8 0h2v2h-2zM1 11h2v2H1zm8 0h2v2H9zm8 0h2v2h-2zM3 13h2v2H3zm8 0h2v2h-2zm8 0h2v2h-2zM5 11h2v2H5zm8 0h2v2h-2zm8 0h2v2h-2z\"/>",
   "i-mag": "<path fill=\"currentColor\" stroke=\"none\" d=\"M22 22h-2v-2h2v2Zm-2-2h-2v-2h2v2Zm-6-2H6v-2h8v2Zm4 0h-2v-2h2v2ZM6 16H4v-2h2v2Zm10 0h-2v-2h2v2ZM4 14H2V6h2v8Zm14 0h-2V6h2v8ZM6 6H4V4h2v2Zm10 0h-2V4h2v2Zm-2-2H6V2h8v2Z\"/>"
 };

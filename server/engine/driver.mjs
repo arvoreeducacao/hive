@@ -5,10 +5,10 @@ import { existsSync } from "node:fs";
 import { connect } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { accountRanDry, compactRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail, transcriptFileOf, transcriptEntries, forkPoint, EDIT_NO_RECORD } from "./protocol.mjs";
+import { accountRanDry, compactRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, resayCommand, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail, transcriptFileOf, transcriptEntries, forkPoint, EDIT_NO_RECORD, queueKeeper, FORCE_STOPPED } from "./protocol.mjs";
 import { DEFAULT_ACCOUNT } from "./accounts.mjs";
 import { accountFailover } from "./failover.mjs";
-import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault } from "./agents.mjs";
+import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault, promptSuggestionsWanted } from "./agents.mjs";
 import { ensureGateway, hubFor } from "../gateway/mcp-gateway.mjs";
 import { withHubSettings } from "./hub-settings.mjs";
 import { claudeConfigPath, readClaudeConfig, hubServers, peerServerFor, routedThroughGateway } from "./mcp-routing.mjs";
@@ -40,6 +40,7 @@ let effortLevel = arg("--effort", "");
 const promptFile = arg("--prompt-file");
 const bornAsleep = process.argv.includes("--asleep");
 const anonymous = process.argv.includes("--anon");
+const bornFast = process.argv.includes("--fast");
 
 let query = null;
 async function loadSdk() {
@@ -162,6 +163,7 @@ try {
 } catch {}
 if (storedSession.home) logins.setHome(storedSession.home);
 if (storedSession.effort) effortLevel = storedSession.effort;
+let fastMode = typeof storedSession.fast === "boolean" ? storedSession.fast : bornFast;
 if (!chosenModel && storedSession.model) chosenModel = currentModel = storedSession.model;
 if (!resumeId) resumeId = arg("--resume-id");
 const sessionTrouble = makeWarnOnce((message) => emit({ type: "driver", subtype: "warning", message }));
@@ -242,7 +244,7 @@ async function userMessage(text, images = [], uuid = "") {
   return message;
 }
 
-const gate = sayGate();
+const gate = sayGate({ kept: storedSession.queue, onChange: queueKeeper(persistSession, (event) => emit(event)) });
 let lastSaid = null;
 let compactRefused = null;
 let pendingEdit = null;
@@ -351,7 +353,7 @@ async function canUseTool(toolName, toolInput, options) {
     emit({ type: "driver", subtype: "question_failed", id, error: filled.error });
     return { behavior: "deny", message: filled.error, toolUseID: options?.toolUseID };
   }
-  emit({ type: "driver", subtype: "question_answered", id });
+  emit({ type: "driver", subtype: "question_answered", id, answers: settled.answers });
   return { behavior: "allow", updatedInput: filled.input, toolUseID: options?.toolUseID };
 }
 
@@ -446,6 +448,8 @@ if (chosenModel) options.model = chosenModel;
 if (resumeId) options.resume = resumeId;
 if (EFFORTS_A_SESSION_CAN_BE_BORN_ON.includes(effortLevel)) options.settings = { effortLevel };
 if (!anonymous) Object.assign(options, withHubSettings(options, hubFor(cwd)));
+if (fastMode) options.settings = { ...(options.settings || {}), fastMode: true };
+if (promptSuggestionsWanted({ env: process.env, anonymous })) options.promptSuggestions = true;
 
 const builtinClaude = builtinClaudePath();
 const claude = chosenClaude({ builtin: builtinClaude });
@@ -489,6 +493,16 @@ async function settingsEffort() {
     try { texts.push(await readFile(file, "utf8")); } catch { texts.push(""); }
   }
   return effortFromSettings(texts);
+}
+
+async function wearFastMode(on) {
+  if (session) await session.applyFlagSettings({ fastMode: on });
+  const changed = fastMode !== on;
+  fastMode = on;
+  options.settings = { ...(options.settings || {}), fastMode: on };
+  persistSession({ fast: on });
+  if (changed) emit({ type: "driver", subtype: "fast_changed", on });
+  return fastMode;
 }
 
 let effortRestored = false;
@@ -765,7 +779,29 @@ async function goHomeWhenTheDoorOpens() {
   await logins.goHome();
 }
 
+function forceStop(reply) {
+  if (!session || sleeping) return reply({ ok: true, outcome: "idle" });
+  const working = gate.busy;
+  const stale = session;
+  const staleInput = input;
+  gate.hold();
+  heardFromSession();
+  dismissQuestions(FORCE_STOPPED);
+  openSession(true);
+  try { stale.close(); } catch {}
+  staleInput.close();
+  runConsume();
+  emit({ type: "driver", subtype: "force_stopped", reason: FORCE_STOPPED });
+  if (working) {
+    emit({ type: "result", subtype: "interrupted", is_error: false, num_turns: 0, session_id: sessionId, result: FORCE_STOPPED });
+    emit({ type: "driver", subtype: "interrupted", ms: 0, forced: true });
+    dispatchSay(gate.turnEnded());
+  }
+  return reply({ ok: true, outcome: "killed" });
+}
+
 function handleCommand(cmd, reply) {
+  if (cmd.type === "forceStop") return forceStop(reply);
   if (wakesTheSeat(cmd) && sleeping && !query) {
     loadSdk().then(() => handleCommand(cmd, reply), (e) => reply({ ok: false, error: `the seat could not load the agent sdk to wake up: ${String(e?.message || e)}` }));
     return;
@@ -801,6 +837,8 @@ function handleCommand(cmd, reply) {
     emit(said);
     const item = goes ? gate.push({ text: from ? peerSayText(from, text, cmd.side) : text, images, cid: cmd.cid || null, uuid: said.uuid }) : null;
     if (item) dispatchSay(item);
+    const freed = goes && !from && !cmd.steer ? gate.release() : null;
+    if (freed) dispatchSay(freed);
     const answer = { ok: true, dismissed: dropped.length };
     if (goes) answer.queued = !item;
     if (said.uuid) answer.uuid = said.uuid;
@@ -836,6 +874,7 @@ function handleCommand(cmd, reply) {
     expecting.unexpect(String(cmd.from || "").trim());
     return reply({ ok: true });
   }
+  if (cmd.type === "resay") return reply(resayCommand(gate, cmd, emit));
   if (cmd.type === "unsay") {
     const item = gate.unsay(cmd.target);
     if (!item) return reply(queueMiss(gate, cmd.target));
@@ -843,11 +882,16 @@ function handleCommand(cmd, reply) {
     return reply({ ok: true });
   }
   if (cmd.type === "saynow") {
-    const item = gate.unsay(cmd.target);
+    const item = gate.take(cmd.target);
     if (!item) return reply(gate.alreadyLeft(cmd.target) ? { ok: true, already: true } : queueMiss(gate, cmd.target));
     dispatchSay(item);
     emit({ type: "driver", subtype: "said_now", cid: item.cid });
     return reply({ ok: true });
+  }
+  if (cmd.type === "resume") {
+    const item = gate.release();
+    if (item) dispatchSay(item);
+    return reply({ ok: true, started: !!item, queued: gate.queued });
   }
   if (cmd.type === "answer") {
     const settle = pendingQuestions.get(cmd.id);
@@ -862,14 +906,25 @@ function handleCommand(cmd, reply) {
       return reply({ ok: false, error: "this interrupt waited too long in the pipe and was dropped — press stop again if the turn still needs it" });
     }
     if (!session) return reply({ ok: false, error: "the seat was asleep — there was no turn to stop" });
+    gate.hold();
     const started = Date.now();
     session.interrupt()
       .then(() => emit({ type: "driver", subtype: "interrupted", ms: Date.now() - started }))
       .catch((e) => emit({ type: "driver", subtype: "interrupt_failed", error: String(e?.message || e) }));
     return reply({ ok: true });
   }
+  if (cmd.type === "stop_task") {
+    const ids = [...new Set((Array.isArray(cmd.task_ids) ? cmd.task_ids : [cmd.task_id]).map((id) => String(id || "")).filter(Boolean))];
+    if (!ids.length) return reply({ ok: false, error: "no background task was named to stop" });
+    if (sleeping || !session) return reply({ ok: false, error: "the seat was asleep — there was no background work to stop" });
+    Promise.allSettled(ids.map((id) => session.stopTask(id))).then((all) => {
+      const failed = all.flatMap((one, at) => (one.status === "rejected" ? [`${ids[at]}: ${String(one.reason?.message || one.reason)}`] : []));
+      if (failed.length) emit({ type: "driver", subtype: "stop_task_failed", error: failed.join("; ") });
+    });
+    return reply({ ok: true });
+  }
   if (cmd.type === "state") {
-    return reply({ ok: true, name, side, agent: "claude", model: currentModel || chosenModel || "", effort: effortLevel, session_id: sessionId, seq, questions: [...pendingQuestions.keys()], queued: gate.queued, working: gate.busy, asleep: sleeping, watched, tasks: backgroundTasks.size, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
+    return reply({ ok: true, name, side, agent: "claude", model: currentModel || chosenModel || "", effort: effortLevel, fast: fastMode, session_id: sessionId, seq, questions: [...pendingQuestions.keys()], queued: gate.queued, held: gate.held, queue: gate.items(), working: gate.busy, asleep: sleeping, watched, tasks: backgroundTasks.size, expecting: expecting.waitingOn(), events_write_failed: eventsTrouble.broken });
   }
   if (cmd.type === "control") {
     const appOps = () => mcpAppOps({ session: () => session, base, seat: name });
@@ -888,7 +943,7 @@ function handleCommand(cmd, reply) {
            as a model name. An empty catalogue means the CLI could not be asked,
            and refusing on a guess there would block a pick that is probably
            fine. */
-        if (cmd.model && !chosen && models.length) {
+        if (cmd.model && !chosen && models.length && cmd.custom !== true) {
           throw new Error(`this chat runs no model called "${cmd.model}" — the picker has the ones it does`);
         }
         let restarted = false;
@@ -916,6 +971,7 @@ function handleCommand(cmd, reply) {
           effortLevel = "";
           emit({ type: "driver", subtype: "effort_changed", level: effortLevel });
         }
+        if (fastMode && chosen && !chosen.supportsFastMode) await wearFastMode(false).catch(() => {});
         persistSession({ ...(id ? { model_id: id } : {}), model: chosenModel || null, effort: effortLevel });
         if (restarted) openSession(true);
         emit({ type: "driver", subtype: "model_changed", model: id, label: chosen?.displayName || cmd.model || "account default", restarted });
@@ -956,6 +1012,16 @@ function handleCommand(cmd, reply) {
         persistSession({ effort: effortLevel });
         emit({ type: "driver", subtype: "effort_changed", level: effortLevel });
         return { level: effortLevel };
+      },
+      setFast: async () => {
+        const on = cmd.on === true;
+        if (on) {
+          const models = await session.supportedModels().catch(() => []);
+          const row = models.find((m) => m.value === currentModel || m.resolvedModel === currentModel)
+            || models.find((m) => m.value === "default");
+          if (row && !row.supportsFastMode) throw new Error(`${row.displayName || currentModel || "this model"} has no fast mode`);
+        }
+        return { fast: await wearFastMode(on) };
       },
       setMode: async () => {
         const wanted = String(cmd.mode || "");
@@ -1006,7 +1072,7 @@ const readers = {
     if (!effort) withAppliedDefault(row, await appliedEffort());
     return {
       agent: "claude",
-      current: { model: currentModel, effort, from: effortLevel ? "session" : effort ? "settings" : "", account: logins.name },
+      current: { model: currentModel, effort, from: effortLevel ? "session" : effort ? "settings" : "", account: logins.name, fast: fastMode },
       models,
     };
   },

@@ -26,7 +26,9 @@ test("config registers POST before its method-agnostic read route", () => {
   assert.deepEqual(routes.map(({ method, path }) => ({ method, path })), [
     { method: "POST", path: "/api/config" },
     { method: null, path: "/api/config" },
-    { method: null, path: "/api/shots/usage" }
+    { method: null, path: "/api/shots/usage" },
+    { method: "POST", path: "/api/themes/agent" },
+    { method: null, path: "/api/themes/agent" }
   ]);
 });
 
@@ -55,4 +57,51 @@ test("POST config writes only the config field from the request body", async () 
   ]);
   assert.deepEqual(hive.writes, [config]);
   assert.equal(hive.reads(), 0);
+});
+
+function agentHarness(config) {
+  const routes = [];
+  const writes = [];
+  registerConfigRoutes((method, path, handler) => routes.push({ method, path, handler }), {
+    bodyOf: async (req) => req.body,
+    readConfig: async () => ({ config }),
+    writeConfig: async (patch) => { writes.push(patch); return { config: { ...config, ...patch } }; },
+    shotsUsage: async () => ({})
+  });
+  const call = async (method, body) => {
+    const route = routes.find((one) => one.path === "/api/themes/agent" && (one.method === null || one.method === method));
+    const answers = [];
+    await route.handler({ body }, {}, new URL("http://hive/api/themes/agent"), (value) => answers.push(value));
+    return answers[0];
+  };
+  return { writes, call };
+}
+
+test("an agent's theme is saved with the others and worn at once", async () => {
+  const hive = agentHarness({ theme: "Nord", appearance: "fixed", themeLight: "Bonsai Light", themes: { Mine: { ui: { bg: "#101010" }, terminal: {} } } });
+  const said = await hive.call("POST", { name: "Nightfall", canvas: "#1A1B26", accent: "#7AA2F7", css: ".sv-user { border-radius: 2px; }" });
+  assert.equal(said.ok, true);
+  assert.equal(said.wearing, "Nightfall");
+  assert.equal(hive.writes.length, 1);
+  assert.deepEqual(Object.keys(hive.writes[0].themes), ["Mine", "Nightfall"]);
+  assert.equal(hive.writes[0].themes.Nightfall.by, "agent");
+  assert.equal(hive.writes[0].themes.Nightfall.css, ".sv-user { border-radius: 2px; }");
+  assert.equal(hive.writes[0].theme, "Nightfall");
+});
+
+test("a theme whose css would load a file is refused and nothing is written", async () => {
+  const hive = agentHarness({ theme: "Hive", themes: {} });
+  const said = await hive.call("POST", { name: "Leaky", canvas: "#000000", accent: "#FF0000", css: "[data-x] { background: url(https://example.com/x) }" });
+  assert.match(said.error, /url\(\)/);
+  assert.deepEqual(hive.writes, []);
+});
+
+test("the agent reads the guide and the themes before it restyles", async () => {
+  const hive = agentHarness({ theme: "Hive", appearance: "fixed", themes: { Nightfall: { ui: { bg: "#1A1B26" }, terminal: {}, css: "a{}", by: "agent" } } });
+  const said = await hive.call("GET");
+  assert.equal(said.current.theme, "Hive");
+  assert.ok(said.builtIn.includes("Hive"));
+  assert.deepEqual(said.yours, [{ name: "Nightfall", by: "agent", hasCss: true, light: false }]);
+  assert.ok(said.selectors.some((line) => line.startsWith("#rail")));
+  assert.ok(said.rules.some((line) => line.includes("data:")));
 });

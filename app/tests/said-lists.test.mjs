@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { app, views } from "./dom.mjs";
-import { continueList, listMarks, saidPieces } from "../assets/said-lists.mjs";
+import { listMarks, saidPieces } from "../assets/said-lists.mjs";
 
 await views();
 
@@ -30,21 +30,6 @@ test("a dash glued to a word or a year with a full stop is not a list", () => {
 
 test("the box marks only the list markers", () => {
   assert.deepEqual(listMarks("hi\n- one\n  12. two"), [{ kind: "ul", start: 3, end: 4 }, { kind: "ol", start: 11, end: 14 }]);
-});
-
-test("shift+enter on a list item opens the next one", () => {
-  assert.deepEqual(continueList("- one", 5), { from: 5, to: 5, text: "\n- " });
-  assert.deepEqual(continueList("  3) three", 10), { from: 10, to: 10, text: "\n  4) " });
-});
-
-test("shift+enter on an empty item ends the list instead of adding another", () => {
-  assert.deepEqual(continueList("- one\n- ", 8), { from: 6, to: 8, text: "" });
-});
-
-test("shift+enter outside a list, before the marker or over a selection is a plain newline", () => {
-  assert.equal(continueList("just text", 9), null);
-  assert.equal(continueList("- one", 1), null);
-  assert.equal(continueList("- one", 2, 5), null);
 });
 
 test("a sent message draws its lists as lists and keeps the command and the quote", () => {

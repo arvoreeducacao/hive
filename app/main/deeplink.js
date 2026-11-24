@@ -1,6 +1,8 @@
 const SHELF_HOST = "shelf";
 const JOIN_HOST = "join";
 const SEAT_HOST = "seat";
+const NEW_HOST = "new";
+const PROMPT_KIND = "prompt";
 const SEAT_NAME = /^[A-Za-z0-9._-]{1,80}$/;
 const SLUG = /^[a-z0-9][a-z0-9-]{0,59}$/;
 const TABS = ["documento", "telas", "plano", "lente"];
@@ -45,7 +47,19 @@ function seatLinkOf(raw) {
   return asked.path;
 }
 
+function promptLinkOf(raw) {
+  let url = null;
+  try { url = new URL(String(raw || "").trim()); } catch { return null; }
+  if (url.protocol !== "hive:") return null;
+  const path = url.pathname.replace(/^\/+|\/+$/g, "");
+  if (url.hostname === NEW_HOST && !path) return { link: url.toString() };
+  if (url.hostname === SEAT_HOST && url.searchParams.has("prompt") && seatLinkOf(raw)) return { link: url.toString() };
+  return null;
+}
+
 function linkOf(raw) {
+  const prompt = promptLinkOf(raw);
+  if (prompt) return { kind: PROMPT_KIND, asked: prompt };
   const shelf = shelfLinkOf(raw);
   if (shelf) return { kind: SHELF_HOST, asked: shelf };
   const join = joinLinkOf(raw);
@@ -67,4 +81,4 @@ async function deliverLink({ asked, offer, again, tries = 0, max = LINK_TRIES })
   });
 }
 
-module.exports = { SHELF_HOST, JOIN_HOST, SEAT_HOST, LINK_TRIES, LINK_WAIT, shelfLinkOf, joinLinkOf, seatLinkOf, linkOf, deliverLink };
+module.exports = { SHELF_HOST, JOIN_HOST, SEAT_HOST, NEW_HOST, PROMPT_KIND, LINK_TRIES, LINK_WAIT, shelfLinkOf, joinLinkOf, seatLinkOf, promptLinkOf, linkOf, deliverLink };

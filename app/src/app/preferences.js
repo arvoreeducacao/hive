@@ -3,13 +3,15 @@ import { render } from "./arrange.js";
 import { mugFace } from "./avatars.js";
 import { saveConfig } from "./brand-face.js";
 import { $, DEFAULT_LANGUAGE, IS_MAC, LANGUAGES, mountPet, paintFonts, paintStatic, phrase, raycastOn, solidMounts, speak, st } from "./core.js";
+import { paintComposerPrefs } from "./composer-prefs.js";
 import { paintKeys } from "./leader-key.js";
 import { calmly, paintCalm, paintPrefs, visualWorn, whenMotionChanges } from "./pure-helpers.js";
 import { LAYOUTS, LAYOUT_NAMES } from "./seat-layout.js";
-import { paintStructureChoices } from "./structure.js";
 import { paintThemes } from "./themes.js";
+import { paintAppearancePanel } from "./appearance-panel.js";
 import { paintBrandAvatar } from "./welcome.js";
 import { svConvShow } from "./conversation-model.js";
+import { paintBehavior } from "./behavior-settings.js";
 import { structPool } from "./structured-seats.js";
 import { paintTitleInstructions } from "./title-instructions.js";
 import { TIME_FORMATS, chooseTimeFormat } from "./clock-format.js";
@@ -161,9 +163,9 @@ function paintScreenReaderTitle(on) {
 
 const LOOK_DEFAULT = "classic";
 
-const LOOK_NAMES = { classic: "classic, as it was", dimension: "dimension, the new one" };
+const LOOK_NAMES = { classic: "Classic", dimension: "Dimension" };
 
-const VISUAL_NAMES = { lean: "lean: nothing moves, no blur", full: "full: motion and blur, costs memory and battery" };
+const VISUAL_NAMES = { lean: "Lean", full: "Full" };
 
 const WINDOW_BUTTON_SIZE = 12;
 
@@ -254,8 +256,10 @@ function repaintEverything() {
   paintPrefs();
   paintCalm();
   paintThemes();
+  paintAppearancePanel();
   paintChoices();
   paintTitleInstructions();
+  paintBehavior();
   render();
 }
 
@@ -333,7 +337,7 @@ function paintChoices() {
   paintScreenReaderTitle(said.titleOn);
   const size = $("f-size");
   if (size && size !== document.activeElement) size.value = said.size;
-  paintStructureChoices();
+  paintComposerPrefs();
 }
 
 let choiceSolids = null;

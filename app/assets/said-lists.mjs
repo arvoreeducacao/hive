@@ -125,16 +125,3 @@ export function listMarks(text) {
   }
   return marks;
 }
-
-export function continueList(text, start, end = start) {
-  const said = String(text ?? "");
-  if (start !== end) return null;
-  const lineStart = said.lastIndexOf("\n", start - 1) + 1;
-  const nextBreak = said.indexOf("\n", start);
-  const lineEnd = nextBreak < 0 ? said.length : nextBreak;
-  const item = listItem(said.slice(lineStart, lineEnd));
-  if (!item || start < lineStart + item.lead) return null;
-  if (!item.text.trim() && start === lineEnd) return { from: lineStart, to: lineEnd, text: item.indent };
-  const mark = item.kind === "ul" ? `${item.bullet} ` : `${item.n + 1}${item.sep} `;
-  return { from: start, to: end, text: `\n${item.indent}${mark}` };
-}

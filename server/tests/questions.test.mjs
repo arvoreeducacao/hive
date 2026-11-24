@@ -29,7 +29,7 @@ function bench({ session = { interrupt: async () => {} } } = {}) {
     "birthsLeft", "peerSayText", "BIRTHS_MAX", "expecting", "sessionStore", "side", "ensureAwake", "staleInterrupt", "eventsTrouble",
     "currentModel", "chosenModel", "effortLevel",
     "readsOnly", "wakesTheSeat", "answerWhileAsleep",
-    `let sleeping = false; let watched = false; const backgroundTasks = new Map(); const armed = []; const armSleep = (ms) => armed.push(ms); const sleepAfter = () => (watched ? 30 : 15); ${source}; return { handleCommand, doze: () => { sleeping = true; }, armed };`
+    `let fastMode = false; let sleeping = false; let watched = false; const backgroundTasks = new Map(); const armed = []; const armSleep = (ms) => armed.push(ms); const sleepAfter = () => (watched ? 30 : 15); ${source}; return { handleCommand, doze: () => { sleeping = true; }, armed };`
   );
   const { handleCommand: handle, doze, armed } = make(
     (e) => emitted.push(e), gate, (item) => dispatched.push(item), sayEvent, dismissNote,
@@ -168,4 +168,33 @@ test("o painel abrir ou fechar o chat nao acorda ninguem, so muda quanto tempo o
   b.say({ type: "presence", watched: true });
   assert.equal(b.wakes.length, 0, "nem dormindo o painel acorda o assento");
   assert.equal((await b.ask({ type: "state" })).asleep, true);
+});
+
+test("stop_task stops every background task it names, once each, without waking anyone", async () => {
+  const stopped = [];
+  const b = bench({ session: { interrupt: async () => {}, stopTask: async (id) => { stopped.push(id); } } });
+  assert.deepEqual(b.say({ type: "stop_task", task_ids: ["b1", "b2", "b1", ""] }), { ok: true });
+  await new Promise((done) => setTimeout(done, 0));
+  assert.deepEqual(stopped, ["b1", "b2"]);
+  assert.equal(b.wakes.length, 0);
+  assert.equal(b.emitted.filter((e) => e.subtype === "stop_task_failed").length, 0);
+});
+
+test("stop_task with nothing named, or on a sleeping seat, says so instead of acting", () => {
+  const b = bench({ session: { interrupt: async () => {}, stopTask: async () => { throw new Error("should not run"); } } });
+  assert.equal(b.say({ type: "stop_task", task_ids: [] }).ok, false);
+  b.doze();
+  const asleep = b.say({ type: "stop_task", task_ids: ["b1"] });
+  assert.equal(asleep.ok, false);
+  assert.match(asleep.error, /asleep/);
+  assert.equal(b.wakes.length, 0, "stopping background work never wakes a sleeping seat");
+});
+
+test("a task the agent refuses to stop is reported, so the line can say it did not stop", async () => {
+  const b = bench({ session: { interrupt: async () => {}, stopTask: async (id) => { if (id === "b2") throw new Error("no such task"); } } });
+  b.say({ type: "stop_task", task_ids: ["b1", "b2"] });
+  await new Promise((done) => setTimeout(done, 0));
+  const failed = b.emitted.filter((e) => e.subtype === "stop_task_failed");
+  assert.equal(failed.length, 1);
+  assert.match(failed[0].error, /b2: no such task/);
 });

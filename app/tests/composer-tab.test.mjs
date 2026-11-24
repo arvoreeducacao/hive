@@ -131,7 +131,7 @@ test("the composer's own margin counts once, in the size the card will settle at
 });
 
 test("the fade band lives in the air the chat reserves, never on the last line", () => {
-  const css = slice(".sv-scroll {", ".sv-subs, .sv-queue");
+  const css = slice(".sv-scroll {", ".sv-msg { white-space");
   assert.match(css, /#000 calc\(100% - var\(--sv-fade\)\), transparent calc\(100% - var\(--sv-fade\) \+ var\(--sv-air\)\)/);
   assert.ok(!/var\(--sv-fade\) - \d+px/.test(css), "the band must not start above where the transcript comes to rest");
 });
@@ -147,7 +147,6 @@ test("the badge hangs off the composer itself, not off a row of its own", () => 
 test("the badge never lands on the queue tray — the tray gives it the room", () => {
   const css = slice(".sv-activity { position: absolute", ".sv-jump-anchor");
   assert.match(css, /\.sv:has\(\.sv-activity\.on\) \.sv-queue\.on \{ margin-bottom:/);
-  assert.match(css, /:not\(:has\(\.sv-queue\.on\)\) \.sv-subs\.on \{ margin-bottom:/);
 });
 
 test("the badge does not repeat the queue the tray is already showing", () => {

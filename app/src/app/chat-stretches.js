@@ -9,16 +9,30 @@ import { paintReplyButton, takesMessage } from "./chat-reply.js";
 import { FOLLOW_SLACK, svConvCutKey, svConvElements, svConvHasBar, svConvLetGo, svConvMount, svConvPrepend, svConvRestore, svConvScrolled, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvStick, svConvTimelineOn, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
 import { inkChips } from "./context-chips.js";
 import { openContextWindow } from "./context-window.js";
-import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, experienceNext, isImageName, isNativeCommand, phrase, raycastOn, st, withCommand, withoutCommand } from "./core.js";
+import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, experienceNext, isImageName, isNativeCommand, phrase, st, withCommand, withoutCommand, composerShaped } from "./core.js";
 import { releaseKeyboard } from "./focus-navigation.js";
 import { receiving, tiles } from "./leader-key.js";
-import { draftFromElsewhere, draftKept, keepDraft, keepDraftNow } from "./kept-drafts.js";
+import { draftExtrasKept, draftFromElsewhere, draftKept, keepDraft, keepDraftNow } from "./kept-drafts.js";
+import { askSettles } from "./composer-ask.js";
+import { editBox, editingKeys } from "./composer-editing.js";
+import { composerKeys } from "./composer-keys.js";
+import { clearTooLong, followTooLong, refuseTooLong } from "./composer-length.js";
+import { paintPromptLinkButton } from "./prompt-links.js";
+import { canSteer, composerCommands, composerLive, composerPickTaken, composerSendTaken, dispatchMode, followUp, paintComposer, requestStop, sendIntent, stopGuarding } from "./composer-modes.js";
+import { PLAN_PROMPT } from "./composer-plan.js";
+import { paintQueue } from "./composer-queue.js";
+import { openQuoteNote } from "./quote-note.js";
+import { clipMarkup, wireClip } from "./composer-bar.js";
+import { blockedSend, fileMarkInk, takeAttachments, wireAttachments } from "./composer-attachments.js";
+import { composerClipboardAdapter, pasteFragment, wireChipClipboard } from "./chip-clipboard.js";
+import { notePick, outboundPrPicks, prPickSpans, searchPullRequests } from "./pr-mentions.js";
+import { pasteRoute, pastedTextFile } from "./paste-as-file.js";
 import { IMAGE_MARK_RE, imageTray, inlineImageList, outboundImageMarks } from "./pinned-images.js";
-import { foldPastes, insertMark, isLongPaste, outboundPastes, pasteAt, pasteLines, pasteMark, pastePeek, pasteSpots, pasteStore } from "./pasted-text.js";
-import { shellLineOf, shellModeOf, splitPeerHandle } from "./pure-helpers.js";
+import { foldPastes, insertMark, isLongPaste, outboundPastes, pasteAt, pasteMark, pastePeek, pasteSpots, pasteStore } from "./pasted-text.js";
+import { seatHandle, shellLineOf, shellModeOf, splitPeerHandle } from "./pure-helpers.js";
 import { commandTray } from "./said-command.js";
-import { continueList, listMarks } from "/assets/said-lists.mjs";
-import { paintActivity, paintSaidCommand, paintStamp, refreshContext, refreshDriverState, structPool, svDequeue, svLine, svQueueRefused, svRunTail, svWasDequeuedEarly } from "./structured-seats.js";
+import { listMarks } from "/assets/said-lists.mjs";
+import { paintActivity, paintStamp, refreshContext, refreshDriverState, splitLeadingQuotes, structPool, svDequeue, svLine, svQueueRefused, svRunTail, svWasDequeuedEarly } from "./structured-seats.js";
 import { wireTalkButton } from "./stt.js";
 import { suggestMarkup, suggestMenu } from "./suggest-menu.js";
 import { sayToTeamSeat } from "./team.js";
@@ -32,16 +46,22 @@ function quoteTray(tray, onChange) {
   };
   return {
     count: () => held.length,
-    all: () => held.map((one) => one.said),
-    pinned: () => held.map((one) => ({ said: one.said, kind: one.kind })),
-    add(said, kind) {
-      const one = { said, kind: kind || "" };
+    all: () => held.map((one) => (one.comment ? { said: one.said, comment: one.comment } : one.said)),
+    pinned: () => held.map((one) => (one.comment ? { said: one.said, kind: one.kind, comment: one.comment } : { said: one.said, kind: one.kind })),
+    add(said, kind, comment = "") {
+      const one = { said, kind: kind || "", comment: String(comment || "").trim() };
       held.push(one);
       const chip = document.createElement("div");
       chip.className = "att quote";
       chip.innerHTML = `<span class="qi"><svg aria-hidden="true"><use href="#i-quote"/></svg></span><span class="qt"></span><button type="button" class="ax" title="${phrase("drop this quote")}">×</button>`;
       chip.querySelector(".qt").textContent = said;
-      chip.title = kind ? `${kind}\n\n${said}` : said;
+      if (one.comment) {
+        const note = document.createElement("span");
+        note.className = "qc";
+        note.textContent = one.comment;
+        chip.querySelector(".qt").after(note);
+      }
+      chip.title = [kind, said, one.comment].filter(Boolean).join("\n\n");
       chip.querySelector(".ax").addEventListener("click", () => {
         const at = held.indexOf(one);
         if (at >= 0) held.splice(at, 1);
@@ -61,7 +81,9 @@ function quoteTray(tray, onChange) {
 
 const asQuote = (said) => String(said).trim().split("\n").map((line) => `> ${line}`).join("\n");
 
-const withQuotes = (quotes, text) => (quotes.length ? `${quotes.map(asQuote).join("\n\n")}${text ? `\n\n${text}` : ""}` : text);
+const quoteBlock = (one) => (typeof one === "string" ? asQuote(one) : `${asQuote(one.said)}${one.comment?.trim() ? `\n\n${one.comment.trim()}` : ""}`);
+
+const withQuotes = (quotes, text) => (quotes.length ? `${quotes.map(quoteBlock).join("\n\n")}${text ? `\n\n${text}` : ""}` : text);
 
 const withoutQuotes = (quotes, said) => {
   const front = withQuotes(quotes, "");
@@ -144,6 +166,7 @@ async function attachFilesToSeat(e, files, marked) {
   if (!r?.ok) return void svLine(e, "sv-meta warn", r?.error || phrase("the image did not reach this chat"));
   for (const path of r.paths) {
     if (isImageName(path)) svAttachImage(e, path);
+    else if (e.files) e.files.addReady({ path });
     else svTypePath(e, path);
   }
 }
@@ -483,8 +506,20 @@ function connectStructured(e) {
   }, 1500);
 }
 
+function recallable(text) {
+  const said = String(text || "").trim();
+  if (said.startsWith(PLAN_PROMPT)) return "";
+  const rest = splitLeadingQuotes(said)?.rest ?? said;
+  return rest.replace(/\[Image #\d+\] ?/g, "").trim();
+}
+
+function caretOnEdge(box, dir) {
+  if (box.selectionStart !== box.selectionEnd) return false;
+  return dir < 0 ? !box.value.slice(0, box.selectionStart).includes("\n") : !box.value.slice(box.selectionEnd).includes("\n");
+}
+
 function rememberSent(e, text, seq) {
-  const clean = String(text || "").trim();
+  const clean = recallable(text);
   if (!clean) return;
   if (Number.isFinite(seq)) {
     if (e.sentSeqs.has(seq)) return;
@@ -513,14 +548,15 @@ function getStructured(s) {
   host.innerHTML = `
     <div class="sv-scroll"></div>
     <div class="sv-jump-anchor"><button type="button" class="sv-jump" hidden title="${phrase("back to the end of the chat — new messages pin again")}">${phrase("↓ latest")}</button></div>
-    <div class="sv-subs" data-fold="auto"><button type="button" class="shead" title="${phrase("fold the background agents away")}"><i class="sdot"></i><span>${phrase("in background")}</span><span class="scount"></span><svg class="schev" aria-hidden="true"><use href="#i-chev"/></svg></button><div class="sublist"></div></div>
     <div class="sv-queue"></div>
     ${suggestMarkup()}
+    <div class="sv-drawer"></div>
     <form class="sv-composer">
       <div class="sv-activity"><span class="pulse"></span><span class="verb"></span><span class="clock"></span></div>
       <div class="sv-attach"></div>
       <div class="sv-well"><div class="sv-ink" aria-hidden="true"></div><textarea rows="1" placeholder="${phrase(SV_ASK)}"></textarea></div>
       <div class="sv-foot">
+        ${clipMarkup()}
         <span class="sv-pick">
           <button type="button" class="sv-pill sv-pill-model"></button>
           <button type="button" class="sv-pill sv-pill-effort"></button>
@@ -533,7 +569,8 @@ function getStructured(s) {
           <button type="submit" class="sv-send" title="${phrase("send (enter)")}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12.6V3.8M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </span>
       </div>
-    </form>`;
+    </form>
+    <div class="cp-place"></div>`;
   const scroll = host.querySelector(".sv-scroll");
   e = { name: s.name, where: s.where, mirror: s.mirror || null, host, scroll, ws: null, since: 0, lastSeq: 0, window: "turns",
         tag: Math.random().toString(36).slice(2, 7), said: new Set(),
@@ -543,6 +580,7 @@ function getStructured(s) {
         catalog: null, catalogError: "", catalogPull: null, catalogTries: 0, catalogWait: null,
         model: "", effort: "", account: undefined, menu: null, quotes: null, talkOff: null };
   e.talkOff = wireTalkButton(host.querySelector(".sv-talk"), () => host.querySelector(".sv-composer textarea"));
+  wireClip(host);
   const jump = host.querySelector(".sv-jump");
   const paintJump = () => { jump.hidden = e.atBottom; };
   scroll.addEventListener("scroll", () => {
@@ -576,14 +614,6 @@ function getStructured(s) {
   });
   scroll.addEventListener("keydown", (ev) => {
     if (UP_KEYS.has(ev.key) && !ev.altKey && !ev.ctrlKey && !ev.metaKey && !ev.shiftKey) svConvLetGo(e);
-  });
-  const subsHead = host.querySelector(".sv-subs .shead");
-  subsHead.addEventListener("click", () => {
-    if (experienceNext()) return;
-    const dock = host.querySelector(".sv-subs");
-    const list = dock.querySelector(".sublist");
-    dock.dataset.fold = list.offsetHeight ? "shut" : "open";
-    svReserve(e);
   });
   let roomFrame = 0;
   const room = new ResizeObserver(() => {
@@ -633,30 +663,107 @@ function getStructured(s) {
     e.command.set(found[0]?.name || "");
   };
   e.tray = imageTray(host.querySelector(".sv-attach"), textarea, () => ({ where: e.where, name: e.name }));
+  wireAttachments(e, { host, textarea, target: () => ({ name: e.name, where: e.where }), busy: () => "" });
+  const clipboard = composerClipboardAdapter(e, { where: () => e.where, seat: () => e.name });
+  wireChipClipboard(textarea, clipboard);
   e.pastes = pasteStore(() => e.name);
   e.peek = pastePeek(host.querySelector(".sv-composer"), textarea, e.pastes, () => paintInk());
   /* a paste too long to read in the box becomes one mark in it; the words go out whole on enter. */
   const foldIntoBox = (text) => foldPastes(text, (words) => pasteMark(e.pastes.add(words), words));
-  textarea.addEventListener("paste", (pev) => {
-    const data = pev.clipboardData;
-    if (!data || [...(data.items || [])].some((one) => one.type.startsWith("image/"))) return;
-    const words = data.getData("text/plain");
-    if (!isLongPaste(words)) return;
-    pev.preventDefault();
+  const pasteWords = (words, plain, redirected) => {
+    const route = pasteRoute(words, { plain, folds: isLongPaste, asFile: !e.mirror });
+    if (route === "native" && !redirected) return false;
+    if (route === "file") {
+      takeAttachments(e, [pastedTextFile(words, `${textarea.value} ${e.files.names().join(" ")}`)]);
+      return true;
+    }
+    if (route === "plain" || route === "native") {
+      editBox(textarea, textarea.selectionStart ?? textarea.value.length, textarea.selectionEnd ?? textarea.value.length, words);
+      return true;
+    }
     insertMark(textarea, pasteMark(e.pastes.add(words), words));
     textarea.dispatchEvent(new Event("input"));
+    return true;
+  };
+  textarea.addEventListener("paste", (pev) => {
+    const data = pev.clipboardData;
+    const plain = e.plainPaste;
+    e.plainPaste = false;
+    if (!data || [...(data.items || [])].some((one) => one.kind === "file" || one.type.startsWith("image/"))) return;
+    if (!plain && pasteFragment(textarea, pev, clipboard)) return;
+    if (pasteWords(data.getData("text/plain"), plain, false)) pev.preventDefault();
   });
   textarea.addEventListener("click", () => {
     if (textarea.selectionStart !== textarea.selectionEnd) return;
     const spot = pasteAt(textarea.value, textarea.selectionStart ?? 0);
     if (spot) e.peek.show(spot.n);
   });
-  const paintReady = () => paintComposerReady(host, !!textarea.value.trim() || !!e.tray.count() || !!e.quotes?.count() || !!e.command?.count());
-  e.quotes = quoteTray(host.querySelector(".sv-attach"), paintReady);
+  const paintReady = () => {
+    paintComposerReady(host, !!textarea.value.trim() || !!e.tray.count() || !!e.files.count() || !!e.quotes?.count() || !!e.command?.count());
+    paintComposer(e);
+  };
+  const boxNow = () => ({ text: textarea.value, images: [...e.tray.marks], quotes: e.quotes.pinned(), files: e.files.marks() });
+  const heldDraft = () => e.ask?.saved || e.editing?.saved || null;
+  const keepBox = (now = false) => {
+    if (e.restoring) return;
+    const kept = heldDraft() || boxNow();
+    (now ? keepDraftNow : keepDraft)(e.name, kept.text, { images: kept.images, quotes: kept.quotes, files: kept.files || [] });
+  };
+  e.quotes = quoteTray(host.querySelector(".sv-attach"), () => { paintReady(); keepBox(); });
   e.command = commandTray(() => { paintReady(); paintInk(); });
+  const enqueue = (shownText, sending, pinned, cid, uuid) => {
+    const tray = e.host.querySelector(".sv-queue");
+    const item = document.createElement("div");
+    item.className = "sv-qitem";
+    item.dataset.text = shownText;
+    item.dataset.images = JSON.stringify(sending);
+    item.dataset.quotes = JSON.stringify(pinned);
+    item.dataset.cid = cid || "";
+    item.dataset.uuid = uuid || "";
+    tray.append(item);
+    (e.queuedEls ||= []).push(item);
+    paintQueue(e);
+    paintActivity(e);
+    return item;
+  };
+  const userBubble = (text, cid, images, uuid = "") => {
+    const bubble = svLine(e, "sv-user", splitPeerHandle(text || "").body || "(image)");
+    paintMentions(bubble);
+    if (cid) bubble.dataset.cid = cid;
+    if (uuid) bubble.dataset.uuid = uuid;
+    for (const path of images) svUserThumb(e, bubble, path);
+    return bubble;
+  };
+  /* a seat whose program cannot take a message mid-turn refuses the steer, and the message stays in line. */
+  const steerIn = (shownText, sending, pinned, cid, uuid) => {
+    svCmd(e, { type: "saynow", target: cid }).then((s) => {
+      if (s?.ok || s?.gone) {
+        svWasDequeuedEarly(e, cid);
+        userBubble(shownText, cid, sending, uuid);
+        return void paintActivity(e);
+      }
+      if (!s?.silent) e.steerRefused = true;
+      enqueue(shownText, sending, pinned, cid, uuid);
+    });
+  };
+  const clearBox = () => {
+    textarea.value = "";
+    textarea.style.height = "";
+    e.tray.clear();
+    e.files.clear();
+    e.pastes.clear();
+    e.peek.close(false);
+    e.quotes.clear();
+    e.command.clear();
+    clearTooLong(host);
+    paintComposerReady(e.host, false);
+    paintInk();
+    autosize();
+    keepBox(true);
+  };
   /* fromDraft says the words came from this seat's textarea. the universal composer sends
      with it false, so what the person is writing down here — and what they attached — survives. */
-  const deliver = (text, sending, fromDraft, cutIn = false) => {
+  const deliver = (text, sending, fromDraft, steer = false) => {
     if (e.providerTransfer && e.providerTransfer.phase !== "waiting") {
       svLine(e, "sv-meta", e.providerTransfer.fresh ? phrase("the chat is starting fresh; your draft is kept here until it finishes") : phrase("the provider is changing; your draft is kept here until it finishes"));
       return;
@@ -669,20 +776,20 @@ function getStructured(s) {
     if (shellLine) {
       rememberSent(e, text);
       runShellInChat(e, shellLine);
-      if (fromDraft) { textarea.value = ""; e.tray.clear(); e.pastes.clear(); e.peek.close(false); e.command.clear(); paintReady(); paintInk(); autosize(); keepDraftNow(e.name, ""); }
+      if (fromDraft) clearBox();
       return;
     }
     /* a mirrored seat has no socket into it: what is typed here travels as a file to the other
        machine, and the panel that owns the seat is the one that types it in. the bubble is painted
        on the spot because the answer comes back on the next read of the file, seconds later. */
     if (e.mirror) {
-      if (fromDraft) { e.tray.clear(); e.pastes.clear(); e.peek.close(false); e.quotes.clear(); e.command.clear(); paintComposerReady(host, false); }
+      if (fromDraft) { e.tray.clear(); e.files.clear(); e.pastes.clear(); e.peek.close(false); e.quotes.clear(); e.command.clear(); paintComposerReady(host, false); }
       const said = sending.length ? inlineImageList(text, sending) : text;
       if (!said) return;
       rememberSent(e, said);
       svLine(e, "sv-user", said);
       sayToTeamSeat(e.mirror.dev, e.mirror.seat, said, textarea);
-      if (fromDraft) { textarea.value = ""; textarea.style.height = ""; paintInk(); keepDraftNow(e.name, ""); }
+      if (fromDraft) { textarea.value = ""; textarea.style.height = ""; paintInk(); keepBox(true); }
       return;
     }
     const native = text.match(NATIVE_COMMANDS);
@@ -691,83 +798,72 @@ function getStructured(s) {
       runNativeCommand(e, native[1], native[2]);
       /* the command the app answers itself is spent too: leaving it pinned would keep its mark
          painted over an empty box, and the next enter would ask for it again. */
-      if (fromDraft) { textarea.value = ""; e.pastes.clear(); e.peek.close(false); e.command.clear(); paintReady(); paintInk(); autosize(); keepDraftNow(e.name, ""); }
+      if (fromDraft) clearBox();
       return;
     }
-    svCmd(e, sending.length ? { type: "say", text, images: sending } : { type: "say", text }).then((r) => {
+    if (fromDraft) {
+      e.sending = true;
+      paintComposer(e);
+    }
+    const steers = steer ? { steer: true } : {};
+    svCmd(e, sending.length ? { type: "say", text, images: sending, ...steers } : { type: "say", text, ...steers }).then((r) => {
+      if (fromDraft) e.sending = false;
       /* the driver refusing, the socket being down, the driver not answering at all: every one of
          these used to end here without a word, and the person read it as a box that stopped
          working. the words stay in the box and the reason goes into the conversation. */
-      if (!r?.ok) return void svLine(e, "sv-meta warn", r?.error || phrase("the message did not reach this chat — it is still in the box"));
-      if (fromDraft) {
-        e.tray.clear();
-        e.pastes.clear();
-        e.peek.close(false);
-        e.quotes.clear();
-        e.command.clear();
-        paintComposerReady(e.host, false);
+      if (!r?.ok) {
+        paintComposer(e);
+        return void svLine(e, "sv-meta warn", r?.error || phrase("the message did not reach this chat — it is still in the box"));
       }
       if (fromDraft) e.atBottom = true;
       const shownText = typeof r.shown === "string" ? r.shown : text;
       const wentIn = svWasDequeuedEarly(e, r.cid);
       const waits = !wentIn && (r.queued ?? (e.turnOpen && !r.dismissed));
-      if (waits && cutIn) {
-        const bubble = svLine(e, "sv-user", splitPeerHandle(text).body || "(image)");
-        paintMentions(bubble);
-        if (r.cid) bubble.dataset.cid = r.cid;
-        if (r.uuid) bubble.dataset.uuid = r.uuid;
-        for (const path of sending) svUserThumb(e, bubble, path);
-        interruptStructured(e);
-      } else if (waits) {
-        const tray = e.host.querySelector(".sv-queue");
-        const item = document.createElement("div");
-        item.className = "sv-qitem";
-        item.dataset.text = shownText;
-        item.dataset.images = JSON.stringify(sending);
-        item.dataset.quotes = JSON.stringify(pinned);
-        item.dataset.cid = r.cid || "";
-        item.dataset.uuid = r.uuid || "";
-        item.innerHTML = `<span class="qbadge">${phrase("queued")}</span><span class="qmarks"></span><span class="qtxt"></span><button type="button" class="qnow" title="${phrase("push it into the turn now — no waiting ({n})", { n: IS_MAC ? "⌥⏎" : "alt+enter" })}"><svg aria-hidden="true"><use href="#i-qnow"/></svg></button><button type="button" class="qdrop" title="${phrase("take it back into the box — it will not be sent (↑ in the empty box)")}"><svg aria-hidden="true"><use href="#i-qback"/></svg></button>`;
-        const shown = withoutQuotes(pinned.map((one) => one.said), shownText);
-        item.querySelector(".qmarks").innerHTML =
-          (sending.length ? `<svg aria-hidden="true"><use href="#i-image"/></svg><b>${sending.length}</b>` : "")
-          + (pinned.length ? `<svg aria-hidden="true"><use href="#i-quote"/></svg><b>${pinned.length}</b>` : "");
-        item.querySelector(".qtxt").textContent = foldPastes(splitPeerHandle(shown).body, (words) => `[Pasted text +${pasteLines(words)} lines]`);
-        paintSaidCommand(item.querySelector(".qtxt"));
-        item.querySelector(".qnow").addEventListener("click", () => sendNow(item));
-        item.querySelector(".qdrop").addEventListener("click", () => takeBack(item));
-        tray.prepend(item);
-        tray.classList.add("on");
-        (e.queuedEls ||= []).push(item);
-        paintActivity(e);
-      } else {
-        const bubble = svLine(e, "sv-user", shownText || "(image)");
-        if (r.uuid) bubble.dataset.uuid = r.uuid;
-        if (r.cid) bubble.dataset.cid = r.cid;
-        for (const path of sending) svUserThumb(e, bubble, path);
-      }
-      if (fromDraft) { textarea.value = ""; textarea.style.height = ""; paintInk(); keepDraftNow(e.name, ""); }
+      if (waits && steer && r.cid) steerIn(shownText, sending, pinned, r.cid, r.uuid);
+      else if (waits) enqueue(shownText, sending, pinned, r.cid, r.uuid);
+      else userBubble(shownText, r.cid, sending, r.uuid);
+      if (fromDraft) clearBox();
+      paintComposer(e);
     });
   };
   const dropFromTray = (item) => {
     const i = (e.queuedEls || []).indexOf(item);
     if (i >= 0) e.queuedEls.splice(i, 1);
     item.remove();
-    const tray = e.host.querySelector(".sv-queue");
-    if (tray) tray.classList.toggle("on", !!(e.queuedEls || []).length);
+    paintQueue(e);
   };
   const sendNow = (item) => {
     svCmd(e, { type: "saynow", target: item.dataset.cid }).then((r) => {
       if (!r?.ok) return void svQueueRefused(e, r);
       dropFromTray(item);
       if (item.dataset.gone) return void paintActivity(e);
-      const bubble = svLine(e, "sv-user", splitPeerHandle(item.dataset.text || "").body || "(image)");
-      paintMentions(bubble);
-      if (item.dataset.cid) bubble.dataset.cid = item.dataset.cid;
-      if (item.dataset.uuid) bubble.dataset.uuid = item.dataset.uuid;
-      for (const path of JSON.parse(item.dataset.images || "[]")) svUserThumb(e, bubble, path);
+      userBubble(item.dataset.text, item.dataset.cid, JSON.parse(item.dataset.images || "[]"), item.dataset.uuid);
       paintActivity(e);
     });
+  };
+  const putBack = (item, mode = "append") => {
+    const imgs = JSON.parse(item.dataset.images || "[]");
+    const quoted = JSON.parse(item.dataset.quotes || "[]");
+    const kept = new Set();
+    IMAGE_MARK_RE.lastIndex = 0;
+    const back = withoutQuotes(quoted, item.dataset.text || "").replace(IMAGE_MARK_RE, (mark, n) => {
+      const path = imgs[Number(n) - 1];
+      if (!path) return mark;
+      kept.add(Number(n) - 1);
+      const fresh = e.tray.mint();
+      e.tray.restore(path, fresh);
+      return `[Image #${fresh}]`;
+    });
+    const folded = foldIntoBox(back);
+    if (mode === "replace") textarea.value = folded;
+    else if (folded) textarea.value = textarea.value.trim() ? `${textarea.value}\n${folded}` : folded;
+    for (const path of imgs.filter((_, i) => !kept.has(i))) {
+      const fresh = e.tray.mint();
+      e.tray.restore(path, fresh);
+      textarea.value = `${textarea.value}${textarea.value && !/\s$/.test(textarea.value) ? " " : ""}[Image #${fresh}] `;
+    }
+    for (const one of quoted) e.quotes.add(one.said, one.kind, one.comment);
+    paintInk();
   };
   const takeBack = (item) => {
     svCmd(e, { type: "unsay", target: item.dataset.cid }).then((r) => {
@@ -776,23 +872,8 @@ function getStructured(s) {
         return void svQueueRefused(e, r);
       }
       dropFromTray(item);
-      const imgs = JSON.parse(item.dataset.images || "[]");
-      const quoted = JSON.parse(item.dataset.quotes || "[]");
-      const kept = new Set();
-      IMAGE_MARK_RE.lastIndex = 0;
-      const back = withoutQuotes(quoted.map((one) => one.said), item.dataset.text || "").replace(IMAGE_MARK_RE, (mark, n) => {
-        const path = imgs[Number(n) - 1];
-        if (!path) return mark;
-        kept.add(Number(n) - 1);
-        const fresh = e.tray.mint();
-        e.tray.restore(path, fresh);
-        return `[Image #${fresh}]`;
-      });
-      const folded = foldIntoBox(back);
-      if (folded) textarea.value = textarea.value.trim() ? `${textarea.value}\n${folded}` : folded;
-      keepDraft(e.name, textarea.value);
-      for (const path of imgs.filter((_, i) => !kept.has(i))) svAttachImage(e, path);
-      for (const one of quoted) e.quotes.add(one.said, one.kind);
+      putBack(item);
+      keepBox();
       paintReady();
       paintInk();
       paintActivity(e);
@@ -800,24 +881,130 @@ function getStructured(s) {
       textarea.focus();
     });
   };
-  const say = (cutIn = false) => {
-    const out = outboundImageMarks(textarea.value.trim(), e.tray.marks);
+  const remove = (item) => {
+    svCmd(e, { type: "unsay", target: item.dataset.cid }).then((r) => {
+      if (!r?.ok) {
+        if (r?.gone) svDequeue(e, item);
+        return void svQueueRefused(e, r);
+      }
+      dropFromTray(item);
+      paintActivity(e);
+    });
+  };
+  /* drivers from before resay answer "unknown command": the message is said again and loses its place. */
+  const resay = (item, out) => {
+    const rewrite = () => {
+      item.dataset.text = out.text;
+      item.dataset.images = JSON.stringify(out.images);
+      item.dataset.quotes = JSON.stringify(out.quotes);
+      delete item.dataset.sig;
+    };
+    return svCmd(e, { type: "resay", target: item.dataset.cid, text: out.text, images: out.images }).then((r) => {
+      if (r?.ok) { rewrite(); return r; }
+      if (r?.gone || !/unknown command/.test(r?.error || "")) return r;
+      return svCmd(e, { type: "unsay", target: item.dataset.cid }).then((gone) => {
+        if (!gone?.ok) return gone;
+        dropFromTray(item);
+        return svCmd(e, { type: "say", text: out.text, images: out.images }).then((again) => {
+          if (!again?.ok) return again;
+          if (again.queued) enqueue(out.text, out.images, out.quotes, again.cid, again.uuid);
+          else userBubble(out.text, again.cid, out.images, again.uuid);
+          return again;
+        });
+      });
+    });
+  };
+  const outgoing = () => {
+    const out = outboundImageMarks(outboundPrPicks(e.files.outbound(textarea.value.trim()), e.prPicks, chatHandleTaken), e.tray.marks);
     const woven = weaveHandles(out.text, st.data.sessions, e.name);
-    if (!woven.error) woven.text = outboundPastes(woven.text, e.pastes.held);
-    /* a handle the box cannot resolve used to swallow the whole message: enter pressed, nothing
-       sent, nothing said. the box keeps the words and the reason goes into the conversation. */
-    if (woven.error) return void svLine(e, "sv-meta warn", woven.error);
+    if (woven.error) return { error: woven.error, text: "", images: [], quotes: [] };
+    woven.text = outboundPastes(woven.text, e.pastes.held);
     /* the mark can sit anywhere in the box, but a session only reads a command in front of the
        words: what goes out is the same sentence with that one word lifted to the head. */
     const called = e.command.name();
-    deliver(withCommand(called, withQuotes(e.quotes.all(), withoutCommand(called, woven.text))), out.images, true, cutIn);
+    return { text: withCommand(called, withQuotes(e.quotes.all(), withoutCommand(called, woven.text))), images: out.images, quotes: e.quotes.pinned() };
+  };
+  const say = (alternate = false) => {
+    if (e.sending || stopGuarding(e)) return;
+    if (blockedSend(e)) return;
+    if (composerSendTaken(e, { alternate })) return;
+    const out = outgoing();
+    /* a handle the box cannot resolve used to swallow the whole message: enter pressed, nothing
+       sent, nothing said. the box keeps the words and the reason goes into the conversation. */
+    if (out.error) return void svLine(e, "sv-meta warn", out.error);
+    if (refuseTooLong(host, out.text)) return;
+    const steer = composerLive(e) && !e.planAsk && dispatchMode({ running: e.turnOpen, alternate, steerable: canSteer(e), preferred: followUp() }) === "steer";
+    deliver(out.text, out.images, true, steer);
   };
   host.querySelector(".sv-composer").addEventListener("submit", (ev) => { ev.preventDefault(); say(); });
+  host.querySelector(".sv-send").addEventListener("click", (ev) => {
+    if (!(IS_MAC ? ev.metaKey : ev.ctrlKey)) return;
+    ev.preventDefault();
+    say(true);
+  });
   host.querySelector(".sv-pill-model").addEventListener("click", () => openSeatPicker(e, "model"));
   host.querySelector(".sv-pill-effort").addEventListener("click", () => openSeatPicker(e, "effort"));
   host.querySelector(".sv-pill-account").addEventListener("click", () => openSeatPicker(e, "account"));
   host.querySelector(".sv-ctx").addEventListener("click", () => experienceNext() ? openContextWindow(e) : runNativeCommand(e, "context"));
   e.type = (text, images = []) => deliver(String(text).trim(), Array.isArray(images) ? images : [], false);
+  const restoreBox = (snap) => {
+    e.restoring = true;
+    textarea.value = String(snap?.text || "");
+    e.tray.clear();
+    e.files.restore(snap?.files);
+    e.quotes.clear();
+    e.command.clear();
+    for (const [n, path] of snap?.images || []) e.tray.restore(path, n);
+    for (const one of snap?.quotes || []) e.quotes.add(one.said, one.kind, one.comment);
+    e.restoring = false;
+    e.histIdx = null;
+    clearTooLong(host);
+    syncCommand();
+    autosize();
+    paintReady();
+    paintInk();
+    keepBox();
+  };
+  const mergeBox = (entry) => {
+    const fresh = new Map();
+    for (const [n, path] of entry.images || []) {
+      const at = e.tray.mint();
+      e.tray.restore(path, at);
+      fresh.set(Number(n), at);
+    }
+    const freshFiles = e.files.merge(entry.files);
+    const said = String(entry.text || "").replace(IMAGE_MARK_RE, (mark, n) => (fresh.has(Number(n)) ? `[Image #${fresh.get(Number(n))}]` : mark))
+      .replace(/\[File #(\d+)\]/g, (mark, n) => (freshFiles.has(Number(n)) ? `[File #${freshFiles.get(Number(n))}]` : mark)).trim();
+    if (said) textarea.value = textarea.value.trim() ? `${textarea.value.replace(/\s+$/, "")}\n\n${said}` : said;
+    for (const one of entry.quotes || []) e.quotes.add(one.said, one.kind, one.comment);
+    syncCommand();
+    autosize();
+    paintReady();
+    paintInk();
+    keepBox();
+  };
+  e.box = {
+    textarea,
+    say,
+    enqueue,
+    sendNow,
+    remove,
+    resay,
+    putBack: (item) => { putBack(item, "replace"); syncCommand(); autosize(); paintReady(); paintInk(); },
+    outgoing,
+    paste: (words, plain = false) => pasteWords(words, plain, true),
+    snapshot: boxNow,
+    restore: restoreBox,
+    merge: mergeBox,
+    warn: (said, cls = "sv-meta warn") => svLine(e, cls, said),
+    answer: (id, answers) => {
+      const card = e.asked.get(id) || null;
+      return svCmd(e, { type: "answer", id, answers }).then((r) => {
+        if (r?.ok) e.asked.delete(id);
+        return { ...r, card };
+      });
+    }
+  };
   /* the stamp lights on the tail of the run the mouse is over, wherever inside the run it is —
      hovering the first of three paragraphs is still hovering that answer. */
   let lit = null;
@@ -830,6 +1017,7 @@ function getStructured(s) {
     paintEditPencil(e, lit);
     paintForkButton(e, lit);
     paintReplyButton(e, lit);
+    paintPromptLinkButton(e, lit);
     lit.classList.add("lit");
   };
   scroll.addEventListener("mouseover", (ev) => {
@@ -885,21 +1073,27 @@ function getStructured(s) {
   quotePop.addEventListener("click", (ev) => {
     ev.stopPropagation();
     if (!picked) return;
-    e.quotes.add(picked.said, blockKind(picked.block));
+    const quoted = { said: picked.said, kind: blockKind(picked.block), box: picked.box };
     document.getSelection()?.removeAllRanges();
     dropQuotePop();
-    textarea.focus();
+    if (!composerLive(e)) {
+      e.quotes.add(quoted.said, quoted.kind);
+      return void textarea.focus();
+    }
+    openQuoteNote(e, quoted, (comment, send) => {
+      e.quotes.add(quoted.said, quoted.kind, comment);
+      if (send) say();
+      else textarea.focus();
+    });
   });
-  host.querySelector(".sv-stop").addEventListener("click", () => {
-    interruptStructured(e);
-  });
-  if (raycastOn()) seatComposer(e);
+  host.querySelector(".sv-stop").addEventListener("click", () => requestStop(e, () => interruptStructured(e)));
+  if (composerShaped()) seatComposer(e);
   const autosize = () => {
     textarea.style.height = "";
     const room = svRoom(host, textarea);
     textarea.style.minHeight = room < COMPOSER_MIN ? `${Math.max(SV_FLOOR, room)}px` : "";
     const grown = Math.min(260, textarea.scrollHeight, room);
-    textarea.style.height = grown > (raycastOn() ? SV_LINE : COMPOSER_MIN) ? `${grown}px` : "";
+    textarea.style.height = grown > (composerShaped() ? SV_LINE : COMPOSER_MIN) ? `${grown}px` : "";
   };
   new ResizeObserver(() => { if (textarea.value) autosize(); }).observe(host);
   const fill = (text) => {
@@ -921,9 +1115,17 @@ function getStructured(s) {
       find: (q) => fetch(`/api/files?name=${encodeURIComponent(e.name)}&where=${e.where}&q=${encodeURIComponent(q)}`).then((x) => x.json()).catch(() => null)
     },
     grow: autosize,
+    prs: {
+      find: (q) => searchPullRequests({ name: e.mirror ? "" : e.name, where: e.where }, q),
+      picked: (pr) => {
+        notePick(pr);
+        (e.prPicks ||= new Set()).add(Number(pr.number));
+      }
+    },
     /* the command stays where it was called and takes the mark from whatever held it before —
        and that one goes on being words, in its place, because nothing the person wrote vanishes. */
     onPick: (kind, item) => {
+      if (kind === "slash" && composerPickTaken(e, item)) return;
       if (kind === "slash") e.command.set(item);
       else syncCommand();
       paintInk();
@@ -934,12 +1136,21 @@ function getStructured(s) {
     text = foldIntoBox(text);
     textarea.value = text;
     textarea.setSelectionRange(text.length, text.length);
-    keepDraft(e.name, text);
+    keepBox();
     autosize();
     paintReady();
     paintInk();
   };
+  const historyOpen = (dir) => {
+    if (e.tray.count() || e.files.count() || e.quotes.count() || e.ask) return false;
+    const recalled = e.histIdx != null && textarea.value === e.sent[e.histIdx];
+    if (dir < 0 && textarea.value && !recalled) return false;
+    if (dir > 0 && !recalled) return false;
+    return caretOnEdge(textarea, dir);
+  };
   textarea.addEventListener("keydown", (kev) => {
+    e.lastKeyAt = Date.now();
+    if (kev.key === "v" && (IS_MAC ? kev.metaKey : kev.ctrlKey) && kev.shiftKey && !kev.altKey) e.plainPaste = true;
     if (whichAction(kev)?.action === "release") return;
     kev.stopPropagation();
     if (kev.key === "c" && kev.ctrlKey && !kev.altKey && !kev.metaKey && !kev.shiftKey) {
@@ -970,18 +1181,24 @@ function getStructured(s) {
     }
     if (kev.key === "Escape" && e.peek.open() !== null) { kev.preventDefault(); e.peek.close(); return; }
     if (menu.key(kev)) return;
+    if (editingKeys(kev, textarea)) return;
+    if (composerKeys(e, kev)) {
+      kev.preventDefault();
+      menu.close();
+      return;
+    }
     if (kev.key === "Enter" && kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && e.queuedEls?.length) {
       kev.preventDefault();
       menu.close();
       sendNow(e.queuedEls[e.queuedEls.length - 1]);
       return;
     }
-    if (kev.key === "ArrowUp" && !kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && !textarea.value && e.queuedEls?.length) {
+    if (kev.key === "ArrowUp" && !kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && !textarea.value && e.queuedEls?.length && !composerLive(e)) {
       kev.preventDefault();
       takeBack(e.queuedEls[e.queuedEls.length - 1]);
       return;
     }
-    if (kev.key === "ArrowUp" && !kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && !textarea.value) {
+    if (kev.key === "ArrowUp" && !kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && historyOpen(-1)) {
       const step = stepHistory(e.sent, e.histIdx, -1);
       if (!step) return;
       kev.preventDefault();
@@ -989,15 +1206,15 @@ function getStructured(s) {
       recall(step.text);
       return;
     }
-    if (kev.key === "ArrowDown" && !kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && e.histIdx != null) {
+    if (kev.key === "ArrowDown" && !kev.altKey && !kev.ctrlKey && !kev.metaKey && !kev.shiftKey && e.histIdx != null && historyOpen(1)) {
       kev.preventDefault();
       const step = stepHistory(e.sent, e.histIdx, 1);
       e.histIdx = step.idx;
       recall(step.text);
       return;
     }
-    if (continueListOnShiftEnter(kev, textarea)) return;
-    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); say(!kev.altKey && (IS_MAC ? kev.metaKey : kev.ctrlKey)); }
+    const intent = sendIntent(kev, { text: textarea.value, running: !!e.turnOpen });
+    if (intent) { kev.preventDefault(); menu.close(); say(intent === "alternate"); }
     if (kev.key === "Escape") {
       kev.preventDefault();
       if (st.typing === e.name) releaseKeyboard();
@@ -1005,17 +1222,24 @@ function getStructured(s) {
     }
   });
   textarea.addEventListener("input", () => {
-    e.histIdx = null;
-    keepDraft(e.name, textarea.value);
+    if (e.histIdx != null && textarea.value !== e.sent[e.histIdx]) e.histIdx = null;
+    if (e.stashOpen) e.stashOpen = false;
+    keepBox();
     e.tray.sync();
+    e.files.sync();
     autosize();
     menu.compute();
     syncCommand();
     paintReady();
     paintInk();
+    followTooLong(host, () => outgoing().text);
   });
   textarea.addEventListener("scroll", () => { ink.scrollTop = textarea.scrollTop; });
-  textarea.addEventListener("blur", () => { keepDraftNow(e.name, textarea.value); setTimeout(menu.close, 150); });
+  textarea.addEventListener("blur", () => {
+    keepBox(true);
+    askSettles(e);
+    setTimeout(menu.close, 150);
+  });
   host.addEventListener("click", (ev) => {
     ev.stopPropagation();
     const at = activeItems().findIndex((it) => it.kind === "session" && it.name === e.name);
@@ -1024,7 +1248,17 @@ function getStructured(s) {
   svConvMount(e);
   const left = draftKept(s.name);
   if (left) fill(left);
+  const extras = draftExtrasKept(s.name);
+  if (extras.images.length || extras.quotes.length || extras.files.length) {
+    e.restoring = true;
+    e.files.restore(extras.files);
+    for (const [n, path] of extras.images) e.tray.restore(path, n);
+    for (const one of extras.quotes) e.quotes.add(one.said, one.kind, one.comment);
+    e.restoring = false;
+    paintReady();
+  }
   structPool.set(s.name, e);
+  paintComposer(e);
   return e;
 }
 
@@ -1145,8 +1379,14 @@ function shapeComposer(host, on, halt = null) {
   const well = form.querySelector(".sv-well");
   const btns = form.querySelector(".sv-btns");
   const foot = form.querySelector(".sv-foot");
+  const clip = form.querySelector(".sv-clip");
+  const pick = form.querySelector(".sv-pick");
+  const ctx = form.querySelector(".sv-ctx");
   if (!on) {
     form.prepend(activity, attach, well);
+    if (clip) foot.append(clip);
+    if (pick) foot.append(pick);
+    if (ctx) foot.append(ctx);
     foot.append(btns);
     form.querySelector(":scope > .sv-box").remove();
     for (const extra of foot.querySelectorAll(":scope > :is(.sv-when, .sv-keys, .sv-halt)")) extra.remove();
@@ -1155,10 +1395,12 @@ function shapeComposer(host, on, halt = null) {
   }
   const box = document.createElement("div");
   box.className = "sv-box";
-  const line = document.createElement("div");
-  line.className = "sv-line";
-  line.append(well, btns);
-  box.append(attach, line);
+  const bar = document.createElement("div");
+  bar.className = "sv-bar";
+  const fill = document.createElement("span");
+  fill.className = "sv-bar-fill";
+  bar.append(...[clip, fill, pick, ctx, btns].filter(Boolean));
+  box.append(attach, well, bar);
   form.prepend(box);
   foot.prepend(activity);
   if (!halt) return;
@@ -1169,10 +1411,11 @@ function shapeComposer(host, on, halt = null) {
 }
 
 function seatComposer(e) {
-  const on = raycastOn();
+  const on = composerShaped();
   shapeComposer(e.host, on, () => interruptStructured(e));
   const textarea = e.host.querySelector(".sv-composer textarea");
-  if (on && textarea && textarea.placeholder === phrase(SV_ASK)) textarea.placeholder = phrase(SV_ASK_SLIM);
+  if (composerLive(e)) paintComposer(e);
+  else if (on && textarea && textarea.placeholder === phrase(SV_ASK)) textarea.placeholder = phrase(SV_ASK_SLIM);
 }
 
 document.addEventListener("hive:experience", (event) => {
@@ -1184,7 +1427,12 @@ document.addEventListener("hive:experience", (event) => {
   }
 });
 
-const listInkMarks = (said) => [...listMarks(said).map((mark) => ({ ...mark, cls: mark.kind === "ul" ? "ink-bullet" : "ink-num" })), ...inkChips(said)];
+const chatHandleTaken = (handle) => {
+  const asked = String(handle).toLowerCase();
+  return (st.data?.sessions || []).some((one) => seatHandle(one) === asked || one.name.toLowerCase() === asked);
+};
+
+const listInkMarks = (said) => [...listMarks(said).map((mark) => ({ ...mark, cls: mark.kind === "ul" ? "ink-bullet" : "ink-num" })), ...inkChips(said), ...fileMarkInk(said), ...prPickSpans(said, chatHandleTaken)];
 
 function drawInk(composer, ink, textarea, found) {
   const said = textarea.value;
@@ -1210,24 +1458,15 @@ function drawInk(composer, ink, textarea, found) {
   ink.scrollTop = textarea.scrollTop;
 }
 
-function continueListOnShiftEnter(kev, textarea) {
-  if (kev.key !== "Enter" || !kev.shiftKey || kev.altKey || kev.ctrlKey || kev.metaKey) return false;
-  const step = continueList(textarea.value, textarea.selectionStart ?? 0, textarea.selectionEnd ?? 0);
-  if (!step) return false;
-  kev.preventDefault();
-  textarea.setSelectionRange(step.from, step.to);
-  if (!(step.text ? document.execCommand?.("insertText", false, step.text) : document.execCommand?.("delete"))) {
-    textarea.setRangeText(step.text, step.from, step.to, "end");
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-  return true;
-}
-
 function offeredCommands(e) {
-  const list = e.slash || [];
+  const hidden = st.slashSkills === false ? e.skills : null;
+  const list = hidden?.size ? (e.slash || []).filter((name) => !hidden.has(name)) : e.slash || [];
   const info = e.slashInfo || {};
-  if (!list.length || list.includes("fresh")) return { list, info };
-  return { list: [...list, "fresh"], info: { ...info, fresh: { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "" } } };
+  if (!list.length) return { list, info };
+  const extra = {};
+  if (!list.includes("fresh")) extra.fresh = { description: phrase("start over in a new session that carries an extract of this one"), argumentHint: "", family: "seat" };
+  for (const [name, row] of composerCommands(e)) extra[name] = { ...row, family: "seat" };
+  return { list: [...list.filter((name) => !(name in extra)), ...Object.keys(extra)], info: { ...info, ...extra } };
 }
 
-export { SV_AIR, continueListOnShiftEnter, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, runShellInChat, seatReceiving, seatRefused, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadWhole, svLoadingChips, svNarrow, svRevealBlock, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };
+export { SV_AIR, drawInk, listInkMarks, SV_EARLIER_NEAR, SV_FLOOR, SV_KEEP_BLOCKS, SV_KEEP_TURNS, SV_SPARE, SV_TURNS, asQuote, attachFilesToSeat, blockKind, connectStructured, getStructured, interruptStructured, healStructuredScroll, keepStructuredUp, loadingChips, mountStructured, quoteTray, rememberSent, runShellBox, seatReceiving, seatRefused, shellBoxToChat, shapeComposer, soakDrafts, stepHistory, svAttachImage, svCmd, svEarlier, svEarlierBar, svEarlierBlocks, svEarlierSay, svEarlierSeq, svEarlierWords, svFlightScale, svGutter, svLoadEarlier, svLoadWhole, svLoadingChips, svNarrow, svRevealBlock, svReserve, svReset, svRoom, svSpliceEarlier, svTrimTurns, svTypePath, svUnfoldTurns, withQuotes, withoutQuotes };

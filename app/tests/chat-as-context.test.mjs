@@ -4,6 +4,7 @@ import { app, state } from "./dom.mjs";
 
 const st = await state();
 const { SEATS_MIME, handleOf, seatsInLinks } = await app("chat-as-context");
+const { clearPicks, isPicked, pickClick } = await app("seat-selection");
 
 const fleet = () => [
   { name: "login-bug", title: "Bug do login", where: "local", state: "idle", structured: true },
@@ -204,4 +205,38 @@ test("a chat row of the palette carries its chat, whether it was listed by name 
   assert.notEqual(rows[2].draggable, true, "an action row is not a chat");
   list.innerHTML = "";
   st.palRows = [];
+});
+
+const choose = (name) => pickClick({ metaKey: true, ctrlKey: true, altKey: false, shiftKey: false, preventDefault() {} }, name, []);
+
+test("dragging one of the chosen chats carries all of them, the dragged one first, and the drop clears the choice", () => {
+  hive();
+  clearPicks();
+  st.data.sessions.push({ name: "deploy", title: "Deploy", where: "local", state: "idle", structured: true });
+  const row = railRow("checkout");
+  choose("login-bug");
+  choose("checkout");
+  choose("deploy");
+  const target = tile("deploy", "junta estes:");
+  const carried = pick(row);
+  assert.deepEqual(JSON.parse(carried.getData(SEATS_MIME)), ["checkout", "login-bug", "deploy"]);
+  assert.match(carried.image.el.textContent, /Checkout\+2/);
+  const over = fire("dragover", target.box, carried);
+  assert.equal(over.defaultPrevented, true, "a chosen chat that is the target itself does not refuse the drop");
+  fire("drop", target.box, carried);
+  fire("dragend", row, carried);
+  assert.equal(target.box.value, "junta estes: #checkout #bug-do-login ");
+  assert.equal(isPicked("checkout"), false, "the drop clears the choice");
+});
+
+test("dragging a chat that is not chosen carries only that chat and keeps the choice", () => {
+  hive();
+  clearPicks();
+  choose("checkout");
+  const row = railRow("login-bug");
+  const carried = pick(row);
+  assert.deepEqual(JSON.parse(carried.getData(SEATS_MIME)), ["login-bug"]);
+  fire("dragend", row, carried);
+  assert.equal(isPicked("checkout"), true);
+  clearPicks();
 });

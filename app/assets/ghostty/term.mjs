@@ -230,6 +230,20 @@ export class GhosttyTerm {
     surface.requestRender();
   }
 
+  scrollToTop() {
+    const bar = this.surface?.core.scrollbarState();
+    if (bar?.offset) this.scrollLines(-bar.offset);
+  }
+
+  selectAll() {
+    this.ready(() => {
+      this.surface.core.selectAll();
+      this.surface.forceFullRender = true;
+      this.surface.requestRender();
+      this.selectionCb?.();
+    });
+  }
+
   atBottom() {
     try { return this.surface ? this.surface.core.isViewportActive() : true; } catch { return true; }
   }

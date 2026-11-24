@@ -3,6 +3,7 @@ import { paintStrip, render } from "./arrange.js";
 import { activeItems } from "./blocks.js";
 import { offerFace, paintGate, saveConfig } from "./brand-face.js";
 import { setSound } from "./chimes-and-notices.js";
+import { composerLive, paintComposer } from "./composer-modes.js";
 import { BLOB_FACE, chordKeys, parseChord, createEffect, createRoot, experienceNext, raycastOn, RAYCAST_FONT, RAYCAST_TERMINAL, DEFAULT_KEYS, DEFAULT_LEADER, defaultChords, DIGIT_ACTIONS, DIRECT_MODES, formatKey, fullThemeDef, HIVE_THEME, isOff, MOVE_MODES, on, paintFold, parseAvatar, parseKey, parseWear, phrase, renderKey, RETIRED_ACTIONS, saveSidesShut, saveUnfolded, sidesShut, solidMounts, st, steady, SV_ASK, SV_ASK_SLIM, THEME, themeCssVars, themeDef, unfolded, untrack, withTail, wornThemeName } from "./core.js";
 import { paintFaceSheet } from "./face-door.js";
 import { renderHistory } from "./history.js";
@@ -27,6 +28,9 @@ import { paintThemes } from "./themes.js";
 import { paintPrList, paintPrMid } from "./thread.js";
 import { paintRelnotes, paintTour } from "./tour.js";
 import { paintBrandAvatar, paintSettingsFace } from "./welcome.js";
+import { adoptTuning, applyThemeCss, paintAppearanceMarks, paintContrast, paintFontAreas } from "./appearance.js";
+import { paintAppearancePanel } from "./appearance-panel.js";
+import { hexIsLight } from "/assets/theme-css.mjs";
 import { paintWorktreeRail, paintWorktrees } from "./worktrees.js";
 
 function bootSolid() {
@@ -86,6 +90,9 @@ function applyTheme() {
     if (raycast && !bare) el.style.setProperty("--signal", full.ui.accent);
     else if (el.style.getPropertyValue("--signal")) el.style.removeProperty("--signal");
   }
+  paintAppearanceMarks(hexIsLight(full.ui.bg));
+  applyThemeCss(def?.css);
+  paintContrast();
   const t = raycast && bare ? RAYCAST_TERMINAL : { ...THEME, ...full.terminal, cursorAccent: full.terminal.background };
   TERM_LOOK.theme = t;
   for (const e of pool.values()) {
@@ -97,8 +104,12 @@ function applyTheme() {
 function adoptTheme(r) {
   st.customThemes = r.config.themes || {};
   st.themeName = r.config.theme || HIVE_THEME.name;
+  st.appearance = r.config.appearance || "fixed";
+  st.themeLight = r.config.themeLight || st.themeLight;
+  adoptTuning(r.config);
   applyTheme();
   paintThemes();
+  paintAppearancePanel();
 }
 
 function toggleFold(name) {
@@ -119,6 +130,7 @@ function paintSlim(name, el) {
   if (!e?.host.isConnected) return;
   const ta = e.host.querySelector(".sv-composer textarea");
   if (!ta) return;
+  if (composerLive(e)) return void paintComposer(e);
   const slim = raycastOn() || (!el.classList.contains("focused") && !el.classList.contains("open"));
   const says = phrase(slim ? SV_ASK_SLIM : SV_ASK);
   if (ta.placeholder !== says) ta.placeholder = says;
@@ -246,14 +258,16 @@ function applyFonts(font) {
   st.fontPrefs = font;
   const worn = raycastFonts(font);
   const mono = withTail(worn.mono, "mono");
+  const term = font.terminal ? withTail(font.terminal, "mono") : mono;
   document.documentElement.style.setProperty("--sans", withTail(worn.sans, "sans"));
   document.documentElement.style.setProperty("--mono", mono);
   document.documentElement.style.setProperty("--chat-line", String(font.chatLineHeight));
   document.documentElement.style.setProperty("--chat-gap", `${font.chatSpacing}px`);
-  TERM_LOOK.fontFamily = mono;
+  paintFontAreas(font, withTail);
+  TERM_LOOK.fontFamily = term;
   TERM_LOOK.fontSize = font.terminalSize;
   for (const e of pool.values()) {
-    e.term.options.fontFamily = mono;
+    e.term.options.fontFamily = term;
     e.term.options.fontSize = font.terminalSize;
     if (e.host.isConnected) refit(e);
   }

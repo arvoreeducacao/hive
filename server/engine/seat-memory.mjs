@@ -5,7 +5,7 @@ export function readsOnly(cmd) {
 }
 
 export function wakesTheSeat(cmd) {
-  return cmd?.type !== "state" && cmd?.type !== "presence" && !readsOnly(cmd);
+  return cmd?.type !== "state" && cmd?.type !== "presence" && cmd?.type !== "stop_task" && !readsOnly(cmd);
 }
 
 export function answerWhileAsleep(cmd, remembered) {

@@ -229,7 +229,7 @@ export function createNativeRoom({
     kill(name) {
       const held = windows.get(name);
       if (!held) return false;
-      if (!held.dead) { try { held.child.kill(); } catch {} }
+      if (!held.dead) { try { held.child.kill(); } catch { return false; } }
       forget(held);
       return true;
     },

@@ -10,12 +10,12 @@ const sheet = readFileSync(join(HERE, "assets", "raycast", "overlays.css"), "utf
 
 const st = await state();
 await views();
-const { phrase } = await app("core");
+const { phrase, speak } = await app("core");
 const { keyCaps, keyParts, previousState, showWhich } = await app("leader-key");
 const { questionCard } = await app("chat-and-panes");
 const notices = await app("chimes-and-notices");
 const { palModel, palPreviewViewModel } = await app("palette");
-const { seatMenuRows, menuViewModel } = await app("seat-menu");
+const { seatMenuRows, menuViewModel, openSeatMenu, closeSeatMenu } = await app("seat-menu");
 const { ask, closeConfirm } = await app("pod");
 const { emptyWallModel, closeSeat } = await app("tiles");
 const { paintNudge } = await app("team");
@@ -211,12 +211,37 @@ test("with the flag the seat menu carries icons and keys, folds the blocks into 
   assert.equal(rows.at(-1).label, phrase("close the seat…"));
 }));
 
-test("without the flag the seat menu keeps its rows and its model keeps its shape", () => {
+test("without the flag the seat menu keeps plain rows, with snooze, settling on its own and hiding folded into submenus", () => {
   hive([seat(), seat({ name: "q2" })]);
   const rows = seatMenuRows(seat());
-  assert.ok(rows.every((r) => !r.icon && !r.sub));
+  const plain = (list) => list.every((r) => !r.icon && (!r.sub || plain(r.sub)));
+  assert.ok(plain(rows), "the menu of this look draws no icons");
+  assert.deepEqual(rows.filter((r) => r.sub).map((r) => r.label), [phrase("Snooze"), phrase("Settle on its own"), phrase("hide until…")]);
+  assert.ok(!rows.some((r) => String(r.label).includes(" · ")), "no submenu is spelled out row by row any more");
+  assert.deepEqual(rows.find((r) => r.label === phrase("Settle on its own")).sub.map((r) => [r.label, !!r.on]), [[phrase("Follow settings"), true], [phrase("Never"), false]]);
   assert.equal(rows.at(-1).label, phrase("close the seat"));
   assert.deepEqual(Object.keys(menuViewModel("a", [{ label: "go" }]).rows[0]), ["key", "at", "label", "note", "danger", "off"]);
+  assert.equal(menuViewModel("a", [{ label: "go", sub: [] }]).rows[0].sub, true);
+});
+
+test("without the flag a submenu opens in place with a way back, and esc goes back before it closes", () => {
+  hive([seat(), seat({ name: "q2" })]);
+  openSeatMenu(seat(), 10, 10);
+  const menu = document.getElementById("seatmenu");
+  const labels = () => [...menu.querySelectorAll("button")].map((one) => one.textContent.trim());
+  const snooze = [...menu.querySelectorAll("button.ghost.sub")].find((one) => one.textContent.trim() === phrase("Snooze"));
+  assert.ok(snooze, "snooze is a row that opens more");
+  assert.equal(snooze.getAttribute("aria-haspopup"), "menu");
+  snooze.click();
+  assert.ok(menu.classList.contains("on"), "the menu stays open");
+  assert.equal(labels()[0], phrase("Snooze"), "the first row takes it back");
+  assert.ok(menu.querySelector(".mback"));
+  assert.ok(labels().includes(phrase("Custom…")));
+  document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.ok(menu.classList.contains("on"), "esc steps back first");
+  assert.ok(labels().includes(phrase("Snooze")) && !menu.querySelector(".mback"));
+  document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.ok(!menu.classList.contains("on"), "and closes the menu next");
 });
 
 test("with the flag the palette writes each seat's state beside its name and details the picked one", () => withFlag(() => {
@@ -352,4 +377,72 @@ test("a doctor fix in the palette shows where it runs and the command it copies 
   assert.deepEqual(names, [`${phrase("run")}: ${phrase("{what}, in Git Bash", { what: phrase("prepare this machine") })}`, `${phrase("run")}: ${phrase("create the {avd} AVD", { avd: "hive-pixel" })}`]);
   assert.equal(fact("command").copy, "hive-pod exec 'git -C /workspace/hub pull --ff-only'");
   st.alerts = { ...st.alerts, count: 0, items: [] };
+}));
+
+test("with the flag the chat menu opens on its actions: no caption, no key caps, no notes, and what they said goes to the tooltip", () => withFlag(() => {
+  hive([seat(), seat({ name: "q2" })]);
+  st.blocks.push({ id: "b2", ws: st.space, keys: ["f1", "f2", "f3", "f4"] });
+  openSeatMenu(seat(), 10, 10);
+  const menu = document.getElementById("seatmenu");
+  assert.equal(menu.querySelector(".mhead"), null, "the caption row is gone");
+  assert.equal(menu.querySelector(".mi-keys"), null, "no key caps");
+  assert.equal(menu.querySelector(".mi b"), null, "no notes beside the rows");
+  assert.equal(menu.getAttribute("aria-label"), "valores incoerentes", "the chat still names the menu for a screen reader");
+  const item = (said) => [...menu.querySelectorAll(".mi")].find((one) => one.querySelector(".lbl").textContent === said);
+  assert.equal(item(phrase("copy the seat name")).title, "q1", "the note went to the tooltip");
+  item(phrase("move to a block")).click();
+  assert.ok(menu.querySelector(".mhead .mback"), "a submenu keeps its way back");
+  const full = item(phrase("block {n}", { n: 2 }));
+  assert.ok(full.hasAttribute("disabled"));
+  assert.equal(full.title, phrase("full"), "the disabled row says why in its tooltip");
+  closeSeatMenu();
+}));
+
+test("with the flag typing in an open menu filters it, and the field only shows once something is typed", () => withFlag(() => {
+  hive([seat(), seat({ name: "q2" })]);
+  openSeatMenu(seat(), 10, 10);
+  const menu = document.getElementById("seatmenu");
+  const field = menu.querySelector(".mfind");
+  assert.ok(field && !field.classList.contains("typed"), "nothing typed, nothing shown");
+  const box = menu.querySelector(".mi-q");
+  assert.ok(document.activeElement === box, "the keys go to the hidden field");
+  box.value = "arch";
+  box.dispatchEvent(new window.Event("input", { bubbles: true }));
+  assert.ok(menu.querySelector(".mfind").classList.contains("typed"), "the field shows what is being typed");
+  assert.deepEqual([...menu.querySelectorAll(".mi .lbl")].map((one) => one.textContent), [phrase("archive")]);
+  closeSeatMenu();
+}));
+
+test("without the flag the chat menu has no caption and no notes either, and moving to a block is said in the language of the app", () => {
+  hive([seat(), seat({ name: "q2" })]);
+  st.blocks.push({ id: "b2", ws: st.space, keys: [] });
+  speak("pt-BR");
+  try {
+    assert.ok(seatMenuRows(seat()).some((row) => row.label === "mover para o bloco 2"));
+  } finally {
+    speak("en");
+  }
+  openSeatMenu(seat(), 10, 10);
+  const menu = document.getElementById("seatmenu");
+  assert.equal(menu.querySelector(".cap"), null);
+  assert.equal(menu.querySelector("button b"), null);
+  const copy = [...menu.querySelectorAll("button")].find((one) => one.textContent === phrase("copy the seat name"));
+  assert.equal(copy.title, "q1");
+  closeSeatMenu();
+});
+
+test("with the flag the notice card says what happened without a clock, keeps the key in a tooltip and closes on a ×", () => withFlag(() => {
+  hive([seat({ state: "needs" })]);
+  const card = notices.seatNoticeOf(seat({ state: "needs" }), "attention");
+  assert.equal(card.querySelector(".cn-at"), null, "no block and no time in the corner");
+  const go = card.querySelector(".cn-go");
+  assert.equal(go.querySelector(".rc-key"), null, "no key caps on the button");
+  assert.equal(go.textContent, phrase("Open thread"));
+  assert.ok(go.title.startsWith(phrase("Open thread")));
+  const later = card.querySelector(".cn-later");
+  assert.ok(later.parentElement === card, "the × sits on the card, not in the row of buttons");
+  assert.ok(later.querySelector("svg"));
+  assert.equal(later.getAttribute("aria-label"), phrase("Later"));
+  assert.doesNotMatch(sheet, /\.cn-seat-card\.needs\s*\{[^}]*gradient/, "the card that needs you is not tinted red");
+  clearTimeout(card._t);
 }));

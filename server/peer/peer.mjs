@@ -449,6 +449,24 @@ export async function buzzPhone(line, { env = process.env, ask = askTheApp } = {
   return { ok: true, seat: self.name };
 }
 
+export async function readAppThemes({ env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (self.where === "cloud") return { error: "the theme belongs to the app on the person's computer — a chat in the cloud cannot change it" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open" };
+  const read = await ask(door, "GET", "/api/themes/agent");
+  return read.ok ? read.said : { error: read.error || "the hive did not say its themes" };
+}
+
+export async function setAppTheme(input, { env = process.env, ask = askTheApp } = {}) {
+  const self = await me(env);
+  if (self.where === "cloud") return { error: "the theme belongs to the app on the person's computer — a chat in the cloud cannot change it" };
+  const door = hiveDoor(self.base);
+  if (!existsSync(door)) return { error: "no hive answering on this machine — the app has to be open" };
+  const done = await ask(door, "POST", "/api/themes/agent", input || {});
+  return done.ok ? done.said : { error: done.error || "the hive would not take the theme" };
+}
+
 export const SLACK_CHARS = 12000;
 
 export async function sayOnSlack(text, { env = process.env, ask = askTheApp } = {}) {

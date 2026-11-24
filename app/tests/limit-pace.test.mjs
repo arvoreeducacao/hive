@@ -7,7 +7,7 @@ const st = await state();
 await views();
 const { $ } = await app("core");
 const { elapsedShare, evenPacePercent, paceOf, paceRemainingPercent, spanSaid, windowLength } = await app("limit-pace");
-const { accountMeterModel, closeLimPop, limPopOpen, limPopViewModel, limitPace, openLimPop, paintLimitChip } = await app("limit-chip");
+const { accountMeterModel, adoptLimitsFoot, closeLimPop, limPopOpen, limPopViewModel, limitPace, openLimPop, paintLimitChip } = await app("limit-chip");
 const { closeUsage, limitBlockModel, usageDetailModel, usageListModel, usageOnScreen } = await app("usage");
 await app("hold-numbers");
 
@@ -141,6 +141,7 @@ test("each limit in the popover is a button that opens the usage panel on that l
 });
 
 test("esc closes the popover and gives the keyboard back to the chip", async () => {
+  adoptLimitsFoot({ config: { limitsFoot: true } });
   showPopover([live(30, 2 * HOUR)]);
   await settle();
   const row = $("limpop").querySelector("button.limit");
@@ -150,4 +151,5 @@ test("esc closes the popover and gives the keyboard back to the chip", async () 
   assert.equal(limPopOpen(), false);
   assert.ok(document.activeElement === $("btn-lim"), "focus lands on the chip that opened the popover");
   closeLimPop();
+  adoptLimitsFoot({ config: { limitsFoot: false } });
 });

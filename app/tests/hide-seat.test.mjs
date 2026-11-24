@@ -97,6 +97,21 @@ test("the rail keeps a folded list of the hidden chats, and opening one brings i
   setHiddenOpen(false);
 });
 
+test("a hidden chat's row says why it is away, and bringing it back lives in its hint, not on the line", () => {
+  hidden.clear();
+  lay(["a", "b"]);
+  live({ a: "idle", b: "idle" });
+  hideSeat("b");
+  setHiddenOpen(true);
+  const [row] = railViewModel().snoozed.shown;
+  assert.equal(row.name, "b");
+  assert.ok(row.why, "the reason stays on the line");
+  assert.equal("action" in row, false, "no action word on the line");
+  assert.match(row.hint, /click to bring it back now/);
+  bringSeatIn("b");
+  setHiddenOpen(false);
+});
+
 test("a chat hidden until it finishes stays away while it works and comes back when the turn ends", () => {
   hidden.clear();
   lay(["a", "b"]);

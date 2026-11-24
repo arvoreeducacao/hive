@@ -100,7 +100,7 @@ In plan mode the chat writes a plan, and the plan becomes a card. The plan ends 
 - With no name, the Hive takes the first four words of the mission as the name. A small model then writes a title in the background. Until it lands, the tile says "naming this chat in the background — the first words hold the seat until the name lands".
 - If the model is unsure of the subject, the Hive asks once more after the first turn ends. It never writes over a name a person gave.
 - To rename, double-click the chat's name, or use "rename…" in the seat menu. Enter saves, Esc cancels. An empty name gives the seat name back. A title has at most 60 characters.
-- "regenerate title" in the seat menu asks the model again from the whole chat, in every layout. The Inbox row menu has it too, and the `retitle` shortcut does it for the focused chat (no key by default; bind one in Settings, "Keyboard"). While the model works, the chat's title glimmers, and a second ask is ignored. A new title replaces a name a person gave.
+- "regenerate title" in the seat menu asks the model again from the whole chat, in every layout. The `retitle` shortcut does it for the focused chat (no key by default; bind one in Settings, "Keyboard"). While the model works, the chat's title glimmers, and a second ask is ignored. A new title replaces a name a person gave.
 - A chat renames itself with the `rename` tool, with an optional `now` line for what it does at the moment. Called without a title, `rename` asks the model again from the whole chat, as "Regenerate title" does, but it never replaces a name the person wrote by hand.
 - Settings › The conversation › Titles keeps your own instructions for titles, such as "start with the ticket": one for all projects and one per project. A project's own instructions take the place of the ones for all projects. They go into the request for new and regenerated titles. In the settings file they are `titleInstructions`, with `all` and `projects` (project folder → text, up to 2000 characters each).
 
@@ -231,8 +231,6 @@ The new provider gets an extract: the first request, the recent conversation, an
 **Turn checkpoints** are for local chats with a worktree (not the repo's main checkout).
 
 - After each turn, the Hive saves a snapshot of the worktree as the git ref `refs/hive/checkpoints/<chat>/<n>`. The commits and branches stay as they are. The last 60 are kept. The first one is the baseline "start".
-- In the Inbox layout, the chat's "Turns" section lists them with lines added and removed. "See what this turn changed" shows the diff.
-- "Put the files back as they were here" restores a turn. What is there now is saved as a new turn, so you can come back. It is refused while the chat works: "the chat is working — stop it before going back".
 
 **Chat details** (a chat open alone) show:
 

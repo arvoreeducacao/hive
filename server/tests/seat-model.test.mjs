@@ -27,6 +27,8 @@ function bench({ bornOn = "", setModelImpl, catalogue = CATALOGUE } = {}) {
     let currentModel = ${JSON.stringify(bornOn)};
     let chosenModel = ${JSON.stringify(bornOn)};
     let effortLevel = "";
+    let fastMode = false;
+    const wearFastMode = async () => false;
     const options = {};
     if (chosenModel) options.model = chosenModel;
     let sleeping = false;

@@ -4,6 +4,8 @@
 :where(body.experience-raycast) .menu .mhead { display: flex; align-items: center; gap: 8px; min-width: 0; height: 28px; padding: 0 8px; font-family: var(--mono); font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--txt-3); }
 :where(body.experience-raycast) .menu .mhead .cap { all: unset; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 :where(body.experience-raycast) .menu .mhead .cap-at { flex: none; white-space: nowrap; }
+:where(body.experience-raycast) #seatmenu .mhead { font-family: var(--sans); font-size: 12px; font-weight: 500; letter-spacing: normal; text-transform: none; }
+:where(body.experience-raycast) #seatmenu .mhead .cap::first-letter { text-transform: uppercase; }
 :where(body.experience-raycast) .menu .mback { all: unset; box-sizing: border-box; display: grid; place-items: center; width: 24px; height: 24px; margin-left: -6px; border-radius: var(--r1); color: var(--txt-2); cursor: pointer; }
 :where(body.experience-raycast) .menu .mback svg { width: 12px; height: 12px; transform: rotate(90deg); }
 :where(body.experience-raycast) .menu .mback:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
@@ -22,6 +24,7 @@
 :where(body.experience-raycast) .menu .mfind svg { width: 12px; height: 12px; flex: none; }
 :where(body.experience-raycast) .menu .mfind input { all: unset; flex: 1; min-width: 0; font-size: 13px; color: var(--txt); caret-color: var(--txt); }
 :where(body.experience-raycast) .menu .mfind input::placeholder { color: var(--txt-3); }
+:where(body.experience-raycast) .menu .mfind:not(.typed) { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip-path: inset(50%); border: 0; }
 :where(body.experience-raycast) #mode.leader, :where(body.experience-raycast) #mode.holding { font-family: var(--mono); font-size: 12px; color: var(--txt); background: color-mix(in srgb, var(--txt) 9%, transparent); border-color: transparent; }
 :where(body.experience-raycast) #mode.leader .dot, :where(body.experience-raycast) #mode.holding .dot { width: 6px; height: 6px; background: var(--txt); }
 :where(body.experience-raycast) #canopyNotices { gap: 8px; width: min(368px, calc(100vw - 32px)); bottom: 76px; }
@@ -31,20 +34,18 @@
 :where(body.experience-raycast) .cn-body { gap: 2px; padding: unset; }
 :where(body.experience-raycast) .cn-head { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13px; font-weight: 500; color: var(--txt); white-space: nowrap; }
 :where(body.experience-raycast) .cn-head .cn-seat, :where(body.experience-raycast) .cn-head .cn-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-:where(body.experience-raycast) .cn-head .cn-at { margin-left: auto; flex: none; font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--txt-3); }
 :where(body.experience-raycast) .cn-say { font-size: 13px; line-height: 1.45; color: var(--txt-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 :where(body.experience-raycast) .cn-acts { display: flex; gap: 6px; margin-top: 8px; }
-:where(body.experience-raycast) .cn-go, :where(body.experience-raycast) .cn-later { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border-radius: var(--r1); font-size: 12px; font-weight: 500; color: var(--txt-2); white-space: nowrap; cursor: pointer; }
-:where(body.experience-raycast) .cn-go { color: var(--txt); background: color-mix(in srgb, var(--txt) 9%, transparent); }
-:where(body.experience-raycast) .cn-go .rc-key { height: 16px; min-width: 16px; font-size: 10px; }
-:where(body.experience-raycast) .cn-later:hover { color: var(--txt); }
+:where(body.experience-raycast) .cn-go { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--r1); font-size: 12px; font-weight: 500; color: var(--txt); background: color-mix(in srgb, var(--txt) 9%, transparent); white-space: nowrap; cursor: pointer; }
+:where(body.experience-raycast) .cn-later { all: unset; box-sizing: border-box; position: absolute; top: 8px; right: 8px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--txt-3); cursor: pointer; }
+:where(body.experience-raycast) .cn-later svg { width: 12px; height: 12px; }
+:where(body.experience-raycast) .cn-later:hover { color: var(--txt); background: color-mix(in srgb, var(--txt) 9%, transparent); }
 :where(body.experience-raycast) .cn-go:focus-visible, :where(body.experience-raycast) .cn-later:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-:where(body.experience-raycast) .cn.cn-seat-card { grid-template-columns: 28px minmax(0, 1fr); padding: 12px 12px 12px 14px; }
-:where(body.experience-raycast) .cn.cn-seat-card.needs { background: linear-gradient(180deg, color-mix(in srgb, var(--signal) 12%, transparent), transparent 72%), var(--panel); }
+:where(body.experience-raycast) .cn.cn-seat-card { position: relative; grid-template-columns: 28px minmax(0, 1fr); padding: 12px 40px 12px 14px; }
 :where(body.experience-raycast) .cn-ic { position: relative; width: 28px; height: 28px; border-radius: 50%; background: var(--panel-3); color: var(--txt); display: grid; place-items: center; align-self: start; }
 :where(body.experience-raycast) .cn-ic svg { width: 14px; height: 14px; }
 :where(body.experience-raycast) .cn-ic .rc-dot { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; box-shadow: 0 0 0 2px var(--panel); }
-:where(body.experience-raycast) .sv-q { gap: 12px; padding: 16px; border-radius: var(--r4); background: linear-gradient(180deg, color-mix(in srgb, var(--signal) 12%, transparent), transparent 96px), var(--panel-2); box-shadow: var(--e2); border: unset; }
+:where(body.experience-raycast) .sv-q { gap: 12px; padding: 16px; border-radius: var(--r4); background: var(--panel-2); box-shadow: var(--e2); border: unset; }
 :where(body.experience-raycast) .sv-q .qstep { gap: 12px; }
 :where(body.experience-raycast) .sv-q .qh { display: flex; align-items: center; gap: 8px; min-width: 0; letter-spacing: .05em; color: var(--txt-2); }
 :where(body.experience-raycast) .sv-q .qh > span:not(.qcount) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -81,7 +82,7 @@
 :where(body.experience-raycast) .sv-q .qnext { background: var(--accent); color: var(--accent-d); box-shadow: 0 7px 3px rgba(0,0,0,.03), 0 4px 4px rgba(0,0,0,.25); margin-left: unset; }
 :where(body.experience-raycast) .sv-q .qnext .rc-key { background: rgba(0,0,0,.08); box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); color: var(--accent-d); }
 :where(body.experience-raycast) .sv-q .qwake { display: none; }
-:where(body.experience-raycast) .sv-q.later { gap: 0; padding: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--signal) 12%, transparent), transparent 60%), var(--panel-2); }
+:where(body.experience-raycast) .sv-q.later { gap: 0; padding: 0; background: var(--panel-2); }
 :where(body.experience-raycast) .sv-q.later > :not(.qwake) { display: none; }
 :where(body.experience-raycast) .sv-q.later .qwake { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; height: 40px; padding: 0 12px 0 16px; border-radius: var(--r4); font-size: 13px; color: var(--txt); cursor: pointer; }
 :where(body.experience-raycast) .sv-q.later .qwake span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -259,7 +260,7 @@
 :where(body.experience-raycast) .pal-acts { position: absolute; top: auto; right: 8px; bottom: 52px; z-index: 3; width: 312px; max-height: calc(100% - 72px); overflow-y: auto; }
 :where(body.experience-raycast) #pal-acts[hidden] { display: none; }
 :where(body.experience-raycast) .pv-n { color: var(--txt-3); }
-body:where(.experience-raycast).lean .menu, body:where(.experience-raycast).lean #btrade, body:where(.experience-raycast).lean #arrange, body:where(.experience-raycast).lean #plane-hud, body:where(.experience-raycast).lean .plink-menu, body:where(.experience-raycast).lean .pbar, body:where(.experience-raycast).lean #plane-said, body:where(.experience-raycast).lean #plane-map, body:where(.experience-raycast).lean .sv-suggest::before, body:where(.experience-raycast).lean .sv-jump, body:where(.experience-raycast).lean .sv-queue, body:where(.experience-raycast).lean .sv-subs, body:where(.experience-raycast).lean .sv-menu, body:where(.experience-raycast).lean .modal, body:where(.experience-raycast).lean .box, body:where(.experience-raycast).lean #nudge-scrim, body:where(.experience-raycast).lean .w-bar, body:where(.experience-raycast).lean .pal-scrim, body:where(.experience-raycast).lean .pal-sheet, body:where(.experience-raycast).lean .relpop, body:where(.experience-raycast).lean #confirm, body:where(.experience-raycast).lean .which { backdrop-filter: none; -webkit-backdrop-filter: none; }
+body:where(.experience-raycast).lean .menu, body:where(.experience-raycast).lean #btrade, body:where(.experience-raycast).lean #arrange, body:where(.experience-raycast).lean #plane-hud, body:where(.experience-raycast).lean .plink-menu, body:where(.experience-raycast).lean .pbar, body:where(.experience-raycast).lean #plane-said, body:where(.experience-raycast).lean #plane-map, body:where(.experience-raycast).lean .sv-suggest::before, body:where(.experience-raycast).lean .sv-jump, body:where(.experience-raycast).lean .sv-queue, body:where(.experience-raycast).lean .sv-menu, body:where(.experience-raycast).lean .modal, body:where(.experience-raycast).lean .box, body:where(.experience-raycast).lean #nudge-scrim, body:where(.experience-raycast).lean .w-bar, body:where(.experience-raycast).lean .pal-scrim, body:where(.experience-raycast).lean .pal-sheet, body:where(.experience-raycast).lean .relpop, body:where(.experience-raycast).lean #confirm, body:where(.experience-raycast).lean .which { backdrop-filter: none; -webkit-backdrop-filter: none; }
 body:where(.experience-raycast).look-dimension .sv-cmd .qfree input { border-radius: var(--r-row); }
 body:where(.experience-raycast).look-dimension .sv-cmd .qgo { border-radius: var(--r-card); }
 

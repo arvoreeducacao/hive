@@ -70,7 +70,7 @@ test("the stdio server and the gateway route hand out the same tool list, cut to
   assert.match(stdio, /const calls = peerCalls\(process\.env\);/);
   assert.match(stdio, /if \(method === "tools\/list"\) return \{ tools: toolsFor\(ceilingOf\(process\.env\)\) \};/);
   const gateway = readFileSync(join(HERE, "gateway", "gateway.mjs"), "utf8");
-  assert.match(gateway, /server\.setRequestHandler\(ListToolsRequestSchema, async \(\) => \(\{ tools: toolsFor\(ceilingOf\(seatEnv\)\) \}\)\);/);
+  assert.match(gateway, /server\.setRequestHandler\(ListToolsRequestSchema, async \(\) => \(\{ tools: toolsFor\(ceilingOf\(seatEnv\), seatEnv\) \}\)\);/);
   assert.ok(PEER_TOOLS.some((tool) => tool.name === "peers") && PEER_TOOLS.some((tool) => tool.name === "publish"));
 });
 

@@ -4,13 +4,11 @@ import { releaseKeyboard } from "./focus-navigation.js";
 import { hudOnScreen } from "./hud.js";
 import { focusedSeat } from "./mirror.js";
 import { openSeatMenu } from "./seat-menu.js";
-import { structureHook } from "./structure.js";
 import { structPool } from "./structured-seats.js";
 
-const LIST_SPOTS = [".tx-side", ".lx-list", ".em-queue", ".stg-stack", ".il-pill", ".ck-fleet", ".mp-area"];
-const PANEL_SPOTS = ["#thread", ".tile.open > .side", ".tx-prside", "[data-focus-area=\"panel\"]"];
+const PANEL_SPOTS = ["#thread", ".tile.open > .side", "[data-focus-area=\"panel\"]"];
 const FOCUSABLE = "button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
-const ROW_SPOTS = "#rail-sessions .item[data-name]:not(.parked), #structure-root [data-seat], #structure-root [data-key]";
+const ROW_SPOTS = "#rail-sessions .item[data-name]:not(.parked)";
 const RING_MS = 900;
 
 const lastFocus = new Map();
@@ -27,8 +25,8 @@ function conversationHost() {
 }
 
 function listArea() {
-  const spots = LIST_SPOTS.map((spot) => document.querySelector(`#structure-root ${spot}`));
-  return [...spots, $("rail")].find(shown) || null;
+  const rail = $("rail");
+  return shown(rail) ? rail : null;
 }
 
 function workspaceAreas() {
@@ -59,8 +57,8 @@ const areasNow = () => (settingsOpen() ? settingsAreas() : workspaceAreas());
 
 function listEntry(el) {
   const name = focusedSeat()?.name;
-  const here = name ? el.querySelector(`[data-name="${CSS.escape(name)}"], [data-seat="${CSS.escape(name)}"]`) : null;
-  return el.querySelector(".tx-row.sel, .item.sel[data-name], .item.here[data-name]") || here || el.querySelector(".item[data-name], .tx-row[data-key]") || el.querySelector(FOCUSABLE);
+  const here = name ? el.querySelector(`[data-name="${CSS.escape(name)}"]`) : null;
+  return el.querySelector(".item.sel[data-name], .item.here[data-name]") || here || el.querySelector(".item[data-name]") || el.querySelector(FOCUSABLE);
 }
 
 function settingsEntry(el) {
@@ -107,11 +105,9 @@ function stepArea(step) {
 
 function rowAt(el) {
   if (!el?.closest || el.closest(".sv, input, textarea, select, [contenteditable=\"true\"]")) return null;
-  const hooked = structureHook("rowAt", el);
-  if (hooked) return hooked;
   const row = el?.closest?.(ROW_SPOTS);
   if (!row) return null;
-  const name = row.dataset.name || row.dataset.seat || row.dataset.key;
+  const name = row.dataset.name;
   const seat = (st.data?.sessions || []).find((one) => one.name === name);
   return seat ? { name, el: row } : null;
 }

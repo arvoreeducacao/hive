@@ -2,7 +2,7 @@ import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCle
 import { phrase, spokenNow } from "/assets/i18n.mjs";
 import { nextHive, raycast } from "./raycast.js";
 import { mountView } from "./view.jsx";
-import { ansiSpans, clockOf, fullTimeOf, liveThoughtLine, workingSays } from "./app/timeline-rows.js";
+import { ansiSpans, clockOf, fullTimeOf, liveFor, liveThoughtLine, workingSays } from "./app/timeline-rows.js";
 import { jsonSpans } from "./app/tool-inspector.js";
 
 function Raw(props) {
@@ -27,11 +27,13 @@ const TL_ICONS = {
   hammer: '<path d="m15 12-9.373 9.373a1 1 0 0 1-3.001-3L12 9"/><path d="m18 15 4-4"/><path d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172v-.344a2 2 0 0 0-.586-1.414l-1.657-1.657A6 6 0 0 0 12.516 3H9l1.243 1.243A6 6 0 0 1 12 8.485V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"/>',
   wrench: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>',
   chevron: '<path d="m9 18 6-6-6-6"/>',
+  redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/>',
   chevronDown: '<path d="m6 9 6 6 6-6"/>',
   alarm: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/><path d="M6.38 18.7 4 21"/><path d="M17.64 18.67 20 21"/>',
   check: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
   refresh: '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
   alert: '<circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/>',
+  stop: '<circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6" rx="1"/>',
   working: '<path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.721a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.279 17.609a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="M6.391 20.279a10 10 0 0 1-2.69-2.7"/>'
 };
 
@@ -212,6 +214,16 @@ function Bubble(props) {
         data-at={props.block.at || undefined}
         data-said={props.block.said || undefined}
       >
+        <Show when={props.row?.steer}>
+          <span
+            class="tl-steer-mark"
+            classList={{ unread: !!props.row.steerUnread }}
+            title={props.row.steerUnread ? phrase("Waiting for the agent to read this. It reads steers between steps, after a running command finishes.") : phrase("Steered the active turn")}
+          >
+            <TlIcon name="redo" />
+            <span>{props.row.steerUnread ? phrase("Steer · waiting to be read") : phrase("Steer")}</span>
+          </span>
+        </Show>
         <Show when={props.block.thumbs.some((thumb) => !thumb.inline)}>
           <span class="uatts">
             <For each={props.block.thumbs.filter((thumb) => !thumb.inline)}>{(thumb) => (
@@ -672,14 +684,35 @@ function Working(props) {
   );
 }
 
+function statusTip(row) {
+  if (!row.t0) return row.tip || "";
+  return `${row.tip} · ${phrase("running for {d}", { d: liveFor(Date.now() - Number(row.t0)) })}`;
+}
+
 function StatusLine(props) {
+  const text = () => (
+    <>
+      {props.row.label}
+      <Show when={props.row.detail}>{" "}<span class="tl-status-detail">{props.row.detail}</span></Show>
+    </>
+  );
+  const tipNow = (ev) => { ev.currentTarget.title = statusTip(props.row); };
   return (
-    <div class="tl-status tl-quiet" data-tone={props.row.tone || undefined}>
+    <div class="tl-status tl-quiet" data-tone={props.row.tone || undefined} data-status={props.row.id}>
       <TlIcon name={props.row.icon} />
-      <span class="tl-status-label">{props.row.label}</span>
+      <Show when={props.row.open} fallback={<span class="tl-status-label">{text()}</span>}>
+        <button type="button" class="tl-status-label tl-status-open" title={statusTip(props.row)} on:pointerenter={tipNow} on:focus={tipNow} on:click={() => props.actions.status?.(props.row.open)}>{text()}</button>
+      </Show>
       <Show when={props.row.action}>
         <span aria-hidden="true">·</span>
         <button type="button" class="tl-inline" on:click={() => props.actions.status?.(props.row.act)}>{props.row.action}</button>
+      </Show>
+      <Show when={props.row.actions?.length}>
+        <span class="tl-status-acts">
+          <For each={props.row.actions}>{(one) => (
+            <button type="button" class="tl-status-icon" data-act={one.act} title={one.label} aria-label={one.label} disabled={!!one.disabled} on:click={() => props.actions.status?.(one.act)}><TlIcon name={one.icon} /></button>
+          )}</For>
+        </span>
       </Show>
     </div>
   );
@@ -737,40 +770,3 @@ export function mountConversation(host, actions) {
   };
 }
 
-function Sub(props) {
-  return (
-    <details class="sv-sub" data-t0={props.sub.dataset.t0} data-bg={props.sub.dataset.bg || undefined} data-task={props.sub.dataset.task || undefined}>
-      <summary title={props.sub.hint} on:click={(ev) => { if (ev.currentTarget.ownerDocument.body.classList.contains("experience-next")) ev.preventDefault(); }}>
-        <Icon class="sico" glyph="i-agent" />
-        <span class="sname">{props.sub.name}</span>
-        <span class="sarg">{props.sub.arg}</span>
-        <span class="sbg" hidden={!props.sub.dataset.bg}>{props.sub.background}</span>
-        <span class="sms">{props.sub.ms}</span>
-      </summary>
-      <pre class="sbody">{props.sub.body}</pre>
-      <ol class="slog" classList={{ on: !!props.sub.steps.length }}>
-        <For each={props.sub.steps}>{(step) => (
-          <li
-            class="sstep"
-            classList={{ now: !!step.now, open: !!step.open, bad: !!step.bad }}
-            data-kind={step.face}
-            data-key={step.of || undefined}
-            title={step.hint || undefined}
-          >
-            <Icon class="stico" glyph={step.glyph} />
-            <span class="stxt">{step.text}</span>
-            <span class="sok"><Show when={step.landed}><Icon glyph={step.bad ? "i-x" : "i-check"} /></Show></span>
-          </li>
-        )}</For>
-      </ol>
-    </details>
-  );
-}
-
-export function Subs(props) {
-  return <For each={props.model.subs}>{(sub) => <Sub sub={sub} />}</For>;
-}
-
-export function mountSubs(host) {
-  return mountView(host, Subs, { subs: [] }, {});
-}

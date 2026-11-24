@@ -1,7 +1,11 @@
 const beats = new Map();
 
+let pace = (name, ms) => ms;
+
 const arm = (entry) => {
-  entry.id = setInterval(entry.fn, entry.ms);
+  const ms = pace(entry.name, entry.ms);
+  if (!(ms > 0)) return;
+  entry.id = setInterval(entry.fn, ms);
   entry.id.unref?.();
 };
 
@@ -13,7 +17,7 @@ const disarm = (entry) => {
 
 export function every(name, ms, fn, { background = false } = {}) {
   stopBeat(name);
-  const entry = { ms, fn, background, id: undefined };
+  const entry = { name, ms, fn, background, id: undefined };
   beats.set(name, entry);
   if (background || !document.hidden) arm(entry);
 }
@@ -26,6 +30,14 @@ export function stopBeat(name) {
 }
 
 export const beatOn = (name) => beats.has(name);
+
+export function setPace(next) {
+  pace = typeof next === "function" ? next : (name, ms) => ms;
+  for (const entry of beats.values()) {
+    disarm(entry);
+    if (entry.background || !document.hidden) arm(entry);
+  }
+}
 
 document.addEventListener("visibilitychange", () => {
   for (const entry of beats.values()) {

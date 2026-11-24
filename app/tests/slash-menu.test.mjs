@@ -70,11 +70,11 @@ test("the command menu opens wherever the slash was typed, not only at the start
 
 test("the list is grouped by family, and the best match stays the selected one", () => {
   const compute = slice(suggest, "const computeSuggest = ()", "const key = (kev)", "suggest-menu.js");
-  assert.match(compute, /SLASH_FAMILY_ORDER\.indexOf\(slashFamily\(a\)\)/, "the ranking is laid out family by family");
-  assert.match(compute, /const best = Math\.max\(0, items\.indexOf\(hits\[0\] \|\| ""\)\)/, "grouping moves the best match but must not deselect it");
+  assert.match(compute, /SLASH_FAMILY_ORDER\.indexOf\(familyOf\(name, known\.info\)\)/, "the ranking is laid out family by family");
+  assert.match(compute, /const best = q \? Math\.max\(0, items\.indexOf\(hits\[0\] \|\| ""\)\) : 0/, "grouping moves the best match but must not deselect it");
   const render = slice(suggest, "const renderMenu = (emptyMsg)", "const computeSuggest", "suggest-menu.js");
   assert.match(render, /family === group \? "" : `<div class="grp">/, "a family heading is written once, not on every row");
-  assert.match(render, /suggestKeys\.hidden = m\.kind !== "slash"/, "the keys row shows for commands and hides for the other marks");
+  assert.match(render, /suggestKeys\.hidden = raycast \|\| m\.kind !== "slash"/, "the keys row shows only for commands in the plain experience");
 });
 
 test("the three families are told apart by what they cost, not by how they are spelled", () => {
@@ -85,7 +85,7 @@ test("the three families are told apart by what they cost, not by how they are s
 
 test("a command picked from the menu stays where it was called, like every other mark", () => {
   const pick = slice(suggest, "const pickMenu = (i)", "const renderMenu = (emptyMsg)", "suggest-menu.js");
-  assert.match(pick, /textarea\.value = v\.slice\(0, m\.start\) \+ inserted \+ v\.slice\(m\.end\);/, "the command lands in the hole the fragment left, not at the head");
+  assert.match(pick, /editBox\(textarea, m\.start, end, inserted\);/, "the command lands in the hole the fragment left, not at the head, as one step undo can take back");
   assert.doesNotMatch(pick, /textarea\.value = head \+ body;/, "nothing is moved to the front of the box any more");
   assert.doesNotMatch(pick, /stripCommand/, "and picking a second command does not delete the first");
   const seatPick = slice(stretches, "const menu = suggestMenu({", "const recall = (text)", "chat-stretches.js");
@@ -108,7 +108,7 @@ test("the box paints the command itself instead of parking a chip outside it", (
   assert.match(paint, /const spot = name \? commandSpot\(said, name\) : null/, "the mark is painted over the word the person called, wherever it sits");
   assert.match(paint, /\.\.\.\(spot \? \[\{ \.\.\.spot, cls: "ink-cmd" \}\] : \[\]\)/, "a name that is no longer in the text paints nothing");
   assert.match(paint, /drawInk\(composer, ink, textarea, \[/, "the marks go to the one painter both boxes share");
-  const draw = slice(stretches, "function drawInk(", "function continueListOnShiftEnter(", "chat-stretches.js");
+  const draw = slice(stretches, "function drawInk(", "function offeredCommands(", "chat-stretches.js");
   assert.match(draw, /said\.slice\(last, mark\.start\)/, "the words in front of the command are painted in front of it");
   assert.match(draw, /composer\.classList\.remove\("inked"\)/, "with no command the textarea goes back to painting its own words");
   assert.match(draw, /ink\.scrollTop = textarea\.scrollTop/, "a box that scrolled would otherwise show the mark on the wrong line");
@@ -144,7 +144,7 @@ test("the pinned name is a mirror of the text, so any edit can give the command 
 });
 
 test("what goes out carries the command in front, wherever it sat in the box", () => {
-  const say = slice(stretches, "const say = (cutIn = false) => {", 'host.querySelector(".sv-composer").addEventListener("submit"', "chat-stretches.js");
+  const say = slice(stretches, "const outgoing = () => {", "const say = (alternate = false) => {", "chat-stretches.js");
   assert.match(say, /withCommand\(called, withQuotes\(/, "quotes go inside the argument, never ahead of the command");
   assert.match(say, /withoutCommand\(called, woven\.text\)/, "the word is lifted out of the sentence first, or the message goes out calling it twice");
 });
@@ -159,10 +159,13 @@ test("what was said keeps the mark it had in the box", () => {
 });
 
 test("a message that goes out gives its command up, like it gives images and quotes up", () => {
-  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, cutIn = false)", "const dropFromTray", "chat-stretches.js");
-  assert.equal((deliver.match(/e\.command\.clear\(\)/g) || []).length, 4, "the mirrored seat, the shell line, the command the app answers itself and the sent message all let it go");
+  const clear = slice(stretches, "const clearBox = () => {", "const deliver = (text, sending, fromDraft, steer = false)", "chat-stretches.js");
+  assert.match(clear, /e\.command\.clear\(\);/, "clearing the box gives the command up");
+  const deliver = slice(stretches, "const deliver = (text, sending, fromDraft, steer = false)", "const dropFromTray", "chat-stretches.js");
+  assert.equal((deliver.match(/e\.command\.clear\(\)/g) || []).length, 1, "the mirrored seat lets it go on its own");
+  assert.equal((deliver.match(/if \(fromDraft\) clearBox\(\);/g) || []).length, 3, "the shell line, the command the app answers itself and the sent message all clear the box");
   const native = slice(stretches, "const native = text.match(NATIVE_COMMANDS)", "svCmd(e, sending.length", "chat-stretches.js");
-  assert.match(native, /e\.command\.clear\(\); paintReady\(\); paintInk\(\)/, "a spent /model or /agents leaves no mark painted over an empty box");
+  assert.match(native, /if \(fromDraft\) clearBox\(\);/, "a spent /model or /agents leaves no mark painted over an empty box");
 });
 
 test("the attachment row is back to images and quotes only", () => {

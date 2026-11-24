@@ -28,11 +28,13 @@ test("a right click inside a field or over selected text leaves the seat menu sh
   assert.match(seatMenu, /within\.contains\(picked\.anchorNode\)/);
 });
 
-test("the window answers that right click with cut, copy and paste", () => {
+test("the window answers that right click with cut, copy and paste, and copies an image or a link under the pointer", () => {
   const from = main.indexOf('webContents.on("context-menu"');
   const hook = main.slice(from, main.indexOf('webContents.on("did-finish-load"', from));
-  assert.match(hook, /if \(!params\.isEditable && !params\.selectionText\) return;/);
+  assert.match(hook, /if \(!params\.isEditable && !params\.selectionText && !image && !link\) return;/);
   for (const role of ["cut", "copy", "paste", "selectAll"]) assert.match(hook, new RegExp(`role: "${role}"`));
+  assert.match(hook, /copyImageAt\(params\.x, params\.y\)/);
+  assert.match(hook, /clipboard\.writeText\(link\)/);
 });
 
 test("the chat in the rail opens the same menu the tile does", () => {

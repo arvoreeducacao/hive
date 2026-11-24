@@ -48,6 +48,7 @@ export function seatCommand({
   agent = "claude",
   model = "",
   effort = "",
+  fast = false,
   sessionId = "",
   resumeId = "",
   structured = false,
@@ -86,6 +87,7 @@ export function seatCommand({
     const compact = compactAt ? ` --autocompact ${quoteForShell(compactAt)}` : "";
     words.push(`${carried}${held}${mine} node ${quoteForShell(driver)}${asAgent} --name ${quoteForShell(name)} --cwd ${quoteForShell(hub)}${model_}${resumed}${session}${compact}`);
     if (["claude", "codex", "kimi"].includes(agent) && effort) words.push(` --effort ${quoteForShell(effort)}`);
+    if (agent === "claude" && fast === true) words.push(" --fast");
     if (promptFile) words.push(` --prompt-file ${quoteForShell(promptFile)}`);
     if (anonymous) words.push(" --anon");
   } else if (agent === "opencode") {
@@ -150,6 +152,7 @@ export function seatArgv({
   agent = "claude",
   model = "",
   effort = "",
+  fast = false,
   sessionId = "",
   resumeId = "",
   structured = false,
@@ -185,6 +188,7 @@ export function seatArgv({
     else if (agent === "claude" && sessionId) args.push("--session-id", sessionId);
     if (compactAt) args.push("--autocompact", compactAt);
     if (["claude", "codex", "kimi"].includes(agent) && effort) args.push("--effort", effort);
+    if (agent === "claude" && fast === true) args.push("--fast");
     if (promptFile) args.push("--prompt-file", promptFile);
     if (anonymous) args.push("--anon");
     return { program: "node", args, env, cwd, fallback };

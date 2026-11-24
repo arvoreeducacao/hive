@@ -1,24 +1,22 @@
 import { itemOf } from "./blocks.js";
 import { $, phrase, st } from "./core.js";
-import { goTo } from "./focus-navigation.js";
+import { closeTile, goTo } from "./focus-navigation.js";
 import { hud, hudCopied } from "./hud.js";
 import { focusedSeat } from "./mirror.js";
 import { prOfChat } from "./seat-menu.js";
-import { structureHook, structureSeats, structureWorn } from "./structure.js";
+import { seatSection, settleSeats, togglePinSeat, unsettleSeats } from "./seat-marks.js";
 import { toClipboard } from "./terminal-history.js";
 import { prsOnScreen } from "./thread.js";
 
 const sessionNames = (keys) => keys.map((key) => itemOf(key)).filter((it) => it?.kind === "session").map((it) => it.name);
 
 function chatOrder() {
-  if (structureWorn() !== "classic") return structureSeats().filter((one) => one.kind === "session").map((one) => one.name);
   const rail = [...document.querySelectorAll("#rail-sessions .item[data-name]:not(.parked)")].map((el) => el.dataset.name);
   if (rail.length) return [...new Set(rail)];
   return sessionNames(st.blocks.flatMap((b) => b.keys));
 }
 
 function stepChat(step) {
-  if (structureHook("stepChat", step) === true) return true;
   const order = chatOrder();
   if (!order.length) return false;
   const now = focusedSeat()?.name;
@@ -30,7 +28,6 @@ function stepChat(step) {
 }
 
 function toggleSidebar() {
-  if (structureHook("toggleSidebar") === true) return true;
   const rail = $("rail");
   if (!rail || !rail.getClientRects().length) return false;
   $("rail-toggle")?.click();
@@ -59,4 +56,24 @@ async function copyPrNumber() {
   return hudCopied(text, await toClipboard(text));
 }
 
-export { chatOrder, copyChatLink, copyPrNumber, readingPr, stepChat, toggleSidebar };
+function markableSeat() {
+  const seat = focusedSeat();
+  if (seat && !seat.anon) return seat;
+  hud({ icon: "i-warn", tone: "warn", text: phrase("No chat to mark") });
+  return null;
+}
+
+function settleFocused() {
+  const seat = markableSeat();
+  if (!seat) return null;
+  if (seatSection(seat.name) === "settled") return unsettleSeats([seat.name]);
+  if (st.open === seat.name) closeTile();
+  return settleSeats([seat.name]);
+}
+
+function pinFocused() {
+  const seat = markableSeat();
+  return seat ? togglePinSeat(seat.name) : null;
+}
+
+export { chatOrder, copyChatLink, copyPrNumber, pinFocused, readingPr, settleFocused, stepChat, toggleSidebar };

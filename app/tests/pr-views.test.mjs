@@ -8,7 +8,7 @@ await views();
 const { $ } = await app("core");
 const { closePrs, openPrs, paintPrs, prsShown } = await app("thread");
 const { adoptPrViews, closePrViews, prViewsOpen } = await app("pr-views");
-const inboxPr = await import(new URL("../src/structures/inbox-pr.js", import.meta.url).href);
+const prSide = await import(new URL("../src/app/pr-side.js", import.meta.url).href);
 
 const posted = [];
 let refuse = false;
@@ -251,33 +251,33 @@ test("a save the config refuses keeps the name form open and says why", async ()
   }
 });
 
-test("the Inbox PR panel has the same Views menu, and a view chosen there opens the PR list with it", async () => {
+test("the PR tab of the side panel has the same Views menu, and a view chosen there opens the PR list with it", async () => {
   await panel({ saved: [{ id: "b", name: "Broken builds", filter: "failing", query: "build" }] });
   closePrs();
   await settle();
   const side = document.createElement("aside");
-  side.className = "tx-prside";
+  side.className = "tp-main";
   document.body.append(side);
   const repaint = () => {
-    const { main } = inboxPr.prSideHtml(() => "", repaint);
+    const { main } = prSide.prSideHtml(() => "", repaint);
     side.innerHTML = main;
   };
   try {
-    inboxPr.openPrSide("o/r#1");
+    prSide.openPrSide("o/r#1");
     repaint();
-    const inboxTrigger = () => side.querySelector("[data-pr-views]");
-    assert.ok(inboxTrigger(), "the Inbox PR panel shows Views");
-    assert.equal(inboxTrigger().dataset.act, "pr-views");
-    inboxTrigger().focus();
-    inboxPr.prSideAct(inboxTrigger(), repaint);
+    const paneTrigger = () => side.querySelector("[data-pr-views]");
+    assert.ok(paneTrigger(), "the PR tab shows Views");
+    assert.equal(paneTrigger().dataset.act, "pr-views");
+    paneTrigger().focus();
+    prSide.prSideAct(paneTrigger(), repaint);
     assert.ok(menu());
-    assert.equal(inboxTrigger().getAttribute("aria-expanded"), "true");
+    assert.equal(paneTrigger().getAttribute("aria-expanded"), "true");
     assert.deepEqual(items(), ["Broken builds", "Save current view…"]);
     press("Escape");
     assert.equal(menu(), null);
-    assert.ok(document.activeElement === inboxTrigger(), "Esc gives the focus back to the Inbox trigger");
-    assert.equal(inboxPr.prSideKey(), "o/r#1", "Esc closed the menu, not the PR panel");
-    inboxPr.prSideAct(inboxTrigger(), repaint);
+    assert.ok(document.activeElement === paneTrigger(), "Esc gives the focus back to the PR tab trigger");
+    assert.equal(prSide.prSideKey(), "o/r#1", "Esc closed the menu, not the PR panel");
+    prSide.prSideAct(paneTrigger(), repaint);
     menu().querySelector('[data-pv-view="b"]').click();
     await settle();
     assert.equal($("prs").hidden, false, "the PR list opens with the view");
@@ -286,7 +286,7 @@ test("the Inbox PR panel has the same Views menu, and a view chosen there opens 
     assert.deepEqual(prsShown().map((one) => one.key), ["o/r#2"], "the list holds what the view asks for");
     assert.match(trigger().textContent, /Broken builds/, "the PR list's Views shows the same view");
   } finally {
-    inboxPr.closePrSide();
+    prSide.closePrSide();
     side.remove();
     await done();
   }

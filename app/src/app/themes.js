@@ -2,24 +2,25 @@ import { arrangeOn, closeArrange, openArrange } from "./arrange.js";
 import { openWelcome } from "./avatars.js";
 import { activeItems, itemOf } from "./blocks.js";
 import { keyLabel, saveConfig } from "./brand-face.js";
+import { hud } from "./hud.js";
 import { openChatFind } from "./chat-find.js";
 import { openContextMenu } from "./chat-context-menu.js";
-import { copyChatLink, copyPrNumber, stepChat, toggleSidebar } from "./chat-shortcuts.js";
+import { copyChatLink, copyPrNumber, pinFocused, settleFocused, stepChat, toggleSidebar } from "./chat-shortcuts.js";
 import { retitleChat, startRename } from "./chat-name.js";
 import { DEFAULT_SOUNDS, ensureAudio, openNewestSeatNotice, paintNotices, playSound, setAnswered, setSound, setVolume } from "./chimes-and-notices.js";
-import { $, BUILTIN_THEMES, CHAT_SCROLLS, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
+import { $, BUILTIN_THEMES, CHAT_SCROLLS, IS_MAC, DEFAULT_KEYS, DEFAULT_LEADER, FOCUS_MOVES, HIVE_CLASSIC_THEME, HIVE_THEME, MOVE_DIRS, THEME_NAME_MAX, THEME_TERM_KEYS, builtinTheme, defaultChords, esc, fontFromPanel, fullThemeDef, hex6, paintFonts, parseThemeShare, phrase, RAYCAST_THEME, raycastOn, solidMounts, st, svgIcon, themeDef, themeShareJson, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { closeTasks, openTasks, tasksOn } from "./tasks.js";
 import { closeTile, goTo, goToBlockAt, goToSeat, goToSpaceAt, openTile, releaseKeyboard, scrollFocusedChat, sendSeatToBlockAt, stepBlock, stepFocus, stepMove, stepSendSeat, takeKeyboard } from "./focus-navigation.js";
 import { stepArea } from "./focus-areas.js";
 import { closeHistory, openHistory } from "./history.js";
 import { commitKeys, disarmLeader, keyMenuItems, paintKeys } from "./leader-key.js";
-import { closeLimPop, limPopOpen, placeLimPop, pullLimits, toggleLimPop } from "./limit-chip.js";
+import { closeLimPop, limPopOpen, placeLimPop, pullLimits, setLimitsFoot, toggleLimPop } from "./limit-chip.js";
 import { archiveSeatNow, closeMirrorChat, focusedSeat, openMirrorChat } from "./mirror.js";
 import { closeProviders, openProviders, providersOnScreen } from "./providers.js";
 import { closeExtensions, extensionsOnScreen, openExtensions } from "./extensions.js";
 import { closePal, openPal, palOn } from "./palette.js";
-import { capsOf, dressHost, followRaycast, footModel, keysHtml, leavePanel, openActions, panelOf, registerPanel, runAction, undressHost } from "./panel-window.js";
+import { capsOf, dressHost, followRaycast, leavePanel, registerPanel, undressHost } from "./panel-window.js";
 import { togglePlane } from "./plane.js";
 import { ask } from "./pod.js";
 import { setLanguage, setPet } from "./preferences.js";
@@ -31,6 +32,8 @@ import { applyFonts, applyTheme } from "./shared.js";
 import { closeShelf, openShelf, shelfOnScreen } from "./shelf.js";
 import { closeMemories, memoriesOnScreen, openMemories } from "./memories.js";
 import { toggleTalking } from "./stt.js";
+import { chatAction, stepVisit } from "./chat-bar.js";
+import { DIFF_ID, WEB_ID, toggleMax, toggleSidePanel, toggleSurface } from "./side-panel.js";
 import { mirrorRow } from "./team.js";
 import { copySelection, reconnect, toClipboard } from "./terminal-history.js";
 import { closePrs, closeThreadPanel, exitReview, openPrs, openShell, openThreadOf, prsOnScreen, reviewInChat } from "./thread.js";
@@ -43,6 +46,8 @@ import { paintSettingResets, searchSettings, searching, watchSettings } from "./
 import { paintSettingsFace } from "./welcome.js";
 
 st.themeEditing = null;
+
+const THEME_LIGHT_DEFAULT = "Bonsai Light";
 
 const THEME_UI_LABELS = {
   bg: "background", panel: "panel", panel2: "panel raised", panel3: "panel top", well: "well",
@@ -104,7 +109,6 @@ function paintThemes() {
     if ($("thm-count")) $("thm-count").textContent = String(raycastBuiltins().length + Object.keys(st.customThemes).filter((name) => !builtinTheme(name)).length);
     themesSolid.show(themesWindowModel());
     themePreviewSolid?.show(themePreviewModel());
-    paintHelpFoot();
     return;
   }
   themesSolid.show(themesViewModel());
@@ -133,13 +137,24 @@ const wearsRaycast = (name) => name === HIVE_THEME.name;
 
 const raycastBuiltins = () => [HIVE_THEME, HIVE_CLASSIC_THEME, ...BUILTIN_THEMES.slice(1)];
 
+const followsSystem = () => st.appearance === "system";
+
+function wornSlotSay(name, worn) {
+  if (!followsSystem()) return name === worn ? phrase("wearing") : "";
+  if (name === st.themeLight && themeDef(name)) return phrase("wearing in light");
+  if (name === st.themeName) return phrase("wearing in dark");
+  return "";
+}
+
 function themeRowModel(name, def, custom, worn) {
   const full = fullThemeDef(wearsRaycast(name) ? RAYCAST_THEME.def : def);
+  const wearing = wornSlotSay(name, worn);
+  const light = themeIsLight(full);
   return {
-    key: name, name, say: wearsRaycast(name) ? RAYCAST_THEME.name : name, custom, worn: name === worn, here: name === pickedTheme(),
+    key: name, name, say: wearsRaycast(name) ? RAYCAST_THEME.name : name, custom, worn: !!wearing, here: name === pickedTheme(),
     bg: full.ui.bg, panel: full.ui.panel, txt: full.ui.txt, accent: full.ui.accent,
-    fresh: wearsRaycast(name), freshSay: phrase("new"),
-    tone: themeIsLight(full) ? phrase("light") : phrase("dark"), wearing: phrase("wearing")
+    light, tone: light ? phrase("light") : phrase("dark"), wearing,
+    agent: def?.by === "agent", agentSay: phrase("made by an agent")
   };
 }
 
@@ -211,9 +226,9 @@ function pasteTheme(text) {
 function themeCardModel(name, def, custom, worn) {
   const full = fullThemeDef(def);
   return {
-    key: name, name, custom, here: name === worn,
+    key: name, name, custom, here: followsSystem() ? !!wornSlotSay(name, worn) : name === worn,
     bg: full.ui.bg, txt: full.ui.txt, txt2: full.ui.txt2,
-    wears: phrase("the hive wears this"), wearing: phrase("wearing"), yours: phrase("yours"),
+    wears: phrase("the hive wears this"), wearing: wornSlotSay(name, worn) || phrase("wearing"), yours: phrase("yours"),
     dots: [full.ui.accent, full.terminal.red, full.terminal.green, full.terminal.yellow, full.terminal.blue, full.terminal.magenta, full.terminal.cyan]
       .map((colour, at) => ({ key: at, colour })),
     acts: custom
@@ -238,14 +253,83 @@ solidMounts.push((hive) => {
   paintThemes();
 });
 
+const slotOf = (name) => (followsSystem() && themeIsLight(fullThemeDef(wearsRaycast(name) ? RAYCAST_THEME.def : themeDef(name))) ? "themeLight" : "theme");
+
 function setTheme(name) {
-  st.themeName = name;
+  const slot = slotOf(name);
+  if (slot === "themeLight") st.themeLight = name;
+  else st.themeName = name;
   st.themePick = name;
   st.themePreview = null;
   applyTheme();
   paintThemes();
-  saveConfig({ theme: name }).catch(() => {});
+  saveConfig({ [slot]: name }).catch(() => {});
 }
+
+const THEME_RESCUE_KEY = IS_MAC ? { ctrl: true, alt: true, meta: true, code: "KeyT" } : { ctrl: true, alt: true, shift: true, code: "KeyT" };
+
+const isThemeRescue = (event) => event.code === "KeyT" && event.ctrlKey && event.altKey && event.metaKey === !!THEME_RESCUE_KEY.meta && event.shiftKey === !!THEME_RESCUE_KEY.shift;
+
+function restoreDefaultTheme() {
+  const patch = { theme: HIVE_THEME.name, appearance: "fixed" };
+  for (const name of new Set([wornThemeName(), st.themeName, st.themeLight])) {
+    const mine = st.customThemes[name];
+    if (!mine?.css) continue;
+    const { css, ...kept } = mine;
+    st.customThemes[name] = kept;
+    patch.themes = st.customThemes;
+  }
+  st.themeName = HIVE_THEME.name;
+  st.appearance = "fixed";
+  st.themePick = HIVE_THEME.name;
+  st.themePreview = null;
+  applyTheme();
+  paintThemes();
+  paintAppearanceChoice();
+  hud({ icon: "i-reload", text: phrase("the default theme is back, with no theme css") });
+  saveConfig(patch).catch(() => {});
+}
+
+window.addEventListener("keydown", (event) => {
+  if (event.repeat || !isThemeRescue(event)) return;
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  restoreDefaultTheme();
+}, true);
+
+function setAppearance(mode) {
+  const system = mode === "system";
+  if (system === followsSystem()) return;
+  const patch = { appearance: system ? "system" : "fixed" };
+  if (system && themeIsLight(fullThemeDef(themeDef(st.themeName)))) {
+    patch.themeLight = st.themeName;
+    patch.theme = HIVE_THEME.name;
+  }
+  if (!system && st.systemLight && themeDef(st.themeLight)) patch.theme = st.themeLight;
+  st.appearance = patch.appearance;
+  if (patch.themeLight) st.themeLight = patch.themeLight;
+  if (patch.theme) st.themeName = patch.theme;
+  applyTheme();
+  paintThemes();
+  paintAppearanceChoice();
+  saveConfig(patch).catch(() => {});
+}
+
+function paintAppearanceChoice() {
+  const pick = $("f-appearance");
+  if (pick && pick.value !== st.appearance) pick.value = st.appearance;
+}
+
+const systemTone = globalThis.matchMedia?.("(prefers-color-scheme: light)");
+
+st.systemLight = !!systemTone?.matches;
+
+systemTone?.addEventListener?.("change", (event) => {
+  st.systemLight = !!event.matches;
+  if (!followsSystem()) return;
+  applyTheme();
+  paintThemes();
+});
 
 function saveThemesToConfig(extra) {
   return saveConfig({ themes: st.customThemes, ...(extra || {}) })
@@ -267,9 +351,11 @@ async function deleteTheme(name) {
   if (!yes) return;
   delete st.customThemes[name];
   if (st.themeName === name) st.themeName = HIVE_THEME.name;
+  const lightGone = st.themeLight === name;
+  if (lightGone) st.themeLight = THEME_LIGHT_DEFAULT;
   applyTheme();
   paintThemes();
-  saveThemesToConfig({ theme: st.themeName });
+  saveThemesToConfig({ theme: st.themeName, ...(lightGone ? { themeLight: st.themeLight } : {}) });
 }
 
 function themeColorRow(group, key, label, value) {
@@ -295,15 +381,18 @@ function saveThemeFromEditor() {
   const complain = (t) => { err.textContent = t; err.hidden = false; };
   if (!name) return complain("give the theme a name");
   if (builtinTheme(name)) return complain(phrase('"{name}" is a built-in theme — pick another name', { name: name }));
+  const was = st.themeEditing ? st.customThemes[st.themeEditing] : null;
   if (st.themeEditing && st.themeEditing !== name) delete st.customThemes[st.themeEditing];
-  st.customThemes[name] = { ui: { ...st.themePreview.ui }, terminal: { ...st.themePreview.terminal } };
-  st.themeName = name;
+  st.customThemes[name] = { ui: { ...st.themePreview.ui }, terminal: { ...st.themePreview.terminal }, ...(was?.css ? { css: was.css } : {}), ...(was?.by ? { by: was.by } : {}) };
+  const slot = slotOf(name);
+  if (slot === "themeLight") st.themeLight = name;
+  else st.themeName = name;
   st.themePreview = null;
   st.themeEditing = null;
   applyTheme();
   paintThemes();
   showThemeView("browse");
-  saveThemesToConfig({ theme: name });
+  saveThemesToConfig({ [slot]: name });
 }
 
 function keepPastedTheme() {
@@ -392,11 +481,9 @@ function paintShotsUsage() {
 
 let helpPane = "keyboard";
 
-let helpFootSolid = null;
+const PANE_TITLES = { keyboard: "Keyboard", look: "Appearance", performance: "Performance", experimental: "Experiments", dictation: "Dictation", meetings: "Meetings", character: "Your character", notices: "Notices", screen: "The screen", conversation: "The conversation", threads: "Settle and snooze", slack: "Slack", machines: "Machines", devices: "Devices" };
 
-const PANE_TITLES = { keyboard: "Keyboard", look: "Appearance", performance: "Performance", experimental: "Experiments", dictation: "Dictation", meetings: "Meetings", character: "Your character", notices: "Notices", screen: "The screen", conversation: "The conversation", threads: "Settle and snooze", slack: "Slack" };
-
-const PANE_ICONS = { keyboard: "i-keys", look: "i-image", performance: "i-bolt", experimental: "i-flow", dictation: "i-mic", meetings: "i-quote", character: "i-user", notices: "i-sound", screen: "i-grid", conversation: "i-quote", threads: "i-check", slack: "i-hash" };
+const PANE_ICONS = { keyboard: "i-keys", look: "i-image", performance: "i-bolt", experimental: "i-flow", dictation: "i-mic", meetings: "i-quote", character: "i-user", notices: "i-sound", screen: "i-grid", conversation: "i-quote", threads: "i-check", slack: "i-hash", machines: "i-local", devices: "i-phone" };
 
 function helpActions() {
   if (helpPane !== "look") {
@@ -434,13 +521,6 @@ registerPanel("help", {
   subject: () => (helpPane === "look" ? pickedTheme() : phrase(PANE_TITLES[helpPane] || "Settings"))
 });
 
-function paintHelpFoot() {
-  helpFootSolid?.show(footModel(panelOf("help"), {
-    icon: "i-keys", title: phrase("Settings"),
-    trail: [phrase(PANE_TITLES[helpPane] || ""), helpPane === "look" ? phrase("Theme") : ""]
-  }));
-}
-
 function findSetting(text) {
   searchSettings(text);
 }
@@ -459,15 +539,12 @@ function dressHelp() {
       <h2 class="pw-title">${say("Settings")}</h2>
       <span class="pw-vsep"></span>
       <label class="pw-search">${svgIcon("i-mag")}<input id="pref-find" spellcheck="false" autocomplete="off" placeholder="${say("Search a setting — theme, font, shortcut, sound…")}" aria-label="${say("Search a setting — theme, font, shortcut, sound…")}"></label>
-      <span class="pw-vsep"></span>
-      <span class="pw-hint" id="help-key"></span>
-      <button data-pw-keep="h-ok" type="button" class="pw-esc" aria-label="${say("close")}" title="${say("close")}">esc</button>
+      <button data-pw-keep="h-ok" type="button" class="pw-close" aria-label="${say("Close (esc)")}" title="${say("Close (esc)")}">${svgIcon("i-x")}</button>
     </header>
     <div class="pw-body help-body">
       <nav data-pw-keep="pref-nav" class="pref-nav pw-nav">${tabs}</nav>
       <div data-pw-keep="pref-body"></div>
-    </div>
-    <footer class="pw-foot" id="help-foot" data-no-t></footer>`, {
+    </div>`, {
     on: (dressed) => {
       dressed.classList.add("compact");
       dressed.querySelector("#pref-find").addEventListener("input", (e) => findSetting(e.target.value));
@@ -512,9 +589,6 @@ function dressHelp() {
   box.classList.add("compact");
   if (themesHive) {
     themePreviewSolid ||= themesHive.mountThemePreview($("thm-prev"));
-    helpFootSolid ||= themesHive.mountFoot($("help-foot"), {
-      actions: { act: (key) => runAction(panelOf("help"), key), more: () => openActions(panelOf("help")) }
-    });
   }
   showPrefPane(helpPane);
 }
@@ -524,8 +598,6 @@ function undressHelp() {
   if (!box?.classList.contains("pw")) return;
   themePreviewSolid?.dispose();
   themePreviewSolid = null;
-  helpFootSolid?.dispose();
-  helpFootSolid = null;
   undressHost(box);
   box.classList.remove("compact");
   delete box.dataset.pane;
@@ -543,7 +615,6 @@ function openHelp(pane) {
   if (raycastOn()) {
     dressHelp();
     if (pane) showPrefPane(pane);
-    $("help-key").innerHTML = keysHtml(st.keys.help);
     $("help").classList.add("on");
     paintThemes();
     paintSettingResets();
@@ -577,9 +648,9 @@ function showPrefPane(name) {
     else tab.removeAttribute("aria-current");
   }
   $("pref-body").scrollTop = 0;
+  document.dispatchEvent(new CustomEvent("hive:pref-pane", { detail: name }));
   if (raycastOn() && $("help").querySelector(".box").classList.contains("pw")) {
     $("help").querySelector(".box").dataset.pane = name;
-    paintHelpFoot();
   }
 }
 
@@ -620,7 +691,13 @@ $("btn-prs").addEventListener("click", (ev) => { ev.stopPropagation(); togglePrP
 
 $("btn-lim").addEventListener("click", (ev) => { ev.stopPropagation(); toggleLimPop(); });
 
+$("btn-lim-alert").addEventListener("click", (ev) => { ev.stopPropagation(); toggleLimPop(); });
+
 $("lim-again").addEventListener("click", (ev) => { ev.stopPropagation(); pullLimits(true); });
+
+$("lp-again").addEventListener("click", (ev) => { ev.stopPropagation(); pullLimits(true); });
+
+$("t-limits-foot").addEventListener("click", () => setLimitsFoot(!st.limitsFoot));
 
 $("lp-all").addEventListener("click", (ev) => {
   ev.stopPropagation();
@@ -630,7 +707,7 @@ $("lp-all").addEventListener("click", (ev) => {
 
 document.addEventListener("pointerdown", (ev) => {
   if (!limPopOpen()) return;
-  if (ev.target.closest?.("#limpop, #btn-lim, #lim-again")) return;
+  if (ev.target.closest?.("#limpop, #btn-lim, #btn-lim-alert, #lim-again")) return;
   closeLimPop();
 }, true);
 
@@ -780,6 +857,8 @@ function run(action, digit) {
     case "nextChat": return stepChat(1);
     case "copyChat": return copyChatLink();
     case "copyPr": return copyPrNumber();
+    case "settle": return settleFocused();
+    case "pin": return pinFocused();
     case "nextArea": return stepArea(1);
     case "prevArea": return stepArea(-1);
     case "term": return openShell("local");
@@ -813,6 +892,15 @@ function run(action, digit) {
       return themesOn() ? closeThemes() : openThemes();
     case "doctor": return window.hiveDoctorCheck?.();
     case "talk": return void toggleTalking();
+    case "back": return void stepVisit(-1);
+    case "forward": return void stepVisit(1);
+    case "sidePanel": return void toggleSidePanel();
+    case "sidePanelMax": return void toggleMax();
+    case "diff": return void toggleSurface(DIFF_ID);
+    case "browser": return void toggleSurface(WEB_ID);
+    case "details":
+    case "openIn":
+    case "terminal": return void chatAction(action);
     case "calls": {
       if (openNewestSeatNotice()) return;
       const targets = [];
@@ -905,4 +993,4 @@ function run(action, digit) {
   }
 }
 
-export { helpActions, pasteTheme, pickTheme, themeChoices, showPrefPane, stepTheme, themePreviewModel, themeRowModel, themesWindowModel, THEME_UI_LABELS, backToThemeBrowse, closeHelp, closeThemes, deleteTheme, keepPastedTheme, nextFreeThemeName, openHelp, openThemeEditor, openThemes, paintThemes, run, saveThemeFromEditor, saveThemesToConfig, setTheme, shareTheme, showThemeView, termColorLabel, themeCardModel, themeColorRow, themesOn, themesSolid, themesViewModel };
+export { helpActions, pasteTheme, pickTheme, themeChoices, showPrefPane, stepTheme, themePreviewModel, themeRowModel, themesWindowModel, THEME_UI_LABELS, backToThemeBrowse, closeHelp, closeThemes, deleteTheme, keepPastedTheme, nextFreeThemeName, openHelp, openThemeEditor, openThemes, paintThemes, run, saveThemeFromEditor, saveThemesToConfig, setTheme, shareTheme, showThemeView, termColorLabel, themeCardModel, themeColorRow, themesOn, themesSolid, themesViewModel, paintAppearanceChoice, setAppearance, restoreDefaultTheme, THEME_RESCUE_KEY };

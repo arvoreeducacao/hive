@@ -10,7 +10,7 @@ const st = await state();
 const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { phrase } = await app("core");
-const { arriveOnADraft, askNewChat, draftItem, drafts, nothingInFocus, openDraftIn, openDraftOnBranchOf, scopeNewChatsBy, spawnPayloadOf } = await app("draft-seat");
+const { arriveOnADraft, askNewChat, draftItem, drafts, nothingInFocus, openDraftIn, openDraftOnBranchOf, spawnPayloadOf } = await app("draft-seat");
 const { closePlaceMenu } = await app("draft-place");
 const { seatMenuRows } = await app("seat-menu");
 
@@ -174,26 +174,6 @@ test("shift-click on a chat that lives in the hub starts with no project", async
   askNewChat({ here: true });
   await settle();
   assert.equal(onlyDraft().project, "");
-});
-
-test("with the list filtered to a project, the chat is born there; a filter on the hub leaves it in the hub", async () => {
-  hive();
-  scopeNewChatsBy(() => "api-acme");
-  try {
-    askNewChat();
-    await settle();
-    const d = onlyDraft();
-    assert.equal(d.project, "api-acme");
-    assert.equal(menuOf(d), null);
-    hive({ recent: "lead-engine" });
-    scopeNewChatsBy(() => "acme-hub");
-    askNewChat();
-    await settle();
-    assert.equal(onlyDraft().project, "", "a filter on the hub itself is not a project");
-    assert.equal(menuOf(onlyDraft()), null);
-  } finally {
-    scopeNewChatsBy(null);
-  }
 });
 
 test("the base branch menu lists the project's branches with the default first", async () => {

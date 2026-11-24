@@ -31,6 +31,10 @@ body.experience-raycast { --pw-top: 58px; --pw-fill: color-mix(in srgb, var(--tx
 :where(body.experience-raycast) .pw-hint { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 12px; color: var(--txt-3); white-space: nowrap; }
 :where(body.experience-raycast) button.pw-esc { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; flex: none; min-width: 32px; height: 24px; padding: 0 6px; border-radius: 5px; background: var(--panel-3); box-shadow: var(--keycap); font: 400 11px/1 var(--mono); color: var(--txt-2); cursor: pointer; }
 :where(body.experience-raycast) button.pw-esc:hover { color: var(--txt); }
+:where(body.experience-raycast) button.pw-close { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--r2); color: var(--txt-3); cursor: pointer; }
+:where(body.experience-raycast) button.pw-close svg { width: 14px; height: 14px; }
+:where(body.experience-raycast) button.pw-close:hover { color: var(--txt); background: var(--pw-hover); }
+:where(body.experience-raycast) button.pw-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 :where(body.experience-raycast) .pw-body { display: grid; grid-template-columns: minmax(300px, 456px) minmax(0, 1fr); min-height: 0; min-width: 0; }
 :where(body.experience-raycast) .pw-body.three { grid-template-columns: 192px minmax(280px, 384px) minmax(0, 1fr); }
 :where(body.experience-raycast) .pw-body.one { grid-template-columns: minmax(0, 1fr); }
@@ -391,7 +395,7 @@ body:where(.experience-raycast).look-dimension .pr-msg { border-radius: var(--r3
   :where(body.experience-raycast) .tile.open.reviewing .pr-mid { border-bottom: 0; }
 }
 
-:where(body.experience-raycast) #help .box { border: 0; width: auto; max-height: none; background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 48px; }
+:where(body.experience-raycast) #help .box { border: 0; width: auto; max-height: none; background: var(--panel); backdrop-filter: none; -webkit-backdrop-filter: none; height: auto; grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr); }
 :where(body.experience-raycast) #help .help-body { grid-template-columns: 192px minmax(0, 1fr); }
 :where(body.experience-raycast) #help .pref-nav { padding: 8px; }
 :where(body.experience-raycast) #help .pref-nav button { box-sizing: border-box; display: flex; align-items: center; gap: 10px; flex: none; height: 32px; padding: 0 10px; border-radius: var(--r2); font-weight: 500; white-space: nowrap; }
@@ -448,7 +452,6 @@ body:where(.experience-raycast).look-dimension .pr-msg { border-radius: var(--r3
 :where(body.experience-raycast) #help .pref-pane > h2 { font-size: 16px; font-weight: 600; }
 :where(body.experience-raycast) #help .set-card { border-radius: var(--r2); background: var(--pw-fill, color-mix(in srgb, var(--txt) 3%, transparent)); border-color: color-mix(in srgb, var(--txt) 8%, transparent); }
 :where(body.experience-raycast) #help .set-card > * + * { border-top-color: color-mix(in srgb, var(--txt) 7%, transparent); }
-:where(body.experience-raycast) #help .set-head { font-family: var(--mono); font-weight: 500; letter-spacing: .08em; }
 :where(body.experience-raycast) #help .set-title { font-weight: 500; }
 :where(body.experience-raycast) #help .set-ctl :is(select, input:not([type="range"])) { height: 32px; padding-top: 0; padding-bottom: 0; border-radius: var(--r2); }
 :where(body.experience-raycast) #help .thm-side .set-group:first-of-type .set-head { margin-top: 0; }
@@ -457,7 +460,7 @@ body:where(.experience-raycast).look-dimension .pr-msg { border-radius: var(--r3
 :where(body.experience-raycast) #help .box .pref-body.searching .pref-look :is(.thm-list, .thm-side > .pw-cap, #thm-prev, .thm-where, .thm-side > .pw-hr) { display: none; }
 :where(body.experience-raycast) #help .box .pref-body.searching .thm-side { padding: 0; overflow: visible; }
 @media (max-width: 640px) {
-  :where(body.experience-raycast) #help .box { grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr) 48px; }
+  :where(body.experience-raycast) #help .box { grid-template-columns: minmax(0, 1fr); grid-template-rows: 56px minmax(0, 1fr); }
   :where(body.experience-raycast) #help .help-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   :where(body.experience-raycast) #help .pref-nav { padding: 8px; }
 }

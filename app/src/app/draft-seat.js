@@ -1,17 +1,27 @@
 import { render } from "./arrange.js";
 import { activeItems, blockWithRoom, openBlock, saveBlocks, soloSeat } from "./blocks.js";
 import { AGENT_NAMES, artifactTabOf, draftCarriesEffort, openSeatPicker, paintPills, paintWebOfChat, refreshCatalog, seatAgent, shelfLinkOf, weaveHandles, webOfSeat } from "./chat-and-panes.js";
-import { SV_FLOOR, continueListOnShiftEnter, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
-import { COMPOSER_MIN, esc, isImageName, phrase, raycastOn, st, svgIcon } from "./core.js";
-import { BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, isBehindKey, openPlaceMenu, paintPlace, placeMarkup, projectItems, projectNamed, projectOfRepo, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu } from "./draft-place.js";
+import { SV_FLOOR, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, svTypePath } from "./chat-stretches.js";
+import { COMPOSER_MIN, IS_MAC, esc, isImageName, phrase, st, svgIcon, composerShaped } from "./core.js";
+import { BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, isBehindKey, openPlaceMenu, paintPlace, placeMarkup, projectItems, projectNamed, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu } from "./draft-place.js";
 import { closeTile, focusSeat, goTo, pull, releaseKeyboard } from "./focus-navigation.js";
 import { hud } from "./hud.js";
+import { sendIntent } from "./composer-modes.js";
 import { jobName, justCreated } from "./leader-key.js";
 import { providerReady, pullAccounts, readyAgents } from "./providers.js";
 import { imageTray, outboundImageMarks } from "./pinned-images.js";
 import { structPool } from "./structured-seats.js";
 import { wireTalkButton } from "./stt.js";
+import { clipMarkup, wireClip } from "./composer-bar.js";
+import { COMPOSER_ASK } from "./composer-actions.js";
+import { editingKeys } from "./composer-editing.js";
+import { followTooLong, refuseTooLong } from "./composer-length.js";
+import { blockedSend, wireAttachments } from "./composer-attachments.js";
+import { composerClipboardAdapter, pasteFragment, wireChipClipboard } from "./chip-clipboard.js";
 import { suggestMarkup, suggestMenu } from "./suggest-menu.js";
+import { projectOfSession } from "./composer-models.js";
+import { focusedSeat } from "./mirror.js";
+import { newChatSelection, projectPinOf, rememberedOptions } from "./model-memory.js";
 
 const drafts = new Map();
 
@@ -27,6 +37,8 @@ const DRAFT_ANONYMOUS = "anonymous";
 
 const draftIsAnonymous = (d) => d.where === DRAFT_ANONYMOUS;
 
+const draftWhere = (d) => (d.where === "cloud" ? "cloud" : "local");
+
 const draftKey = (id) => `draft:${id}`;
 
 function keptChoices() {
@@ -38,7 +50,7 @@ function keepChoices(d) {
     const kept = keptChoices();
     const where = draftIsAnonymous(d) ? kept.where || "local" : d.where;
     const project = draftIsAnonymous(d) || d.where === "cloud" ? kept.project || "" : d.project || "";
-    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ agent: d.e.agent, model: d.e.model, where, kind: d.kind, project }));
+    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ ...kept, where, kind: d.kind, project }));
   } catch {}
 }
 
@@ -73,6 +85,7 @@ function spawnPayloadOf(d, prompt, images = []) {
     ...(anon ? { anon: true } : {}),
     model: d.e.model || "",
     ...(draftCarriesEffort(d.e.agent, d.kind) && d.e.effort ? { effort: d.e.effort } : {}),
+    ...(d.e.fast === true && (anon || (d.e.agent === "claude" && d.kind === "structured")) ? { fast: true } : {}),
     agent: anon ? "claude" : d.e.agent,
     structured: anon || d.kind === "structured",
     account: cloud ? "" : (d.e.account || ""),
@@ -144,8 +157,9 @@ function draftHost(d) {
     <form class="sv-composer">
       <div class="sv-activity"><span class="pulse"></span><span class="verb"></span><span class="clock"></span></div>
       <div class="sv-attach"></div>
-      <div class="sv-well"><div class="sv-ink" aria-hidden="true"></div><textarea rows="1" spellcheck="false" placeholder="${phrase("write the first message — enter opens the chat, shift+enter breaks the line")}"></textarea></div>
+      <div class="sv-well"><div class="sv-ink" aria-hidden="true"></div><textarea rows="1" spellcheck="false" placeholder="${phrase(COMPOSER_ASK)}"></textarea></div>
       <div class="sv-foot">
+        ${clipMarkup()}
         <span class="sv-pick">
           <button type="button" class="sv-pill sv-pill-model"></button>
           <button type="button" class="sv-pill sv-pill-effort"></button>
@@ -158,7 +172,8 @@ function draftHost(d) {
         </span>
       </div>
     </form>`;
-  if (raycastOn()) shapeComposer(host, true);
+  if (composerShaped()) shapeComposer(host, true);
+  wireClip(host);
   const textarea = host.querySelector("textarea");
   const autosize = () => {
     textarea.style.height = "auto";
@@ -167,11 +182,27 @@ function draftHost(d) {
     textarea.style.height = `${Math.min(textarea.scrollHeight, 220, room)}px`;
   };
   new ResizeObserver(() => { if (textarea.value) autosize(); }).observe(host);
-  const paintReady = () => host.querySelector(".sv-composer")
-    .classList.toggle("ready", !!textarea.value.trim() || !!d.e.tray.count());
+  const paintReady = () => {
+    const ready = draftHasContent(d, textarea);
+    host.querySelector(".sv-composer").classList.toggle("ready", ready);
+    host.querySelector(".sv-send").disabled = !!d.sending || !ready;
+  };
   const ink = host.querySelector(".sv-ink");
   const paintInk = () => drawInk(host.querySelector(".sv-composer"), ink, textarea, listInkMarks(textarea.value));
   d.e.tray = imageTray(host.querySelector(".sv-attach"), textarea, () => ({ where: "local", name: "" }));
+  wireAttachments(d.e, {
+    host,
+    textarea,
+    target: (kind) => ({ name: "", where: kind === "image" ? "local" : draftWhere(d) }),
+    busy: () => (d.sending ? phrase("The composer is busy; try again once it is ready.") : "")
+  });
+  const clipboard = composerClipboardAdapter(d.e, { where: () => draftWhere(d), seat: () => "" });
+  wireChipClipboard(textarea, clipboard);
+  textarea.addEventListener("paste", (pev) => {
+    if (d.e.plainPaste) return void (d.e.plainPaste = false);
+    if ([...(pev.clipboardData?.items || [])].some((one) => one.kind === "file")) return;
+    pasteFragment(textarea, pev, clipboard);
+  });
   const menu = suggestMenu({
     textarea,
     suggest: host.querySelector(".sv-suggest"),
@@ -188,17 +219,19 @@ function draftHost(d) {
   host.querySelector(".sv-behind").addEventListener("click", () => sendDraft(d, textarea.value, true));
   textarea.addEventListener("keydown", (kev) => {
     kev.stopPropagation();
+    if (kev.key === "v" && (IS_MAC ? kev.metaKey : kev.ctrlKey) && kev.shiftKey && !kev.altKey) d.e.plainPaste = true;
     if (menu.key(kev)) return;
     if (isBehindKey(kev)) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value, true); }
-    if (continueListOnShiftEnter(kev, textarea)) return;
-    if (kev.key === "Enter" && !kev.shiftKey) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value); }
+    if (editingKeys(kev, textarea)) return;
+    const intent = sendIntent(kev, { text: textarea.value, running: true });
+    if (intent) { kev.preventDefault(); menu.close(); return void sendDraft(d, textarea.value); }
     if (kev.key === "Escape") {
       kev.preventDefault();
       if (!textarea.value.trim()) return void discardDraft(d);
       textarea.blur();
     }
   });
-  textarea.addEventListener("input", () => { autosize(); d.e.tray.sync(); menu.compute(); paintReady(); paintInk(); });
+  textarea.addEventListener("input", () => { autosize(); d.e.tray.sync(); d.e.files.sync(); menu.compute(); paintReady(); paintInk(); followTooLong(host, () => textarea.value); });
   textarea.addEventListener("scroll", () => { ink.scrollTop = textarea.scrollTop; });
   textarea.addEventListener("blur", () => setTimeout(menu.close, 150));
   for (const seg of host.querySelectorAll(".sv-seg")) {
@@ -214,8 +247,8 @@ function draftHost(d) {
       textarea.focus();
     });
   }
-  host.querySelector(".sv-repo").addEventListener("input", (ev) => { d.repo = ev.target.value; });
-  host.querySelector(".sv-branch").addEventListener("input", (ev) => { d.branch = ev.target.value; });
+  host.querySelector(".sv-repo").addEventListener("input", (ev) => { d.repo = ev.target.value; paintDraftHost(d); });
+  host.querySelector(".sv-branch").addEventListener("input", (ev) => { d.branch = ev.target.value; paintDraftHost(d); });
   for (const input of host.querySelectorAll(".sv-cloud input")) input.addEventListener("keydown", (kev) => kev.stopPropagation());
   for (const pick of host.querySelectorAll(".sv-place-pick")) {
     pick.addEventListener("click", (ev) => {
@@ -243,6 +276,48 @@ function draftCommands(d) {
   };
 }
 
+function carriedProject() {
+  try {
+    return projectOfSession(focusedSeat());
+  } catch {
+    return "";
+  }
+}
+
+function startingPick(project, kept = keptChoices()) {
+  const ready = (agent) => !!AGENT_NAMES[agent] && providerReady(agent);
+  const pick = newChatSelection({ kept, pin: projectPinOf(project), ready, fallback: readyAgents()[0] || "claude" });
+  const traits = pick.from === "project" ? pick : rememberedOptions(pick.agent, pick.model) || {};
+  return { agent: pick.agent, model: pick.model, effort: typeof traits.effort === "string" ? traits.effort : "", fast: traits.fast === true };
+}
+
+function draftWears(d, pick) {
+  const moved = d.e.agent !== pick.agent;
+  d.e.agent = pick.agent;
+  d.e.model = pick.model || "";
+  d.e.effort = pick.effort || "";
+  d.e.effortFrom = d.e.effort ? "session" : "";
+  d.e.fast = pick.fast === true;
+  if (moved) {
+    d.e.catalog = null;
+    d.e.catalogError = "";
+    d.e.catalogPull = null;
+    d.e.catalogTries = 0;
+  }
+  paintDraftHost(d);
+  return refreshCatalog(d.e);
+}
+
+function draftTakesLink(d, { agent = "", model = "", project = "" } = {}) {
+  if (project) {
+    d.e.project = project;
+    if (!d.repo) d.repo = project;
+  }
+  if (agent) return draftWears(d, { agent, model, effort: "", fast: false });
+  if (project) return draftWears(d, startingPick(project));
+  return refreshCatalog(d.e);
+}
+
 async function hubFiles(where, q) {
   if (where === DRAFT_ANONYMOUS) return { files: [], error: "" };
   const r = await fetch(`/api/index?where=${where}&q=${encodeURIComponent(q)}&limit=20`).then((x) => x.json()).catch(() => null);
@@ -250,12 +325,6 @@ async function hubFiles(where, q) {
 }
 
 const BEHIND_WORDS = 26;
-
-let listScope = () => "";
-
-function scopeNewChatsBy(scope) {
-  listScope = typeof scope === "function" ? scope : () => "";
-}
 
 const focusedDraftOrSeatKey = () => st.open || activeItems()[st.focus]?.key || "";
 
@@ -335,8 +404,6 @@ function openDraftIn({ repo = NO_PROJECT, branch = "", tree = "", main = false, 
 
 function askNewChat({ here = false } = {}) {
   if (here) return openDraftIn({ repo: projectInFocus() });
-  const scoped = projectOfRepo(listScope());
-  if (scoped) return openDraftIn({ repo: scoped });
   return openDraftIn();
 }
 
@@ -370,6 +437,8 @@ function arriveOnADraft(tries = 0) {
 function newDraft() {
   const id = `d${++draftSeq}`;
   const chosen = draftChoices(keptChoices());
+  const project = carriedProject();
+  const pick = startingPick(project);
   const d = {
     id,
     key: draftKey(id),
@@ -392,10 +461,12 @@ function newDraft() {
     name: d.key,
     draft: true,
     where: chosen.where,
-    agent: chosen.agent,
-    model: chosen.model,
-    effort: "",
-    effortFrom: "",
+    agent: pick.agent,
+    model: pick.model,
+    effort: pick.effort,
+    effortFrom: pick.effort ? "session" : "",
+    fast: pick.fast,
+    project,
     account: "",
     host: null,
     catalog: null,
@@ -452,6 +523,8 @@ function discardDraft(d) {
   render();
 }
 
+const draftHasContent = (d, textarea) => !!textarea.value.trim() || !!d.e.tray?.count() || !!d.e.files?.count();
+
 async function sendDraft(d, text, behind = false) {
   const picker = pickerCommandOf(text);
   if (picker) {
@@ -465,7 +538,8 @@ async function sendDraft(d, text, behind = false) {
   const seeded = art && !String(text || "").includes(`hive://shelf/${art.slug}`)
     ? `${shelfLinkOf(art.slug, art.tab)}\n${text}`
     : text;
-  const marked = outboundImageMarks(String(seeded || ""), d.e.tray?.marks || new Map());
+  if (blockedSend(d.e)) return;
+  const marked = outboundImageMarks(d.e.files ? d.e.files.outbound(String(seeded || "")) : String(seeded || ""), d.e.tray?.marks || new Map());
   const woven = anon ? { text: marked.text } : weaveHandles(marked.text.trim(), st.data?.sessions || [], "", false, d.where);
   if (woven.error) {
     d.error = woven.error;
@@ -476,6 +550,7 @@ async function sendDraft(d, text, behind = false) {
   const prompt = woven.text.trim();
   if ((!prompt && !marked.images.length) || d.sending) return;
   closePlaceMenu();
+  if (refuseTooLong(d.e.host, text)) return;
   d.sending = true;
   d.error = "";
   d.said = marked.text.trim();
@@ -557,6 +632,7 @@ async function attachFilesToDraft(d, files, marked) {
   if (!r?.ok) d.error = r?.error || phrase("the file did not land");
   else for (const path of r.paths) {
     if (isImageName(path)) d.e.tray.add(path);
+    else if (d.e.files) d.e.files.addReady({ path });
     else svTypePath(d.e, path);
   }
   paintDraftHost(d);
@@ -597,7 +673,7 @@ function paintDraftHost(d) {
   activity.querySelector(".verb").textContent = d.sending ? phrase("opening the chat…") : "";
   const textarea = host.querySelector("textarea");
   textarea.disabled = !!d.sending;
-  host.querySelector(".sv-send").disabled = !!d.sending;
+  host.querySelector(".sv-send").disabled = !!d.sending || !draftHasContent(d, textarea);
   host.querySelector(".sv-behind").disabled = !!d.sending;
   host.classList.toggle("sending", !!d.sending);
   d.e.draftKind = d.kind;
@@ -655,7 +731,7 @@ function draftItem(key) {
 document.addEventListener("hive:experience", (event) => {
   const { experience, was } = event.detail || {};
   if (experience !== "raycast" && was !== "raycast") return;
-  for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, raycastOn());
+  for (const d of drafts.values()) if (d.e?.host) shapeComposer(d.e.host, composerShaped());
 });
 
-export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, arriveOnADraft, askNewChat, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, draftRefused, drafts, hexPoints, hiveMark, newDraft, nothingInFocus, openDraft, openDraftIn, openDraftOnBranchOf, paintDraftHost, placeDraft, projectInFocus, scopeNewChatsBy, sendDraft, spawnPayloadOf, updateDraft };
+export { DRAFT_ANONYMOUS, DRAFT_KEPT, DRAFT_KINDS, DRAFT_WHERES, arriveOnADraft, askNewChat, attachFilesToDraft, createDraftTile, discardDraft, draftChoices, draftFrom, draftInFocus, draftItem, draftKey, draftLoadingChips, draftRefused, drafts, hexPoints, hiveMark, newDraft, nothingInFocus, openDraft, openDraftIn, openDraftOnBranchOf, paintDraftHost, placeDraft, projectInFocus, sendDraft, spawnPayloadOf, updateDraft, draftTakesLink, startingPick };

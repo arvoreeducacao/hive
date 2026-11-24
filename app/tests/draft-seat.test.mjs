@@ -114,10 +114,10 @@ test("the picker asks the app, not a driver, for a draft's catalogue", () => {
   assert.match(draftPull, /\/api\/catalog\?agent=/);
 });
 
-test("switching agents on a draft forgets the model and the catalogue of the one before", () => {
+test("switching agents on a draft forgets the catalogue of the one before and takes the model remembered for the new one", () => {
   const takes = slice(panes, "function draftTakesAgent(e, agent) {", "document.addEventListener(\"mousedown\"");
   assert.match(takes, /e\.agent = agent;/);
-  assert.match(takes, /e\.model = "";/);
+  assert.match(takes, /e\.model = rememberedModel\(agent\);/);
   assert.match(takes, /e\.catalog = null;/);
 });
 

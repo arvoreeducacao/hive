@@ -281,7 +281,6 @@ body:where(.experience-raycast) { --term: #DCDCDC; --term-bg: #040506; }
 :where(body.experience-raycast) .sv-suggest .sg.sel .sgk { visibility: visible; }
 :where(body.experience-raycast) .sv-suggest .none { display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; line-height: 1.5; color: var(--txt-2); }
 :where(body.experience-raycast) .sv-suggest .none b { font-size: 13px; font-weight: 500; color: var(--txt); }
-:where(body.experience-raycast) .sv-subs { backdrop-filter: unset; -webkit-backdrop-filter: unset; gap: 1px; padding: 0 6px 6px; border: 0; border-radius: var(--r3); background: var(--panel); box-shadow: var(--e2); }
 :where(body.experience-raycast) #livepop { position: fixed; z-index: 95; display: flex; flex-direction: column; width: 340px; padding: 6px; border-radius: var(--r3); background: var(--panel); box-shadow: var(--float-e); }
 :where(body.experience-raycast) #livepop[hidden] { display: none; }
 :where(body.experience-raycast) #livepop .lp-head { display: flex; align-items: center; gap: 8px; padding: 6px 8px 8px; font: 400 10px/1 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--txt-3); }
@@ -294,35 +293,6 @@ body:where(.experience-raycast) { --term: #DCDCDC; --term-bg: #040506; }
 :where(body.experience-raycast) #livepop .lp-foot > span { display: inline-flex; align-items: center; gap: 6px; }
 :where(body.experience-raycast) #livepop .rc-key { min-width: 18px; height: 18px; padding: 0 4px; font-size: 10px; }
 :where(body.experience-raycast) .t-live { cursor: pointer; }
-:where(body.experience-raycast) .sv-subs .shead { height: 32px; padding: 0 6px; font-size: 10px; letter-spacing: .05em; }
-:where(body.experience-raycast) .sv-subs .shead:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: var(--r2); }
-:where(body.experience-raycast) .sv-subs .shead .sdot { background: unset; width: 12px; height: 12px; box-sizing: border-box; border: 1.5px solid color-mix(in srgb, var(--txt) 15%, transparent); border-top-color: var(--txt); animation: attspin 900ms linear infinite; }
-:where(body.experience-raycast) .sv-subs .shead .scount { color: var(--txt); letter-spacing: .02em; text-transform: none; font-variant-numeric: tabular-nums; }
-:where(body.experience-raycast) .sv-subs .shead .schev { width: 12px; height: 12px; color: var(--txt-2); }
-:where(body.experience-raycast) .sv-subs .sublist { gap: 1px; max-height: 104px; }
-:where(body.experience-raycast) .sv-sub { font-family: unset; border: 0; border-radius: var(--r2); background: none; font-size: 13px; box-shadow: none; }
-:where(body.experience-raycast) .sv-sub summary { height: 32px; padding: 0 6px; border-radius: var(--r2); }
-:where(body.experience-raycast) .sv-sub summary:hover { background: color-mix(in srgb, var(--txt) 6%, transparent); }
-:where(body.experience-raycast) .sv-sub[open] > summary { background: color-mix(in srgb, var(--txt) 9%, transparent); }
-:where(body.experience-raycast) .sv-sub summary::before { content: ""; flex: none; order: -2; width: 12px; height: 12px; background: var(--txt-3); -webkit-mask: var(--chev-mask) center / 12px no-repeat; mask: var(--chev-mask) center / 12px no-repeat; transform: rotate(-90deg); transition: transform 140ms var(--ease); }
-:where(body.experience-raycast) .sv-sub[open] > summary::before { transform: none; }
-:where(body.experience-raycast) .sv-sub summary::after { content: ""; flex: none; order: 9; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--txt) 15%, transparent); border-top-color: var(--txt); animation: attspin 900ms linear infinite; }
-:where(body.experience-raycast) .sv-sub .sico { width: unset; height: unset; flex: unset; color: unset; animation: unset; display: none; }
-:where(body.experience-raycast) .sv-sub .sname { order: -1; font-family: var(--mono); font-size: 11.5px; }
-:where(body.experience-raycast) .sv-sub .sarg { color: var(--txt); }
-:where(body.experience-raycast) .sv-sub .sbg { letter-spacing: unset; text-transform: unset; font-family: var(--mono); font-size: 10px; color: var(--txt-2); border: 0; box-shadow: inset 0 0 0 1px var(--line-3); border-radius: var(--r1); padding: 0 5px; line-height: 16px; }
-:where(body.experience-raycast) .sv-sub .sms { width: 48px; text-align: right; font-family: var(--mono); font-size: 11px; }
-:where(body.experience-raycast) .sv-sub .sbody { margin: 2px 0 6px 26px; padding: 6px 12px; border-top: 0; box-shadow: inset 1px 0 0 var(--panel-3); font-family: var(--mono); font-size: 11.5px; }
-:where(body.experience-raycast) .sv-sub .slog { margin: 2px 0 6px 26px; padding: 0 0 0 12px; border-top: 0; box-shadow: inset 1px 0 0 var(--panel-3); }
-:where(body.experience-raycast) .sv-sub .sstep { align-items: center; gap: 8px; min-height: 24px; padding: 0; font-family: var(--mono); font-size: 11.5px; }
-:where(body.experience-raycast) .sv-sub .sstep .stico { width: 12px; height: 12px; margin-top: 0; }
-:where(body.experience-raycast) .sv-sub .sstep .stxt { overflow-wrap: unset; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-:where(body.experience-raycast) .sv-sub .sstep .sok { width: 16px; display: grid; place-items: center; color: var(--txt-2); }
-:where(body.experience-raycast) .sv-sub .sstep .sok svg { width: 12px; height: 12px; }
-:where(body.experience-raycast) .sv-sub .sstep[data-kind="run"] .stico, :where(body.experience-raycast) .sv-sub .sstep[data-kind="write"] .stico, :where(body.experience-raycast) .sv-sub .sstep[data-kind="ask"] .stico, :where(body.experience-raycast) .sv-sub .sstep[data-kind="web"] .stico, :where(body.experience-raycast) .sv-sub .sstep[data-kind="mcp"] .stico, :where(body.experience-raycast) .sv-sub .sstep[data-kind="agent"] .stico { color: var(--txt-3); }
-:where(body.experience-raycast) .sv-sub .sstep.now, :where(body.experience-raycast) .sv-sub .sstep.now .stico { color: var(--txt); }
-:where(body.experience-raycast) .sv-sub .sstep.open .stico { animation: none; }
-:where(body.experience-raycast) .sv-sub .sstep.bad .sok { color: var(--yellow); }
 :where(body.experience-raycast) .sv-provider-transfer { font: unset; display: flex; align-items: center; gap: 8px; min-height: 36px; margin: 0 12px 8px; padding: 0 8px 0 12px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 5%, transparent); box-shadow: inset 0 0 0 1px var(--line-3); font-size: 12.5px; }
 :where(body.experience-raycast) .sv-provider-transfer[hidden] { display: none; }
 :where(body.experience-raycast) .sv-provider-transfer b { font-weight: 500; color: var(--txt); }
@@ -389,9 +359,6 @@ body:where(.experience-raycast).look-dimension #plane-map i.area { border-radius
 body:where(.experience-raycast).look-dimension #plane-map .vp { border-radius: 3px; }
 body:where(.experience-raycast).look-dimension .sv-cmd .ctx-go { border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension .sv-suggest .sg { border-radius: var(--r2); }
-body:where(.experience-raycast).look-dimension .sv-subs { border-radius: var(--r3); }
-body:where(.experience-raycast).look-dimension .sv-subs .shead:focus-visible { border-radius: var(--r2); }
-body:where(.experience-raycast).look-dimension .sv-sub { border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension .sv-ink .ink-cmd { border-radius: 4px; }
 body:where(.experience-raycast).look-dimension .sv-rail-btn { border-radius: var(--r2); }
 body:where(.experience-raycast).look-dimension .sv-row { border-radius: var(--r2); padding: 4px 8px; }

@@ -10,12 +10,13 @@ const REACHABLE = new Set(["electron", "events", "timers", "url"]);
 
 let minted = 0;
 
-function runPreload({ withWebCrypto = true } = {}) {
+function runPreload({ withWebCrypto = true, webUtils } = {}) {
   const exposed = new Map();
   const sent = [];
   const electron = {
     contextBridge: { exposeInMainWorld: (name, api) => exposed.set(name, api) },
-    ipcRenderer: { on() {}, send: (...args) => sent.push(args), invoke: async () => undefined }
+    ipcRenderer: { on() {}, send: (...args) => sent.push(args), invoke: async () => undefined },
+    ...(webUtils ? { webUtils } : {})
   };
   const context = vm.createContext({
     require(name) {
@@ -30,7 +31,7 @@ function runPreload({ withWebCrypto = true } = {}) {
 
 test("every bridge survives the sandbox the window preload runs in", () => {
   const { exposed } = runPreload();
-  assert.deepEqual([...exposed.keys()].sort(), ["hiveAway", "hiveDock", "hiveFiles", "hiveGaze", "hiveLink", "hiveMenu", "hiveMicrophone", "hiveQuit", "hiveSeatWindow", "hiveSystemSound", "hiveWindow", "seatBrowser"]);
+  assert.deepEqual([...exposed.keys()].sort(), ["hiveAway", "hiveDock", "hiveFiles", "hiveGaze", "hiveLink", "hiveMacPermissions", "hiveMenu", "hiveMicrophone", "hiveQuit", "hiveSeatWindow", "hiveSystemSound", "hiveWindow", "seatBrowser"]);
   assert.equal(typeof exposed.get("hiveLink").open, "function");
 });
 
@@ -81,4 +82,19 @@ test("a context without web crypto still names the page", () => {
   const name = sent.find(([channel]) => channel === "hive:open")[3];
   assert.equal(typeof name, "string");
   assert.notEqual(name, "");
+});
+
+test("the permissions bridge asks main for the state and for one kind by name", () => {
+  const { exposed } = runPreload();
+  const bridge = exposed.get("hiveMacPermissions");
+  assert.equal(typeof bridge.now, "function");
+  assert.equal(typeof bridge.open, "function");
+  assert.equal(typeof bridge.hear, "function");
+});
+
+test("a dropped folder hands its path over, and an app without the bridge hands back nothing", () => {
+  const folder = { name: "dev-workspaces" };
+  const { exposed } = runPreload({ webUtils: { getPathForFile: (file) => (file === folder ? "/Users/me/dev-workspaces" : "") } });
+  assert.equal(exposed.get("hiveFiles").pathOf(folder), "/Users/me/dev-workspaces");
+  assert.equal(runPreload().exposed.get("hiveFiles").pathOf(folder), "");
 });

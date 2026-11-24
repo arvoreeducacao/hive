@@ -12,7 +12,7 @@ import { paintTasks } from "./tasks.js";
 
 const META_BUTTONS = ["btn-calls", "btn-tasks", "btn-prs", "btn-alerts"];
 
-const RESAID = ["btn-calls", "btn-tasks", "btn-alerts", "btn-update", "btn-agents", "btn-plane"];
+const RESAID = ["btn-calls", "btn-tasks", "btn-alerts", "btn-agents", "btn-plane"];
 
 let undo = [];
 
@@ -27,16 +27,13 @@ function said(html) {
 
 function pieces() {
   if (made) return made;
-  const update = said("<span data-t>Update Hive </span>");
   made = {
     lights: said('<span class="lights" id="lights" aria-hidden="true" hidden></span>'),
     meta: said('<div class="meta" id="meta"></div>'),
     callsDot: said('<i class="rc-dot needs" aria-hidden="true"></i>'),
-    callsSay: said('<span id="calls-say" data-no-t></span>'),
     tasksSay: said('<span id="tasks-say" data-no-t></span>'),
     alertsDot: said('<i class="rc-dot working" aria-hidden="true"></i>'),
     alertsSay: said('<span id="alerts-say" data-no-t></span>'),
-    updateSaid: update.firstChild,
     agentsDot: said('<i class="rc-dot answered" aria-hidden="true"></i>'),
     plane: said('<svg aria-hidden="true"><use href="#i-grid"/></svg>'),
     age: said('<span id="lim-age"></span>'),
@@ -100,9 +97,7 @@ function dressBar(top, p) {
     classes(btn, (list) => list.replace("ghost", "it"));
   }
   const calls = $("btn-calls");
-  kids(calls, [p.callsDot, $("n-calls"), p.callsSay]);
-  classes(calls, (list) => list.remove("calls"));
-  after(() => calls.removeAttribute("title"));
+  kids(calls, [p.callsDot, $("n-calls")]);
   const tasks = $("btn-tasks");
   const pip = tasks.querySelector(".pip");
   classes(pip, (list) => list.add("rc-dot", "answered"));
@@ -114,7 +109,6 @@ function dressBar(top, p) {
   const alerts = $("btn-alerts");
   kids(alerts, [p.alertsDot, $("n-alerts"), p.alertsSay]);
   after(() => { alerts.hidden = false; });
-  kids($("btn-update").querySelector(".lbl"), [p.updateSaid, $("n-update")]);
   const agents = $("btn-agents");
   move(agents, $("more"), $("more").firstChild);
   kids(agents, [p.agentsDot, $("agents-say")]);

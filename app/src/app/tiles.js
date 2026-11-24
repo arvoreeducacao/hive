@@ -10,6 +10,7 @@ import { openPal } from "./palette.js";
 import { ago, ask } from "./pod.js";
 import { run } from "./themes.js";
 import { appendLeftovers, leftoversOf, worktreesThatStayed, worktreesToDrop } from "./seat-leftovers.js";
+import { confirmBefore } from "./confirmations.js";
 
 st.dragSeat = null;
 
@@ -100,8 +101,9 @@ function seatDrag(el, name) {
 
 async function closeSeat(s, at) {
   const pending = leftoversOf(s);
-  const settle = appendLeftovers(pending);
-  const ok = s.anon
+  const asks = s.anon || confirmBefore(s.kind === "shell" ? "closeTerminal" : "closeChat");
+  const settle = asks ? appendLeftovers(pending) : () => {};
+  const ok = !asks ? true : s.anon
     ? await ask(
       phrase("Close and erase this chat?"),
       phrase("The conversation and the files it made are deleted now. No copy is kept anywhere and it can't be brought back."),
@@ -117,7 +119,7 @@ async function closeSeat(s, at) {
     );
   settle();
   if (!ok) return;
-  const dropWorktrees = worktreesToDrop(await pending);
+  const dropWorktrees = worktreesToDrop(await pending, asks ? undefined : document.createElement("div"));
   unfolded.delete(s.name);
   saveUnfolded();
   sidesShut.delete(s.name);

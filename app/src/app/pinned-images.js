@@ -1,3 +1,4 @@
+import { editBox } from "./composer-editing.js";
 import { phrase } from "./core.js";
 import { openShot } from "./picture-preview.js";
 
@@ -35,11 +36,23 @@ function inlineImageList(text, images = []) {
 function markIntoBox(box, mark) {
   const at = box.selectionStart ?? box.value.length;
   const pad = at > 0 && !/\s$/.test(box.value.slice(0, at)) ? " " : "";
-  box.setRangeText(`${pad}${mark} `, at, box.selectionEnd ?? at, "end");
+  editBox(box, at, box.selectionEnd ?? at, `${pad}${mark} `);
+}
+
+function dropMarkText(box, n) {
+  const said = box.value;
+  const found = [...said.matchAll(new RegExp(`\\[Image #${n}\\] ?`, "g"))];
+  if (!found.length) return false;
+  const from = found[0].index;
+  const to = found.at(-1).index + found.at(-1)[0].length;
+  const kept = said.slice(from, to).replace(new RegExp(`\\[Image #${n}\\] ?`, "g"), "");
+  editBox(box, from, to, kept, [from, from]);
+  return true;
 }
 
 function imageTray(tray, box, origin) {
   const marks = new Map();
+  const retained = new Map();
   let seq = 0;
   const paint = () => tray.classList.toggle("on", !!tray.querySelector(".att, .sv-paste-peek:not([hidden])"));
   const changed = () => box.dispatchEvent(new Event("input"));
@@ -58,14 +71,17 @@ function imageTray(tray, box, origin) {
     img.addEventListener("click", () => { const o = origin(); openShot(path, o.where, o.name); });
     chip.querySelector(".am").textContent = `#${n}`;
     chip.querySelector(".ax").addEventListener("click", () => {
-      marks.delete(n);
-      chip.remove();
-      box.value = box.value.replace(new RegExp(`\\[Image #${n}\\] ?`, "g"), "");
+      unmark(n);
       paint();
-      changed();
+      if (!dropMarkText(box, n)) changed();
     });
     tray.appendChild(chip);
     paint();
+  };
+  const unmark = (n) => {
+    if (marks.has(n)) retained.set(n, marks.get(n));
+    marks.delete(n);
+    tray.querySelector(`.att[data-mark="${n}"]`)?.remove();
   };
   return {
     marks,
@@ -73,11 +89,11 @@ function imageTray(tray, box, origin) {
     add(path) {
       const n = ++seq;
       marks.set(n, path);
-      markIntoBox(box, `[Image #${n}]`);
       stamp(path, n);
-      changed();
+      markIntoBox(box, `[Image #${n}]`);
     },
     restore(path, n) {
+      retained.delete(n);
       marks.set(n, path);
       if (n > seq) seq = n;
       stamp(path, n);
@@ -86,14 +102,19 @@ function imageTray(tray, box, origin) {
     sync() {
       for (const chip of tray.querySelectorAll(".att[data-mark]")) {
         const n = Number(chip.dataset.mark);
-        if (box.value.includes(`[Image #${n}]`)) continue;
-        marks.delete(n);
-        chip.remove();
+        if (!box.value.includes(`[Image #${n}]`)) unmark(n);
+      }
+      for (const [n, path] of retained) {
+        if (marks.has(n) || !box.value.includes(`[Image #${n}]`)) continue;
+        retained.delete(n);
+        marks.set(n, path);
+        stamp(path, n);
       }
       paint();
     },
     clear() {
       marks.clear();
+      retained.clear();
       seq = 0;
       for (const chip of tray.querySelectorAll(".att:not(.quote)")) chip.remove();
       paint();

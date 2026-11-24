@@ -215,7 +215,7 @@ test("a window holding one seat alone neither counts nor notifies — the main w
 test("there are eleven sounds to pick from, each with its own name", () => {
   assert.equal(it.SOUNDS.length, 11);
   assert.equal(new Set(it.SOUND_IDS).size, 11);
-  for (const voice of it.SOUNDS) assert.ok(voice.say.startsWith(voice.id), `${voice.id} should say its own name first`);
+  for (const voice of it.SOUNDS) assert.ok(voice.name && !voice.name.includes("—"), `${voice.id} should be just a name, with no description after it`);
 });
 
 test("a sound is either a line the browser plays or a file it fetches, never both and never neither", () => {
@@ -315,16 +315,17 @@ test("the two notices you choose carry a picker, a preview and a switch", () => 
     const pick = document.getElementById(`s-${kind}`);
     assert.equal(pick.options.length, it.SOUNDS.length, "every sound is on offer");
     assert.equal(pick.value, it.DEFAULT_SOUNDS[kind]);
+    assert.deepEqual([...pick.options].map((one) => one.textContent), it.SOUNDS.map((voice) => voice.name), "an option says only the name of its sound");
   }
 });
 
-test("the knock has no switch and no picker — the row says the sound and lets you hear it", () => {
+test("the knock has no switch, no picker and no box naming its sound — the row only lets you hear it", () => {
   assert.ok(!page.includes('id="t-asked"'), "there is no switch to turn it off");
   assert.ok(!page.includes('<select id="s-asked">'), "and no other sound to give it");
   assert.match(page, /id="p-asked"/);
-  assert.match(page, /id="s-asked-say"/);
+  assert.ok(!page.includes('id="s-asked-say"'), "the box with the name of the sound is gone");
+  assert.ok(!page.includes('class="always"'), "and so is the button that did nothing");
   quietly(() => it.paintNotices());
-  assert.equal(document.getElementById("s-asked-say").textContent, it.soundOf(it.DEFAULT_SOUNDS.asked).say);
   assert.equal(it.DEFAULT_SOUNDS.asked, "nudge");
 });
 

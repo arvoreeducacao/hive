@@ -2,7 +2,7 @@
 :where(body.experience-raycast) #top > * { flex: none; }
 :where(body.experience-raycast) #top .lights { width: 52px; height: 12px; margin-right: 6px; }
 :where(body.experience-raycast) #top .lights[hidden] { display: none; }
-body.experience-raycast:not([data-structure="atmosphere"]) #top:has(> .lights:not([hidden])) { --mac-lights: 16px; }
+body.experience-raycast #top:has(> .lights:not([hidden])) { --mac-lights: 16px; }
 body.experience-raycast:where(html.fullscreen > *) #top .lights { display: none; }
 :where(body.experience-raycast) #top .rc-key { box-sizing: border-box; min-width: 18px; height: 18px; padding: 0 4px; border: 0; border-radius: 5px; background: var(--panel-3); box-shadow: var(--keycap); font: 400 10px/1 var(--mono); color: var(--txt-2); }
 :where(body.experience-raycast) .brand .mug { width: 24px; height: 24px; border-radius: var(--r1); }
@@ -12,9 +12,9 @@ body.experience-raycast:where(html.fullscreen > *) #top .lights { display: none;
 :where(body.experience-raycast) #rail-toggle svg { width: 16px; height: 16px; transition: transform 140ms var(--ease); }
 :where(body.experience-raycast) #rail-toggle.out svg { transform: rotate(180deg); }
 
-:where(body.experience-raycast) .right { gap: 6px; }
-:where(body.experience-raycast) #top .right { order: 9999; }
-:where(body.experience-raycast) #top .meta { display: flex; align-items: center; margin-right: 2px; font-family: var(--mono); font-size: 12px; letter-spacing: .017em; color: var(--txt-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+:where(body.experience-raycast) .right { gap: 8px; }
+:where(body.experience-raycast) #top .right { order: 9999; padding-left: 10px; }
+:where(body.experience-raycast) #top .meta { display: flex; align-items: center; font-family: var(--mono); font-size: 12px; letter-spacing: .017em; color: var(--txt-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 :where(body.experience-raycast) #top .meta .it { all: unset; box-sizing: border-box; position: relative; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 4px; border-radius: var(--r1); }
 :where(body.experience-raycast) #top .meta .it[hidden] { display: none; }
 :where(body.experience-raycast) #top .meta .it:not([hidden]) ~ .it:not([hidden]) { margin-left: 13px; }
@@ -27,10 +27,14 @@ body.experience-raycast:where(html.fullscreen > *) #top .lights { display: none;
 :where(body.experience-raycast) #btn-tasks.fresh .pip { display: inline-block; }
 
 :where(body.experience-raycast) #top #btn-pal, :where(body.experience-raycast) #top #btn-more { gap: 6px; height: 28px; border: 0; border-radius: var(--r2); color: var(--txt-2); }
-:where(body.experience-raycast) #top #btn-pal { padding: 0 4px 0 6px; }
-:where(body.experience-raycast) #top #btn-pal svg { display: block; width: 16px; height: 16px; }
-:where(body.experience-raycast) #top #btn-more { position: relative; justify-content: center; width: 28px; padding: 0; font-family: var(--mono); font-size: 14px; font-weight: inherit; letter-spacing: 1px; }
+:where(body.experience-raycast) #top #btn-pal { padding: 0 6px; }
+:where(body.experience-raycast) #top :is(#btn-pal, #btn-more) svg { display: block; width: 16px; height: 16px; }
+:where(body.experience-raycast) #top #btn-more { position: relative; justify-content: center; width: 28px; padding: 0; }
 :where(body.experience-raycast) #top :is(#btn-pal, #btn-more):is(:hover, :focus-visible, [aria-expanded="true"]) { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) #top #btn-lim-alert { justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r2); }
+:where(body.experience-raycast) #top #btn-lim-alert:is(:hover, :focus-visible, [aria-expanded="true"]) { background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) #top #btn-lim-alert svg { width: 16px; height: 16px; }
+:where(body.experience-raycast) #top #limpop { top: calc(100% + 4px); right: auto; transform-origin: top left; font-family: var(--sans); letter-spacing: 0; white-space: normal; }
 :where(body.experience-raycast) #top:has(#btn-agents:not([hidden])) #btn-more::after { content: ""; position: absolute; top: 5px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
 :where(body.experience-raycast) #top #btn-agents { justify-content: flex-start; gap: 10px; color: var(--txt); }
 :where(body.experience-raycast) #top #btn-agents .rc-dot { width: 6px; height: 6px; }
@@ -49,17 +53,15 @@ body:where(.experience-raycast).seat-dragging #blocks button[data-i]:not(.drop) 
   :where(body.experience-raycast) #blocks button[data-i] { padding: 0 4px; }
   :where(body.experience-raycast) #blocks button[data-i] span { display: none; }
 }
+@media (min-width: 1280px) { :where(body.experience-raycast:not(.key-caps)) #blocks button[data-i] .rc-key { display: none; } }
 :where(body.experience-raycast) #blocks :is(.ws-btn, .mirror-btn) :is(span, em) { display: inline; }
 :where(body.experience-raycast) #blocks.lit button[data-i] i { padding: 0; border-radius: 50%; background: var(--signal); font-size: inherit; font-weight: inherit; color: inherit; }
 
 :where(body.experience-raycast) #blocks .ws-btn { all: unset; order: 1; box-sizing: border-box; cursor: pointer; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt); white-space: nowrap; }
 :where(body.experience-raycast) #blocks .ws-btn:is(:hover, :focus-visible, [aria-expanded="true"]) { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
 :where(body.experience-raycast) #blocks .ws-btn span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
-:where(body.experience-raycast) #blocks .ws-btn em { font: normal 400 11px var(--mono); color: var(--txt-3); opacity: 1; }
 :where(body.experience-raycast) #blocks .ws-btn .chev { width: 12px; height: 12px; flex: none; color: var(--txt-3); }
 :where(body.experience-raycast) #blocks .ws-btn kbd { font: 400 10px/1 var(--mono); color: var(--txt-2); opacity: 1; transition: none; }
-:where(body.experience-raycast) #blocks .ws-btn .rc-key { display: none; }
-:where(body.experience-raycast) #blocks .ws-btn:is(:hover, :focus-visible, [aria-expanded="true"]) .rc-key { display: inline-grid; }
 :where(body.experience-raycast) #blocks .ws-open { order: 1; gap: 2px; margin-right: 0; }
 :where(body.experience-raycast) #blocks .ws-one { box-sizing: border-box; display: inline-flex; gap: 6px; height: 28px; padding: 0 8px 0 4px; border: 0; border-radius: var(--r2); font-size: 13px; font-weight: 500; color: var(--txt-2); }
 :where(body.experience-raycast) #blocks .ws-one .swatch { display: none; }
@@ -83,6 +85,7 @@ body:where(.experience-raycast).seat-dragging #blocks button[data-i]:not(.drop) 
 :where(body.experience-raycast) #strip input:focus { background: transparent; }
 :where(body.experience-raycast) #strip input::placeholder { color: var(--txt-3); }
 :where(body.experience-raycast) #strip input:disabled { cursor: default; }
+:where(body.experience-raycast) #strip .seats:empty { display: none; }
 :where(body.experience-raycast) #strip .seats { flex: none; margin-left: auto; padding-left: 8px; font-family: var(--mono); font-size: 11px; color: var(--txt-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 :where(body.experience-raycast) #strip .seats b { color: var(--txt); font-weight: 500; }
 :where(body.experience-raycast) #strip .ghost { flex: none; gap: 4px; height: 24px; padding: 0 4px 0 2px; border: 0; border-radius: var(--r1); color: var(--txt-2); }
@@ -91,12 +94,11 @@ body:where(.experience-raycast).seat-dragging #blocks button[data-i]:not(.drop) 
 :where(body.experience-raycast) #strip .sh-ico { padding: 0; width: 24px; justify-content: center; }
 @media (max-width: 1279px) { :where(body.experience-raycast) #btn-alone { display: none; } }
 
-:where(body.experience-raycast) #btn-update.upd { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--r2); background: color-mix(in srgb, var(--txt) 90%, var(--bg)); color: var(--bg); font-size: 12px; font-weight: 500; white-space: nowrap; box-shadow: 0 7px 3px rgba(0,0,0,.03), 0 4px 4px rgba(0,0,0,.25); animation: updpop 420ms cubic-bezier(.3, 1.4, .4, 1) both; }
+:where(body.experience-raycast) #btn-update.upd { all: unset; box-sizing: border-box; position: relative; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--r2); color: var(--txt-2); font-size: 12px; white-space: nowrap; animation: updpop 420ms cubic-bezier(.3, 1.4, .4, 1) both; }
 :where(body.experience-raycast) #btn-update.upd[hidden] { display: none; }
-:where(body.experience-raycast) #btn-update.upd:is(:hover, :focus-visible) { background: var(--txt); }
-:where(body.experience-raycast) .upd .lbl { gap: 6px; }
-:where(body.experience-raycast) .upd .n { font-family: var(--mono); font-size: 11px; font-weight: 400; color: inherit; opacity: .7; }
-:where(body.experience-raycast) .upd .n:empty { display: none; }
+:where(body.experience-raycast) #btn-update.upd:is(:hover, :focus-visible, [aria-expanded="true"]) { color: var(--txt); background: color-mix(in srgb, var(--txt) 6%, transparent); }
+:where(body.experience-raycast) #btn-update.upd:not(.busy, .held)::after { content: ""; position: absolute; top: 5px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+:where(body.experience-raycast) .upd .hex { width: 16px; height: 16px; color: inherit; }
 :where(body.experience-raycast) #btn-update.upd:is(.busy, .held) { animation: none; width: auto; height: 28px; padding: 0 10px; background: color-mix(in srgb, var(--txt) 5%, transparent); color: var(--txt-2); box-shadow: none; font: 400 11px var(--mono); }
 :where(body.experience-raycast) #btn-update.upd.busy { cursor: default; }
 :where(body.experience-raycast) .upd:is(.busy, .held) .lbl { display: none; }

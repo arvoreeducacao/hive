@@ -1,4 +1,5 @@
 import { spokenNow } from "/assets/i18n.mjs";
+import { saveConfig } from "./brand-face.js";
 import { $, apiGet, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { evenPacePercent, paceOf, paceRemainingPercent, resetOf, spanSaid } from "./limit-pace.js";
 import { openUsageAt, paintUsage, usageOnScreen } from "./usage.js";
@@ -7,6 +8,10 @@ import { clockOptions } from "./clock-format.js";
 const LIMIT_BEAT = 120000;
 
 st.limits = { accounts: [], tightest: "" };
+
+st.limitsFoot = false;
+
+st.hiveUnreachable = false;
 
 const limitHeat = (percent) => (percent >= 95 ? "full" : percent >= 80 ? "hot" : "");
 
@@ -67,11 +72,37 @@ function limitChipTitle(rows) {
   return [...lines, phrase("click for the whole picture")].join("\n");
 }
 
+function hotWindowSaid(row, rows, one) {
+  const who = rows.length > 1 ? `${accountTag(row, rows)} — ` : "";
+  const back = one.resets_at ? ` (${phrase("resets {n}", { n: limitWhen(one.resets_at) })})` : "";
+  return `${who}${limitLabel(one)} ${one.percent}%${back}`;
+}
+
+function limitsAlertModel(rows = accountsOnTheBar()) {
+  const hot = rows.flatMap((row) => limitsThatCount(row).filter((one) => limitHeat(one.percent)).map((one) => ({ row, one })));
+  if (st.limitsFoot || !hot.length) return { hidden: true, heat: "", title: "" };
+  const heat = hot.some(({ one }) => limitHeat(one.percent) === "full") ? "full" : "hot";
+  const lines = hot.map(({ row, one }) => hotWindowSaid(row, rows, one));
+  return { hidden: false, heat, title: [...lines, phrase("click for the whole picture")].join("\n") };
+}
+
+function paintLimitsAlert() {
+  const button = $("btn-lim-alert");
+  if (!button) return;
+  const alert = limitsAlertModel();
+  button.hidden = alert.hidden;
+  button.classList.toggle("hot", alert.heat === "hot");
+  button.classList.toggle("full", alert.heat === "full");
+  button.title = alert.title;
+}
+
 function paintLimitChip() {
   const model = limitChipViewModel();
-  if (raycastOn()) paintRaycastFoot(model);
-  else $("foot").hidden = model.hidden;
-  limitChipSolid.show(model);
+  const shown = st.limitsFoot ? model : { ...model, hidden: true };
+  if (raycastOn()) paintRaycastFoot(shown);
+  else $("foot").hidden = shown.hidden;
+  limitChipSolid.show(shown);
+  paintLimitsAlert();
   if (limPopOpen()) paintLimPop();
 }
 
@@ -82,7 +113,7 @@ let limitResetsSolid = null;
 let limitResetsMount = null;
 
 function paintRaycastFoot(model) {
-  $("foot").hidden = false;
+  $("foot").hidden = !st.limitsFoot && !st.hiveUnreachable;
   const again = $("lim-again");
   again.hidden = model.hidden;
   const age = $("lim-age");
@@ -90,7 +121,7 @@ function paintRaycastFoot(model) {
   const host = $("lim-resets");
   if (!host || !limitResetsMount) return;
   limitResetsSolid ||= limitResetsMount(host);
-  limitResetsSolid.show({ key: "limresets", resets: model.resets });
+  limitResetsSolid.show({ key: "limresets", resets: model.hidden ? [] : model.resets });
 }
 
 const SOON = 20 * 60 * 60 * 1000;
@@ -187,11 +218,13 @@ function raycastChip() {
 
 const limPopOpen = () => !$("limpop").hidden;
 
+const limPopAnchor = () => (st.limitsFoot ? $("btn-lim") : $("btn-lim-alert"));
+
 function placeLimPop() {
   const pop = $("limpop");
   const host = pop.offsetParent;
   if (!host) return;
-  const seat = $("btn-lim").getBoundingClientRect();
+  const seat = limPopAnchor().getBoundingClientRect();
   const edge = Math.max(6, Math.min(seat.left, innerWidth - pop.offsetWidth - 6));
   pop.style.left = `${Math.round(edge - host.getBoundingClientRect().left)}px`;
 }
@@ -230,11 +263,18 @@ solidMounts.push((hive) => {
   limPopSolid = hive.mountLimPop($("limpop"), { actions: { open: openUsageFromPop } });
 });
 
+function seatLimPop() {
+  const pop = $("limpop");
+  const home = st.limitsFoot ? $("foot") : $("top");
+  if (pop.parentNode !== home) home.append(pop);
+}
+
 function openLimPop() {
+  seatLimPop();
   paintLimPop();
   $("limpop").hidden = false;
   placeLimPop();
-  $("btn-lim").setAttribute("aria-expanded", "true");
+  limPopAnchor().setAttribute("aria-expanded", "true");
   pullLimits();
 }
 
@@ -246,11 +286,46 @@ function openUsageFromPop(key) {
 }
 
 function closeLimPop() {
-  const held = $("limpop").contains(document.activeElement);
-  $("limpop").hidden = true;
-  $("limpop").style.left = "";
-  $("btn-lim").setAttribute("aria-expanded", "false");
-  if (held) $("btn-lim").focus();
+  const pop = $("limpop");
+  const held = pop.contains(document.activeElement);
+  const anchor = limPopAnchor();
+  pop.hidden = true;
+  pop.style.left = "";
+  for (const id of ["btn-lim", "btn-lim-alert"]) $(id)?.setAttribute("aria-expanded", "false");
+  if (pop.parentNode !== $("foot")) $("foot").append(pop);
+  if (held) (anchor && !anchor.hidden ? anchor : $("btn-pal"))?.focus();
+}
+
+function paintLimitsFootChoice() {
+  const flip = $("t-limits-foot");
+  if (!flip) return;
+  const on = !!st.limitsFoot;
+  flip.textContent = on ? "on" : "off";
+  flip.classList.toggle("on", on);
+  flip.setAttribute("aria-pressed", on ? "true" : "false");
+  $("s-limits-foot-say").textContent = on ? phrase("every plan stays in the footer") : phrase("an icon at the top when a plan passes 80%");
+}
+
+function adoptLimitsFoot(r) {
+  const on = !!r.config?.limitsFoot;
+  const changed = on !== st.limitsFoot;
+  st.limitsFoot = on;
+  paintLimitsFootChoice();
+  if (!changed) return;
+  if (limPopOpen()) closeLimPop();
+  paintLimitChip();
+}
+
+function setLimitsFoot(on) {
+  adoptLimitsFoot({ config: { limitsFoot: on } });
+  saveConfig({ limitsFoot: on }).then((r) => adoptLimitsFoot(r)).catch(() => {});
+}
+
+function markHiveReach(reached) {
+  if (st.hiveUnreachable === !reached) return;
+  st.hiveUnreachable = !reached;
+  $("clock").classList.toggle("lost", !reached);
+  if (limitChipSolid) paintLimitChip();
 }
 
 function toggleLimPop() {
@@ -266,6 +341,7 @@ async function pullLimits(force) {
   } catch { return; }
   paintLimitChip();
   if (usageOnScreen() && st.usage) paintUsage({});
+  document.dispatchEvent(new CustomEvent("hive:limits"));
 }
 
-export { LIMIT_BEAT, SOON, accountMeterModel, accountSaid, accountTag, accountsOnTheBar, closeLimPop, insideTheWeek, limPopOpen, limPopSolid, limPopViewModel, limitChipSolid, limitAge, limitChipTitle, limitChipViewModel, limitHeat, limitLabel, limitPace, limitResets, limitWhen, limitsShown, limitsThatCount, openLimPop, openUsageFromPop, paintLimPop, paintLimitChip, placeLimPop, pullLimits, renewsAt, toggleLimPop, windowWord };
+export { LIMIT_BEAT, SOON, accountMeterModel, accountSaid, accountTag, accountsOnTheBar, closeLimPop, insideTheWeek, limPopOpen, limPopSolid, limPopViewModel, limitChipSolid, limitAge, limitChipTitle, limitChipViewModel, limitHeat, limitLabel, limitPace, limitResets, limitWhen, limitsShown, limitsThatCount, openLimPop, openUsageFromPop, paintLimPop, paintLimitChip, placeLimPop, pullLimits, renewsAt, toggleLimPop, windowWord, adoptLimitsFoot, limPopAnchor, limitsAlertModel, markHiveReach, paintLimitsFootChoice, setLimitsFoot };

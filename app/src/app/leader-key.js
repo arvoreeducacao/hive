@@ -6,7 +6,7 @@ import { hud } from "./hud.js";
 import { paintQuitChoice } from "./quit-hint.js";
 import { $, chordKeys, ACTION_GROUPS, ACTION_NAMES, ACTION_SAID, ACTIONS, COOLS_AFTER, DEFAULT_KEYS, DEFAULT_LEADER, DIGIT_ACTIONS, IS_MAC, STALE_AFTER, digitSpan, esc, formatKey, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { ago } from "./pod.js";
-import { run } from "./themes.js";
+import { run, THEME_RESCUE_KEY } from "./themes.js";
 
 const leaderPath = () => [keyLabel(st.leader), ...(st.layer?.path || [])].join(" ");
 
@@ -97,6 +97,8 @@ function keyParts(label) {
 }
 
 const keyCaps = (label) => keyParts(label).map((one) => `<span class="rc-key">${esc(one)}</span>`).join("");
+
+const keyTip = (label) => keyParts(label).join(IS_MAC ? "" : "+");
 
 function literalOf(b) {
   let ch = "";
@@ -191,7 +193,8 @@ const FIXED_KEYS = () => [
   { key: "newline", combo: phrase("⇧Enter"), desc: phrase("breaks the line without sending, while you type in a session") },
   { key: "drop", combo: phrase("drag"), desc: phrase("drop a file on the session under the cursor — or on the new chat box") },
   { key: "swap", combo: phrase("drag"), desc: phrase("a seat by its title swaps places with the seat you drop it on") },
-  { key: "escape", combo: phrase("Esc"), desc: phrase("leaves fullscreen") }
+  { key: "escape", combo: phrase("Esc"), desc: phrase("leaves fullscreen") },
+  { key: "themeRescue", combo: keyLabel(THEME_RESCUE_KEY), desc: phrase("back to the default theme, even when a theme hides the screen") }
 ];
 
 const SET_ONE = "Set a shortcut";
@@ -428,4 +431,4 @@ const jobName = new Map();
 
 const justCreated = new Map();
 
-export { KEY_SLOTS, armLeader, captureKey, commitKeys, disarmLeader, keyMenuItems, removeKey, restoreKey, jobName, justCreated, keyCaps, keyHint, keyParts, keysGridModel, keysGridSolid, keysLeaderModel, keysLeaderSolid, keysViewModel, lastLively, lastMark, literalOf, liveAge, liveBadge, liveOf, liveTitle, markSeatRead, paintKeys, pool, previousState, readMark, receiving, resolveLeader, sameBinding, sawWorking, seatMark, sendLiteral, showWhich, stateOf, tiles };
+export { KEY_SLOTS, armLeader, captureKey, commitKeys, keyTip, disarmLeader, keyMenuItems, removeKey, restoreKey, jobName, justCreated, keyCaps, keyHint, keyParts, keysGridModel, keysGridSolid, keysLeaderModel, keysLeaderSolid, keysViewModel, lastLively, lastMark, literalOf, liveAge, liveBadge, liveOf, liveTitle, markSeatRead, paintKeys, pool, previousState, readMark, receiving, resolveLeader, sameBinding, sawWorking, seatMark, sendLiteral, showWhich, stateOf, tiles };

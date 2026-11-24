@@ -1,3 +1,4 @@
+import { TASK_DONE, forgetBackgroundTasks, noteBackgroundTask, openBackgroundWork } from "./background-work.js";
 import { artifactTabOf, closeBrowser, openArtifactTab, showingArtifact } from "./chat-and-panes.js";
 import { svConvCards, svConvDiff, svConvShow, svConvShowSubs, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubStep, svConvSubUnpin, svConvSubs, svConvTool, svConvToolLanded } from "./conversation-model.js";
 import { esc, phrase, raycastOn, st } from "./core.js";
@@ -53,9 +54,8 @@ function svSubUnpin(e, id) {
   return svConvSubUnpin(e, id);
 }
 
-const TASK_DONE = /^(completed|failed|cancell?ed|killed|stopped|error|timed_out)$/i;
-
 function svSubTask(e, ev) {
+  if (noteBackgroundTask(e, ev)) paintSubs(e);
   if (!e.subs?.size) return;
   if (ev.subtype === "task_started") {
     const item = ev.tool_use_id ? e.subs.get(ev.tool_use_id) : null;
@@ -80,6 +80,7 @@ function svSubTask(e, ev) {
 }
 
 function svSubsOfAnEndedProcess(e) {
+  if (forgetBackgroundTasks(e)) paintSubs(e);
   for (const id of [...(e.subs?.keys() || [])]) svSubUnpin(e, id);
 }
 
@@ -338,8 +339,8 @@ function openLiveList(name, at) {
   const go = () => {
     closeLiveList();
     openTile(name);
-    const dock = structPool.get(name)?.host.querySelector(".sv-subs");
-    if (dock) dock.dataset.fold = "open";
+    const e = structPool.get(name);
+    if (e) openBackgroundWork(e);
   };
   for (const row of pop.querySelectorAll(".lp-row")) row.addEventListener("click", go);
   pop.hidden = false;

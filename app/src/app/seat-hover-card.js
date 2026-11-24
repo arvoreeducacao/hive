@@ -1,6 +1,6 @@
 import { esc, phrase, st, svgIcon } from "./core.js";
 import { seatLabel } from "./pure-helpers.js";
-import { TIP_DELAY, TIP_WARM, fitMiddles, prsOf, tipHtml, treeOf } from "../structures/inbox.js";
+import { TIP_DELAY, TIP_WARM, fitMiddles, prsOf, tipHtml, treeOf } from "./seat-card-html.js";
 
 const CHAT_CHIP = ".ctx-chip[data-kind=chat]";
 const CARD_ID = "seat-hover-card";
@@ -68,7 +68,7 @@ function showSeatCard(chip) {
   card.className = "tx-tip seat-card";
   card.setAttribute("role", "tooltip");
   card.innerHTML = tipHtml(cardRow(seat), { esc, phrase, svgIcon });
-  (chip.closest("#structure-root") || document.body).append(card);
+  document.body.append(card);
   place(card, chip);
   fitMiddles(card);
   chip.setAttribute("aria-describedby", CARD_ID);

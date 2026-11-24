@@ -32,9 +32,15 @@ function HeadChip(props) {
 
 function StateDot(props) {
   return (
-    <Show when={props.dot === "failed"} fallback={<span class={`rc-dot t-dot ${props.dot}`} aria-hidden="true" />}>
-      <svg class="t-dot failed" aria-hidden="true"><use href="#i-warn" /></svg>
+    <Show when={props.dot === "failed"} fallback={<span class={`rc-dot t-dot ${props.dot}`} role="img" aria-label={props.say} title={props.say} />}>
+      <svg class="t-dot failed" role="img" aria-label={props.say}><title>{props.say}</title><use href="#i-warn" /></svg>
     </Show>
+  );
+}
+
+function StateGlyph(props) {
+  return (
+    <svg class="t-glyph" role="img" aria-label={props.label}><title>{props.label}</title><use href={props.glyph} /></svg>
   );
 }
 
@@ -117,14 +123,17 @@ function Side(props) {
         <div class="t-grip" role="button" tabindex="0" aria-label={props.model.tags.grip}
           onClick={(ev) => { ev.stopPropagation(); props.actions.expand(); }}
           onKeyDown={(ev) => { if (ev.key !== "Enter" && ev.key !== " ") return; ev.preventDefault(); ev.stopPropagation(); props.actions.expand(); }}><i /></div>
-        <Show when={props.model.raycast}><StateDot dot={props.model.dot} /></Show>
+        <Show when={props.model.raycast}><StateDot dot={props.model.dot} say={props.model.say} /></Show>
         <div class="t-ident">
           <span class={`t-place ${props.model.place.cls}`} title={props.model.place.title}><svg aria-hidden="true"><use href={props.model.place.icon} /></svg></span>
           <div class="t-name" on:click={(ev) => props.actions.titleClick?.(ev)} onDblClick={(ev) => { ev.stopPropagation(); props.actions.rename(); }} />
+          <Show when={!props.model.raycast}>
+            <StateGlyph glyph={props.model.glyph} label={props.model.label} />
+            <button type="button" class="t-term" hidden><svg aria-hidden="true"><use href="#i-term" /></svg></button>
+          </Show>
           <div class="t-sub" classList={{ "of-errand": props.model.sub.ofErrand }} title={props.model.sub.hint}>{props.model.sub.text}</div>
         </div>
         <Show when={props.model.raycast}>
-          <span class="t-say" classList={{ hi: props.model.dot === "needs" }} title={props.model.label}>{props.model.say}</span>
           <span class="t-hchips">
             <For each={props.model.heads}>{(chip) => <HeadChip chip={chip} actions={props.actions} />}</For>
             <span class="t-live" hidden={!props.model.live.on} title={props.model.live.title}><svg aria-hidden="true"><use href="#i-agent" /></svg><b>{props.model.live.count}</b><span class="tx">{props.model.live.age}</span></span>
@@ -195,9 +204,12 @@ function JobSide(props) {
   return (
     <>
       <div class="t-head">
-        <Show when={props.model.raycast}><StateDot dot={props.model.dot} /></Show>
-        <div class="t-ident"><div class="t-name">{props.model.name}</div><div class="t-sub">{props.model.sub}</div></div>
-        <Show when={props.model.raycast}><span class="t-say" title={props.model.label}>{props.model.say}</span></Show>
+        <Show when={props.model.raycast}><StateDot dot={props.model.dot} say={props.model.say} /></Show>
+        <div class="t-ident">
+          <div class="t-name">{props.model.name}</div>
+          <Show when={!props.model.raycast}><StateGlyph glyph={props.model.glyph} label={props.model.label} /></Show>
+          <div class="t-sub">{props.model.sub}</div>
+        </div>
         <span class="where" data-where={props.model.where}><svg aria-hidden="true"><use href={props.model.whereIcon} /></svg><span class="where-txt">{props.model.where}</span></span>
       </div>
       <Show when={!props.model.raycast}>

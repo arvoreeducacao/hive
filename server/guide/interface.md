@@ -6,8 +6,8 @@ Where things are on the Hive screen, every default key and how to rebind it, dic
 
 The Hive has two looks, set by the `experience` setting.
 
-- **Default look** (`"experience": "raycast"`, the default). It has the Settings window with a search field, the structures (see "Structures"), seat notice cards, rail search with `/`, and the "Raycast" palette as the default theme.
-- **New Hive** (`"experience": "experimental"`). An experiment: charcoal surfaces, orange selection, square controls, sage message bubbles and pixel icons. It has its own rail (see "The rail"), no structures, and Esc closes an open chat. Its Settings window has no search field, and themes open in their own window.
+- **Default look** (`"experience": "raycast"`, the default). It has the Settings window with a search field, seat notice cards, rail search with `/`, and the "Raycast" palette as the default theme.
+- **New Hive** (`"experience": "experimental"`). An experiment: charcoal surfaces, orange selection, square controls, sage message bubbles and pixel icons. It has its own rail (see "The rail"), and Esc closes an open chat. Its Settings window has no search field, and themes open in their own window.
 
 To switch, open Settings, go to the "Experiments" pane, and press "Try new Hive" or "Leave New Hive". The choice is saved for this installation and all its windows. It does not change anyone else's settings.
 
@@ -18,7 +18,7 @@ If New Hive fails, open the Hive with `?experience=raycast` in its address, or r
 ## The screen at a glance
 
 - **Top bar**: your face (click it to change it), the leader/hold indicator, the block chips, "waiting on you" (seats that need you; click goes to one), tasks, "plane", pull requests, the environment warning, "update ready", the search button (opens the palette), a clock and `⋯` ("everything else").
-- **The `⋯` menu**: "dim the others", "share my fleet", "my phone", "my other machines", "this machine", then "your day", "shelf", "memories", "tasks", "history", "usage", "routines", "who gets in", "workspace", "new terminal", "new terminal on the server", "providers and accounts", "themes" and "shortcuts and settings". In the default look a "structure" button sits just before "shortcuts and settings".
+- **The `⋯` menu**: "dim the others", "share my fleet", "my phone", "my other machines", "this machine", then "your day", "shelf", "memories", "tasks", "history", "usage", "routines", "who gets in", "workspace", "new terminal", "new terminal on the server", "providers and accounts", "themes" and "shortcuts and settings".
 - **The status strip**: one environment line under the top bar. Toggle it with the `alerts` key or the palette row "hide the environment line".
 - **The strip**: the block number, the block label ("what this block is about", click to rewrite), the seats, "plane", and the full-screen button. In the default look the strip sits inside the top bar.
 - **The canvas**: the seats of the block you are on.
@@ -57,41 +57,13 @@ To change how seats sit, open Settings, "The screen", "how the seats sit" (`layo
 
 On a narrow window, grid and row both settle into one column. Outside New Hive the status of a chat starts folded; the minus on the card brings it back.
 
-**Focus mode** keeps the chat in focus in the middle and the rest of the block beside it. Turn it on with the palette row "focus mode" (it then reads "leave focus mode") or the `focusMode` key, which has no default. The app window remembers it. Structures, except Cockpit, pause in focus mode.
+**Focus mode** keeps the chat in focus in the middle and the rest of the block beside it. Turn it on with the palette row "focus mode" (it then reads "leave focus mode") or the `focusMode` key, which has no default. The app window remembers it.
 
 **Open a chat full screen** with the `fullscreen` key (⌘Enter on macOS, Ctrl+Enter on Linux/Windows); Esc leaves. Inside a message box the same keys stop the turn and send instead, so press it with the box out of focus. The full-screen button in the strip ("full screen — the chat alone on the screen") takes the whole monitor; Esc or "leave" exits.
 
 **Resize an open chat**: drag the thin handle between its info side and the conversation (also the thread, pane and info height handles). Double-click restores the default. With the handle focused, the arrows move it 10 px and Shift+arrows 40 px. The sizes go to `infoWidth`, `threadWidth`, `paneWidth` and `infoHeight`.
 
 **A chat in its own window**: the `detach` key (no default; leader chord `o`). Drag it out of that window to put it back in the grid.
-
-## Structures (default look only)
-
-A structure is the shape of the whole screen. Chats, focus and drafts stay where they are when it changes.
-
-- To change it, open Settings, "Appearance", "structure"; or press "structure" in `⋯`; or use the palette rows "Structure: <name>".
-- ⌥⌘S (macOS) or Ctrl+Alt+S (Linux/Windows) steps to the next one; add Shift to go back. This key cannot be rebound.
-- After a change, a notice offers "Undo" (⌘Z / Ctrl+Z).
-
-| `structure` | Name | What it is |
-| --- | --- | --- |
-| `classic` | Classic | the bar, the rail and the wall of seats (default) |
-| `launcher` | Launcher | one centred window where everything starts by typing |
-| `inbox` | Inbox | every seat is a row in a queue ordered by who needs you, one conversation at a time |
-| `atmosphere` | Atmosphere | seats as glass windows over a full-screen atmosphere |
-| `cockpit` | Cockpit | a tmux-style grid of panes, six seats in view, a status line at the foot |
-| `stage` | Stage | one seat on stage, the others as live thumbnails |
-| `map` | Map | the fleet on one field, grouped by project |
-| `ember` | Ember | one seat as a reading page, the rest as cards queued by urgency |
-| `island` | Island | one conversation; the fleet fits in a pill at the top |
-
-If a structure fails to start, the classic one stands in and the top bar says so.
-
-**Inbox keys** (outside a text field): j/↓ and k/↑ move, `/` searches, Enter goes to the reply box, `e` archives, `s` settles or unsettles, `p` pins, `u` marks unread. ⌘1–9 (Ctrl+1–9) jumps to a row, ⌘⇧T (Ctrl+Shift+T) reopens the last one closed, and ⌘Enter (Ctrl+Enter) in the reply box sends and moves on. Pins, snoozes and marks are kept in `~/.hive/inbox-marks.json`.
-
-**Cockpit keys** come after the leader key, so turn the leader on first. `s` opens the seat layer (`n` new chat, `t` terminal, `r` rename, `a` archive, `k` kill, `d` a window of its own). `w` opens the window layer (`2` split below, `3` split right, `0` close this window, `1` only this window, `o` the other window, `=` same sizes). `g` is PRs, `z` zooms in and back, `/` searches every seat, `?` is help. Esc or Ctrl+G quits a key chain.
-
-**The fleet** sits left of the cockpit's panes: every block of the workspace with its chats, then the chats off screen. A chat outside the block on screen shows what it is doing and since when. A click on a chat goes to it; a click on a block name goes to that block. `b` after the leader hides it and brings it back, and the window remembers the choice. In a window narrower than 1100 px it stays hidden.
 
 ## The plane
 
@@ -104,7 +76,7 @@ The plane puts every seat on one field that you arrange yourself. Toggle it with
 
 ## The command palette
 
-Open it with the `palette` key (⌘K on macOS, Ctrl+Shift+K on Linux/Windows; leader Space) or the search button. It searches sessions ("go to"), blocks, workspaces, pull requests, archived chats and actions. The actions include new chat, terminals, dim, focus mode, every panel, notices, rename, reconnect, themes, structures, language and the little you.
+Open it with the `palette` key (⌘K on macOS, Ctrl+Shift+K on Linux/Windows; leader Space) or the search button. It searches sessions ("go to"), blocks, workspaces, pull requests, archived chats and actions. The actions include new chat, terminals, dim, focus mode, every panel, notices, rename, reconnect, themes, language and the little you.
 
 - ↑ ↓ move, Enter runs, Shift+Enter opens beside, Esc closes.
 - The `openFile` key (⌘P / Ctrl+Shift+P) opens it in file mode, and `searchCode` (⌘⇧F / Ctrl+Shift+F) in code search. Tab switches between the two; Esc goes back.
@@ -240,6 +212,12 @@ A theme paints the whole app and every terminal. The choice is `theme` (a name);
 
 There are nine built-in themes, among them Hive (default), Solarized Light, Tokyo Night, Gruvbox Dark, Nord, Dracula and Rosé Pine. The default look adds "Hive Classic" (the older Hive palette) and shows Hive as "Raycast". The `themes` key (no direct default; leader shift+t) opens them.
 
+**Light and dark.** In Settings, "Appearance", "light and dark" (`appearance`) is "one theme, always" (`fixed`, default) or "follow the system" (`system`). Following the system, the app wears `themeLight` (default "Bonsai Light") while macOS is light and `theme` while it is dark, and switches as macOS does. Wearing a theme then puts it in the slot of its own colours, and the list marks "wearing in light" and "wearing in dark". `html[data-appearance]` says `light` or `dark` for the theme being worn.
+
+**A theme made by an agent.** A chat can restyle the app on this machine with the `hive` tools `theme_read` (the current theme, the colour roles, the stable selectors and the rules) and `theme_set` (`name` with `canvas` and `accent` in hex, which make the whole palette; optional `colors` for single roles and `css`; `use` wears a theme that exists and undoes; `appearance`). The theme lands in `themes` with `"by": "agent"`, is worn at once and shows "made by an agent" in the list. A chat in the cloud cannot change the app's theme.
+
+A theme's `css` (any theme in `themes`, up to 20000 characters) applies after the app's own styles. It cannot load anything: a theme whose `css` holds `@import`, `image-set()`, `src()`, a backslash, or a `url()` that is not a `data:` address or an `#id` keeps its colours and loses the css, and the config notes why. To undo a look that hides something, press ⌃⌥⌘T (macOS) or Ctrl+Alt+Shift+T (Linux/Windows): it puts the default theme back at once, sets one theme always and takes the css off the theme that was worn, even when the theme hides the whole screen. The key cannot be changed; the palette has the same action, "back to the default theme". A chat can also call `theme_set` with `use`.
+
 A shared theme is JSON: `{ "hive-theme": 1, "name": "…", "ui": { … }, "terminal": { … } }`. In `themes`, each name (up to 60 characters, up to 40 themes) maps to `ui` and `terminal` colours as hex (`#RGB`, `#RRGGBB` or `#RRGGBBAA`). `ui` keys: `bg`, `panel`, `panel2`, `panel3`, `well`, `line`, `line2`, `line3`, `txt`, `txt2`, `txt3`, `accent`, `accentD`, `accentHi`, `accentBg`, `green`, `yellow`, `blue`, `violet`. `terminal` keys: `background`, `foreground`, `cursor`, `selectionBackground` and the 16 ANSI names (`black` … `brightWhite`).
 
 ## Fonts, language, performance and dim
@@ -249,10 +227,14 @@ Settings, "Appearance" ("Look" in New Hive), holds `font`; leave a field empty f
 - "interface font" (`font.sans`) and "monospace and terminal font" (`font.mono`): font stacks. The default look uses Inter and Geist Mono while these are at their defaults.
 - "terminal size" (`font.terminalSize`, 8–32, default 12).
 - "chat line height" (`font.chatLineHeight`, 1–2.5, default 1.55) and "chat spacing" (`font.chatSpacing`, 0–40 px, default 10).
+- "separate fonts": a font for the prompt (`font.prompt`, `font.promptSize` 10–24), for code in the chat (`font.code`, `font.codeSize` 9–24) and for the terminal (`font.terminal`), with a preview. Empty keeps the font of today. "fine smoothing" (`font.smoothing: "thin"`) draws thinner, grey-smoothed text.
+- "contrast" (`contrast`, 0–100, default 0) pulls the borders and the dim text towards the text colour.
+- "glass opacity" (`glass`, 0–100, or `null` for "as it is", the default) makes menus, dialogs, the palette and the composer that solid, with a blur behind.
+- "chat width" (`chatWidth`): `auto` (default: the conversation uses the whole tile), a width in pixels (480–1600) or `full`.
 - "language" (`language`): `en` (default) or `pt-BR`. It is the language of menus, notices and empty screens. The palette also lists both.
 - "look" (`look`): "classic, as it was" (`classic`, default) or "dimension, the new one" (`dimension`). It changes the fallback fonts and, on macOS, where the window buttons sit.
 
-Settings, "Performance", "how the screen is drawn" (`visual`): `lean` (default: nothing moves, no blur) or `full` (motion and blur, which cost memory and battery). Motion pauses when nobody looks at the window, and the system's reduced-motion setting also counts.
+Settings, "Performance", "how the screen is drawn" (`visual`): `lean` (default: nothing moves, no blur) or `full` (motion and blur, which cost memory and battery). Motion pauses when nobody looks at the window, and the system's reduced-motion setting also counts. "panel speed" (`panelMotion`, 0–400 ms, default 0) makes the sidebar, the side panel and the terminal slide open and closed in that time, in either mode; 0 opens them at once, and reduced motion keeps them still.
 
 "dim the others" in `⋯` (`dim`, on by default; key `dim`) fades the other seats while the keyboard is in one.
 
@@ -297,7 +279,6 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 | `experience` | `raycast`, `experimental` (`raycast`) | Experiments, "Try new Hive" |
 | `experienceOff` | list of `resizeInfo`, `imageZoom`, `titleClick` (`[]`) | none |
 | `look` | `classic`, `dimension` (`classic`) | Appearance, "look" |
-| `structure` | see "Structures" (`classic`) | Appearance, "structure" (default look) |
 | `layout` | `grid`, `row`, `strip` (`grid`) | The screen, "how the seats sit" |
 | `blockSize` | 2–6 (4) | The screen, "seats in a block" |
 | `theme` | a theme name (`""` = Hive) | Appearance or Themes |
@@ -370,8 +351,6 @@ The Settings "Slack" pane connects this Hive to a Slack bot (see the "team-and-c
 - `app/src/app/preferences.js`
 - `app/src/app/palette.js`
 - `app/src/app/seat-layout.js`
-- `app/src/app/structure.js`
-- `app/src/structures/index.js`
 - `app/src/app/experience-controller.js`
 - `app/src/app/experience-behaviors.js`
 - `app/src/app/next-rail.js`

@@ -10,7 +10,7 @@ export function registerDraftRoutes(on, context) {
     const name = String(asked.name || "").trim();
     if (!isSeatName(name)) return json({ error: "that is not a chat this hive knows" }, 400);
     const at = Number(asked.at) || now();
-    const kept = keepDraft(HIVE_HOME, name, asked.text, at);
+    const kept = keepDraft(HIVE_HOME, name, asked.text, at, { images: asked.images, quotes: asked.quotes, files: asked.files });
     if (!kept.older) publish(name, kept.draft?.text || "", at).catch(() => {});
     return json({ ok: true, ...kept });
   });

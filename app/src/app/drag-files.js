@@ -1,4 +1,4 @@
-import { st } from "./core.js";
+import { phrase, st } from "./core.js";
 import { takeFiles, zoneOf } from "./drop-zone.js";
 import { goTo } from "./focus-navigation.js";
 import { pool } from "./leader-key.js";
@@ -10,7 +10,9 @@ function markZone(zone) {
   if (st.dropZone?.el === zone?.el) return;
   st.dropZone?.el.classList.remove("dropping");
   st.dropZone = zone;
-  st.dropZone?.el.classList.add("dropping");
+  if (!st.dropZone) return;
+  st.dropZone.el.dataset.dropSays = phrase("Drop files to attach");
+  st.dropZone.el.classList.add("dropping");
 }
 
 const carriesFile = (dt) => [...(dt?.types || [])].includes("Files");
@@ -24,6 +26,8 @@ window.addEventListener("dragover", (ev) => {
 });
 
 window.addEventListener("dragleave", (ev) => { if (!ev.relatedTarget) markZone(null); });
+
+window.addEventListener("dragend", () => markZone(null));
 
 const foldersIn = (dt) => new Set([...(dt?.items || [])]
   .map((i) => (i.kind === "file" ? i.webkitGetAsEntry?.() : null))

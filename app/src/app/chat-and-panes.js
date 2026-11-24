@@ -4,11 +4,16 @@ import { markCopied } from "./avatars.js";
 import { forgetSeat } from "./blocks.js";
 import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svReset, svTrimTurns, svTypePath } from "./chat-stretches.js";
 import { svForked } from "./chat-fork.js";
+import { closeAsk, composerDriverNote, composerSaw, dressPlanCard, forgetPlan, noteAsk, notePlan, paintQueue } from "./composer.js";
+import { dressCatalog, paintFastMark, paintModelFoot, rememberSeatPick } from "./composer-models.js";
+import { rememberedModel, rememberedOptions } from "./model-memory.js";
+import { seatEventSeen } from "./seat-events.js";
 import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
 import { paintSaidChips } from "./context-chips.js";
-import { svConvBubbleOf, svConvDispatched, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvSwitch, svConvRecovered, svConvRetry, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvSettle, svConvShow, svConvSteer, svConvStopped, svConvStream, svConvThink, svConvThinking, svConvThumb, svConvTurnEnded, svConvTurnStart, svConvUnsay } from "./conversation-model.js";
+import { svConvBubbleOf, svConvDispatched, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvSwitch, svConvRecovered, svConvResay, svConvRetry, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvSettle, svConvShow, svConvSteer, svConvSteerSaw, svConvStopped, svConvStream, svConvThink, svConvThinking, svConvThumb, svConvTurnEnded, svConvTurnStart, svConvUnsay } from "./conversation-model.js";
 import { editFailed } from "./edit-message.js";
 import { $, apiGet, chooseOption, esc, experienceNext, raycastOn, forgetUpload, liveMarkdown, lookFor, markUpload, NATIVE_COMMAND_NAMES, phrase, reachRef, readPage, renderMarkdown, sayPage, st, svgIcon } from "./core.js";
+import { effortBars } from "/assets/behavior-defaults.mjs";
 import { drafts } from "./draft-seat.js";
 import { closeTile, openTile, pull, releaseKeyboard } from "./focus-navigation.js";
 import { accountSaid, providerAccounts, providerName, providerReady, providerWhyNot, pullAccounts, readyAgents } from "./providers.js";
@@ -23,6 +28,8 @@ import { chatOfThread, closeFinish, finishOn, goToPr } from "./seat-menu.js";
 import { paintPageChrome, pullShelf, shelfLinkTab, shelfOnScreen, shelfPickedProposal, shelfVersionsOf } from "./shelf.js";
 import { paintActivity, refreshContext, refreshDriverState, structPool, svActivity, svAppend, svDequeue, svDequeuedEarly, svLine } from "./structured-seats.js";
 import { ART_WEBVIEW, artClock, artifactIndexAt, shelfPageOf, svSubCall, svSubEcho, svSubLanded, svSubTask, svSubUnpin, svSubsOfAnEndedProcess, svToolCard, svToolResult, tookLabel } from "./subagents-dock.js";
+import { keyFromPage, registerSurface, sidePanelWebHost } from "./side-panel.js";
+import { dressWebPane, paintWebExtras, tabIconHtml, watchFrame, webChord } from "./web-pane-extras.js";
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, closeThreadPanel, exitReview, openThreadOf, prsOnScreen, pullPrs } from "./thread.js";
 import { ARTIFACT_LINK, toolSays, trimBody } from "./tool-face.js";
@@ -1016,6 +1023,7 @@ function webPaneOf(el, s) {
   pane.querySelector(".web-review").addEventListener("click", (ev) => { ev.stopPropagation(); sendScreenReview(s.name); });
   pane.querySelector(".web-pick").addEventListener("click", (ev) => { ev.stopPropagation(); toggleWebPick(s.name, pane); });
   el.appendChild(pane);
+  dressWebPane(pane, webExtrasOf(s.name));
   setTimeout(() => pane.querySelector(".web-url input")?.focus(), 0);
   return pane;
 }
@@ -1168,7 +1176,9 @@ function bornWebFrame(yard, name, t) {
     }
     if (ev.channel === "hive-pick-cancel") setWebPick(name, false);
     if (ev.channel === "hive-quote") sendPageQuote(name, ev.args[0]);
+    if (ev.channel === "hive-key") pageKey(name, ev.args[0]);
   });
+  watchFrame(frame, t, () => render());
   frame.addEventListener("focus", () => {
     if (pageMayHoldFocus(name) && frameIsUpFront(name, frame)) return;
     const back = pageThePersonWasIn(frame) || personsFocus;
@@ -1274,7 +1284,7 @@ function insideFocusStroke(stage) {
 
 function placeYard(name, yard) {
   const showing = st.webChat === name && paneShownFor(name);
-  const stage = showing ? document.querySelector(`.tile[data-name="${name}"] .art.web .art-stage`) : null;
+  const stage = showing ? webPaneOfName(name)?.querySelector(".art-stage") : null;
   const box = stage && experienceNext() ? insideFocusStroke(stage) : stage?.getBoundingClientRect();
   const onstage = !!box && box.width > 1 && box.height > 1;
   yard.classList.toggle("onstage", onstage);
@@ -1709,7 +1719,7 @@ const webPick = new Map();
 
 function setWebPick(name, on) {
   webPick.set(name, on);
-  document.querySelector(`.tile[data-name="${name}"] .art.web .web-pick`)?.classList.toggle("on", on);
+  webPaneOfName(name)?.querySelector(".web-pick")?.classList.toggle("on", on);
   try { frameOfSeat(name)?.send("hive-pick-mode", on); } catch {}
 }
 
@@ -1776,7 +1786,7 @@ async function paintPageFaces(name, frame) {
 }
 
 function paintFacesOfPane(name, watching) {
-  const host = document.querySelector(`.tile[data-name="${name}"] .art.web .web-faces`);
+  const host = webPaneOfName(name)?.querySelector(".web-faces");
   if (!host) return;
   host.textContent = "";
   host.hidden = !watching.length;
@@ -1975,23 +1985,67 @@ function openPopupTab(wcId, url) {
   window.seatBrowser?.openExternal(url);
 }
 
+const webExtrasOf = (name) => ({
+  pane: null,
+  frameNow: () => frameOfSeat(name),
+  tabNow: () => webTabNow(name),
+  repaint: () => render(),
+  newTab: () => { if (addWebTab(name)) render(); }
+});
+
+registerSurface({
+  id: "browser",
+  tabLabel: (s) => {
+    const tab = s ? webTabNow(s.name) : null;
+    if (!tab?.url || tab.kind === "artifact") return null;
+    const label = tab.title || tab.url.replace(/^https?:\/\//, "");
+    return { label, title: tab.url, face: tab.icon ? `<span class="sp-ti">${tabIconHtml(tab)}</span>` : "" };
+  }
+});
+
+const webPaneOfName = (name) => (sidePanelWebHost(name) || document.querySelector(`.tile[data-name="${CSS.escape(name)}"]`))?.querySelector(".art.web") || null;
+
+function webChordFor(name, event) {
+  const pane = webPaneOfName(name);
+  if (!pane) return false;
+  return webChord(event, { ...webExtrasOf(name), pane });
+}
+
+function pageKey(name, said) {
+  if (!said) return;
+  const event = { code: String(said.code || ""), key: String(said.key || ""), altKey: !!said.alt, ctrlKey: !!said.ctrl, metaKey: !!said.meta, shiftKey: !!said.shift };
+  if (webChordFor(name, event)) return;
+  keyFromPage(said, name);
+}
+
+window.addEventListener("keydown", (event) => {
+  const pane = event.target?.closest?.(".art.web");
+  const name = pane?.closest(".tile, .art.sp")?.dataset.name;
+  if (!name || event.repeat || !webChordFor(name, event)) return;
+  event.preventDefault();
+  event.stopPropagation();
+}, true);
+
 function paintWebOfChat(el, s) {
   const on = st.webChat === s.name && paneShownFor(s.name) && ART_WEBVIEW;
-  if (on) el.classList.add("arting");
-  const had = el.querySelector(".art.web");
-  if (!on) { had?.remove(); return; }
+  const host = on ? sidePanelWebHost(s.name) : null;
+  if (on && !host) el.classList.add("arting");
+  if (host) el.querySelector(":scope > .art.web")?.remove();
+  const had = (host || el).querySelector(".art.web");
+  if (!on) { el.querySelector(".art.web")?.remove(); return; }
   if (!webOfSeat.get(s.name)?.tabs.length) addWebTab(s.name);
-  const pane = had || webPaneOf(el, s);
+  const pane = had || webPaneOf(host || el, s);
   const web = webStateOf(s.name);
   const now = web.tabs[web.active];
   const live = web.tabs.filter((t) => t.url).length;
   pane.querySelector(".art-id span").textContent = `${s.name} \u00b7 ${live ? tabsSaid(live) : phrase("new tab")}`;
   pane.querySelector(".web-out").hidden = !now?.url;
   const tabsBox = pane.querySelector(".web-tabs");
+  pane.classList.toggle("web-one", web.tabs.length <= 1);
   const full = webTabsIn(web).length >= WEB_TAB_CAP - 1;
   const mine = drivenTab.get(s.name);
   const busy = drivingNow(s.name);
-  const h = web.tabs.map((t, i) => `<button class="web-tab${i === web.active ? " on" : ""}${t.id === mine ? " driven" : ""}${t.id === mine && busy ? " busy" : ""}" data-id="${t.id}"${t.id === mine ? ` title="${phrase("the AI is using this page")}"` : ""}>${t.id === mine ? '<u aria-hidden="true"></u>' : ""}<span>${esc(t.title || t.url || phrase("new tab"))}</span><i data-id="${t.id}">\u00d7</i></button>`).join("")
+  const h = web.tabs.map((t, i) => `<button class="web-tab${i === web.active ? " on" : ""}${t.id === mine ? " driven" : ""}${t.id === mine && busy ? " busy" : ""}" data-id="${t.id}"${t.id === mine ? ` title="${phrase("the AI is using this page")}"` : ""}>${t.id === mine ? '<u aria-hidden="true"></u>' : ""}${tabIconHtml(t)}<span>${esc(t.title || t.url || phrase("new tab"))}</span><i data-id="${t.id}">\u00d7</i></button>`).join("")
     + `<button class="web-plus"${full ? " disabled" : ""} title="${full ? phrase("tab limit — close one first") : phrase("new tab")}">+</button>`;
   if (tabsBox.dataset.h !== h) {
     tabsBox.dataset.h = h;
@@ -2020,6 +2074,7 @@ function paintWebOfChat(el, s) {
   pane.querySelector(".web-back").disabled = !frame || !canStep("back");
   pane.querySelector(".web-fwd").disabled = !frame || !canStep("forward");
   pane.querySelector(".web-again").disabled = !frame;
+  paintWebExtras(pane, now);
   const stage = pane.querySelector(".art-stage");
   let hint = stage.querySelector(".web-empty");
   if (!now?.url && !hint) {
@@ -2584,6 +2639,7 @@ function svQuestionCard(e, ev) {
   card.dataset.id = ev.id;
   e.asked.set(ev.id, card);
   svAppend(e, card);
+  noteAsk(e, ev, card);
 }
 
 const modelsOfAgent = new Map();
@@ -2832,8 +2888,10 @@ function svPlanCard(e, ev) {
   });
   change.addEventListener("click", () => { e.host.querySelector(".sv-composer textarea")?.focus(); });
   card.append(head, body, rows, foot);
+  dressPlanCard(e, card, ev.plan, planWithoutFronts(ev.plan));
   e.asked.set(ev.id, card);
   svAppend(e, card);
+  notePlan(e, ev, card);
 }
 
 function svDraftPaint(e) {
@@ -3060,6 +3118,9 @@ function svEvent(e, ev) {
   if (!e.firstSeq && Number(ev.seq) > 0) e.firstSeq = Number(ev.seq);
   e.at = (ev.ts && Date.parse(ev.ts)) || Date.now();
   const live = !ev.replayed;
+  seatEventSeen(e, ev);
+  composerSaw(e, ev, live);
+  if (e.conv) svConvSteerSaw(e, ev);
   if (ev.type === "system") {
     if (ev.subtype === "init") {
       if (e.conv) svConvTurnStart(e);
@@ -3071,6 +3132,7 @@ function svEvent(e, ev) {
       const gone = new Set(ev.terminal_slash_commands || []);
       e.slashGone = gone;
       e.slash = (ev.slash_commands || []).filter((c) => !gone.has(c));
+      e.skills = new Set(Array.isArray(ev.skills) ? ev.skills.filter((one) => typeof one === "string") : []);
       e.slashInfo = {};
       if (live) {
         e.turnOpen = ev.working !== false;
@@ -3169,6 +3231,7 @@ function svEvent(e, ev) {
     return;
   }
   if (ev.type === "driver") {
+    if (composerDriverNote(e, ev, live)) return;
     if (ev.subtype === "started" || ev.subtype === "slept") svSubsOfAnEndedProcess(e);
     /* the seat was reopened under the same name and its diary started over at 1: what this
        tile painted belongs to a driver that is gone, its open turn included */
@@ -3193,6 +3256,7 @@ function svEvent(e, ev) {
     if (ev.subtype === "plan" && ev.id) { if (live) svActivity(e, phrase("waiting for you to read the plan")); return svPlanCard(e, ev); }
     if (ev.subtype === "todo") return void svLine(e, "sv-meta", ev.text || "");
     if (PLAN_CLOSERS.includes(ev.subtype)) {
+      forgetPlan(e, ev.id);
       const card = e.asked.get(ev.id);
       e.asked.delete(ev.id);
       if (!card) return;
@@ -3218,6 +3282,7 @@ function svEvent(e, ev) {
     if (QUESTION_CLOSERS.includes(ev.subtype)) {
       if (live) svActivity(e, "working");
       const c = e.asked.get(ev.id);
+      closeAsk(e, ev, c);
       if (!c) return;
       closeQuestion(c);
       if (ev.subtype !== "question_answered") {
@@ -3247,22 +3312,28 @@ function svEvent(e, ev) {
         : phrase("started fresh"));
     }
     if (ev.subtype === "model_changed") {
+      settlePick(e, "model");
       e.model = ev.model || "";
       svSwitched(e, { model: e.model, effort: e.heard?.effort ?? e.effort ?? "" }, ev.label);
       paintPills(e);
+      repaintColumnsPicker(e);
       if (live) refreshContext(e);
       return;
     }
     if (ev.subtype === "effort_changed") {
+      settlePick(e, "effort");
       e.effort = ev.level || "";
       svSwitched(e, { model: e.heard?.model || e.model || "", effort: e.effort });
       paintPills(e);
+      repaintColumnsPicker(e);
       if (live) render();
       return;
     }
     if (ev.subtype === "account_changed") {
+      settlePick(e, "account");
       e.account = ev.account;
       paintPills(e);
+      repaintColumnsPicker(e);
       return;
     }
     if (ev.subtype === "account_took_over") {
@@ -3293,6 +3364,11 @@ function svEvent(e, ev) {
       return void svLine(e, "sv-meta", phrase("{here} has room again, so this chat is back on it", { here: ev.account || "default" }));
     }
     if (ev.subtype === "interrupted") return void svConvStopped(e);
+    if (ev.subtype === "stop_task_failed") {
+      if (!live) return;
+      e.bgStopping = 0;
+      return void svLine(e, "sv-meta warn", phrase("the background work could not be stopped — {why}", { why: ev.error || "?" }));
+    }
     /* the driver says the moment a queued message enters the turn. before this event the chip
        only left on the next init, and the take back button was dead for the whole gap. */
     if (ev.subtype === "said_now") return void (e.conv && svConvSteer(e, ev.cid));
@@ -3313,10 +3389,20 @@ function svEvent(e, ev) {
       if (held) {
         e.queuedEls.splice(e.queuedEls.indexOf(held), 1);
         held.remove();
-        const tray = e.host.querySelector(".sv-queue");
-        if (tray) tray.classList.toggle("on", !!e.queuedEls.length);
+        paintQueue(e);
         paintActivity(e);
       }
+      return;
+    }
+    if (ev.subtype === "resaid") {
+      const held = (e.queuedEls || []).find((el) => el.dataset.cid === ev.cid);
+      if (held && typeof ev.text === "string") {
+        held.dataset.text = ev.text;
+        held.dataset.images = JSON.stringify(Array.isArray(ev.images) ? ev.images : []);
+        delete held.dataset.sig;
+        paintQueue(e);
+      }
+      if (e.conv) svConvResay(e, ev.cid, ev.text, ev.images);
       return;
     }
     if (ev.subtype === "rewound") {
@@ -3456,6 +3542,15 @@ function markOf(agent) {
   return `<svg class="mark" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-${AGENT_NAMES[agent] || "claude"}"/></svg>`;
 }
 
+function effortBarsEl({ total, lit }, said) {
+  const el = document.createElement("span");
+  el.className = "txt effort-bars";
+  el.setAttribute("role", "img");
+  el.setAttribute("aria-label", said);
+  el.innerHTML = Array.from({ length: total }, (_, at) => `<i class="${at < lit ? "on" : ""}" style="--bar:${(at + 1) / total}"></i>`).join("");
+  return el;
+}
+
 function titleCase(word) {
   const t = String(word || "");
   return t ? t[0].toUpperCase() + t.slice(1) : t;
@@ -3511,7 +3606,7 @@ function refreshCatalog(e, refresh) {
   const settle = (models, wrong) => {
     e.catalogError = wrong || "";
     if (!wrong) {
-      e.catalog = models || [];
+      e.catalog = dressCatalog(e, models || []);
       e.catalogTries = 0;
     } else {
       /* a failed attempt is not an answer. Keeping the settled promise here made
@@ -3555,6 +3650,7 @@ function refreshCatalog(e, refresh) {
       if (now.model) e.model = now.model;
       if (typeof now.effort === "string") e.effort = now.effort;
       if ("account" in now) e.account = now.account;
+      if (typeof now.fast === "boolean") e.fast = now.fast;
       e.effortFrom = now.from || "";
       return settle(r.data?.models);
     }
@@ -3614,7 +3710,7 @@ function paintAccountPill(e) {
   pill.innerHTML = `<svg class="mark" viewBox="0 0 16 16" aria-hidden="true"><use href="#i-user"/></svg><span class="txt"></span><span class="chev">▾</span>`;
   pill.querySelector(".txt").textContent = name;
   pill.title = reach.can
-    ? [phrase("the {agent} login this chat runs on", { agent: providerName(seatAgent(e)) }), held?.email || ""].filter(Boolean).join(" · ")
+    ? [name, phrase("the {agent} login this chat runs on", { agent: providerName(seatAgent(e)) }), held?.email || ""].filter(Boolean).join(" · ")
     : reach.why;
 }
 
@@ -3630,6 +3726,7 @@ function paintPills(e) {
   model.innerHTML = `${markOf(seatAgent(e))}<span class="txt"></span><svg class="chev" aria-hidden="true"><use href="#i-chev"/></svg>`;
   model.querySelector(".txt").textContent = name || phrase("model");
   model.title = [row?.label, row?.description].filter(Boolean).join(" · ") || e.model || phrase("the model this chat is on");
+  paintFastMark(e, model);
 
   /* both pills stay put whatever the answer is — a control that comes and goes
      makes the footer dance and leaves you unsure the chat has one at all. */
@@ -3639,7 +3736,11 @@ function paintPills(e) {
   effort.classList.toggle("off", silent);
   effort.disabled = silent;
   effort.innerHTML = `<span class="txt"></span><span class="dim"></span><svg class="chev" aria-hidden="true"><use href="#i-chev"/></svg>`;
-  effort.querySelector(".txt").textContent = silent ? phrase("thinking") : level ? titleCase(level) : phrase("default");
+  const levelSaid = silent ? phrase("thinking") : level ? titleCase(level) : phrase("default");
+  const bars = st.effortStyle === "bars" && !silent && level && levels.length ? effortBars(levels, level) : null;
+  if (st.effortStyle === "bars" && level && !row && !e.catalogPull && !e.catalogError && !e.draft) refreshCatalog(e);
+  if (bars) effort.querySelector(".txt").replaceWith(effortBarsEl(bars, levelSaid));
+  else effort.querySelector(".txt").textContent = levelSaid;
   const context = row?.context || bare.context;
   const onDefault = !silent && !e.effort && !!level;
   effort.querySelector(".dim").textContent = `${onDefault ? ` (${phrase("default")})` : ""}${context ? ` · ${context}` : ""}`;
@@ -3660,22 +3761,43 @@ function paintPills(e) {
   paintModePill(e);
 }
 
-/* the mode is a state of the chat, not a control: it is turned on by /plan and it
-   drops on its own when a plan is approved, so the footer says it and nothing more. */
 function paintModePill(e) {
-  const host = e.host;
-  const foot = host.querySelector(".sv-composer .sv-pick");
-  if (!foot) return;
-  let pill = host.querySelector(".sv-pill-mode");
-  const on = e.mode === "plan";
-  if (!on) { pill?.remove(); return; }
+  const pick = e.host.querySelector(".sv-composer .sv-pick");
+  if (!pick) return;
+  let pill = e.host.querySelector(".sv-pill-mode");
+  if (e.mode !== "plan") { pill?.remove(); return; }
   if (!pill) {
-    pill = document.createElement("span");
+    pill = document.createElement("button");
+    pill.type = "button";
     pill.className = "sv-pill sv-pill-mode";
-    foot.appendChild(pill);
+    pill.addEventListener("click", () => setPlanMode(e, false));
+    pick.prepend(pill);
   }
-  pill.textContent = phrase("plan mode");
-  pill.title = phrase("this chat plans before it does anything, and nothing runs until you approve; /plane-mode off turns it back");
+  const said = phrase("Plan mode — click to return to normal build mode");
+  pill.innerHTML = `<svg class="cp-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/></svg><span class="txt">${esc(phrase("Plan"))}</span>`;
+  pill.title = said;
+  pill.setAttribute("aria-label", said);
+  pill.setAttribute("aria-pressed", "true");
+}
+
+const PICK_FIELDS = { model: ["model"], effort: ["effort", "effortFrom"], account: ["account"] };
+
+function pickOf(e, field) {
+  e.picks ||= {};
+  return (e.picks[field] ||= { rev: 0, ver: 0, pending: 0, base: null });
+}
+
+function settlePick(e, field) {
+  const pick = pickOf(e, field);
+  pick.ver += 1;
+  pick.pending = 0;
+  pick.base = null;
+}
+
+const pickPending = (e, field) => !!e.picks?.[field]?.pending;
+
+function repaintColumnsPicker(e) {
+  if (e.menu?.el?.classList.contains("cp-pick")) e.menu.repaint?.();
 }
 
 function closeSeatPicker(e, cancel = false) {
@@ -3718,7 +3840,7 @@ function refreshDraftCatalog(e) {
   const settle = (models, wrong) => {
     if (seatAgent(e) !== agent) return null;
     e.catalogError = wrong || "";
-    e.catalog = wrong ? null : (models || []);
+    e.catalog = wrong ? null : dressCatalog(e, models || []);
     e.catalogPull = wrong ? null : e.catalogPull;
     paintPills(e);
     e.menu?.repaint?.();
@@ -3739,8 +3861,12 @@ function refreshDraftCatalog(e) {
 
 function draftTakesAgent(e, agent) {
   e.agent = agent;
-  e.model = "";
-  e.effort = "";
+  e.model = rememberedModel(agent);
+  const kept = rememberedOptions(agent, e.model) || {};
+  e.effort = typeof kept.effort === "string" ? kept.effort : "";
+  e.effortFrom = e.effort ? "session" : "";
+  e.fast = kept.fast === true;
+  rememberSeatPick(e);
   e.catalog = null;
   e.catalogError = "";
   e.catalogPull = null;
@@ -3821,7 +3947,8 @@ function pickerRow({ label, hint, key, on, locked }) {
   row.querySelector(".nm b").textContent = label;
   const note = row.querySelector(".nm i");
   note.textContent = hint || "";
-  if (!hint) note.remove();
+  if (hint) row.title = hint;
+  else note.remove();
   if (key) {
     const k = document.createElement("span");
     k.className = "key";
@@ -3835,6 +3962,7 @@ function pickerRow({ label, hint, key, on, locked }) {
 function openSeatPicker(e, kind) {
   const raycast = raycastOn();
   const asked = kind;
+  const columns = raycast && kind !== "account";
   const thinkingFirst = raycast && asked === "effort";
   if (thinkingFirst) kind = "model";
   if (raycast ? e.menu?.asked === asked : e.menu?.kind === kind) return void closeSeatPicker(e);
@@ -3845,7 +3973,11 @@ function openSeatPicker(e, kind) {
   const el = document.createElement("div");
   el.className = "sv-menu";
   el.innerHTML = `<div class="rail" role="tablist" hidden></div><div class="panel"><div class="q"><span class="mag"><svg aria-hidden="true"><use href="#i-mag"/></svg></span><input spellcheck="false" autocomplete="off" /></div><div class="list"></div></div>`;
-  if (raycast) {
+  if (columns) {
+    el.classList.add("cp-pick");
+    el.tabIndex = -1;
+    el.insertAdjacentHTML("beforeend", `<div class="fx" hidden><div class="fxh"></div><div class="fxl" role="listbox" aria-label="${esc(phrase("Thinking"))}"></div></div>`);
+  } else if (raycast) {
     const keys = [["↵", phrase("picks")], ...(kind === "model" ? [["⇥", phrase("provider")]] : []), ["esc", phrase("closes")]];
     el.querySelector(".panel").insertAdjacentHTML("beforeend", `<div class="mf">${keys.map(([cap, said]) => `<span class="kr"><span class="rc-key">${cap}</span>${esc(said)}</span>`).join("")}</div>`);
   }
@@ -3972,10 +4104,25 @@ function openSeatPicker(e, kind) {
     const rest = list.querySelector("span");
     if (body) rest.textContent = body;
     else rest.remove();
-    search.hidden = true;
+    search.hidden = !columns;
   };
 
   const paint = () => {
+    const heldLevel = column?.contains(document.activeElement) ? document.activeElement.dataset.level ?? null : null;
+    const highlighted = columns ? rows[cursor]?.dataset.pick : undefined;
+    const heldPick = columns && rows.includes(document.activeElement) ? document.activeElement.dataset.pick : null;
+    if (columns) hideEffortColumn();
+    paintMenu(heldLevel);
+    paintModelFoot(e, el, { kind, ownAgent: viewing === mine });
+    if (columns) {
+      cursor = highlighted ? rows.findIndex((one) => one.dataset.pick === highlighted) : -1;
+      rows[cursor]?.classList.add("cursor");
+      if (heldPick) (rows.find((one) => one.dataset.pick === heldPick) || (search.hidden ? el : input)).focus();
+    }
+    if (columns && heldLevel !== null && (column.hidden || !el.contains(document.activeElement))) (search.hidden ? el : input).focus();
+  };
+
+  const paintMenu = (heldLevel) => {
     const q = input.value.trim().toLowerCase();
     if (rows.length) paintedRows = rows.length;
     paintedHeight = list.offsetHeight;
@@ -4012,12 +4159,139 @@ function openSeatPicker(e, kind) {
                  e.turnOpen ? phrase("it is mid-turn, so it may take a moment to answer") : "");
     }
     if (kind === "effort") volume ? paintVolume() : paintEfforts();
-    else if (raycast) {
+    else if (columns) {
+      paintModels(q);
+      paintEffortColumn(heldLevel);
+    } else if (raycast) {
       paintModels(q);
       if (!q) paintEfforts(true);
     } else paintModels(q);
     /* a search box over five rows is furniture */
-    if (!q && rows.length < 8) search.hidden = true;
+    if (!q && rows.length < 8 && !columns) search.hidden = true;
+  };
+
+  const column = el.querySelector(".fx");
+  let effortRows = [];
+
+  const hideEffortColumn = () => {
+    if (!column) return;
+    column.hidden = true;
+    column.querySelector(".fxl").textContent = "";
+    effortRows = [];
+  };
+
+  const paintEffortColumn = (held = null) => {
+    const row = catalogRow(e);
+    const levels = row?.efforts || [];
+    if (!column || !levels.length || (e.draft && !draftCarriesEffort(e.agent, e.draftKind))) return hideEffortColumn();
+    column.hidden = false;
+    column.querySelector(".fxh").textContent = pillLabel(row?.label) || prettyModelId(e.model).name || phrase("Thinking");
+    const fxl = column.querySelector(".fxl");
+    fxl.textContent = "";
+    effortRows = [];
+    const now = e.effort || row?.defaultEffort || "";
+    const choices = [...(now ? [] : [{ value: "", label: phrase("Default"), own: true }]), ...levels];
+    for (const lv of choices) {
+      const item = pickerRow({ label: lv.own ? lv.label : titleCase(lv.label || lv.value), hint: !lv.own && lv.value === row?.defaultEffort ? phrase("Default") : "", on: lv.value === now });
+      item.classList.add("effort");
+      item.dataset.level = lv.value;
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", String(lv.value === now));
+      item.tabIndex = -1;
+      item.addEventListener("click", () => {
+        if (!lv.own) return pickEffort(lv.value);
+        closeSeatPicker(e);
+        e.host.querySelector(".sv-composer textarea")?.focus();
+      });
+      fxl.appendChild(item);
+      effortRows.push(item);
+    }
+    if (held !== null) (effortRows.find((one) => one.dataset.level === held) || effortRows.find((one) => one.classList.contains("on")) || effortRows[0])?.focus();
+  };
+
+  const focusEfforts = () => {
+    if (!effortRows.length) return false;
+    (effortRows.find((one) => one.classList.contains("on")) || effortRows[0]).focus();
+    return true;
+  };
+
+  const pickByNumber = (kev) => {
+    const mod = applePlatform() ? kev.metaKey && !kev.ctrlKey : kev.ctrlKey && !kev.metaKey;
+    if (!mod || kev.altKey || kev.shiftKey || !/^[1-9]$/.test(kev.key)) return false;
+    kev.preventDefault();
+    rows.filter((r) => !r.disabled)[Number(kev.key) - 1]?.click();
+    return true;
+  };
+
+  const stepProvider = (kev) => {
+    const mod = applePlatform() ? kev.metaKey && !kev.ctrlKey : kev.ctrlKey && !kev.metaKey;
+    if (!mod || !kev.shiftKey || kev.altKey || (kev.key !== "ArrowUp" && kev.key !== "ArrowDown") || rail.hidden) return false;
+    const tabs = [...rail.querySelectorAll(".sv-rail-btn")];
+    if (tabs.length < 2) return false;
+    kev.preventDefault();
+    const at = Math.max(0, tabs.findIndex((one) => one.classList.contains("on")));
+    input.value = "";
+    tabs[(at + (kev.key === "ArrowDown" ? 1 : -1) + tabs.length) % tabs.length].click();
+    input.focus();
+    return true;
+  };
+
+  const modelRowKey = (kev) => {
+    const at = rows.indexOf(document.activeElement);
+    if (at < 0) return false;
+    if (["Tab", "Enter", " "].includes(kev.key) || kev.metaKey || kev.ctrlKey || kev.altKey) return false;
+    if (kev.key.length === 1) { input.focus(); return true; }
+    kev.preventDefault();
+    const usable = rows.filter((one) => !one.disabled);
+    const here = usable.indexOf(document.activeElement);
+    const go = (one) => { if (!one) return; rows[cursor]?.classList.remove("cursor"); cursor = rows.indexOf(one); one.classList.add("cursor"); one.focus(); };
+    if (kev.key === "ArrowDown") go(usable[(here + 1) % usable.length]);
+    else if (kev.key === "ArrowUp") go(usable[(here - 1 + usable.length) % usable.length]);
+    else if (kev.key === "Home") go(usable[0]);
+    else if (kev.key === "End") go(usable[usable.length - 1]);
+    else if (kev.key === "ArrowRight") document.activeElement.click();
+    else if (kev.key === "ArrowLeft") input.focus();
+    return true;
+  };
+
+  if (columns) el.answerKey = (kev) => {
+    if (pickByNumber(kev)) return true;
+    if (stepProvider(kev)) return true;
+    if (kev.key === "Escape" && !kev.metaKey && !kev.ctrlKey && !kev.altKey && !kev.shiftKey) {
+      kev.preventDefault();
+      closeSeatPicker(e, true);
+      e.host.querySelector(".sv-composer textarea")?.focus();
+      return true;
+    }
+    if (modelRowKey(kev)) return true;
+    if (rail.contains(document.activeElement)) {
+      if (["Tab", "Enter", " "].includes(kev.key) || kev.metaKey || kev.ctrlKey || kev.altKey || kev.shiftKey) return false;
+      kev.preventDefault();
+      const tabs = [...rail.querySelectorAll(".sv-rail-btn")];
+      const at = tabs.indexOf(document.activeElement);
+      if ((kev.key === "ArrowDown" || kev.key === "ArrowUp") && tabs.length) {
+        const next = tabs[(at + (kev.key === "ArrowDown" ? 1 : -1) + tabs.length) % tabs.length];
+        next.click();
+        next.focus();
+      } else if (kev.key === "ArrowRight") input.focus();
+      return true;
+    }
+    if (document.activeElement === el) {
+      if (kev.key === "Tab" || kev.metaKey || kev.ctrlKey || kev.altKey) return false;
+      kev.preventDefault();
+      if (kev.key === "ArrowRight" || kev.key === "ArrowDown") (effortRows[0] || (!search.hidden ? input : null))?.focus();
+      return true;
+    }
+    if (!column?.contains(document.activeElement)) return false;
+    const at = effortRows.indexOf(document.activeElement);
+    if (["Enter", " ", "Tab"].includes(kev.key) || kev.metaKey || kev.ctrlKey || kev.altKey) return false;
+    kev.preventDefault();
+    if (kev.key === "Escape") { closeSeatPicker(e, true); e.host.querySelector(".sv-composer textarea")?.focus(); }
+    else if (kev.key === "ArrowLeft") input.focus();
+    else if (kev.key === "ArrowDown" || kev.key === "ArrowUp") effortRows[(Math.max(0, at) + (kev.key === "ArrowDown" ? 1 : -1) + effortRows.length) % effortRows.length]?.focus();
+    else if (kev.key === "Home") effortRows[0]?.focus();
+    else if (kev.key === "End") effortRows[effortRows.length - 1]?.focus();
+    return true;
   };
 
   const paintLogins = () => {
@@ -4135,7 +4409,7 @@ function openSeatPicker(e, kind) {
       return `${m.label} ${m.value} ${m.description} ${m.group}`.toLowerCase().includes(q);
     });
     const here = catalogRow(e);
-    if (raycast && agent === mine && !q && !catalog.some((m) => m.group)) {
+    if (raycast && !columns && agent === mine && !q && !catalog.some((m) => m.group)) {
       const head = document.createElement("div");
       head.className = "grp";
       head.textContent = `${providerName(mine)} · ${phrase("this chat")}`;
@@ -4160,10 +4434,15 @@ function openSeatPicker(e, kind) {
         const item = pickerRow({
           label: m.label || m.value,
           hint: m.description || (m.group ? m.value : ""),
-          key: shortcut <= 3 && !q ? `⌃${shortcut}` : "",
+          key: columns ? (shortcut <= 9 && !q ? `${applePlatform() ? "⌘" : "Ctrl+"}${shortcut}` : "") : shortcut <= 3 && !q ? `⌃${shortcut}` : "",
           on: agent === mine && !!here && m.value === here.value,
         });
-        item.addEventListener("click", () => agent === mine ? pickModel(m.value) : switchSeatProvider(e, agent, m.value));
+        item.dataset.pick = `${agent}:${m.value}`;
+        item.addEventListener("click", () => {
+          if (agent === mine) return pickModel(m.value);
+          switchSeatProvider(e, agent, m.value);
+          if (columns) e.host.querySelector(".sv-composer textarea")?.focus();
+        });
         list.appendChild(item);
         rows.push(item);
       }
@@ -4180,18 +4459,35 @@ function openSeatPicker(e, kind) {
      looked lost. So the pick lands on screen at once and the reply only
      reconciles: it confirms, or it puts the old value back and says why.
      Either way a model_changed event from any source has the last word. */
-  const apply = (label, before, send) => {
+  const apply = (field, label, before, send, keepOpen = false) => {
+    const pick = pickOf(e, field);
+    const seen = Object.fromEntries(Object.keys(PICK_FIELDS).map((one) => [one, pickOf(e, one).ver]));
+    if (!pick.pending) pick.base = Object.fromEntries(PICK_FIELDS[field].map((key) => [key, before[key]]));
+    pick.ver += 1;
+    seen[field] = pick.ver;
+    pick.rev += 1;
+    const rev = pick.rev;
+    pick.pending = rev;
     paintPills(e);
-    closeSeatPicker(e);
+    if (keepOpen) paint();
+    else closeSeatPicker(e);
     if (label) svLine(e, "sv-meta", label);
     send().then((r) => {
+      if (pick.rev !== rev) return;
       if (r?.ok) {
-        if (Array.isArray(r.data?.models)) e.catalog = r.data.models;
-        if (typeof r.data?.effort === "string") e.effort = r.data.effort;
-        if (r.data && "account" in r.data) e.account = r.data.account;
+        if (pick.pending === rev) {
+          pick.pending = 0;
+          pick.base = null;
+        }
+        const ours = (other) => pickOf(e, other).ver === seen[other] && (other === field || !pickPending(e, other));
+        if (Array.isArray(r.data?.models)) e.catalog = dressCatalog(e, r.data.models);
+        if (typeof r.data?.effort === "string" && ours("effort")) e.effort = r.data.effort;
+        if (r.data && "account" in r.data && ours("account")) e.account = r.data.account;
         paintPills(e);
+        e.menu?.repaint?.();
         return;
       }
+      if (pick.pending !== rev) return;
       /* a seat mid-turn can take longer to answer than the wait allows. Silence
          is not a refusal: the driver still has the command and will apply it,
          and its model_changed says so. Undoing the pick here is what made a
@@ -4200,37 +4496,53 @@ function openSeatPicker(e, kind) {
         svLine(e, "sv-meta", phrase("this chat is mid-turn — the change lands as soon as it comes up for air"));
         return;
       }
-      e.model = before.model;
-      e.effort = before.effort;
-      e.effortFrom = before.from;
-      e.account = before.account;
+      Object.assign(e, pick.base || Object.fromEntries(PICK_FIELDS[field].map((key) => [key, before[key]])));
+      pick.pending = 0;
+      pick.base = null;
       paintPills(e);
+      e.menu?.repaint?.();
       svLine(e, "sv-meta warn", r?.error || phrase("the session did not take it"));
     });
   };
 
-  const snapshot = () => ({ model: e.model, effort: e.effort, from: e.effortFrom, account: e.account });
+  const snapshot = () => ({ model: e.model, effort: e.effort, effortFrom: e.effortFrom, account: e.account });
 
   const pickForTheDraft = (patch) => {
     Object.assign(e, patch);
+    rememberSeatPick(e, "effort" in patch && "model" in patch ? {} : "effort" in patch ? { effort: patch.effort } : {});
     paintPills(e);
     closeSeatPicker(e);
     e.host.querySelector(".sv-composer textarea")?.focus();
   };
 
+  const toTheText = () => e.host.querySelector(".sv-composer textarea")?.focus();
+  const nextAfterModel = () => focusEfforts() || void input.focus();
+
   const pickModel = (value) => {
-    if (value === e.model) return void closeSeatPicker(e);
+    if (value === e.model) return void (columns ? nextAfterModel() : closeSeatPicker(e));
     if (e.draft) {
       const row = e.catalog?.find((m) => m.value === value);
-      const effort = row?.efforts?.some((level) => level.value === e.effort) ? e.effort : "";
-      return pickForTheDraft({ model: value, effort, effortFrom: effort ? e.effortFrom : "" });
+      const kept = rememberedOptions(seatAgent(e), value) || {};
+      const wanted = typeof kept.effort === "string" ? kept.effort : e.effort;
+      const effort = row?.efforts?.some((level) => level.value === wanted) ? wanted : "";
+      const patch = { model: value, effort, effortFrom: effort ? "session" : "", ...(typeof kept.fast === "boolean" ? { fast: kept.fast } : {}) };
+      if (!columns) return pickForTheDraft(patch);
+      Object.assign(e, patch);
+      rememberSeatPick(e);
+      paintPills(e);
+      paint();
+      nextAfterModel();
+      return;
     }
     const before = snapshot();
+    const custom = !!e.catalog?.find((m) => m.value === value)?.custom;
     e.model = value;
+    rememberSeatPick(e);
     /* another model is another context window — the gauge below the composer
        would keep counting against the old ceiling until it asks again. */
     refreshContext(e);
-    apply("", before, () => svCmd(e, { type: "control", op: "setModel", model: value }));
+    apply("model", "", before, () => svCmd(e, { type: "control", op: "setModel", model: value, ...(custom ? { custom: true } : {}) }), columns);
+    if (columns) nextAfterModel();
   };
 
   const pickAccount = (value) => {
@@ -4238,17 +4550,23 @@ function openSeatPicker(e, kind) {
     if (e.draft) return pickForTheDraft({ account: value });
     const before = snapshot();
     e.account = value;
-    apply(`account → ${value || "default"}`, before,
+    apply("account", `account → ${value || "default"}`, before,
           () => svCmd(e, { type: "control", op: "setAccount", account: value }));
   };
 
   const pickEffort = (level) => {
-    if (level === e.effort) return void closeSeatPicker(e);
+    if (level === e.effort) {
+      closeSeatPicker(e);
+      if (columns) toTheText();
+      return;
+    }
     if (e.draft) return pickForTheDraft({ effort: level, effortFrom: "session" });
     const before = snapshot();
     e.effort = level;
     e.effortFrom = "session";
-    apply("", before, () => svCmd(e, { type: "control", op: "setEffort", level }));
+    rememberSeatPick(e, { effort: level });
+    apply("effort", "", before, () => svCmd(e, { type: "control", op: "setEffort", level }));
+    if (columns) toTheText();
   };
 
   let cursor = -1;
@@ -4264,12 +4582,30 @@ function openSeatPicker(e, kind) {
   input.addEventListener("keydown", (kev) => {
     kev.stopPropagation();
     if (kev.key === "Escape") { kev.preventDefault(); closeSeatPicker(e, true); e.host.querySelector(".sv-composer textarea")?.focus(); return; }
+    const bare = !kev.metaKey && !kev.ctrlKey && !kev.altKey && !kev.shiftKey;
+    if (columns && bare && kev.key === "ArrowRight" && input.selectionStart === input.value.length && input.selectionEnd === input.value.length) {
+      const highlighted = rows[cursor];
+      if (highlighted && !highlighted.disabled) { kev.preventDefault(); return void highlighted.click(); }
+      if (viewing !== mine) return;
+      kev.preventDefault();
+      return void focusEfforts();
+    }
+    if (columns && bare && kev.key === "ArrowLeft" && input.selectionStart === 0 && input.selectionEnd === 0 && !rail.hidden) {
+      const on = rail.querySelector(".sv-rail-btn.on") || rail.querySelector(".sv-rail-btn");
+      if (on) { kev.preventDefault(); on.focus(); return; }
+    }
     if (volume && ["ArrowLeft", "ArrowDown", "-"].includes(kev.key)) { kev.preventDefault(); return stepVolume(-1); }
     if (volume && ["ArrowRight", "ArrowUp", "+", "="].includes(kev.key)) { kev.preventDefault(); return stepVolume(1); }
     if (volume && kev.key === "Enter") { kev.preventDefault(); closeSeatPicker(e); e.host.querySelector(".sv-composer textarea")?.focus(); return; }
     if (kev.key === "ArrowDown") { kev.preventDefault(); return moveCursor(1); }
     if (kev.key === "ArrowUp") { kev.preventDefault(); return moveCursor(-1); }
     if (kev.key === "Enter") { kev.preventDefault(); return void (rows[cursor] || rows[0])?.click(); }
+    if (columns && kev.key === "Tab") {
+      if (!kev.shiftKey || rail.hidden) return;
+      const on = rail.querySelector(".sv-rail-btn.on") || rail.querySelector(".sv-rail-btn");
+      if (on) { kev.preventDefault(); on.focus(); }
+      return;
+    }
     if ((raycast || experienceNext()) && kev.key === "Tab" && !rail.hidden && rail.children.length > 1) {
       kev.preventDefault();
       const tabs = [...rail.children];
@@ -4295,8 +4631,16 @@ function openSeatPicker(e, kind) {
   paint();
   fitToSeat();
   input.focus();
-  if (thinkingFirst) list.querySelector(".grp.thinking")?.scrollIntoView({ block: "start" });
-  if (!e.catalog) refreshCatalog(e).then(() => { if (e.menu?.el === el) paint(); });
+  if (columns && thinkingFirst) focusEfforts();
+  else if (thinkingFirst) list.querySelector(".grp.thinking")?.scrollIntoView({ block: "start" });
+  refreshCatalog(e, !!e.catalog).then(() => { if (e.menu?.el === el) paint(); });
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("keydown", (kev) => {
+    const menu = document.activeElement?.closest?.(".sv-menu.cp-pick");
+    if (typeof menu?.answerKey === "function" && menu.answerKey(kev) === true) kev.stopImmediatePropagation();
+  }, true);
 }
 
 const PILL_COMMANDS = new Set(["account"]);

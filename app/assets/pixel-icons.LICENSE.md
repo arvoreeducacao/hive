@@ -1,6 +1,6 @@
 # Pixelarticons
 
-The icons in `pixel-icons.mjs` come from [Pixelarticons](https://pixelarticons.com) 2.4.1, the free set under the MIT License below. `i-heart-full` is drawn on the same 24px grid from the free `heart` icon, and `g-working` is a plain square on that grid; both ship under the same license.
+The icons in `pixel-icons.mjs` come from [Pixelarticons](https://pixelarticons.com) 2.4.1, the free set under the MIT License below. `i-heart-full` is drawn on the same 24px grid from the free `heart` icon, `g-working` is a plain square on that grid, `i-gauge` is a meter drawn on that grid, and `i-more` is three dots drawn on that grid; all four ship under the same license.
 
 MIT License
 

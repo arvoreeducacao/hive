@@ -327,6 +327,7 @@ function deriveTimelineRows(blocks, look = null) {
   const say = look.say || fillIn;
   const steers = look.steers || new Set();
   const steer = (b) => !!b.dataset?.cid && steers.has(b.dataset.cid);
+  const unreadSteers = look.unreadSteers || new Set();
   const unfolded = look.unfolded || new Set();
   const expanded = look.expanded || new Set();
   const users = look.users || new Set();
@@ -342,7 +343,7 @@ function deriveTimelineRows(blocks, look = null) {
     if (sender) return { kind: "block", key: b.key, block: b, derived: true, steer: steer(b), from: { name: sender.name, seat: sender.seat || sender.name, says: sender.says }, gist: gistOf(b.text), open: users.has(b.key), long: false, toggle: "" };
     const long = shouldCollapseUserMessage(b.text ?? "");
     const open = long && users.has(b.key);
-    return { kind: "block", key: b.key, block: b, derived: true, steer: steer(b), long, open, toggle: long ? (open ? say("Show less") : say("Show full message")) : "" };
+    return { kind: "block", key: b.key, block: b, derived: true, steer: steer(b), steerUnread: steer(b) && unreadSteers.has(b.dataset.cid), long, open, toggle: long ? (open ? say("Show less") : say("Show full message")) : "" };
   };
   const sent = (b) => b.kind === "peer" && senders.has(b.sends);
 

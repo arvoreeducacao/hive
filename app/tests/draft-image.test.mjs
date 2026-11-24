@@ -6,7 +6,20 @@ await views();
 
 const { attachFilesToDraft, discardDraft, draftFrom, draftInFocus, drafts, newDraft, sendDraft } = await app("draft-seat");
 const st = await app("core").then((m) => m.st);
+const { attachmentTransport } = await app("composer-attachments");
 await app("drag-files");
+
+globalThis.OffscreenCanvas = undefined;
+
+function stubUploads(paths) {
+  const sent = [];
+  attachmentTransport.send = async (blob, query) => {
+    sent.push({ name: query.file, where: query.where, seat: query.name });
+    const path = paths.shift();
+    return path ? { ok: true, path, name: path.split("/").pop(), size: blob.size } : { error: "nothing to answer" };
+  };
+  return sent;
+}
 
 const SHOT = { name: "tela.png", data: "data:image/png;base64,iVBORw0KGgo=" };
 
@@ -66,11 +79,14 @@ test("an image alone, with nothing written, still opens the chat", async () => {
   shut(b);
 });
 
-test("a file that is not an image is written into the message as a path", async () => {
-  const b = bench({ "/api/attach": { ok: true, paths: ["/hub/.hive/assets/mission-notas.csv"] } });
+test("a file that is not an image becomes a chip, and goes out as a path the agent can read", async () => {
+  const b = bench({ "/api/attach": { ok: true, paths: ["/hub/.hive/assets/mission-notas.csv"] }, "/api/spawn": { ok: false, error: "stop here" } });
   await attachFilesToDraft(b.d, [{ name: "notas.csv", data: "data:text/csv;base64,YQ==" }]);
-  assert.equal(b.tray.querySelectorAll(".att").length, 0);
-  assert.match(b.box.value, /mission-notas\.csv/);
+  assert.equal(b.tray.querySelectorAll(".att.file").length, 1);
+  assert.match(b.box.value, /\[File #1\]/);
+  await sendDraft(b.d, b.box.value);
+  const spawn = b.asked.find((one) => one.url === "/api/spawn");
+  assert.equal(spawn.body.prompt, "@/hub/.hive/assets/mission-notas.csv");
   shut(b);
 });
 
@@ -117,12 +133,13 @@ test("a file dropped on the tile of an empty chat lands in it, not nowhere", asy
   tile.appendChild(b.d.e.host);
   document.body.appendChild(tile);
   b.box.value = "essa tela";
+  const sent = stubUploads(["/hub/.hive/assets/files/x/tela.png"]);
   const files = [new dom.File(["a tiny png"], "tela.png", { type: "image/png" })];
   const drop = new Event("drop", { bubbles: true });
   Object.defineProperty(drop, "dataTransfer", { value: { files, items: [], types: ["Files"] } });
   b.d.e.host.querySelector("textarea").dispatchEvent(drop);
   await new Promise((r) => setTimeout(r, 200));
-  assert.ok(b.asked.some((one) => one.url === "/api/attach"), "the drop went nowhere — the chat was not a seat yet");
+  assert.deepEqual(sent, [{ name: "tela.png", where: "local", seat: "" }], "the drop went nowhere — the chat was not a seat yet");
   assert.equal(b.tray.querySelectorAll(".att").length, 1);
   assert.match(b.box.value, /essa tela \[Image #1\]/);
   tile.remove();
@@ -138,12 +155,13 @@ test("an image pasted into an empty chat lands in it instead of nowhere", async 
   document.body.appendChild(tile);
   st.missionMode = false;
   b.box.value = "e essa aqui";
+  const sent = stubUploads(["/hub/.hive/assets/files/y/tela.png"]);
   const file = new dom.File(["a tiny png"], "tela.png", { type: "image/png" });
   const paste = new Event("paste", { bubbles: true });
   Object.defineProperty(paste, "clipboardData", { value: { items: [{ type: "image/png", getAsFile: () => file }] } });
   b.box.dispatchEvent(paste);
   await new Promise((r) => setTimeout(r, 200));
-  assert.ok(b.asked.some((one) => one.url === "/api/attach"), "the paste went to no chat at all");
+  assert.equal(sent.length, 1, "the paste went to no chat at all");
   assert.equal(b.tray.querySelectorAll(".att").length, 1);
   assert.match(b.box.value, /e essa aqui \[Image #1\]/);
   tile.remove();

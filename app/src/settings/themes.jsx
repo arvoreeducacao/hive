@@ -40,9 +40,10 @@ function ThemeRow(props) {
       onClick={() => props.actions.pick(r().name)} onDblClick={() => props.actions.wear(r().name)}>
       <Swatch row={r()} />
       <span class="pw-t">{r().say || r().name}</span>
-      <span class="pw-acc">
-        <Show when={r().fresh}><span class="pw-m">{r().freshSay}</span></Show>
-        <Show when={r().worn} fallback={<span class="pw-m">{r().tone}</span>}><span class="pw-st thm-worn"><Icon id="i-check" />{r().wearing}</span></Show>
+      <span class="pw-acc thm-marks">
+        <Show when={r().agent}><span class="thm-mark" role="img" title={r().agentSay} aria-label={r().agentSay}><Icon id="i-agent" /></span></Show>
+        <span class="thm-mark" role="img" title={r().tone} aria-label={r().tone}><Icon id={r().light ? "i-sun" : "i-moon"} /></span>
+        <Show when={r().worn}><span class="thm-mark worn" role="img" title={r().wearing} aria-label={r().wearing}><Icon id="i-check" /></span></Show>
       </span>
     </button>
   );

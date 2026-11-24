@@ -44,6 +44,12 @@ export const COMMAND_TIMEOUT = 30000;
 export const WINDOW_TIMEOUT = 15000;
 export const IDLE_TAIL = 3;
 export const ALIVE_TIMEOUT = 1500;
+
+export const FORCE_STOP_ASK_MS = 4000;
+
+export const FORCE_STOP_GRACE_MS = 3000;
+
+const DRIVER_WITHOUT_FORCE_STOP = /unknown command/i;
 export const GLANCE_BYTES = 128 * 1024;
 export const GLANCE_CEILING = 4 * 1024 * 1024;
 export const PHONE_TAIL = { turns: 3, floor: 200, ceiling: 400000 };
@@ -74,12 +80,10 @@ export function readSessionMeta(text) {
   }
 }
 
-const AMBIENT_EVENTS = new Set(["stream_event", "system", "rate_limit_event", "memory", "command_lifecycle"]);
+const AMBIENT_EVENTS = new Set(["stream_event", "system", "rate_limit_event", "memory", "command_lifecycle", "prompt_suggestion"]);
 const TURNLESS_DRIVER_NOTES = new Set([
   "provider_changed", "started_fresh", "shell", "started", "presence", "mcp_gateway", "mcp_peer", "mcp_routed",
-  "claude_binary", "woke", "warning", "model_changed", "effort_changed", "mode_changed", "title_changed",
-  "edit_failed", "interrupt_failed", "stale_interrupt_dropped", "unsaid", "windowed", "diary_reset",
-  "rewound", "forked", "mcp_app"
+  "claude_binary", "woke", "warning", "model_changed", "effort_changed", "mode_changed", "title_changed", "edit_failed", "interrupt_failed", "stop_task_failed", "stale_interrupt_dropped", "unsaid", "windowed", "diary_reset", "rewound", "forked", "mcp_app", "fast_changed", "queue_held", "queue_released", "force_stopped", "resaid"
 ]);
 const RECONNECT_TIMEOUT = 20000;
 
@@ -365,6 +369,36 @@ export function createSessions({
     return { ok: true, cid, quiet, started: true };
   }
 
+  async function endDriver(child) {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    const gone = new Promise((done) => child.once("exit", done));
+    try { child.kill("SIGTERM"); } catch {}
+    const graced = await Promise.race([gone.then(() => true), new Promise((done) => setTimeout(() => done(false), FORCE_STOP_GRACE_MS).unref?.())]);
+    if (graced) return;
+    try { child.kill("SIGKILL"); } catch {}
+    await Promise.race([gone, new Promise((done) => setTimeout(done, FORCE_STOP_GRACE_MS).unref?.())]);
+  }
+
+  async function forceStop(name) {
+    if (!existsSync(metaFileOf(name))) return { ok: false, error: "no session by that name" };
+    if (transfers.busy(name)) return { ok: false, error: transfers.busyError(name) };
+    watch(name);
+    const asked = sockMightAnswer(name) ? await rawCommand(name, { type: "forceStop" }, FORCE_STOP_ASK_MS) : null;
+    if (asked?.ok) return asked;
+    if (asked && !asked.ok && !DRIVER_WITHOUT_FORCE_STOP.test(asked.error || "") && !/did not answer|driver socket/.test(asked.error || "")) return asked;
+    const child = running.get(name);
+    if (!child) return { ok: false, error: "this chat's driver was not started by this Hive, so it cannot be ended from here; close the chat and open it again" };
+    const meta = readSessionMeta(readFileSync(metaFileOf(name), "utf8"));
+    running.delete(name);
+    await endDriver(child);
+    const swept = await reapSeat(name, { hive: base }).catch(() => ({ asked: [], forced: [] }));
+    try { rmSync(sockFileOf(name), { force: true }); } catch {}
+    const opened = await api.open({ name, agent: meta.agent || "claude", model: meta.model || "", cwd: meta.cwd || "", resumeId: meta.session_id || "" });
+    if (opened.error) return { ok: false, error: `the driver was ended but did not come back: ${opened.error}` };
+    log(`session ${name} force stopped: driver ended and reopened, ${swept.asked.length} leftover process(es) stopped`);
+    return { ok: true, outcome: "restarted", leftovers: swept.asked.length };
+  }
+
   const api = {
     get watching() { return [...follows.keys()]; },
     alive,
@@ -457,10 +491,11 @@ export function createSessions({
         try { return await transfers.begin(name, agent, cmd.model); }
         catch (error) { return { ok: false, error: String(error?.message || error) }; }
       }
+      if (cmd.type === "forceStop") return forceStop(name);
       if (cmd.type === "control" && cmd.op === "startFresh") {
         watch(name);
         await transfers.restore(name);
-        try { return await transfers.fresh(name); }
+        try { return await transfers.fresh(name, { clean: cmd.clean === true }); }
         catch (error) { return { ok: false, error: String(error?.message || error) }; }
       }
       if (transfers.busy(name) && transfers.status(name)?.phase !== "waiting" && !["state", "answer", "interrupt"].includes(cmd.type)) return { ok: false, error: transfers.busyError(name) };

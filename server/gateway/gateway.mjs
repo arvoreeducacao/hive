@@ -193,7 +193,7 @@ export function seatEnvFrom(headers, env) {
 export function buildPeerFacade(seatEnv) {
   const calls = peerCalls(seatEnv);
   const server = new Server({ name: "hive", version: "1.0.0" }, { capabilities: { tools: {} }, instructions: HIVE_INSTRUCTIONS });
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolsFor(ceilingOf(seatEnv)) }));
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolsFor(ceilingOf(seatEnv), seatEnv) }));
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const call = calls[request.params.name];
     if (!call) throw new Error(`unknown tool ${request.params.name}`);

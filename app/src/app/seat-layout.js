@@ -13,7 +13,7 @@ const LAYOUT_KEY = "hive.layout";
 
 const LAYOUTS = ["grid", "row", "strip"];
 
-const LAYOUT_NAMES = { grid: "in a grid", row: "side by side, in one row", strip: "every chat in one strip, scrolling sideways" };
+const LAYOUT_NAMES = { grid: "Grid", row: "Side by side", strip: "Strip" };
 
 st.seatLayout = LAYOUTS[0];
 

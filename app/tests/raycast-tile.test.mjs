@@ -16,7 +16,7 @@ const st = await state();
 const { getStructured } = await app("chat-stretches");
 const { paintActivity } = await app("structured-seats");
 const { svConvTool, svConvToolLanded } = await app("conversation-model");
-const { phrase, SV_ASK, SV_ASK_SLIM } = await app("core");
+const { phrase, SV_ASK } = await app("core");
 
 function flag(on) {
   document.body.classList.toggle("experience-raycast", on);
@@ -131,20 +131,31 @@ function side(look) {
   return { host, view };
 }
 
-test("the solid side draws main's head and state row with the flag off", () => {
+test("the solid side draws main's head and state row with the flag off, and the state rides beside the name as a glyph", () => {
   const { host, view } = side(null);
   assert.ok(host.querySelector(":scope > .t-state .t-pill .label"), "the state row is gone");
   for (const gone of [".t-dot", ".t-say", ".t-hchips", ".t-key"]) assert.equal(host.querySelector(gone), null, `${gone} drew with the flag off`);
   assert.deepEqual([...host.querySelector(".t-head").children].map((el) => el.className), ["t-grip", "t-ident", "t-tags"]);
+  const glyph = host.querySelector(".t-ident > .t-glyph");
+  assert.ok(glyph.previousElementSibling === host.querySelector(".t-ident > .t-name"), "the glyph left the side of the name");
+  assert.equal(glyph.getAttribute("role"), "img");
+  assert.equal(glyph.getAttribute("aria-label"), "working");
+  assert.equal(glyph.querySelector("title").textContent, "working");
+  assert.equal(glyph.querySelector("use").getAttribute("href"), "#g-working");
   view.dispose();
 });
 
-test("the solid side draws one line with the flag on: dot, name, state, chips, actions, key", () => {
+test("the solid side draws one line with the flag on: dot, name, chips, actions, key, and the state lives on the dot", () => {
   const { host, view } = side({ pos: 2 });
   assert.equal(host.querySelector(".t-state"), null, "the state went back to a second row");
   const order = [...host.querySelector(".t-head").children].map((el) => el.getAttribute("class").split(" ").find((c) => /^t-/.test(c)));
-  assert.deepEqual(order, ["t-grip", "t-dot", "t-ident", "t-say", "t-hchips", "t-tags", "t-key"]);
-  assert.equal(host.querySelector(".t-say").textContent, "working · 7s");
+  assert.deepEqual(order, ["t-grip", "t-dot", "t-ident", "t-hchips", "t-tags", "t-key"]);
+  assert.equal(host.querySelector(".t-say"), null, "the state word came back beside the title");
+  const dot = host.querySelector(".t-dot");
+  assert.equal(dot.getAttribute("role"), "img");
+  assert.equal(dot.getAttribute("aria-label"), "working · 7s");
+  assert.equal(dot.getAttribute("title"), "working · 7s");
+  assert.equal(host.querySelector(".t-glyph"), null, "the glyph of the New Hive drew with the flag on");
   assert.equal(host.querySelector(".t-key").textContent, "⌘3");
   assert.equal(host.querySelector(".t-hchips .c.tree").dataset.copy, "a/b");
   for (const pane of [".t-canopy", ".t-device", ".t-page"]) assert.ok(host.querySelector(`.t-hchips > ${pane}`), `${pane} left the head`);
@@ -173,22 +184,32 @@ test("with the flag off the composer is main's, piece by piece", () => {
   const e = seatNamed("rc-off");
   const form = e.host.querySelector(".sv-composer");
   assert.deepEqual(kids(form), ["sv-activity", "sv-attach", "sv-well", "sv-foot"]);
-  assert.deepEqual(kids(form.querySelector(".sv-foot")), ["sv-pick", "sv-ctx", "sv-btns"]);
+  assert.deepEqual(kids(form.querySelector(".sv-foot")), ["sv-clip", "sv-pick", "sv-ctx", "sv-btns"]);
   assert.equal(form.querySelector("textarea").placeholder, phrase(SV_ASK));
 });
 
-test("with the flag on the composer is a box with stop and send, over a bar that opens with the activity", () => {
+test("with the flag on the composer is one box: the words, then a bar with the clip, the model and send", () => {
   flag(true);
   try {
     const e = seatNamed("rc-on");
     const form = e.host.querySelector(".sv-composer");
     assert.deepEqual(kids(form), ["sv-box", "sv-foot"]);
-    assert.deepEqual(kids(form.querySelector(".sv-box")), ["sv-attach", "sv-line"]);
-    assert.deepEqual(kids(form.querySelector(".sv-line")), ["sv-well", "sv-btns"]);
-    assert.deepEqual(kids(form.querySelector(".sv-foot")), ["sv-activity", "sv-when", "sv-keys", "sv-halt", "sv-pick", "sv-ctx"]);
-    assert.match(form.querySelector(".sv-keys").textContent, new RegExp(`${phrase("send")}.*${phrase("line")}`));
-    assert.equal(form.querySelector("textarea").placeholder, phrase(SV_ASK_SLIM));
+    assert.deepEqual(kids(form.querySelector(".sv-box")), ["sv-attach", "sv-well", "sv-bar"]);
+    assert.deepEqual(kids(form.querySelector(".sv-bar")), ["sv-clip", "sv-bar-fill", "sv-pick", "sv-ctx", "sv-btns"]);
+    assert.deepEqual(kids(form.querySelector(".sv-foot")), ["sv-activity", "sv-when", "sv-keys", "sv-halt"]);
+    assert.equal(form.querySelector("textarea").placeholder, phrase("Ask anything. @ files, / commands"));
   } finally { flag(false); }
+});
+
+test("the Novo Hive gets the same box: the words, then a bar with the clip, the model and send", () => {
+  document.body.classList.add("experience-next");
+  try {
+    const e = seatNamed("rc-next");
+    const form = e.host.querySelector(".sv-composer");
+    assert.deepEqual(kids(form), ["sv-box", "sv-foot"]);
+    assert.deepEqual(kids(form.querySelector(".sv-bar")), ["sv-clip", "sv-bar-fill", "sv-pick", "sv-ctx", "sv-btns"]);
+    assert.equal(form.querySelector("textarea").placeholder, phrase("Ask anything. @ files, / commands"));
+  } finally { document.body.classList.remove("experience-next"); }
 });
 
 test("turning the flag off puts every node back where main had it, listeners and all", () => {
@@ -199,7 +220,7 @@ test("turning the flag off puts every node back where main had it, listeners and
   const stop = form.querySelector(".sv-stop");
   flag(false);
   assert.deepEqual(kids(form), ["sv-activity", "sv-attach", "sv-well", "sv-foot"]);
-  assert.deepEqual(kids(form.querySelector(".sv-foot")), ["sv-pick", "sv-ctx", "sv-btns"]);
+  assert.deepEqual(kids(form.querySelector(".sv-foot")), ["sv-clip", "sv-pick", "sv-ctx", "sv-btns"]);
   assert.equal(form.querySelector(".sv-well"), well, "the box was rebuilt instead of moved");
   assert.equal(form.querySelector(".sv-stop"), stop);
   assert.equal(form.querySelector(".sv-box, .sv-when, .sv-keys, .sv-halt"), null);
@@ -263,4 +284,29 @@ test("the card stands still and rings coral only when the seat needs you", () =>
 test("an empty composer keeps its hint on one line, so a narrow tile shows no scrollbar in the box", () => {
   assert.match(sheet, /\.sv-composer textarea:placeholder-shown \{ white-space: nowrap; overflow: hidden; \}/);
   assert.match(sheet, /\.tile:not\(\.focused\):not\(\.open\) \.sv-composer:not\(\.ready\):not\(\.talking\) textarea:placeholder-shown \{ white-space: nowrap; overflow: hidden; \}/, "the folded tile's revert brings the wrap back");
+});
+
+test("hovering the head shows only the close: browser, phone, pencil and fold stay in the seat menu", async () => {
+  const { seatMenuRows } = await app("seat-menu");
+  assert.match(sheet, /:where\(body\.experience-raycast\) \.tile \.t-head \.t-tags > :is\(\.t-web, \.t-phone, \.t-edit, \.t-fold\) \{ display: none; \}/);
+  assert.doesNotMatch(sheet, /\.t-tags \.t-web, :where\(body\.experience-raycast\) \.t-tags \.t-phone/, "the hover brought the four buttons back");
+  assert.doesNotMatch(sheet, /\.t-close[^{]*\{[^}]*display: none/);
+  flag(true);
+  try {
+    const st2 = await state();
+    st2.data = { pod: { up: false, name: "" }, sessions: [{ name: "ana", where: "local", state: "idle" }], archived: [] };
+    st2.blocks = [{ id: "b1", ws: "w0", keys: ["ana"] }];
+    st2.open = "";
+    const labels = seatMenuRows({ name: "ana", where: "local", state: "idle" }).map((row) => row.label);
+    for (const label of ["rename…", "open the browser here", "open the phone here"]) assert.ok(labels.includes(label), `${label} left the seat menu, and the head no longer offers it`);
+    assert.ok(labels.some((label) => /status/.test(label)), "folding the status left the seat menu");
+  } finally { flag(false); }
+});
+
+test("the New Hive drops the badge row: the glyph beside the name says the state, and a card with nothing else under the head gives the row back to the body", () => {
+  const next = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
+  assert.match(next, /body\.experience-next \.tile \.t-state > \.t-pill \{ display: none; \}/);
+  assert.match(next, /body\.experience-next #canvas > \.tile:not\(\.open\) \.side > \.t-state:not\(:has\(> \.t-using\)\) \{ display: none; \}/);
+  assert.match(next, /body\.experience-next \.tile \.t-glyph \{ display: block;[^}]*color: var\(--pill-hue\);/);
+  assert.match(page, /\.t-grip, \.t-place, \.t-using, \.t-glyph \{ display: none; \}/, "the glyph shows outside the New Hive");
 });

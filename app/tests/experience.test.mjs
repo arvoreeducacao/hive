@@ -121,7 +121,7 @@ test('a failed icon load leaves the current icons in place', async () => {
 test('every pixel icon is a filled path that ignores the sprite stroke', async () => {
   const { PIXEL_ICONS } = await import('../assets/pixel-icons.mjs');
   const ids = Object.keys(PIXEL_ICONS);
-  assert.equal(ids.length, 69);
+  assert.equal(ids.length, 71);
   for (const [id, body] of Object.entries(PIXEL_ICONS)) {
     assert.match(body, /^(<path fill="currentColor" stroke="none" [^>]*\/>\s?)+$/, id);
   }

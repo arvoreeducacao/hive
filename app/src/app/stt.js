@@ -1,10 +1,11 @@
 import { apiBinary, apiGet } from "/assets/api.mjs";
-import { STT_SAMPLE_RATE, joinSound, wasAnythingSaid, whereTheWordsGo } from "/assets/stt-sound.mjs";
+import { STT_SAMPLE_RATE, joinSound, loudnessOf, wasAnythingSaid, whereTheWordsGo } from "/assets/stt-sound.mjs";
 import { activeItems } from "./blocks.js";
 import { showNotice } from "./chimes-and-notices.js";
 import { experienceNext, phrase, st } from "./core.js";
 import { drafts } from "./draft-seat.js";
 import { structPool } from "./structured-seats.js";
+import { openMacPermissions } from "./mac-permissions.js";
 
 const SETTLE_MS = 2000;
 
@@ -20,6 +21,27 @@ let heard = [];
 let caught = null;
 let settling = null;
 let painters = new Set();
+const levelHearers = new Set();
+
+export const MIC_LEVEL_GAIN = 8;
+
+export function micLevel(pcm) {
+  return Math.max(0, Math.min(1, loudnessOf(pcm) * MIC_LEVEL_GAIN));
+}
+
+export function onMicLevel(hear) {
+  levelHearers.add(hear);
+  return () => levelHearers.delete(hear);
+}
+
+function heardSound(pcm) {
+  heard.push(pcm);
+  if (!levelHearers.size) return;
+  const level = micLevel(pcm);
+  for (const hear of levelHearers) {
+    try { hear(level); } catch {}
+  }
+}
 
 export function onDictation(paint) {
   painters.add(paint);
@@ -104,7 +126,10 @@ export async function pullDictation() {
 
 async function openTap() {
   const machine = await window.hiveMicrophone?.ask?.().catch(() => null);
-  if (machine && !machine.allowed) throw Object.assign(new Error(phrase("this machine has not let the hive listen")), { name: "NotAllowedError" });
+  if (machine && !machine.allowed) {
+    openMacPermissions("microphone");
+    throw Object.assign(new Error(phrase("this machine has not let the hive listen")), { name: "NotAllowedError" });
+  }
   const stream = await openMic(st.stt.mic);
   const room = new AudioContext({ sampleRate: STT_SAMPLE_RATE });
   if (room.state === "suspended") await room.resume();
@@ -115,7 +140,7 @@ async function openTap() {
     numberOfOutputs: 0,
     processorOptions: { sampleRate: STT_SAMPLE_RATE }
   });
-  node.port.onmessage = (note) => heard.push(note.data);
+  node.port.onmessage = (note) => heardSound(note.data);
   from.connect(node);
   return { stream, room, from, node };
 }
@@ -149,7 +174,7 @@ export async function startTalking({ into, owner = null } = {}) {
   clearTimeout(settling);
   heard = [];
   caught = box;
-  st.stt = { ...st.stt, owner: owner || talkButtonFor(caught) };
+  st.stt = { ...st.stt, owner: owner || talkButtonFor(caught), since: Date.now() };
   tell("hearing");
   opening = true;
   try {

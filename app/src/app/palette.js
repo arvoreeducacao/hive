@@ -19,22 +19,38 @@ import { CI_LABEL } from "./prs.js";
 import { foldText, markWords, noteOpen, openedOften, rankRows, rankThreads, readOpens, recentThreads, searchWords } from "./palette-search.js";
 import { paintMachines, paintPhone, paintShare, palAt, setPref } from "./pure-helpers.js";
 import { askNewChat, openDraft } from "./draft-seat.js";
+import { focusAfterPalette } from "./composer-focus.js";
 import { hudCopied } from "./hud.js";
 import { pullTeam } from "./team.js";
 import { toClipboard } from "./terminal-history.js";
-import { structurePaletteRows } from "./structure.js";
-import { openHelp, openThemes, run, setTheme, showPrefPane, themeChoices } from "./themes.js";
+import { openHelp, openThemes, restoreDefaultTheme, run, setTheme, showPrefPane, themeChoices, THEME_RESCUE_KEY } from "./themes.js";
 import { homeless } from "./tool-face.js";
 import { openPrs, openShell } from "./thread.js";
 import { openWorktrees } from "./worktrees.js";
 import { pullExtensions } from "./extensions.js";
 import { structPool } from "./structured-seats.js";
+import { lucide } from "./lucide.js";
+import { hitMatcher } from "/assets/code-search.mjs";
+import { promptLinkOpenRow, promptLinkPaletteRows } from "./prompt-links.js";
+import { promptSuggestionRows } from "./composer-next-prompt.js";
 
 st.palMode = "";
 
 st.palFiles = { q: "", rows: [], loading: false, total: 0, at: 0, error: "" };
 
-st.palHits = { q: "", rows: [], loading: false, ms: 0, error: "" };
+st.palHits = { q: "", rows: [], loading: false, ms: 0, error: "", problem: "" };
+
+const PAL_SEARCH_KEY = "hive.codeSearch";
+
+const PAL_SEARCH_OPTIONS = [["matchCase", "caseSensitive", "KeyC"], ["wholeWord", "wholeWord", "KeyW"], ["regex", "regex", "KeyR"]];
+
+function readPalSearch() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(PAL_SEARCH_KEY) || "{}") || {}; } catch {}
+  return { matchCase: saved.matchCase === true, wholeWord: saved.wholeWord === true, regex: saved.regex === true };
+}
+
+st.palSearch = readPalSearch();
 
 st.palPrev = { key: "", at: 0, lines: [], loading: false, error: "" };
 
@@ -83,10 +99,54 @@ function setPalMode(mode) {
   $("pal-scope").classList.toggle("lit", !!st.palMode);
   $("pal-q").placeholder = phrase(PAL_PLACEHOLDER[st.palMode] || PAL_PLACEHOLDER[""]);
   $("pal-list").dataset.h = "";
+  paintPalOptions();
   palPaint();
   if (WIDE_MODES.has(st.palMode)) palAsk(true);
   $("pal-q").focus();
 }
+
+const palOptionSaid = (key) => (key === "matchCase" ? phrase("Match case") : key === "wholeWord" ? phrase("Match whole word") : phrase("Use regular expression"));
+
+function palOptionsHost() {
+  let host = $("pal-opts");
+  if (host) return host;
+  $("pal-scope").insertAdjacentHTML("beforebegin", '<span class="pal-opts" id="pal-opts" role="group" hidden></span>');
+  host = $("pal-opts");
+  host.addEventListener("mousedown", (e) => e.preventDefault());
+  host.addEventListener("click", (e) => {
+    const hit = e.target.closest("[data-opt]");
+    if (hit) togglePalOption(hit.dataset.opt);
+  });
+  return host;
+}
+
+function paintPalOptions() {
+  const host = palOptionsHost();
+  host.hidden = st.palMode !== "code";
+  host.setAttribute("aria-label", phrase("Search options"));
+  const html = PAL_SEARCH_OPTIONS.map(([key, icon, code]) => {
+    const said = palOptionSaid(key);
+    const keys = `${IS_MAC ? "⌥" : "Alt+"}${code.slice(3)}`;
+    return `<button type="button" class="pal-opt" data-opt="${key}" aria-pressed="${st.palSearch[key]}" aria-label="${esc(said)}" title="${esc(`${said} (${keys})`)}">${lucide(icon)}</button>`;
+  }).join("");
+  if (host.dataset.h !== html) { host.innerHTML = html; host.dataset.h = html; }
+}
+
+function togglePalOption(key) {
+  if (!(key in st.palSearch)) return;
+  st.palSearch = { ...st.palSearch, [key]: !st.palSearch[key] };
+  try { localStorage.setItem(PAL_SEARCH_KEY, JSON.stringify(st.palSearch)); } catch {}
+  paintPalOptions();
+  if (st.palMode === "code") palAsk(true);
+  palPaint();
+}
+
+function palOptionKey(e) {
+  if (st.palMode !== "code" || !e.altKey || e.metaKey || e.ctrlKey || e.shiftKey) return "";
+  return PAL_SEARCH_OPTIONS.find((one) => one[2] === codeOf(e))?.[0] || "";
+}
+
+const palSearchQuery = () => `&case=${st.palSearch.matchCase ? 1 : 0}&word=${st.palSearch.wholeWord ? 1 : 0}&regex=${st.palSearch.regex ? 1 : 0}`;
 
 function palAsk(now) {
   clearTimeout(palTimer);
@@ -176,15 +236,18 @@ async function palList(q) {
 
 async function palGrep(q) {
   const mine = ++palSeq;
-  if (q.length < 2) { st.palHits = { q, rows: [], loading: false, ms: 0, error: "" }; return palOn() && palPaint(); }
+  if (q.length < 2) { st.palHits = { q, rows: [], loading: false, ms: 0, error: "", problem: "" }; return palOn() && palPaint(); }
   const started = Date.now();
   const found = [];
+  let problem = "";
+  const options = palSearchQuery();
   await Promise.all(palSides().map(async (where) => {
-    const res = await fetch(`/api/code?where=${where}&q=${encodeURIComponent(q)}`).catch(() => null);
+    const res = await fetch(`/api/code?where=${where}&q=${encodeURIComponent(q)}${options}`).catch(() => null);
     const got = res && res.ok ? await res.json().catch(() => null) : null;
     if (!got || mine !== palSeq) return;
     found.push(...(got.hits || []));
-    st.palHits = { q, rows: [...found], loading: false, ms: Date.now() - started, error: "" };
+    problem = problem || String(got.problem || "");
+    st.palHits = { q, rows: [...found], loading: false, ms: Date.now() - started, error: "", problem: found.length ? "" : problem };
     if (palOn() && st.palMode === "code") palPaint();
   }));
   if (mine !== palSeq) return;
@@ -213,12 +276,14 @@ function palFileRows(q) {
 }
 
 function palCodeRows(q) {
+  const matcher = hitMatcher(q, st.palSearch);
   const rows = st.palHits.rows.map((h, i) => ({
     id: `pc:${h.where}|${h.repo}|${h.path}|${h.line}|${i}`,
     icon: "i-mag",
     name: h.text.trim(),
     mono: true,
     mark: q,
+    markRe: matcher,
     ctx: `${h.name} · ${h.path}:${h.line}`,
     tag: h.where === "cloud" ? "pod" : "",
     file: { ...h, name: h.name },
@@ -229,6 +294,12 @@ function palCodeRows(q) {
     : q.length < 2 ? phrase("type at least two characters")
       : `${st.palHits.rows.length}${st.palHits.rows.length >= 200 ? "+" : ""} hits · ${st.palHits.ms} ms`;
   if (rows.length) return [{ sec: `${phrase("code")} · ${head}` }, ...rows];
+  if (st.palHits.problem && !st.palHits.loading && q.length >= 2) {
+    return [{ sec: `${phrase("code")} · ${phrase("invalid regular expression")}` }, {
+      id: "pc:problem", icon: "i-mag", quiet: true, name: st.palHits.problem,
+      ctx: phrase("fix the pattern, or turn off the regular expression"), go: () => {}
+    }];
+  }
   return [{ sec: phrase("code") }, {
     id: "pc:none", icon: "i-mag", quiet: true,
     name: st.palHits.loading ? phrase("searching…") : q.length < 2 ? phrase("type at least two characters") : phrase("no line in the repos says “{q}”", { q: q }),
@@ -305,6 +376,19 @@ function palMark(text, q) {
   if (at < 0) return esc(raw);
   return esc(raw.slice(0, at)) + `<em>${esc(raw.slice(at, at + q.length))}</em>` + esc(raw.slice(at + q.length));
 }
+
+function palMarkMatches(text, matcher) {
+  const raw = String(text || "");
+  let out = "", at = 0;
+  matcher.lastIndex = 0;
+  for (let found = matcher.exec(raw); found; found = matcher.exec(raw)) {
+    if (!found[0]) { matcher.lastIndex += 1; continue; }
+    out += esc(raw.slice(at, found.index)) + `<mark>${esc(found[0])}</mark>`;
+    at = found.index + found[0].length;
+  }
+  return out + esc(raw.slice(at));
+}
+
 
 function palMarkAll(text, needle) {
   const raw = String(text || "");
@@ -522,7 +606,8 @@ function themeRows(q) {
     verb: "Wear",
     go: () => setTheme(one.name)
   }));
-  const found = rankRows(rows, words);
+  const rescue = { id: "theme:rescue", icon: "i-reload", name: phrase("back to the default theme"), search: "theme tema padrão default reset socorro rescue css", key: keyLabel(THEME_RESCUE_KEY), swatches: rows[0]?.swatches || [], go: () => restoreDefaultTheme() };
+  const found = [...rankRows(rows, words), ...rankRows([rescue], words)];
   if (found.length) return [{ sec: phrase("change theme") }, ...found];
   return [{ sec: phrase("change theme") }, { id: "theme:none", icon: "i-image", quiet: true, name: phrase("No results"), go: () => {} }];
 }
@@ -539,6 +624,11 @@ function palModel(q) {
   const words = searchWords(query);
   const ranked = (list) => rankRows(list, words);
   const section = (sec, list, note = "") => { if (list.length) rows.push(rc ? { sec, note } : { sec }, ...list); };
+  const linked = promptLinkOpenRow();
+  if (linked) {
+    section(phrase("actions"), [linked]);
+    return rows;
+  }
 
   const env = (st.alerts.items || []).filter((i) => i.fix).flatMap((i) => {
     const does = i.fix.kind === "copy" ? phrase("copy") : i.fix.kind === "investigate" ? phrase("investigate") : phrase("run");
@@ -714,7 +804,9 @@ function palActions() {
     { action: "reconnect", icon: "i-term", name: phrase("reconnect the focused seat"), ctx: phrase("drops the socket and opens it again"), key: keyHint("reconnect"), go: () => run("reconnect") },
     { action: "help", icon: "i-keys", name: phrase("shortcuts and settings"), ctx: phrase("rebind anything, the fonts, the leader key"), key: keyHint("help"), go: () => run("help") },
     { action: "themes", icon: "i-keys", name: phrase("themes"), ctx: phrase("the colours of the app and the terminals — pick one, make yours, share as json"), key: keyHint("themes"), go: () => openThemes() },
-    ...structurePaletteRows(),
+    { icon: "i-reload", name: phrase("back to the default theme"), ctx: phrase("one theme, without the theme's css"), search: "theme tema padrão default reset socorro rescue css", key: keyLabel(THEME_RESCUE_KEY), go: () => restoreDefaultTheme() },
+    ...promptLinkPaletteRows(),
+    ...promptSuggestionRows(),
     ...LANGUAGES.map((one) => ({
       icon: "i-globe",
       name: one.name,
@@ -737,6 +829,7 @@ function palActions() {
 const typedWords = (q) => searchWords(q.startsWith(">") ? q.slice(1) : q);
 
 function rowNameHtml(r, q) {
+  if (r.markRe) return palMarkMatches(r.name, r.markRe);
   if (r.mark) return palMarkAll(r.name, r.mark);
   if (WIDE_MODES.has(st.palMode)) return palMark(r.name, q);
   return markWords(r.name, typedWords(q), esc);
@@ -1003,6 +1096,7 @@ function closePal() {
   st.palMode = "";
   $("pal").classList.remove("wide");
   document.body.focus();
+  queueMicrotask(focusAfterPalette);
 }
 
 function palKeys(e) {
@@ -1014,6 +1108,8 @@ function palKeys(e) {
     return;
   }
   if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); return st.palMode ? setPalMode("") : closePal(); }
+  const option = palOptionKey(e);
+  if (option) { e.preventDefault(); e.stopPropagation(); return togglePalOption(option); }
   if (e.key === "Tab") {
     e.preventDefault();
     e.stopPropagation();
@@ -1077,10 +1173,9 @@ $("pal-prev").addEventListener("click", async (e) => {
 
 $("btn-pal").addEventListener("click", (e) => { e.stopPropagation(); palOn() ? closePal() : openPal(); });
 
-$("btn-dim").addEventListener("click", (e) => { e.stopPropagation(); setPref("dim", !st.dimOn); });
+$("btn-dim").addEventListener("click", () => setPref("dim", !st.dimOn));
 
-$("btn-share").addEventListener("click", (e) => {
-  e.stopPropagation();
+$("btn-share").addEventListener("click", () => {
   const on = !st.team.sharing;
   st.team.sharing = on;
   paintShare();
@@ -1088,15 +1183,13 @@ $("btn-share").addEventListener("click", (e) => {
   setTimeout(() => pullTeam(true), 1500);
 });
 
-$("btn-phone").addEventListener("click", (e) => {
-  e.stopPropagation();
+$("btn-phone").addEventListener("click", () => {
   const on = !st.team.phone;
   st.team.phone = on;
   paintPhone();
   saveConfig({ phone: on }).catch(() => {});
 });
 
-$("in-machine").addEventListener("click", (e) => e.stopPropagation());
 $("in-machine").addEventListener("change", () => {
   const named = $("in-machine").value.trim().slice(0, 32);
   st.team.machine = named;
@@ -1104,12 +1197,11 @@ $("in-machine").addEventListener("change", () => {
   setTimeout(() => pullTeam(true), 1500);
 });
 
-$("btn-machines").addEventListener("click", (e) => {
-  e.stopPropagation();
+$("btn-machines").addEventListener("click", () => {
   const on = !st.team.machines;
   st.team.machines = on;
   paintMachines();
   saveConfig({ machines: on }).catch(() => {});
 });
 
-export { PAL_PLACEHOLDER, agentIcon, closePal, closePalActs, middleCut, openPalActs, palDetailModel, palRowHtml, rowDetailModel, seatDetailModel, stateSay, envLine, openPal, paintPalPreview, palActions, palAsk, palCodeRows, palFileRows, palGrep, palKeys, palList, palMark, palMarkAll, palModel, palMove, palOn, palPaint, palPrevSeq, palPrevTimer, palPreviewAsk, palPreviewSolid, palPreviewViewModel, palRun, palSeq, palSides, palTimer, setPalMode };
+export { PAL_PLACEHOLDER, agentIcon, closePal, closePalActs, middleCut, openPalActs, palDetailModel, palRowHtml, rowDetailModel, seatDetailModel, stateSay, envLine, openPal, paintPalPreview, palActions, palAsk, palCodeRows, palFileRows, palGrep, palKeys, palList, palMark, palMarkAll, palModel, palMove, palOn, palPaint, palPrevSeq, palPrevTimer, palPreviewAsk, palPreviewSolid, palPreviewViewModel, palRun, palSeq, palSides, palTimer, setPalMode, palOptionKey, paintPalOptions, togglePalOption };

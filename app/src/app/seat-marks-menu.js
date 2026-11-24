@@ -39,8 +39,8 @@ function marksMenuRows(s) {
     label: phrase("Settle on its own"),
     note: phrase(mark.neverSettles ? "never" : "follow settings"),
     sub: [
-      { icon: mark.neverSettles ? "" : "i-check", label: phrase("Follow settings"), go: () => setNeverSettles(key, false) },
-      { icon: mark.neverSettles ? "i-check" : "", label: phrase("Never"), go: () => setNeverSettles(key, true) }
+      { icon: mark.neverSettles ? "" : "i-check", on: !mark.neverSettles, label: phrase("Follow settings"), go: () => setNeverSettles(key, false) },
+      { icon: mark.neverSettles ? "i-check" : "", on: !!mark.neverSettles, label: phrase("Never"), go: () => setNeverSettles(key, true) }
     ]
   });
   return rows;
@@ -83,4 +83,4 @@ async function askToErase(list, at = null) {
   return !failed.length;
 }
 
-export { askToErase, eraseRow, marksMenuRows, openThreadSettings, snoozeRows };
+export { askToErase, eraseRow, marksMenuRows, snoozeRows };

@@ -247,28 +247,88 @@ export function saidTrail() {
   };
 }
 
-export function sayGate() {
-  const queue = [];
+export const KEPT_QUEUE_CEILING = 50;
+
+const keepable = (item) => !!item && typeof item.text === "string" && (item.text.trim() || (Array.isArray(item.images) && item.images.length));
+
+export function queueItems(queue) {
+  return queue.map(({ text, images, cid, uuid }) => ({
+    text,
+    images: Array.isArray(images) ? images.filter((path) => typeof path === "string") : [],
+    cid: typeof cid === "string" && cid ? cid : null,
+    ...(typeof uuid === "string" && uuid ? { uuid } : {}),
+  }));
+}
+
+export function sayGate({ kept = [], onChange = () => {} } = {}) {
+  const queue = Array.isArray(kept) ? queueItems(kept.filter(keepable)).slice(0, KEPT_QUEUE_CEILING) : [];
   const trail = saidTrail();
   let busy = false;
+  let held = queue.length > 0;
+  let heldShown = held;
+  const changed = () => {
+    if (!busy && !queue.length) held = false;
+    const now = held && queue.length > 0;
+    const flipped = now !== heldShown;
+    heldShown = now;
+    onChange({ items: queueItems(queue), held: now, flipped });
+  };
+  const next = () => {
+    const item = queue.shift();
+    changed();
+    return item;
+  };
   return {
     push(item) {
-      if (busy) {
+      if (busy || held) {
         queue.push(item);
+        changed();
         return null;
       }
       busy = true;
       return item;
     },
     turnEnded() {
-      if (queue.length) return queue.shift();
+      if (queue.length && !held) return next();
       busy = false;
+      changed();
       return null;
+    },
+    hold() {
+      if (!busy && !queue.length) return false;
+      held = true;
+      changed();
+      return true;
+    },
+    release() {
+      if (!held) return null;
+      held = false;
+      if (busy || !queue.length) {
+        changed();
+        return null;
+      }
+      busy = true;
+      return next();
     },
     unsay(cid) {
       const i = queue.findIndex((item) => cid && item.cid === cid);
       if (i < 0) return null;
-      return queue.splice(i, 1)[0];
+      const item = queue.splice(i, 1)[0];
+      changed();
+      return item;
+    },
+    take(cid) {
+      const item = this.unsay(cid);
+      if (item) busy = true;
+      return item;
+    },
+    resay(cid, change) {
+      const item = queue.find((one) => cid && one.cid === cid);
+      if (!item) return null;
+      item.text = change.text;
+      item.images = change.images;
+      changed();
+      return item;
     },
     left(cid) {
       trail.left(cid);
@@ -276,8 +336,14 @@ export function sayGate() {
     alreadyLeft(cid) {
       return trail.alreadyLeft(cid);
     },
+    items() {
+      return queueItems(queue);
+    },
     get queued() {
       return queue.length;
+    },
+    get held() {
+      return held && queue.length > 0;
     },
     get busy() {
       return busy;
@@ -285,12 +351,32 @@ export function sayGate() {
   };
 }
 
+export function queueKeeper(persist, emit) {
+  return ({ items, held, flipped }) => {
+    persist({ queue: items });
+    if (flipped) emit({ type: "driver", subtype: held ? "queue_held" : "queue_released", count: items.length });
+  };
+}
+
+export const FORCE_STOPPED = "Force stopped by user";
+
 export const QUEUE_MISS = "not in the queue — already dispatched or unknown";
 export const ALREADY_IN_THE_TURN = "it had already gone into the turn — it is in the conversation now, and cannot be taken back";
 
 export function queueMiss(gate, cid) {
   if (gate.alreadyLeft(cid)) return { ok: false, gone: true, error: ALREADY_IN_THE_TURN };
   return { ok: false, error: QUEUE_MISS };
+}
+
+export function resayCommand(gate, cmd, emit) {
+  const images = Array.isArray(cmd.images) ? cmd.images.filter((p) => typeof p === "string") : [];
+  const text = String(cmd.text || "").trim();
+  if (!text && !images.length) return { ok: false, error: "resay needs text" };
+  const said = text || "(image)";
+  const item = gate.resay(cmd.target, { text: said, images });
+  if (!item) return queueMiss(gate, cmd.target);
+  emit({ type: "driver", subtype: "resaid", cid: item.cid, text: said, images });
+  return { ok: true };
 }
 
 export const INTERRUPT_MAX_WAIT_MS = 60000;

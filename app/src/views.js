@@ -14,7 +14,7 @@ export { mountFacePicker, mountGate, mountFaceSheet } from "./settings/face.jsx"
 export { mountKeysGrid, mountKeysLeader } from "./settings/keys.jsx";
 export { mountRelnotes } from "./settings/notes.jsx";
 export { mountTourPop } from "./settings/tour.jsx";
-export { mountConversation, mountSubs } from "./conversation.jsx";
+export { mountConversation } from "./conversation.jsx";
 export { mountDay } from "./panels/day.jsx";
 export { mountShelfFilters, mountShelfGallery, mountShelfPreview } from "./panels/shelf.jsx";
 export { mountPrList, mountPrMid } from "./panels/prs.jsx";

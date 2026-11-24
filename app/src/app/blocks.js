@@ -418,7 +418,7 @@ function bringSeatIn(key) {
   if (detached.has(key)) return false;
   unhideSeat(key);
   if (st.blocks.some((b) => b.keys.includes(key))) return false;
-  if (!st.data.sessions.some((s) => s.name === key)) return false;
+  if (!st.data.sessions.some((s) => s.name === key && !s.of)) return false;
   const landing = blockWithRoom() || openBlock();
   landing.keys.push(key);
   saveBlocks();
@@ -482,7 +482,7 @@ function tidy() {
       } else if (shelvedAway(c)) {
         shelvedFrom.set(c, b.id);
         continue;
-      } else if (leftForGood(c, alive) || detached.has(c) || hidden.has(c)) continue;
+      } else if (leftForGood(c, alive) || detached.has(c) || hidden.has(c) || st.data.sessions.some((s) => s.name === c && s.of)) continue;
       if (seen.has(key)) continue;
       seen.add(key);
       kept.push(key);
@@ -492,7 +492,7 @@ function tidy() {
 
   const loose = [];
   for (const s of st.data.sessions) {
-    if (seen.has(s.name) || detached.has(s.name) || hidden.has(s.name) || s.by || shelvedAway(s.name)) continue;
+    if (seen.has(s.name) || detached.has(s.name) || hidden.has(s.name) || s.by || s.of || shelvedAway(s.name)) continue;
     const from = shelvedFrom.get(s.name);
     shelvedFrom.delete(s.name);
     landHome(s.name, from);
@@ -538,13 +538,14 @@ function labelOf(b, items) {
   const shown = (s) => (s.naming ? phrase("new chat") : s.title || s.name);
   if (sess.length === 1) return { txt: shown(sess[0]) };
   const first = shown(sess[0]);
-  return { txt: `${first} +${sess.length - 1}` };
+  return { txt: `${first} +${sess.length - 1}`, head: first };
 }
 
 const seatName = (s) => (s.kind !== "session" ? s.title || s.name || "" : s.naming ? phrase("new chat") : s.title || s.name);
 
 function blockTitle(b, items) {
-  const head = labelOf(b, items).txt;
+  const label = labelOf(b, items);
+  const head = label.head || label.txt;
   const names = items.map(seatName).filter(Boolean);
   if (names[0] !== head) return names.length ? `${head}: ${names.join(", ")}` : head;
   const rest = names.slice(1);

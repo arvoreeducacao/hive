@@ -90,7 +90,7 @@ test("every model the panel starts is owned, swept on the way out and swept on t
   const namer = await readFile(new URL("../lib/naming.mjs", import.meta.url), "utf8");
   assert.equal([...namer.matchAll(/--strict-mcp-config/g)].length, 1, "the claude namer runs with no mcp servers");
   const calls = [...source.matchAll(/namerCommand\(/g)];
-  assert.equal(calls.length, 1, `the only helper left is the one that names a seat at spawn — found ${calls.length}`);
+  assert.equal(calls.length, 2, `the only helpers left name a seat at spawn and guess its next prompt — found ${calls.length}`);
   for (const call of calls) {
     const rest = source.slice(call.index, call.index + 400);
     assert.match(rest, /own: true/, `a model is started without own: true near "${rest.slice(0, 60)}"`);
