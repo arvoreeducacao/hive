@@ -1,5 +1,5 @@
 import { render } from "./arrange.js";
-import { IS_MAC, esc, phrase, st } from "./core.js";
+import { esc, phrase, st } from "./core.js";
 import { registerChatControl } from "./chat-bar.js";
 import { openWebPage } from "./chat-and-panes.js";
 import { keyHint } from "./leader-key.js";
@@ -124,7 +124,7 @@ const branchOf = (s) => changes.get(s?.name)?.said?.branch || (s?.trees || []).f
 
 const pathOf = (s) => (s?.trees || []).find((one) => one?.path)?.path || changes.get(s?.name)?.said?.top || s?.cwd || "";
 
-const machineOf = () => (IS_MAC ? phrase("This Mac") : phrase("This computer"));
+const machineOf = () => phrase("This computer");
 
 const count = (n) => Number(n || 0).toLocaleString("en-US");
 

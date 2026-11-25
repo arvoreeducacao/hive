@@ -256,6 +256,7 @@ function closeAsk(e, ev, card) {
     sum.className = "qsum";
     card.appendChild(sum);
   }
+  card.classList.add("summed");
   sum.innerHTML = questions.map((q) => `<div class="qsum-row"><span class="qsum-q">${esc(q.question || q.header || "")}</span><span class="qsum-to" aria-hidden="true">→</span><span class="qsum-a">${esc(said(q))}</span></div>`).join("");
 }
 

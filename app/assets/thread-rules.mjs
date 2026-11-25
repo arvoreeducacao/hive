@@ -25,6 +25,7 @@ export const THREADS_DEFAULT = {
   groupByProject: false,
   listClick: "main",
   snoozeOptions: SNOOZE_OPTIONS_DEFAULT,
+  stopServersOnSettle: false,
   settleCommands: {}
 };
 
@@ -64,7 +65,7 @@ export function cleanThreads(raw, where = "config", problems = [], { partial = f
     if (IDLE_DAYS_CHOICES.includes(raw.autoSettleIdleDays)) threads.autoSettleIdleDays = raw.autoSettleIdleDays;
     else problems.push(`${where}: threads.autoSettleIdleDays should be one of ${IDLE_DAYS_CHOICES.join(", ")}`);
   }
-  for (const flag of ["autoSettleMerged", "keepWithOpenPr", "wakeEarly", "workingSection", "groupByProject"]) {
+  for (const flag of ["autoSettleMerged", "keepWithOpenPr", "wakeEarly", "workingSection", "groupByProject", "stopServersOnSettle"]) {
     if (raw[flag] === undefined) continue;
     if (typeof raw[flag] === "boolean") threads[flag] = raw[flag];
     else problems.push(`${where}: threads.${flag} should be true or false`);

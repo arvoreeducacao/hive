@@ -242,7 +242,7 @@ function keysGridModel() {
     open: st.keysOpen,
     summary: phrase("{bound} of {total} actions answer a key — the rest are one click from having one", { bound, total }),
     toggle: st.keysOpen ? phrase("fold the list") : phrase("show them all"),
-    edit: `<b>${phrase("Click a shortcut to change it")}</b> ${phrase("— press the new combination (Esc cancels). A shortcut with no {n} only works while the keyboard belongs to hive; if your system steals a combination (common with Alt on Linux, and with Ctrl+Esc on Windows), just pick another.", { n: IS_MAC ? "⌃/⌥/⌘" : "Ctrl/Alt" })}`,
+    edit: `<b>${phrase("Click a shortcut to change it")}</b> ${phrase("— press the new combination (Esc cancels). A shortcut with no {n} only works while the keyboard belongs to hive; if your system steals a combination, just pick another.", { n: IS_MAC ? "⌃/⌥/⌘" : "Ctrl/Alt" })}`,
     find: phrase("find an action…"),
     filter: st.keysFilter,
     head: {

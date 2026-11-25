@@ -66,11 +66,11 @@ test("the other head buttons do not open the seat either", () => {
 
 test("the side itself still opens and closes the seat", () => {
   lay(["a", "b"]);
-  const summary = tiles.get("a").querySelector(".summary");
-  summary.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  const side = tiles.get("a").querySelector(".side");
+  side.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.equal(st.open, "a", "clicking the card body has to open the seat");
   render();
-  tiles.get("a").querySelector(".summary").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+  tiles.get("a").querySelector(".side").dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
   assert.equal(st.open, null, "clicking it again has to put the seat back in the grid");
 });
 

@@ -116,8 +116,9 @@ function describe(row, at) {
 
 function syncSwitch(el) {
   if (!isSwitch(el) || !el.closest(".set-row")) return;
-  el.setAttribute("role", "switch");
-  el.setAttribute("aria-checked", el.classList.contains("on") ? "true" : "false");
+  const checked = el.classList.contains("on") ? "true" : "false";
+  if (el.getAttribute("role") !== "switch") el.setAttribute("role", "switch");
+  if (el.getAttribute("aria-checked") !== checked) el.setAttribute("aria-checked", checked);
 }
 
 function paintSettingResets() {

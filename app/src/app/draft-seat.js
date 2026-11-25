@@ -148,7 +148,7 @@ function draftHost(d) {
           <input class="sv-repo" autocomplete="off" spellcheck="false" placeholder="${phrase("repo")}" aria-label="${phrase("repo")}" title="${phrase("the repo the cloud seat clones")}" />
           <input class="sv-branch" autocomplete="off" spellcheck="false" placeholder="${phrase("branch")}" aria-label="${phrase("branch")}" title="${phrase("the branch it starts from")}" />
         </div>
-        <p class="sv-anon-said" hidden><b>${phrase("Runs on this mac and leaves nothing behind.")}</b> ${phrase("No hub rules, skills or memories. The other chats, the phone and the summaries never see it, and closing it erases it.")}</p>
+        <p class="sv-anon-said" hidden><b>${phrase("Runs on this computer and leaves nothing behind.")}</b> ${phrase("No hub rules, skills or memories. The other chats, the phone and the summaries never see it, and closing it erases it.")}</p>
         <p class="sv-empty-said" hidden></p>
       </div>
       <div class="sv-sent" hidden></div>

@@ -167,6 +167,51 @@ test("a kill the server could not confirm keeps the shell, says so, and the butt
   assert.equal(saved().ada.active, "");
 });
 
+test("closing a terminal with a program running asks first, and saying no keeps it", async () => {
+  net.nextNames.push("ada-busy");
+  toggleKeys(composerOf("ada"));
+  await settle();
+  net.programs["ada-busy"] = "node";
+  const kills = net.kills.length;
+  try {
+    killButton("ada").click();
+    await settle();
+    assert.ok(document.getElementById("confirm").classList.contains("on"), "the question shows");
+    assert.match(document.getElementById("c-text").textContent, /node/);
+    assert.equal(net.kills.length, kills, "nothing is killed while it asks");
+    document.getElementById("c-no").click();
+    await settle();
+    assert.equal(net.kills.length, kills);
+    assert.ok(!drawerOf("ada").hidden, "no keeps the terminal");
+    killButton("ada").click();
+    await settle();
+    document.getElementById("c-yes").click();
+    await settle();
+    assert.deepEqual(net.kills.at(-1), { name: "ada-busy", where: "local" });
+    assert.ok(drawerOf("ada").hidden);
+  } finally {
+    delete net.programs["ada-busy"];
+  }
+});
+
+test("with the confirmation turned off in the settings, a running program closes without a question", async () => {
+  net.nextNames.push("ada-quiet");
+  toggleKeys(composerOf("ada"));
+  await settle();
+  net.programs["ada-quiet"] = "node";
+  st.confirm = { closeTerminal: false };
+  try {
+    killButton("ada").click();
+    await settle();
+    assert.ok(!document.getElementById("confirm").classList.contains("on"));
+    assert.deepEqual(net.kills.at(-1), { name: "ada-quiet", where: "local" });
+    assert.ok(drawerOf("ada").hidden);
+  } finally {
+    st.confirm = {};
+    delete net.programs["ada-quiet"];
+  }
+});
+
 test("a shell tied to a chat never shows up as a chat: not in a block, not in the palette, not in the rail", async () => {
   const { bringSeatIn, tidy } = await import("../src/app/blocks.js");
   const { openPal, closePal } = await import("../src/app/palette.js");
@@ -370,12 +415,13 @@ test("right-click on a drawer terminal offers Select all, which selects what the
   assert.ok(menu, "a menu opens");
   assert.equal(menu.getAttribute("role"), "menu");
   const items = [...menu.querySelectorAll(".term-mi")];
-  assert.deepEqual(items.map((one) => one.textContent), ["Copy", "Select all", "Jump to latest"]);
-  assert.ok(items[0].disabled, "nothing to copy yet");
-  assert.ok(!items[1].disabled);
-  assert.ok(items[2].disabled, "already at the latest output");
-  assert.equal(document.activeElement, items[1], "the keyboard lands on the first thing it can do");
-  items[1].click();
+  assert.deepEqual(items.map((one) => one.textContent), ["Add to chat", "Copy", "Select all", "Jump to latest"]);
+  assert.ok(items[0].disabled, "nothing to add yet");
+  assert.ok(items[1].disabled, "nothing to copy yet");
+  assert.ok(!items[2].disabled);
+  assert.ok(items[3].disabled, "already at the latest output");
+  assert.equal(document.activeElement, items[2], "the keyboard lands on the first thing it can do");
+  items[2].click();
   await settle();
   assert.equal(document.querySelector(".term-menu"), null, "the menu goes away");
   assert.equal(selected.at(-1), name, "the terminal selected everything");

@@ -158,9 +158,9 @@ function InfoActions(props) {
     <Show when={props.model}>
       {(acts) => (
         <div class="actions i-acts">
-          <button class="btn b-back" onClick={(ev) => { ev.stopPropagation(); props.actions.back(); }}>{acts().back}<span class="rc-key">{acts().backKey}</span></button>
-          <button class="btn b-reconnect" onClick={(ev) => { ev.stopPropagation(); props.actions.reconnect(); }}>{acts().reconnect}<span class="rc-key">{acts().reconnectKey}</span></button>
-          <button class="btn b-kill" onClick={(ev) => { ev.stopPropagation(); props.actions.close(ev.currentTarget.getBoundingClientRect()); }}>{acts().kill}<span class="rc-key">{acts().killKey}</span></button>
+          <button class="btn b-back" title={acts().backHint} onClick={(ev) => { ev.stopPropagation(); props.actions.back(); }}>{acts().back}</button>
+          <button class="btn b-reconnect" title={acts().reconnectHint} onClick={(ev) => { ev.stopPropagation(); props.actions.reconnect(); }}>{acts().reconnect}</button>
+          <button class="btn b-kill" title={acts().killHint} onClick={(ev) => { ev.stopPropagation(); props.actions.close(ev.currentTarget.getBoundingClientRect()); }}>{acts().kill}</button>
         </div>
       )}
     </Show>

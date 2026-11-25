@@ -4,7 +4,7 @@ import { app, state } from "./dom.mjs";
 
 const answered = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
 
-export const net = { shells: [], kills: [], held: [], nextNames: [], holdShells: false, killRefused: false, echoNames: false };
+export const net = { shells: [], kills: [], held: [], nextNames: [], holdShells: false, killRefused: false, echoNames: false, programs: {} };
 
 export const focused = [];
 export const sentToShell = [];
@@ -40,6 +40,10 @@ globalThis.fetch = (url, init) => {
     net.kills.push(JSON.parse(init?.body || "{}"));
     if (net.killRefused) return Promise.resolve({ ok: false, status: 502, json: async () => ({ error: "the shell would not close" }) });
     return Promise.resolve(answered({ ok: true }));
+  }
+  if (said.startsWith("/api/seat/running?")) {
+    const program = net.programs[new URL(said, "http://hive").searchParams.get("name")] || "";
+    return Promise.resolve(answered({ running: !!program, program }));
   }
   if (said.startsWith("/api/changes?")) return Promise.resolve(answered({ state: "ok", added: 0, removed: 0, files: [], ahead: [] }));
   if (said.includes("/api/subagents")) return Promise.resolve(answered({ agents: [] }));

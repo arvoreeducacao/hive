@@ -39,10 +39,12 @@ function Parked(props) {
           <span class="dot-off"></span>
           <span class="name">{one.title}</span>
           <span class="when">{one.when}</span>
-          <span class="revive">{one.action}</span>
+          <Show when={!one.busy}>
+            <button type="button" class="revive-ic" tabindex="-1" title={one.revive} aria-label={one.revive}><svg aria-hidden="true"><use href="#i-reply" /></svg></button>
+          </Show>
         </div>
       )}</For>
-      <Show when={props.parked.more}><div class="rail-more" data-arch-all role="button">{props.parked.more}</div></Show>
+      <Show when={props.parked.more}><div class="rail-more" data-arch-more role="button" tabindex="-1">{props.parked.more}</div></Show>
     </>
   );
 }
@@ -131,12 +133,11 @@ function RaycastSeat(props) {
       )}</Show>
       <Show when={props.seat.tag}>{(tag) => <span class={`rtag ${tag().tone}`}>{tag().say}</span>}</Show>
       <Show when={props.seat.meta}><span class="meta">{props.seat.meta}</span></Show>
-      <Show
-        when={props.seat.act}
-        fallback={<span class="hint">{props.seat.open}<Show when={props.seat.openKey}><span class="rc-key">{props.seat.openKey}</span></Show></span>}
-      >
-        {(act) => <button type="button" class="ract" data-shelf-act={act().act} data-of={props.seat.name}>{act().say}</button>}
-      </Show>
+      <Show when={props.seat.act}>{(act) => (
+        <button type="button" class="ract" data-shelf-act={act().act} data-of={props.seat.name} title={act().say} aria-label={act().say}>
+          <svg aria-hidden="true"><use href={`#${act().icon}`} /></svg>
+        </button>
+      )}</Show>
     </div>
   );
 }
@@ -197,7 +198,7 @@ function RaycastHead(props) {
         <label class="rail-q">
           <svg aria-hidden="true"><use href="#i-mag" /></svg>
           <input id="rail-q" type="text" spellcheck={false} autocomplete="off" value={props.rail.query} placeholder={props.rail.searchSaid} aria-label={props.rail.searchSaid} />
-          <Show when={props.rail.query} fallback={<span class="rc-key">esc</span>}>
+          <Show when={props.rail.query}>
             <button type="button" class="rail-clear" data-rail-clear aria-label={props.rail.clearSaid} title={props.rail.clearSaid}>×</button>
           </Show>
         </label>
@@ -218,10 +219,12 @@ function RaycastParked(props) {
           <i class="rc-dot idle" aria-hidden="true"></i>
           <span class="name"><Found parts={one.parts} /></span>
           <span class="meta">{one.when}</span>
-          <span class="hint">{one.action}<Show when={!one.busy}><span class="rc-key">↵</span></Show></span>
+          <Show when={!one.busy}>
+            <button type="button" class="ract" tabindex="-1" title={one.revive} aria-label={one.revive}><svg aria-hidden="true"><use href="#i-reply" /></svg></button>
+          </Show>
         </div>
       )}</For>
-      <Show when={props.parked.more}><div class="rail-more" data-arch-all role="button">{props.parked.more}</div></Show>
+      <Show when={props.parked.more}><div class="rail-more" data-arch-more role="button" tabindex="-1">{props.parked.more}</div></Show>
     </div>
   );
 }
@@ -261,9 +264,6 @@ function RaycastRail(props) {
     <>
       <RaycastHead rail={props.rail} />
       <Show when={props.rail.selection}>{(selection) => <RailSelection selection={selection()} />}</Show>
-      <Show when={props.rail.found}>
-        <div class="rail-found"><span>{props.rail.found}</span><span class="go">{props.rail.openSaid}<span class="rc-key">↵</span></span></div>
-      </Show>
       <Show when={props.rail.loading}>
         <div class="rail-blk">
           <div class="group-title"><span>{props.rail.loading}</span></div>

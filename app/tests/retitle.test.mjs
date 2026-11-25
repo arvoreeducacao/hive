@@ -29,7 +29,7 @@ const { bootSolid } = await app("shared");
 const { render } = await app("arrange");
 const { tiles } = await app("leader-key");
 const { retitle, retitlingNow } = await app("chat-name");
-const { seatMenuCommands, seatMenuRows } = await app("seat-menu");
+const { seatMenuRows } = await app("seat-menu");
 const { run } = await app("themes");
 const { paintRail, railViewModel } = await app("mirror");
 
@@ -90,7 +90,6 @@ test("the seat menu offers to regenerate the title, in both looks, and the palet
   raycast(true);
   const rows = seatMenuRows(st.data.sessions[0]);
   assert.ok(rows.find((one) => one.label === "regenerate title" && one.icon === "i-reload"));
-  assert.ok(seatMenuCommands(st.data.sessions[0]).some((one) => one.label === "regenerate title"), "the palette's seat actions carry it too");
   assert.equal(seatMenuRows(seat("anon", { anon: true })).some((one) => one.label === "regenerate title"), false, "an anonymous chat keeps no title to regenerate");
   raycast(false);
 });

@@ -12,7 +12,14 @@ const NEWLINE = "\x1b\r";
 
 const BARE_KEYS = new Set(["Shift", "Control", "Alt", "Meta", "CapsLock", "Escape"]);
 
-const openLink = (ev, uri) => { window.open(uri, "_blank", "noopener,noreferrer"); };
+const linkRoutes = [];
+
+const routeTerminalLinks = (route) => { linkRoutes.push(route); };
+
+const openLink = (ev, uri) => {
+  if (linkRoutes.some((route) => route(ev, uri) === true)) return;
+  window.open(uri, "_blank", "noopener,noreferrer");
+};
 
 const linkAddon = () => new WebLinksAddon(openLink);
 
@@ -149,4 +156,4 @@ function getTerminal(s) {
   return e;
 }
 
-export { adoptTerminalEngine, hostClass, newTerm, MIRROR_ECHO_MS, MOUSE_MOTION_ONLY, NEWLINE, SELECTION_SETTLE_MS, TERM_LOOK, clipboardFromSession, copyOnSelect, getTerminal, lastClipboard, linkAddon, openLink };
+export { adoptTerminalEngine, hostClass, newTerm, MIRROR_ECHO_MS, MOUSE_MOTION_ONLY, NEWLINE, SELECTION_SETTLE_MS, TERM_LOOK, clipboardFromSession, copyOnSelect, getTerminal, lastClipboard, linkAddon, openLink, routeTerminalLinks };

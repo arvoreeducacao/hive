@@ -12,7 +12,9 @@ const MOD = IS_MAC ? "⌘" : "Ctrl";
 
 const ALTERNATE_KEYS = IS_MAC ? "⌘↵" : "Ctrl+Enter";
 
-const FOLLOW_UPS = ["steer", "queue"];
+const FOLLOW_UPS = ["queue", "steer"];
+
+const FOLLOW_UP_DEFAULT = "queue";
 
 const SEND_SHORTCUTS = ["enter", "mod-enter-multiline", "mod-enter"];
 
@@ -39,10 +41,10 @@ function onComposerMode(hook) {
   modeHooks.push(hook);
 }
 
-let followUpPreference = "steer";
+let followUpPreference = FOLLOW_UP_DEFAULT;
 
 function setFollowUp(value) {
-  followUpPreference = FOLLOW_UPS.includes(value) ? value : "steer";
+  followUpPreference = FOLLOW_UPS.includes(value) ? value : FOLLOW_UP_DEFAULT;
   repaintComposers();
 }
 
@@ -127,7 +129,7 @@ const queuedCompact = (e) => (e.queuedEls || []).some((el) => el.dataset.system 
 
 const canSteer = (e) => !e.steerRefused && !compacting(e) && !queuedCompact(e);
 
-function dispatchMode({ running, alternate, steerable = true, preferred = "steer" }) {
+function dispatchMode({ running, alternate, steerable = true, preferred = FOLLOW_UP_DEFAULT }) {
   if (!running) return "auto";
   if (!steerable) return "queue";
   const other = preferred === "steer" ? "queue" : "steer";

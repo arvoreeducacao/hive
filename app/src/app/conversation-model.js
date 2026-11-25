@@ -89,8 +89,6 @@ function svConvSay(one) {
 
 const svConvDue = new Set();
 
-const ANCHOR_OFFSET = 24;
-const ANCHOR_FRESH = 15000;
 const FOLLOW_SLACK = 40;
 const OUT_CAP = 200000;
 
@@ -150,7 +148,7 @@ function svConvPaint(e) {
   if (e.holdOnce) {
     e.holdOnce = false;
     const s = e.scroll;
-    if (s.scrollHeight - s.scrollTop - s.clientHeight > FOLLOW_SLACK) { e.atBottom = false; e.anchor = null; }
+    if (s.scrollHeight - s.scrollTop - s.clientHeight > FOLLOW_SLACK) e.atBottom = false;
   } else svConvStick(e);
   svConvEndPill(e, look);
   if (look) timelineHook?.painted?.(e);
@@ -169,57 +167,12 @@ function svConvElements(e) {
   return svConvRowEls(e);
 }
 
-function svConvAnchor(e, block) {
-  if (!block || block.peer || !e.atBottom) return;
-  if (Date.now() - Number(block.at || 0) > ANCHOR_FRESH) return;
-  e.anchor = { key: block.key };
-}
-
-function svConvAnchorLetsGo(e) {
-  if (e.conv.thinking?.text) return true;
-  const at = e.conv.blocks.findIndex((one) => one.key === e.anchor.key);
-  if (at < 0) return true;
-  return e.conv.blocks.slice(at + 1).some((one) => one.kind === "tool" || one.kind === "think" || one.kind === "memsave");
-}
-
-function svConvSpace(e, px) {
-  if ((e.anchorSpace || 0) === px) return;
-  e.anchorSpace = px;
-  e.scroll.style.setProperty("--tl-anchor-space", `${px}px`);
-}
-
-function svConvHold(e) {
-  const el = svConvRowEls(e).get(e.anchor.key);
-  if (!el?.getBoundingClientRect) {
-    e.anchor = null;
-    return svConvStick(e);
-  }
-  const s = e.scroll;
-  const top = el.getBoundingClientRect().top - s.getBoundingClientRect().top + s.scrollTop;
-  const want = Math.max(0, Math.round(top - ANCHOR_OFFSET));
-  const end = s.scrollHeight - (e.anchorSpace || 0);
-  svConvSpace(e, Math.max(0, Math.ceil(want + s.clientHeight - end)));
-  e.anchorTop = want;
-  if (e.anchor.placed && !e.anchorSpace) return;
-  e.anchor.placed = true;
-  s.scrollTop = want;
-}
-
 function svConvStick(e) {
-  if (!e.scroll) return;
-  if (e.anchor && !e.atBottom) e.anchor = null;
-  if (e.anchor && (!svConvTimelineOn(e) || svConvAnchorLetsGo(e))) {
-    e.anchor = null;
-    e.atBottom = true;
-  }
-  if (e.anchor) return svConvHold(e);
-  if (e.anchorSpace && (e.atBottom || !e.turnOpen)) svConvSpace(e, 0);
-  if (e.atBottom) e.scroll.scrollTop = e.scroll.scrollHeight;
+  if (e.scroll && e.atBottom) e.scroll.scrollTop = e.scroll.scrollHeight;
 }
 
 function svConvLetGo(e) {
   if (!svConvTimelineOn(e) || !(e.scroll?.scrollTop > 0)) return;
-  e.anchor = null;
   e.atBottom = false;
 }
 
@@ -227,12 +180,7 @@ function svConvScrolled(e) {
   const s = e.scroll;
   const distance = s.scrollHeight - s.scrollTop - s.clientHeight;
   if (e.dragging && s.scrollTop < (e.lastScrollY || 0) - 1) svConvLetGo(e);
-  if (e.anchor) {
-    if (!e.anchorSpace && distance <= FOLLOW_SLACK && s.scrollTop > (e.anchorTop ?? Infinity) + 1) {
-      e.anchor = null;
-      e.atBottom = true;
-    }
-  } else if (distance <= FOLLOW_SLACK) e.atBottom = true;
+  if (distance <= FOLLOW_SLACK) e.atBottom = true;
   svConvRemember(e);
 }
 
@@ -255,7 +203,7 @@ function svConvRemember(e) {
 
 function svConvRestore(e) {
   if (!e.scroll?.isConnected) return;
-  if (e.anchor || e.atBottom || !e.tlPos) return svConvStick(e);
+  if (e.atBottom || !e.tlPos) return svConvStick(e);
   const el = svConvRowEls(e).get(e.tlPos.key);
   if (!el?.getBoundingClientRect) return;
   const s = e.scroll;
@@ -403,9 +351,7 @@ function svConvStopped(e) {
 
 function svConvLine(e, cls, text) {
   if (!/(^|\s)sv-user(\s|$)/.test(cls)) return svConvPush(e, { key: svConvKey(e), kind: "meta", cls, text });
-  const bubble = svConvPush(e, { key: svConvKey(e), kind: "bubble", body: svConvBubbleBody(text, e), text: String(text ?? ""), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "", editing: null });
-  svConvAnchor(e, bubble);
-  return bubble;
+  return svConvPush(e, { key: svConvKey(e), kind: "bubble", body: svConvBubbleBody(text, e), text: String(text ?? ""), thumbs: [], dataset: {}, peer: /(^|\s)peer(\s|$)/.test(cls), stamped: false, at: "", said: "", editing: null });
 }
 
 function fillMarked(el, words) {
@@ -672,7 +618,6 @@ function svConvDispatched(e, cid) {
   list.push(bubble);
   bubble.stamped = false;
   svConvStamp(e, bubble);
-  svConvAnchor(e, bubble);
   svConvShow(e);
 }
 
@@ -1042,4 +987,4 @@ function svConvMount(e) {
 
 solidMounts.push((hive) => { convSolid = hive; });
 
-export { switchSays, convSolid, FOLLOW_SLACK, SV_CONV_QUIET, svConvActions, svConvAnchor, svConvAppend, svConvAppendAfter, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDispatched, svConvDraftDrop, svConvDraftPaint, svConvEdit, svConvEditing, svConvElements, svConvEndPill, svConvFlush, svConvFlushAll, svConvHasBar, svConvKey, svConvLetGo, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRecovered, svConvRestore, svConvRetry, svConvRewind, svConvRowEls, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvScrolled, svConvSeed, svConvSettle, svConvShots, svConvShow, svConvShown, svConvShownAt, svConvShowNow, svConvShowSubs, svConvStamp, svConvSteer, svConvStick, svConvStopped, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubs, svConvSubStep, svConvSubUnpin, svConvSwitch, svConvTally, svConvThink, svConvThinking, svConvThumb, svConvTimeline, svConvTimelineOn, svConvToggle, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnEnded, svConvTurnsBehind, svConvTurnStart, svConvTurnStarts, svConvUi, svConvUnsay, workedFor, svConvTimelineBase, svConvResay, svConvSteerSaw };
+export { switchSays, convSolid, FOLLOW_SLACK, SV_CONV_QUIET, svConvActions, svConvAppend, svConvAppendAfter, svConvAsCard, svConvBeforeCompact, svConvBubbleOf, svConvCards, svConvCutKey, svConvDiff, svConvDispatched, svConvDraftDrop, svConvDraftPaint, svConvEdit, svConvEditing, svConvElements, svConvEndPill, svConvFlush, svConvFlushAll, svConvHasBar, svConvKey, svConvLetGo, svConvLine, svConvMentions, svConvMount, svConvNear, svConvNote, svConvPeer, svConvPrepend, svConvPush, svConvRecovered, svConvRestore, svConvRetry, svConvRewind, svConvRowEls, svConvRunOff, svConvSaid, svConvSaidAs, svConvSay, svConvSayKind, svConvScrolled, svConvSeed, svConvSettle, svConvShots, svConvShow, svConvShown, svConvShownAt, svConvShowNow, svConvShowSubs, svConvStamp, svConvSteer, svConvStick, svConvStopped, svConvStream, svConvSubLanded, svConvSubOpen, svConvSubPin, svConvSubs, svConvSubStep, svConvSubUnpin, svConvSwitch, svConvTally, svConvThink, svConvThinking, svConvThumb, svConvTimeline, svConvTimelineOn, svConvToggle, svConvTool, svConvToolLanded, svConvToolLink, svConvTurnEnded, svConvTurnsBehind, svConvTurnStart, svConvTurnStarts, svConvUi, svConvUnsay, workedFor, svConvTimelineBase, svConvResay, svConvSteerSaw };

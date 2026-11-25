@@ -11,6 +11,7 @@ const { render } = await app("arrange");
 const { homeOfLink, openWebPage, paintYards, webOfSeat, wireLinks } = await app("chat-and-panes");
 const { openPrInASeat } = await app("page-in-a-seat");
 const { goToPr } = await app("seat-menu");
+const { sidePanelOpenFor } = await app("side-panel");
 const { drafts } = await app("draft-seat");
 const { prPageAddress } = await import("../assets/pr-page.mjs");
 
@@ -124,6 +125,20 @@ test("the current hive keeps its own review screen", () => {
   goToPr(st.prs[0]);
   assert.equal(st.reviewChat, "atendimento-leitura");
   assert.equal(tabsOf("atendimento-leitura").length, 0);
+});
+
+test("in the default look a PR with a chat opens that chat and its PR tab in the side panel", () => {
+  hive("atendimento-leitura");
+  document.body.classList.remove("experience-next");
+  document.body.classList.add("experience-raycast");
+  try {
+    assert.doesNotThrow(() => goToPr(st.prs[0]));
+    assert.equal(st.open, "atendimento-leitura");
+    assert.equal(sidePanelOpenFor("atendimento-leitura"), true);
+    assert.equal(st.reviewChat, null, "the in-app review screen stays shut");
+  } finally {
+    document.body.classList.remove("experience-raycast");
+  }
 });
 
 test("in the new hive any link in the chat opens in that chat's browser, and ⌘+click still leaves", () => {

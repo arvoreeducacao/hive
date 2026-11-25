@@ -13,7 +13,7 @@ import { behaviorOn } from "./experience.js";
 import { closeTile, focusSeat, goToBlock, goToSpace, openTile, pull, takeKeyboard } from "./focus-navigation.js";
 import { keyHint, keyParts, keyTip, liveBadge, liveOf, liveTitle, pool, receiving, tiles } from "./leader-key.js";
 import { archiveSeatNow, cancelParking, parkWhen, wakeParkedNow } from "./mirror.js";
-import { paneOnField } from "./plane.js";
+import { paneOnField, planeShown } from "./plane.js";
 import { ago, ask } from "./pod.js";
 import { paintDiffOfChat, paintInfoOfChat } from "./seat-changes.js";
 import { appendLeftovers, leftoversOf, worktreesThatStayed, worktreesToDrop } from "./seat-leftovers.js";
@@ -182,17 +182,6 @@ function seatMenuRowsRaycast(s) {
   if (erase) rows.push(erase);
   rows.push({ icon: "i-x", label: phrase("close the seat…"), keys: keyHint("kill"), danger: true, go: (at) => closeSeat(s, at) });
   return rows;
-}
-
-function seatMenuCommands(s) {
-  const rows = seatMenuRows(s).flatMap((row) => (row.sub ? row.sub.map((one) => ({ ...one, label: `${row.label} · ${one.label}` })) : [row]));
-  return rows.filter((row) => row.go && !row.off).map((row) => ({
-    id: `seat:${row.label}`,
-    label: row.label,
-    hint: row.note || "",
-    keys: row.keys && row.keys !== "—" ? row.keys : "",
-    go: row.go
-  }));
 }
 
 function hideChatUntil(s, until) {
@@ -1096,7 +1085,7 @@ function tileViewModel(s, raycast = null) {
   const live = liveOf(s);
   return {
     sub: {
-      text: s.anon ? phrase("this mac · nothing kept") : s.errand ? `${s.errand} · ${s.name}` : `${s.name}${s.model ? " · " + s.model : ""}`,
+      text: s.anon ? phrase("this computer · nothing kept") : s.errand ? `${s.errand} · ${s.name}` : `${s.name}${s.model ? " · " + s.model : ""}`,
       ofErrand: !!s.errand,
       hint: s.errand ? phrase("part of what you asked: {asked}", { asked: s.asked || s.errand }) : ""
     },
@@ -1114,7 +1103,7 @@ function tileViewModel(s, raycast = null) {
       : { key: s.where, cls: s.where, title: s.where, icon: WHERE_ICON[s.where] || "#i-cloud", text: s.where },
     chips: tileChipsModel(s),
     summary: {
-      text: s.anon ? phrase("No memories, hub rules, skills, phone or summary. Closing it erases it.") : s.summary || s.description || phrase("no status written yet — only the terminal speaks for it"),
+      text: s.anon ? phrase("No memories, hub rules, skills, phone or summary. Closing it erases it.") : s.summary || s.description || "",
       empty: !s.anon && !s.summary && !s.description
     },
     threads: tileThreadsModel(s),
@@ -1624,4 +1613,4 @@ function markThreadSeen(t) {
 
 const CHANNEL_GLYPH = (t) => `<svg aria-hidden="true"><use href="#${t.private ? "i-lock" : "i-hash"}"/></svg><span>${esc(String(t.channel || "slack").replace(/^#/, ""))}</span>`;
 
-export { forgetPalActs, openMenuRows, seatMenuBack, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, seatSpot, branchTrouble, CHANNEL_GLYPH, CI_MARK, MERGE_ARMED, MERGE_ARMED_LONG, MERGE_BUSY, MERGE_LANDING_WAIT, PR_GONE, PR_LANDED, PR_SHELVES, PR_WAITS_ON_YOU, SPINNER, blockMenuRows, brokenCheck, chatOfPr, chatOfThread, closeBlock, closeFinish, closePrPop, closeSeatMenu, closeSpace, spaceCloseNote, createJobTile, createOpeningTile, createTile, updateOpening, finishMeta, finishOn, finishWarnings, freshOf, goToPr, helloTeam, jobSideOf, jobSides, jobViewModel, landedSeen, markLandedSeen, markSeatLandedSeen, markThreadSeen, menuSolid, menuViewModel, mergeTrouble, merging, nodeOf, openBlockMenu, openFinish, openFinishOf, openPrPop, openSeatMenu, openSpaceMenu, openTeamMenu, paintMenu, paintPrButton, paintPrOfChat, paintPrPop, placePrPop, pokeTeam, prActions, prButtonSolid, prButtonViewModel, prCardModel, prIsGone, prOfChat, prPopOpen, prPopRowModel, prPopSolid, prPopViewModel, prSays, prUrgency, prWindowOf, prsMemo, prsMemoOf, prsOfChat, prsOnCard, prsWorthShowing, readSeenThreads, renameSpace, saveLandedSeen, saveSeenThreads, seatMenuOn, seatMenuCommands, seatMenuRows, seenThreads, sinceStart, spaceMenuRows, teamMenuRows, threadCardModel, threadOfChat, threadsOfChat, tileActions, tileChipsModel, tileNodes, tilePagesModel, tilePrsModel, tileSideOf, tileSides, tileThreadsModel, tileViewModel, togglePrPop, update, updateJob };
+export { forgetPalActs, openMenuRows, seatMenuBack, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menuShow, menuStop, seatSpot, branchTrouble, CHANNEL_GLYPH, CI_MARK, MERGE_ARMED, MERGE_ARMED_LONG, MERGE_BUSY, MERGE_LANDING_WAIT, PR_GONE, PR_LANDED, PR_SHELVES, PR_WAITS_ON_YOU, SPINNER, blockMenuRows, brokenCheck, chatOfPr, chatOfThread, closeBlock, closeFinish, closePrPop, closeSeatMenu, closeSpace, spaceCloseNote, createJobTile, createOpeningTile, createTile, updateOpening, finishMeta, finishOn, finishWarnings, freshOf, goToPr, helloTeam, jobSideOf, jobSides, jobViewModel, landedSeen, markLandedSeen, markSeatLandedSeen, markThreadSeen, menuSolid, menuViewModel, mergeTrouble, merging, nodeOf, openBlockMenu, openFinish, openFinishOf, openPrPop, openSeatMenu, openSpaceMenu, openTeamMenu, paintMenu, paintPrButton, paintPrOfChat, paintPrPop, placePrPop, pokeTeam, prActions, prButtonSolid, prButtonViewModel, prCardModel, prIsGone, prOfChat, prPopOpen, prPopRowModel, prPopSolid, prPopViewModel, prSays, prUrgency, prWindowOf, prsMemo, prsMemoOf, prsOfChat, prsOnCard, prsWorthShowing, readSeenThreads, renameSpace, saveLandedSeen, saveSeenThreads, seatMenuOn, seatMenuRows, seenThreads, sinceStart, spaceMenuRows, teamMenuRows, threadCardModel, threadOfChat, threadsOfChat, tileActions, tileChipsModel, tileNodes, tilePagesModel, tilePrsModel, tileSideOf, tileSides, tileThreadsModel, tileViewModel, togglePrPop, update, updateJob };

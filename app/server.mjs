@@ -104,7 +104,9 @@ import { registerPlanFileRoutes } from "./routes/plan-file.mjs";
 import { draftOf, dropGoneDrafts, keepDraft, readDrafts } from "./lib/drafts.mjs";
 import { registerInboxRoutes } from "./routes/inbox.mjs";
 import { readMarks } from "./lib/inbox-marks.mjs";
-import { seatSettled } from "./lib/settle-cleanup.mjs";
+import { seatSettled, whenSeatSettles } from "./lib/settle-cleanup.mjs";
+import { closeLeftovers } from "./lib/settle-terminals.mjs";
+import { seatServers, stopSeatServer } from "./lib/local-servers.mjs";
 import { readErased, rememberErased } from "./lib/erased.mjs";
 import { keepMarks } from "./lib/inbox-marks.mjs";
 import { cleanThreads } from "./assets/thread-rules.mjs";
@@ -4200,6 +4202,11 @@ const loginShell = () => {
 
 const runnableShell = (path) => runnableFile(path, { stat: statSync, access: accessSync, executable: fsConstants.X_OK });
 
+async function foregroundOf(name) {
+  const window = NATIVE ? null : (await localWindows()).find((one) => one.name === name && !one.dead);
+  return window ? { known: true, program: window.foreground } : { known: false, program: "" };
+}
+
 async function terminalShell() {
   const { config } = await readConfig();
   return pickTerminalShell(config.terminalShell, { login: loginShell(), paths: String(process.env.PATH || "").split(delimiter), runnable: runnableShell });
@@ -4314,6 +4321,18 @@ const shellsToDrop = dropQueue({
   kill: (seat) => killSeatWindow(seat.name, seat.where),
   forget: (seat) => forgetSeat(seat.where, seat.name),
   setTimer: (run, wait) => setTimeout(run, wait).unref?.() ?? null
+});
+
+whenSeatSettles(async (seat) => {
+  const { config } = await readConfig();
+  await closeLeftovers(seat, {
+    tiedShells: (chat) => [...fleet.values()].filter((one) => one.of === chat && one.where === "local"),
+    foregroundOf,
+    closeShell: (shell) => shellsToDrop.retire({ name: shell.name, where: shell.where }),
+    seatServers: (chat) => seatServers(chat, { hive: HIVE_HOME }),
+    stopServer: (chat, pid) => stopSeatServer(chat, pid, { hive: HIVE_HOME }),
+    stopRunning: config.threads.stopServersOnSettle === true
+  });
 });
 
 async function dropRestoredWindow(seat) {
@@ -6160,7 +6179,7 @@ function stageAppImage(file) {
   const head = leadBytes(file);
   if (head.length !== 4 || head[0] !== 0x7f || head.slice(1, 4).toString() !== "ELF") {
     updatePhase = { step: "", done: 0, total: 0 };
-    return { error: "the download is not a Linux executable, so it stays where it is" };
+    return { error: "the download is not an executable for this computer, so it stays where it is" };
   }
   try { chmodSync(file, 0o755); } catch {}
   updateCache = { at: 0, data: null, running: false, remoteSha: "" };
@@ -7301,7 +7320,7 @@ registerMcpRoutes(on, { bodyOf: body, isSeatName, mcpLogins, onTheServer, startM
 registerPlanFileRoutes(on, { bodyOf: body, isSeatName, HIVE_HOME, HUB });
 registerFilesRoutes(on, { bodyOf: body, isSeatName, seatFiles, rankFiles, fileIndex, indexCache, rankIndex, searchCode, writeRepoFile, readRepoFile, languageOf, paintLines });
 registerChangesRoutes(on, { bodyOf: body, isSeatName, seatChanges, seatDiff, discardChange, openChange, revealChange });
-registerChatPanelRoutes(on, { bodyOf: body, isSeatName, hive: HIVE_HOME, seatOf: (name) => (cache.data?.sessions || []).find((s) => s.name === name) || null, folderOf: async (name) => (await changesDirOf(name, "local", "")).dir });
+registerChatPanelRoutes(on, { bodyOf: body, isSeatName, hive: HIVE_HOME, seatOf: (name) => (cache.data?.sessions || []).find((s) => s.name === name) || null, folderOf: async (name) => (await changesDirOf(name, "local", "")).dir, foregroundOf });
 registerProjectFileRoutes(on, { isSeatName, projectFiles: createProjectFiles({ run: inSeatTree }), languageOf, paintLines });
 const secretAsks = createSecretAsks({ dir: join(HIVE_HOME, "secrets"), keep: workspaceDomain.keepCredential });
 secretAsks.sweep();

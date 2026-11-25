@@ -1,9 +1,9 @@
-import { $, esc, phrase, svgIcon } from "./core.js";
+import { $, IS_MAC, esc, phrase, svgIcon } from "./core.js";
 
 const PERMISSION_ROWS = [
   { kind: "microphone", icon: "i-mic", name: "Microphone", why: "for dictation", pane: "Microphone" },
   { kind: "screen", icon: "i-camera", name: "Screen recording", why: "for the computer's sound in meetings and for agents that take screenshots", pane: "Screen & System Audio Recording" },
-  { kind: "accessibility", icon: "i-user", name: "Accessibility", why: "for agents in your chats that drive other apps on this Mac", pane: "Accessibility" },
+  { kind: "accessibility", icon: "i-user", name: "Accessibility", why: "for agents in your chats that drive other apps on this computer", pane: "Accessibility" },
   { kind: "disk", icon: "i-lock", name: "Full disk access", why: "for agents that read protected folders, such as Mail, Messages and Safari", pane: "Full Disk Access" }
 ];
 
@@ -11,7 +11,7 @@ const bridge = () => window.hiveMacPermissions || null;
 
 const state = { open: false, now: {}, waiting: "", opener: null };
 
-const macPermissionsHere = () => !!bridge();
+const macPermissionsHere = () => IS_MAC && !!bridge();
 
 function rowHtml(row) {
   const status = state.now[row.kind] || "denied";
@@ -83,10 +83,10 @@ async function askFor(kind) {
 }
 
 async function openMacPermissions(wanted = "") {
-  if (!bridge()) return false;
+  if (!macPermissionsHere()) return false;
   const box = dialogEl();
   state.opener = document.activeElement;
-  box.querySelector("#mp-title").textContent = phrase("macOS permissions");
+  box.querySelector("#mp-title").textContent = phrase("System permissions");
   box.querySelector(".mp-sub").textContent = phrase("The Hive opens System Settings in the right place and follows along until the permission is on.");
   box.querySelector(".mp-again").innerHTML = `${svgIcon("i-expand")}<span>${esc(phrase("Open System Settings again"))}</span>`;
   box.querySelector(".mp-close").textContent = phrase("Close");

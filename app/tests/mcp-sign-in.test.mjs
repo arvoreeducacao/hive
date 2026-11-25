@@ -55,7 +55,7 @@ test("a server that needs a sign-in at init shows one notice with its name and a
   const shown = notices(e);
   assert.equal(shown.length, 1);
   assert.equal(shown[0].querySelector(".nm").textContent, "MCP server linear needs a sign-in");
-  assert.equal(shown[0].querySelector(".ds").textContent, "The linear MCP server needs a sign-in before the agent can use it.");
+  assert.equal(shown[0].querySelector(".mt").textContent, "MCP server linear needs a sign-in");
   assert.equal(shown[0].querySelector("button.auth").textContent, "Sign in");
   assert.equal(shown[0].getAttribute("aria-label"), "MCP server linear needs a sign-in");
 });

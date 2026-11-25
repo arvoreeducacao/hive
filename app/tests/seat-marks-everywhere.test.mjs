@@ -28,7 +28,6 @@ const { runHud } = await app("hud");
 const mirror = await app("mirror");
 const marks = await app("seat-marks");
 const { marksMenuRows } = await app("seat-marks-menu");
-const { seatMenuCommands } = await app("seat-menu");
 
 bootSolid();
 document.body.classList.add("experience-raycast");
@@ -72,7 +71,6 @@ test("the menu of a chat offers pin, settle, snooze with the options, settle on 
   assert.ok(snooze.length >= 4, "the options of the menu plus Custom and Edit");
   assert.deepEqual(snooze.slice(-2), ["Custom…", "Edit options…"]);
   assert.deepEqual(rows[4].sub.map((one) => one.label), ["Follow settings", "Never"]);
-  assert.ok(seatMenuCommands(st.data.sessions[0]).some((one) => one.label === "Delete for good…"), "the cockpit commands carry them too");
   assert.deepEqual(marksMenuRows({ name: "anon-1", anon: true }), [], "an anonymous chat is erased on close and has no marks");
 });
 
@@ -81,7 +79,7 @@ test("settling a chat in the classic takes it out of its block into Settled, and
   assert.equal(inBlocks("a"), false);
   const settled = shelf("settled");
   assert.deepEqual(settled.items.map((one) => one.key), ["a"]);
-  assert.deepEqual(settled.items[0].act, { act: "unsettle", say: "Reopen" });
+  assert.deepEqual(settled.items[0].act, { act: "unsettle", say: "Reopen", icon: "i-reply" });
   assert.ok(sent.at(-1).marks.a.settledAt, "the mark goes to the hive");
   assert.ok(runHud(), "the undo of the notice runs");
   render();

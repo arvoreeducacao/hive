@@ -598,7 +598,6 @@ function getStructured(s) {
   });
   jump.addEventListener("click", () => {
     e.atBottom = true;
-    e.anchor = null;
     svConvStick(e);
     paintJump();
     svTrimTurns(e);

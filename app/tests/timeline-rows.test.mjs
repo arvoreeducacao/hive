@@ -274,25 +274,27 @@ test("a match folded away is still in the page, and the search opens its fold", 
   assert.equal(model.svConvElements(e).get(e.conv.blocks[1].key)?.textContent.includes("palavra escondida"), true, "the block still maps to its element");
 });
 
-test("what was just sent is anchored while it is answered, and the first tool lets go of it", () => {
+test("what was just sent stays at the end while it is answered, so the chat never jumps up and back", () => {
   const e = seat();
   svEvent(e, sayEv(100, "anterior"));
   svEvent(e, answer(101, "ok"));
+  model.svConvFlush(e);
+  const set = [];
+  let top = 600;
+  Object.defineProperty(e.scroll, "scrollHeight", { configurable: true, get: () => 1000 });
+  Object.defineProperty(e.scroll, "clientHeight", { configurable: true, get: () => 400 });
+  Object.defineProperty(e.scroll, "scrollTop", { configurable: true, get: () => top, set: (v) => { set.push(v); top = Math.max(0, Math.min(600, v)); } });
   e.atBottom = true;
   e.heardAt = Date.now() - 5000;
-  const bubble = model.svConvLine(e, "sv-user", "nova pergunta");
-  assert.deepEqual(e.anchor, { key: bubble.key });
-  e.heardAt = Date.now();
+  model.svConvLine(e, "sv-user", "nova pergunta");
+  model.svConvFlush(e);
   svEvent(e, toolUse(119, "z1", "Read", { file_path: "/tmp/z" }));
   model.svConvFlush(e);
-  assert.equal(e.anchor, null);
+  assert.ok(set.length > 0, "the chat follows the end after the send");
+  assert.ok(set.every((v) => v >= 600), `no scroll above the end: ${set.join(",")}`);
+  assert.equal(top, 600);
   assert.equal(e.atBottom, true);
-  const old = model.svConvLine(e, "sv-user", "depois");
-  e.at = Date.now() - 60000;
-  e.atBottom = false;
-  e.anchor = null;
-  model.svConvAnchor(e, old);
-  assert.equal(e.anchor, null, "nothing is anchored while the person reads back");
+  assert.equal(e.scroll.style.getPropertyValue("--tl-anchor-space"), "");
 });
 
 test("only a real gesture up lets go of the end, and coming back within 40px follows again", () => {

@@ -111,6 +111,7 @@ function paintThreadSettings() {
   paintFlip("wake-early", now.wakeEarly, "a snoozed chat comes back when it needs you", "a snoozed chat waits for its time");
   paintFlip("working-section", now.workingSection, "working chats show in Working", "working chats stay in the list");
   paintFlip("group-by-project", now.groupByProject, "one folder per project", "the list follows the blocks");
+  paintFlip("stop-on-settle", now.stopServersOnSettle, "what the chat left running stops", "what the chat left running goes on");
   paintOptions();
   paintCommands();
 }
@@ -132,6 +133,7 @@ $("t-keep-open-pr")?.addEventListener("click", () => save({ keepWithOpenPr: !rul
 $("t-wake-early")?.addEventListener("click", () => save({ wakeEarly: !rules().wakeEarly }));
 $("t-working-section")?.addEventListener("click", () => save({ workingSection: !rules().workingSection }));
 $("t-group-by-project")?.addEventListener("click", () => save({ groupByProject: !rules().groupByProject }));
+$("t-stop-on-settle")?.addEventListener("click", () => save({ stopServersOnSettle: !rules().stopServersOnSettle }));
 
 $("snooze-option-add")?.addEventListener("click", () => {
   const options = rules().snoozeOptions;

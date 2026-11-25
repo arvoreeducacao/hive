@@ -188,7 +188,9 @@ body.experience-next #rail-list { padding-top: 8px; }
 body.experience-next #rail .group-title { min-height: 24px; align-items: center; margin-top: 20px; margin-bottom: 6px; font: 500 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--txt-2); }
 body.experience-next #rail .group-title > span { display: inline-block; }
 body.experience-next #rail .group-title > span::first-letter { text-transform: uppercase; }
-body.experience-next #rail .item.parked :is(.when, .revive) { font: 12px var(--sans); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+body.experience-next #rail .item.parked .when { font: 12px var(--sans); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+body.experience-next #rail .item.parked:is(:hover, :focus-within):has(> .revive-ic) { grid-template-columns: 18px minmax(0, 1fr) auto auto; }
+body.experience-next #rail .rail-more[data-arch-more] { padding: 4px 14px 8px 38px; font: 500 12px var(--sans); color: var(--txt-2); opacity: 1; }
 body.experience-next #rail-sessions > .group-title:first-child { margin-top: 12px; }
 body.experience-next #rail .item:not(.team) { grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; }
 body.experience-next #rail :is(.item, .group-title, .wt-head) > svg { justify-self: center; flex-shrink: 0; }
@@ -465,7 +467,7 @@ body.experience-next .tile.x-resizing > .x-split-pane:focus::after { background:
 body.experience-next .sv-suggest { display: flex; flex-direction: column; justify-content: flex-end; height: 0; padding: 0; margin: 0 calc(24px + var(--sv-bar)) 0 24px; top: 0; z-index: 20; }
 body.experience-next .sv-suggest[hidden] { display: none; }
 body.experience-next .sv-suggest::before { display: none; }
-body.experience-next .sv-suggest:not([hidden]) + .sv-composer { margin-top: 8px; }
+body.experience-next .sv-suggest:not([hidden]) + .sv-drawer:empty + .sv-composer { margin-top: 8px; }
 body.experience-next .sv-suggest > .sg-card { flex: none; position: relative; display: flex; flex-direction: column; margin-bottom: 11px; background: var(--panel-2); outline: 1px solid var(--line-2); pointer-events: auto; }
 body.experience-next .sv-suggest > .sg-card::after { content: ""; position: absolute; inset: 7px -7px -7px 7px; background: var(--reticle); clip-path: var(--reticle-clip); z-index: -1; pointer-events: none; }
 body.experience-next .sv-suggest.over-text > .sg-card::before { content: ""; position: absolute; top: 100%; left: 0; right: -7px; height: 17px; background: var(--panel); z-index: -2; pointer-events: none; }
@@ -474,7 +476,7 @@ body.experience-next .sv-suggest .sgkeys { margin-top: 0; }
 body.experience-next .sv-suggest .sg { border-radius: 0; }
 body.experience-next .sv-suggest .sg.sel { background: var(--panel-3); }
 body.experience-next .sv-suggest:not([hidden]) { z-index: 72; }
-body.experience-next .sv-suggest:not([hidden]) + .sv-composer { position: relative; z-index: 70; }
+body.experience-next .sv-suggest:not([hidden]) ~ .sv-composer { position: relative; z-index: 70; }
 body.experience-next .tile.open .side > .t-state { position: sticky; top: var(--t-head-h, 49px); z-index: 4; background: var(--panel); }
 body.experience-next .tile.open .side > .t-chips { position: sticky; top: calc(var(--t-head-h, 49px) + var(--t-state-h, 22px)); z-index: 4; margin: 0; padding: 19px 13px 8px; background: var(--panel); }
 @keyframes t-header-edge { from { box-shadow: 0 1px 0 transparent; } to { box-shadow: 0 1px 0 var(--line); } }

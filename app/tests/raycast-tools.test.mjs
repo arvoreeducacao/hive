@@ -66,6 +66,8 @@ test("with the flag on the open seat reads where it works, what changed and the 
   assert.equal(list.ahead.rows[0].sha, "1234567");
   assert.match(list.progress.text, /0/);
   assert.equal(model.acts.backKey, "esc");
+  assert.match(model.acts.backHint, /\(esc\)$/);
+  assert.equal(model.acts.killHint, `${model.acts.kill} (${model.acts.killKey})`);
 });
 
 test("the info column mounts into the open side only with the flag, and leaves with it", (t) => {
@@ -87,7 +89,8 @@ test("the info column mounts into the open side only with the flag, and leaves w
   assert.ok(col, "the column hangs off the side");
   assert.ok(col.querySelector(".i-where"));
   assert.equal(col.querySelectorAll(".cd-row").length, 2);
-  assert.ok(col.querySelector(".actions.i-acts .rc-key"));
+  assert.equal(col.querySelector(".actions.i-acts .rc-key"), null, "the keys live in the hint, not on the buttons");
+  assert.match(col.querySelector(".actions.i-acts .b-back").title, /\(esc\)$/);
   wear(false);
   paintInfoOfChat(el, s, acts);
   assert.equal(el.querySelector(".i-col"), null);
