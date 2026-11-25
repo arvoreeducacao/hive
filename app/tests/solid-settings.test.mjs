@@ -623,7 +623,7 @@ test("a card on the field says what the seat is about, where it runs and what it
   assert.equal(model.said, "needs you");
   assert.equal(model.of, "on the server");
   assert.deepEqual(model.chips.map((one) => one.text), ["#12", "opus"]);
-  assert.match(model.sum, /no status written yet/);
+  assert.equal(model.sum, "", "a seat with no status says nothing");
 });
 
 test("a seat on an errand is named by the errand, and a local one names no server", () => {

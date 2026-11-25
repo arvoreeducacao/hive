@@ -57,9 +57,8 @@ function paintMcpSignIn(e, session, name) {
   notice.dataset.server = name;
   notice.setAttribute("role", "group");
   notice.setAttribute("aria-label", title);
-  notice.innerHTML = `<div class="mcp-row"><span class="tl-ico"><svg aria-hidden="true"><use href="#i-lock"/></svg></span><span class="mt"><span class="nm"></span><span class="ds"></span><span class="er" role="alert"></span></span><button type="button" class="auth"></button></div>`;
+  notice.innerHTML = `<div class="mcp-row"><span class="tl-ico"><svg aria-hidden="true"><use href="#i-lock"/></svg></span><span class="mt"><span class="nm"></span><span class="er" role="alert"></span></span><button type="button" class="auth"></button></div>`;
   notice.querySelector(".nm").textContent = title;
-  notice.querySelector(".ds").textContent = phrase("The {name} MCP server needs a sign-in before the agent can use it.", { name });
   const button = notice.querySelector(".auth");
   button.textContent = phrase("Sign in");
   const block = svConvAppend(e, notice);

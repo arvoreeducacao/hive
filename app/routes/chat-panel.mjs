@@ -1,7 +1,7 @@
 import { openIn, openersHere } from "../lib/open-in.mjs";
 import { machineServers, seatServers, stopSeatServer } from "../lib/local-servers.mjs";
 
-export function registerChatPanelRoutes(on, { bodyOf, isSeatName, seatOf, folderOf, hive }) {
+export function registerChatPanelRoutes(on, { bodyOf, isSeatName, seatOf, folderOf, hive, foregroundOf = async () => ({ known: false, program: "" }) }) {
   const localSeat = (name) => {
     if (!isSeatName(name)) return { error: "unknown session", status: 400 };
     const seat = seatOf(name);
@@ -32,6 +32,13 @@ export function registerChatPanelRoutes(on, { bodyOf, isSeatName, seatOf, folder
     if (found.error) return json({ error: found.error }, found.status);
     const said = await stopSeatServer(found.seat.name, data.pid, { hive });
     return json(said, said.error ? 409 : 200);
+  });
+
+  on("GET", "/api/seat/running", async (req, res, url, json) => {
+    const found = localSeat(url.searchParams.get("name"));
+    if (found.error) return json({ running: null, error: found.error }, found.status);
+    const seen = await foregroundOf(found.seat.name);
+    return json({ running: seen.known ? !!seen.program : null, program: seen.known ? seen.program : "" });
   });
 
   on("GET", "/api/local-servers", async (req, res, url, json) => json({ servers: await machineServers() }));

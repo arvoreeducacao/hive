@@ -91,8 +91,6 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) .rail-q input { flex: 1; min-width: 0; padding: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 13px; color: var(--txt); }
 :where(body.experience-raycast) .rail-q input::placeholder { color: var(--txt-3); }
 :where(body.experience-raycast) #rail .rc-key { height: 18px; min-width: 18px; padding: 0 4px; font-size: 10px; }
-:where(body.experience-raycast) .rail-found { display: flex; align-items: center; gap: 8px; height: 24px; padding: 0 8px; font: 400 10px var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--txt-3); }
-:where(body.experience-raycast) .rail-found .go { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font: 500 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--txt-2); }
 :where(body.experience-raycast) .rail-blk { margin-top: 12px; }
 :where(body.experience-raycast) .group-title { display: flex; align-items: center; gap: 8px; height: 24px; margin-top: 4px; padding: 0 8px; font: 500 12px var(--sans); letter-spacing: 0; text-transform: none; color: var(--txt-2); white-space: nowrap; }
 :where(body.experience-raycast) .group-title > span:first-of-type::first-letter { text-transform: uppercase; }
@@ -113,9 +111,6 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) .item .hl { color: var(--txt); background: var(--rail-pick); border-radius: 3px; box-shadow: 0 0 0 1px var(--rail-pick); }
 :where(body.experience-raycast) .item .away { flex: none; font: 400 11px var(--mono); color: var(--txt-3); }
 :where(body.experience-raycast) .item .meta { flex: none; font: 400 12px var(--sans); font-variant-numeric: tabular-nums; color: var(--txt-2); }
-:where(body.experience-raycast) .item .hint { display: none; flex: none; align-items: center; gap: 4px; font-size: 12px; color: var(--txt-2); }
-:where(body.experience-raycast) .item:hover .hint, :where(body.experience-raycast) .item.parked.busy .hint { display: inline-flex; }
-:where(body.experience-raycast) .item:hover .meta, :where(body.experience-raycast) .item.parked.busy .meta { display: none; }
 :where(body.experience-raycast) .item.parked { color: var(--txt-3); }
 :where(body.experience-raycast) .item.parked:hover { color: var(--txt); }
 body:where(.experience-raycast) #rail .item.off { height: auto; min-height: 28px; padding-top: 4px; padding-bottom: 4px; align-items: flex-start; }
@@ -123,13 +118,14 @@ body:where(.experience-raycast) #rail .item.off > .rc-dot { margin-top: 6px; }
 :where(body.experience-raycast) .item.off .col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 :where(body.experience-raycast) .item.off .why { font: 400 11px/1.45 var(--mono); color: var(--txt-3); overflow: hidden; text-overflow: ellipsis; }
 :where(body.experience-raycast) .item.off .meta { display: none; }
-:where(body.experience-raycast) .item.off:hover .hint { align-self: center; }
+:where(body.experience-raycast) .item.off .ract { align-self: center; }
 :where(body.experience-raycast) #shell.rail-min #rail-sessions .item.off { height: 24px; min-height: 0; padding: 0; align-items: center; }
 :where(body.experience-raycast) #shell.rail-min #rail-sessions .item.off > .rc-dot { margin-top: 0; }
 :where(body.experience-raycast) .group-title.parked { margin-top: 12px; cursor: pointer; }
 :where(body.experience-raycast) .group-title.parked:hover { color: var(--txt); }
 :where(body.experience-raycast) .group-title.parked .caret { transition: transform 140ms var(--ease); }
-:where(body.experience-raycast) .rail-more { display: flex; align-items: center; min-height: 24px; padding: 0 8px; font: 400 10px var(--mono); color: var(--txt-3); }
+:where(body.experience-raycast) .rail-more { display: flex; align-items: center; min-height: 24px; padding: 0 8px; border-radius: var(--r1); font: 500 12px var(--sans); color: var(--txt-2); cursor: pointer; }
+:where(body.experience-raycast) .rail-more[role="button"]:hover { color: var(--txt); background: var(--rail-hover); }
 :where(body.experience-raycast) .rail-more.parked-note { padding: 4px 8px 8px; font: 400 12px/1.5 var(--sans); color: var(--txt-2); white-space: normal; }
 :where(body.experience-raycast) .rail-skel { display: flex; align-items: center; gap: 10px; height: 28px; padding: 0 8px; }
 :where(body.experience-raycast) .rail-skel i { display: block; height: 8px; border-radius: 4px; background: var(--rail-well); }
@@ -170,7 +166,7 @@ body:where(.experience-raycast) #rail .item.off > .rc-dot { margin-top: 6px; }
 :where(body.experience-raycast) #shell.rail-min .rail-head { flex-direction: column; gap: 6px; padding: 44px 0 4px; }
 :where(body.experience-raycast) #shell.rail-min .rail-head::after { content: ""; width: 24px; height: 1px; background: var(--line); }
 :where(body.experience-raycast) #shell.rail-min .rail-ico { width: 36px; height: 32px; }
-:where(body.experience-raycast) #shell.rail-min :is(.rail-seg, .rail-q, .rail-found, .rail-empty, .rail-arch, .rail-more, #rail-team > .group-title, .rail-err, .item.team-hit) { display: none; }
+:where(body.experience-raycast) #shell.rail-min :is(.rail-seg, .rail-q, .rail-empty, .rail-arch, .rail-more, #rail-team > .group-title, .rail-err, .item.team-hit) { display: none; }
 :where(body.experience-raycast) #shell.rail-min .rail-blk { margin: 0; padding: 0; background: none; }
 :where(body.experience-raycast) #shell.rail-min .group-title { justify-content: center; height: 18px; margin: 4px 0 0; padding: 0; }
 :where(body.experience-raycast) #shell.rail-min .group-title > span:not(.rc-key), :where(body.experience-raycast) #shell.rail-min .group-title b { display: none; }
@@ -206,7 +202,7 @@ body:where(.experience-raycast) #rail .item.off > .rc-dot { margin-top: 6px; }
   :where(body.experience-raycast) .rail-head { flex-direction: column; gap: 6px; padding: 44px 0 4px; }
   :where(body.experience-raycast) .rail-head::after { content: ""; width: 24px; height: 1px; background: var(--line); }
   :where(body.experience-raycast) .rail-ico { width: 36px; height: 32px; }
-  :where(body.experience-raycast) :is(.rail-seg, .rail-q, .rail-found, .rail-empty, .rail-arch, .rail-more, #rail-team > .group-title, .rail-err, .item.team-hit) { display: none; }
+  :where(body.experience-raycast) :is(.rail-seg, .rail-q, .rail-empty, .rail-arch, .rail-more, #rail-team > .group-title, .rail-err, .item.team-hit) { display: none; }
   :where(body.experience-raycast) .rail-blk { margin: 0; padding: 0; background: none; }
   :where(body.experience-raycast) .group-title { justify-content: center; height: 18px; margin: 4px 0 0; padding: 0; }
   :where(body.experience-raycast) .group-title > span:not(.rc-key), :where(body.experience-raycast) .group-title b { display: none; }

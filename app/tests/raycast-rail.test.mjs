@@ -125,8 +125,7 @@ test("a seat row keeps the state in its tip and on its dot, and the corner stays
   assert.equal(a.hint, "Ana — needs you · 2 running");
   assert.deepEqual(["a", "b", "c", "d", "e"].map((key) => row(key).meta), ["", "", "", "", ""]);
   assert.equal("tone" in a, false);
-  assert.equal(a.openKey, keyLabel(st.keys.seat, 1), "a seat of the block on screen offers its own key on hover");
-  assert.equal(row("b").openKey, "", "a seat of another block has no seat key to offer");
+  assert.equal("open" in a || "openKey" in a, false, "hovering a row offers no open word and no key: a click already opens it");
 });
 
 test("the meta counts how long: working since the rail saw it, stalled since the last work", () => {
@@ -171,7 +170,7 @@ test("the search keeps the blocks, marks what matched, and puts the cursor on th
   assert.equal(model.searching, true);
   assert.deepEqual(rows(model), ["a", "c"]);
   assert.deepEqual(model.groups[0].items[0].parts, { pre: "grafico share ", hit: "edit", post: "ora" });
-  assert.equal(model.found, "2 of 3 seats");
+  assert.equal("found" in model, false, "the search says no count and no open key");
   assert.deepEqual(model.groups.flatMap((g) => g.items).map((it) => !!it.cursor), [true, false]);
   assert.equal(model.parked.open, true, "the archived seats that match open on their own");
   assert.deepEqual(model.parked.shown.map((one) => one.parts.hit), ["edit"]);
@@ -197,7 +196,7 @@ test("an empty rail is one line with the key that fills it, and a rail still loa
   st.seatsKnown = true;
 });
 
-test("the archived fold shows nothing while shut, the first few while open, and offers to see the rest", () => {
+test("the archived fold shows nothing while shut, the first few while open, and shows more in place", () => {
   flag(true);
   const archived = Array.from({ length: ARCH_SHOWN + 1 }, (_, n) => ({ name: `old${n + 1}`, where: "local", archivedAt: Date.now() - 3 * 86400000 }));
   const shut = world({ data: { pod: { up: false, name: "" }, sessions: [], archived } });
@@ -206,10 +205,16 @@ test("the archived fold shows nothing while shut, the first few while open, and 
   assert.deepEqual(shut.parked.shown, []);
   const open = world({ data: { pod: { up: false, name: "" }, sessions: [], archived }, archOpen: true, reviving: [archKey(archived[0])] });
   assert.deepEqual(open.parked.shown.map((one) => one.key), archived.slice(0, ARCH_SHOWN).map(archKey));
-  assert.equal(open.parked.shown[0].action, "coming back…");
-  assert.equal(open.parked.shown[1].action, "revive");
+  assert.equal(open.parked.label, "Archived");
+  assert.equal(open.parked.shown[0].when, "coming back…", "a chat coming back says so in place of its age");
   assert.equal(open.parked.shown[1].when, "3d");
-  assert.equal(open.parked.more, "+ 1 more · see all");
+  assert.equal(open.parked.shown[1].revive, "Revive", "reviving is an icon with its word in the tip");
+  assert.equal(open.parked.more, "Show 1 more");
+  st.archShown += 10;
+  const more = mirror.railViewModel();
+  assert.equal(more.parked.shown.length, ARCH_SHOWN + 1);
+  assert.equal(more.parked.more, "");
+  st.archShown = ARCH_SHOWN;
 });
 
 test("the filter is remembered, and an unknown one is refused", async () => {
@@ -323,7 +328,6 @@ test("every chat with no place on the grid sits under off screen, each saying wh
     ["away", "in a window of its own"]
   ]);
   assert.equal(model.snoozed, null, "the hidden chats are not listed twice");
-  assert.equal(off.items[0].open, "bring it back");
   hidden.clear();
 });
 

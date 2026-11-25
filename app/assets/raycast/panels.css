@@ -454,6 +454,8 @@ body:where(.experience-raycast).look-dimension .pr-msg { border-radius: var(--r3
 :where(body.experience-raycast) #help .set-card > * + * { border-top-color: color-mix(in srgb, var(--txt) 7%, transparent); }
 :where(body.experience-raycast) #help .set-title { font-weight: 500; }
 :where(body.experience-raycast) #help .set-ctl :is(select, input:not([type="range"])) { height: 32px; padding-top: 0; padding-bottom: 0; border-radius: var(--r2); }
+:where(body.experience-raycast).look-dimension #help .set-ctl :is(select, input:not([type="range"])) { border-radius: var(--r-row); }
+:where(body.experience-raycast) #help .set-ctl select { appearance: none; padding-right: 32px; background-image: linear-gradient(45deg, transparent calc(50% - 0.75px), var(--txt-3) calc(50% - 0.75px), var(--txt-3) calc(50% + 0.75px), transparent calc(50% + 0.75px)), linear-gradient(-45deg, transparent calc(50% - 0.75px), var(--txt-3) calc(50% - 0.75px), var(--txt-3) calc(50% + 0.75px), transparent calc(50% + 0.75px)); background-size: 5px 5px; background-repeat: no-repeat; background-position: right 17px center, right 12px center; }
 :where(body.experience-raycast) #help .thm-side .set-group:first-of-type .set-head { margin-top: 0; }
 :where(body.experience-raycast) #help .box .pref-body.searching { padding: 24px; overflow-y: auto; }
 :where(body.experience-raycast) #help .box .pref-body.searching .pref-look { display: grid; grid-template-columns: minmax(0, 1fr); height: auto; }

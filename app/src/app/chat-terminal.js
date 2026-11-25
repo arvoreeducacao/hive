@@ -1,12 +1,16 @@
 import { render } from "./arrange.js";
+import { openWebPage } from "./chat-and-panes.js";
 import { registerChatControl } from "./chat-bar.js";
 import { keyLabel } from "./brand-face.js";
+import { confirmBefore } from "./confirmations.js";
 import { IS_MAC, esc, phrase, st } from "./core.js";
 import { openTile } from "./focus-navigation.js";
+import { putInComposer, terminalExcerpt } from "./file-mentions.js";
 import { pool, tiles } from "./leader-key.js";
 import { lucide } from "./lucide.js";
+import { ask } from "./pod.js";
 import { runningTerminalSay, runningTerminalsOf } from "./running-terminals.js";
-import { getTerminal } from "./terminal-pool.js";
+import { getTerminal, routeTerminalLinks } from "./terminal-pool.js";
 import { dropTerminal, mount, observer, onWheel, refit } from "./terminal-history.js";
 import { keepTerminalKeys, terminalNavKey } from "./terminal-keys.js";
 import { openTerminalMenu } from "./terminal-menu.js";
@@ -48,7 +52,7 @@ const readJson = (key, fallback) => {
 
 const isPlain = (value) => !!value && typeof value === "object" && !Array.isArray(value);
 
-const freshEntry = (name, n) => ({ name, n, pending: false, bornAt: 0, seen: false, missingSince: 0, killing: false, waiting: [] });
+const freshEntry = (name, n) => ({ name, n, pending: false, bornAt: 0, seen: false, missingSince: 0, killing: false, asking: false, waiting: [] });
 
 const emptyState = () => ({ open: false, height: HEIGHT_DEFAULT, terminals: [], groups: [], active: "", error: "", dropped: new Map() });
 
@@ -340,7 +344,7 @@ function newPane(chat, name) {
     if (!e) return;
     ev.preventDefault();
     ev.stopPropagation();
-    openTerminalMenu(e, ev.clientX, ev.clientY, () => e.term.focus());
+    openTerminalMenu(e, ev.clientX, ev.clientY, () => e.term.focus(), { addToChat: (text) => putInComposer(chat, terminalExcerpt(text), { block: true }) });
   });
   return pane;
 }
@@ -627,11 +631,39 @@ function addTerminal(chat, mode, dir = SIDE_BY_SIDE) {
   return true;
 }
 
-async function closeTerminal(chat, wanted) {
+async function programIn(name) {
+  try {
+    const res = await fetch(`/api/seat/running?name=${encodeURIComponent(name)}`);
+    const said = await res.json();
+    return { running: typeof said?.running === "boolean" ? said.running : null, program: String(said?.program || "") };
+  } catch {
+    return { running: null, program: "" };
+  }
+}
+
+async function closeAllowed(one, at) {
+  if (one.pending || !confirmBefore("closeTerminal")) return true;
+  const { running, program } = await programIn(one.name);
+  if (running === false) return true;
+  const why = running && program
+    ? phrase("{program} is still running in it and stops when the terminal closes.", { program })
+    : phrase("Whatever runs in it stops when the terminal closes.");
+  return ask(phrase("Close this terminal?"), esc(why), phrase("close the terminal"), { at });
+}
+
+async function closeTerminal(chat, wanted, at = null) {
   const s = stateOf(chat);
   const name = wanted || s?.active;
   const one = s && name ? terminalNamed(s, name) : null;
-  if (!one || one.killing) return;
+  if (!one || one.killing || one.asking) return;
+  one.asking = true;
+  const allowed = await closeAllowed(one, at);
+  one.asking = false;
+  if (terminalNamed(s, name) !== one || one.killing) return;
+  if (!allowed) {
+    focusShell(chat);
+    return;
+  }
   s.error = "";
   if (one.pending) {
     removeTerminal(s, name);
@@ -701,8 +733,8 @@ function runInChatTerminal(chat, command) {
 }
 
 function drawerAct(chat, act, hit) {
-  if (act === "ct-kill") return closeTerminal(chat);
-  if (act === "ct-close") return closeTerminal(chat, hit?.dataset.name);
+  if (act === "ct-kill") return closeTerminal(chat, undefined, hit?.getBoundingClientRect() || null);
+  if (act === "ct-close") return closeTerminal(chat, hit?.dataset.name, hit?.getBoundingClientRect() || null);
   if (act === "ct-pick") return pickTerminal(chat, hit?.dataset.name, true);
   if (act === "ct-new") return addTerminal(chat, "new");
   if (act === "ct-split") return addTerminal(chat, "split", SIDE_BY_SIDE);
@@ -759,6 +791,16 @@ function drawerChord(event) {
   const chord = chordOf(event, { mac: IS_MAC, inTerminal: inDrawerTerminal(), inDrawer: true });
   return !!chord && CHORD_RUNS[chord](node.dataset.name) === true;
 }
+
+function drawerLink(ev, uri) {
+  const node = ev?.target?.closest?.(".ct");
+  const chat = node?.dataset.name || "";
+  if (!chat || drawer.nodes.get(chat) !== node || !/^https?:\/\//i.test(String(uri || ""))) return false;
+  openWebPage(chat, uri);
+  return true;
+}
+
+routeTerminalLinks(drawerLink);
 
 window.addEventListener("keydown", (event) => {
   if (!drawerChord(event)) return;

@@ -1,5 +1,5 @@
 import { phrase, st } from "./core.js";
-import { applePlatform, openOutside, openWebPage } from "./chat-and-panes.js";
+import { openOutside, openWebPage } from "./chat-and-panes.js";
 import { closeTableMenu, landingOf } from "./markdown-rich.js";
 import { openInMachineEditor } from "./seat-changes.js";
 import { prsOfChat } from "./seat-menu.js";
@@ -89,7 +89,7 @@ export function fileMenuItems({ seat, rel, line }) {
   const local = seat.where !== "cloud";
   return [
     { label: phrase("Open in editor"), run: () => openInMachineEditor(seat.name, rel, line || 1) },
-    local ? { label: applePlatform() ? phrase("Reveal in Finder") : phrase("Show in folder"), run: () => revealFile(seat, rel) } : null,
+    local ? { label: phrase("Show in folder"), run: () => revealFile(seat, rel) } : null,
     { label: phrase("Copy relative path"), copy: true, run: () => toClipboard(rel) },
     cwd ? { label: phrase("Copy full path"), copy: true, run: () => toClipboard(`${cwd}/${rel}`) } : null
   ].filter(Boolean);

@@ -178,7 +178,7 @@ function Side(props) {
       </Show>
       <button class="t-shot" hidden title={props.model.tags.canopy}><img alt="" /><span /></button>
       <div class="t-chips"><For each={props.model.chips}>{(chip) => <Chip chip={chip} actions={props.actions} />}</For></div>
-      <p class="summary" classList={{ empty: props.model.summary.empty }}>{props.model.summary.text}</p>
+      <Show when={props.model.summary.text}><p class="summary" classList={{ empty: props.model.summary.empty }}>{props.model.summary.text}</p></Show>
       <div class="t-slack-wrap" data-heading={props.model.sections.threads}>
         <For each={props.model.threads.cards}>{(card) => <ThreadCard card={card} actions={props.actions} />}</For>
         <More said={props.model.threads.more} actions={props.actions} />
@@ -219,7 +219,7 @@ function JobSide(props) {
       </div>
       </Show>
       <div class="t-chips"><For each={props.model.chips}>{(chip) => <Chip chip={chip} actions={props.actions} />}</For></div>
-      <p class="summary" classList={{ empty: props.model.summary.empty }}>{props.model.summary.text}</p>
+      <Show when={props.model.summary.text}><p class="summary" classList={{ empty: props.model.summary.empty }}>{props.model.summary.text}</p></Show>
     </>
   );
 }

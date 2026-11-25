@@ -18,7 +18,7 @@ st.textWriter = TEXT_WRITER_DEFAULT;
 const EFFORT_STYLE_NAMES = { word: "Word", bars: "Bars" };
 const BACKGROUND_NAMES = { economy: "Economy", balanced: "Balanced", performance: "Performance" };
 const BACKGROUND_SAYS = {
-  economy: "Economy checks a third as often and waits for the charger while the Mac is on battery.",
+  economy: "Economy checks a third as often and waits for the charger while the computer is on battery.",
   balanced: "Balanced checks at the pace the hive always did.",
   performance: "Performance checks twice as often, for a busy machine plugged into the wall."
 };
@@ -113,7 +113,7 @@ async function paintDevicesHere() {
     android: said && !said.android ? phrase("SDK found · {n} phones", { n: (said.avds || []).length }) : "",
     ios: said && !said.ios ? phrase("Xcode found · {n} simulators", { n: (said.sims || []).length }) : ""
   };
-  const missing = { android: phrase("no Android SDK on this Mac"), ios: phrase("no Xcode on this Mac") };
+  const missing = { android: phrase("no Android SDK on this computer"), ios: phrase("no Xcode on this computer") };
   list.innerHTML = DEVICE_ROWS.map((row) => {
     const ready = !!found[row.key];
     const why = ready ? found[row.key] : missing[row.key];

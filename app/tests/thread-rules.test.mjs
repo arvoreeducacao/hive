@@ -98,3 +98,11 @@ test("an open PR holds a chat only when asked, Never keeps it out, and giving a 
   assert.deepEqual(sweepMarks(back, seats, THREADS_DEFAULT, now), [], "a merged PR does not settle a chat given back, and its idle days count from then");
   assert.deepEqual(sweepMarks(back, seats, THREADS_DEFAULT, now + 7 * DAY), ["reopened"]);
 });
+
+test("stopping what a chat left running on settle is off unless asked, and only a boolean is taken", () => {
+  assert.equal(cleanThreads(undefined).stopServersOnSettle, false);
+  assert.equal(cleanThreads({ stopServersOnSettle: true }).stopServersOnSettle, true);
+  const problems = [];
+  assert.equal(cleanThreads({ stopServersOnSettle: "yes" }, "config", problems).stopServersOnSettle, false);
+  assert.match(problems.join(" "), /stopServersOnSettle should be true or false/);
+});

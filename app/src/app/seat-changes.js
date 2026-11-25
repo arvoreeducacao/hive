@@ -327,6 +327,25 @@ function lastTurnModel(s) {
   };
 }
 
+const withKeyHint = (said, key) => (key ? `${said} (${key})` : said);
+
+function infoActs() {
+  const acts = {
+    back: phrase("Back"),
+    backKey: "esc",
+    reconnect: phrase("Reconnect"),
+    reconnectKey: keyLabel(st.keys.reconnect),
+    kill: phrase("Close the seat"),
+    killKey: keyLabel(st.keys.kill)
+  };
+  return {
+    ...acts,
+    backHint: withKeyHint(acts.back, acts.backKey),
+    reconnectHint: withKeyHint(acts.reconnect, acts.reconnectKey),
+    killHint: withKeyHint(acts.kill, acts.killKey)
+  };
+}
+
 function infoViewModel(s) {
   const open = raycastOn() && st.open === s.name;
   if (open) keepChangesFresh(s.name);
@@ -336,14 +355,7 @@ function infoViewModel(s) {
     where: open ? whereModel(s) : null,
     changes: open ? changesModel(s) : null,
     last: open ? lastTurnModel(s) : null,
-    acts: open ? {
-      back: phrase("Back"),
-      backKey: "esc",
-      reconnect: phrase("Reconnect"),
-      reconnectKey: keyLabel(st.keys.reconnect),
-      kill: phrase("Close the seat"),
-      killKey: keyLabel(st.keys.kill)
-    } : null
+    acts: open ? infoActs() : null
   };
 }
 

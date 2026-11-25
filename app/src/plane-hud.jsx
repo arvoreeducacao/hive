@@ -50,7 +50,7 @@ function PlaneCard(props) {
       </div>
       <div class="pc-of">{props.model.of}</div>
       <div class="pc-state">{props.model.said}</div>
-      <p class="pc-sum">{props.model.sum}</p>
+      <Show when={props.model.sum}><p class="pc-sum">{props.model.sum}</p></Show>
       <div class="pc-chips"><For each={props.model.chips}>{(chip) => <span>{chip.text}</span>}</For></div>
     </>
   );

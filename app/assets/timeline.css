@@ -16,7 +16,6 @@
 }
 
 .sv-scroll > [hidden="until-found"] { position: absolute; margin: 0; padding: 0; border: 0; }
-.sv-scroll::after { content: ""; flex: none; display: block; height: var(--tl-anchor-space, 0px); }
 
 .sv .tl-i { display: block; flex: none; width: 16px; height: 16px; }
 .sv .tl-fold { display: flex; align-items: center; gap: 4px; padding: 4px 2px 8px 0; border-bottom: 1px solid var(--tl-rule); }
@@ -230,7 +229,6 @@ dialog.bgw::backdrop { background: rgb(0 0 0 / .35); }
 .sv .sv-mcp-signin .tl-ico svg { width: 14px; height: 14px; }
 .sv .sv-mcp-signin .mt { flex: 1 1 0; min-width: 200px; display: grid; padding-top: 1px; }
 .sv .sv-mcp-signin .nm { color: var(--tl-fg); overflow-wrap: anywhere; }
-.sv .sv-mcp-signin .ds { font-size: .93em; overflow-wrap: anywhere; }
 .sv .sv-mcp-signin .er { font-size: .93em; color: var(--tl-error); overflow-wrap: anywhere; }
 .sv .sv-mcp-signin .er:empty { display: none; }
 .sv .sv-mcp-signin .auth, .sv .sv-mcp-signin .auth-paste button { flex: none; box-sizing: border-box; min-height: 24px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 6px; background: none; font: inherit; font-size: .93em; color: var(--tl-fg); cursor: pointer; }

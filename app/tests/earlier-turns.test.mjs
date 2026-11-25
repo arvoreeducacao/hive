@@ -201,7 +201,7 @@ test("the jump button and the scroll that reaches the bottom both fold the chat 
   assert.match(wiring, /const wasBottom = e\.atBottom;/);
   assert.match(wiring, /if \(e\.settling\) e\.settling = false;\s*else if \(svConvTimelineOn\(e\)\) svConvScrolled\(e\);\s*else if \(y < \(e\.lastScrollY \|\| 0\)\) e\.atBottom = bottom;/, "the scroll an unfold makes to hold the page still is swallowed once");
   assert.match(wiring, /if \(e\.atBottom && !wasBottom\) svTrimTurns\(e\);/, "reaching the bottom folds");
-  assert.match(wiring, /jump\.addEventListener\("click", \(\) => \{\s*e\.atBottom = true;\s*e\.anchor = null;\s*svConvStick\(e\);\s*paintJump\(\);\s*svTrimTurns\(e\);/, "the jump button folds");
+  assert.match(wiring, /jump\.addEventListener\("click", \(\) => \{\s*e\.atBottom = true;\s*svConvStick\(e\);\s*paintJump\(\);\s*svTrimTurns\(e\);/, "the jump button folds");
   const restores = modules.match(/svConvShowNow\(e\);\s*e\.settling = true;\s*e\.scroll\.scrollTop = y \+ \(e\.scroll\.scrollHeight - tall\);/g) || [];
   assert.equal(restores.length, 2, "both the unfold from memory and the page from the server settle the scroll before the listener sees it");
 });

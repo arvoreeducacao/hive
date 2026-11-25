@@ -133,6 +133,9 @@ function focusedSeat() {
 }
 
 const ARCH_SHOWN = 3;
+const ARCH_PAGE = 10;
+
+st.archShown = ARCH_SHOWN;
 
 const ARCH_OPEN_KEY = "hive.archOpen";
 
@@ -209,6 +212,7 @@ function snoozedRailModel() {
 
 function setArchOpen(on) {
   st.archOpen = !!on;
+  st.archShown = ARCH_SHOWN;
   try { localStorage.setItem(ARCH_OPEN_KEY, st.archOpen ? "1" : "0"); } catch {}
   paintRail();
 }
@@ -435,8 +439,7 @@ function shelfGroup(id, rows, picked, q) {
       return {
         ...row, sel: row.key === picked, quiet: true, picked: isPicked(row.key),
         why: snoozed ? phrase("back {when}", { when: wakeSaid(mark.snoozeUntil) }) : phrase("settled {when}", { when: ago(new Date(mark.settledAt || Date.now()).toISOString()) }),
-        open: phrase("open"), openKey: "",
-        act: snoozed ? { act: "wake", say: phrase("Wake") } : { act: "unsettle", say: phrase("Reopen") }
+        act: snoozed ? { act: "wake", say: phrase("Wake"), icon: "i-sun" } : { act: "unsettle", say: phrase("Reopen"), icon: "i-reply" }
       };
     }),
     more: open && shown.length < all.length ? phrase("Show {n} more", { n: all.length - shown.length }) : ""
@@ -456,7 +459,7 @@ function toggleRailFolder(repo) {
   paintRail();
 }
 
-const opened = (picked) => (row) => ({ ...row, sel: row.key === picked, open: phrase("open"), openKey: "" });
+const opened = (picked) => (row) => ({ ...row, sel: row.key === picked });
 
 function projectOf(name) {
   const seat = st.data.sessions.find((one) => one.name === name);
@@ -479,11 +482,9 @@ function blockGroups(rows, picked) {
   const groups = [];
   for (const { b, i, mine } of [...lanes.filter((one) => one.mine), ...lanes.filter((one) => !one.mine)]) {
     const here = mine && i === st.block;
-    const items = b.keys.flatMap((key, at) => {
+    const items = b.keys.flatMap((key) => {
       const row = rows.find((one) => one.key === key);
-      if (!row) return [];
-      const seatKey = here && at < st.LIMIT && st.keys.seat ? keyLabel(st.keys.seat, at + 1) : "";
-      return [{ ...row, sel: row.key === picked, open: phrase("open"), openKey: seatKey }];
+      return row ? [{ ...row, sel: row.key === picked }] : [];
     });
     if (!items.length) continue;
     const n = blockNumber(i);
@@ -501,8 +502,7 @@ function blockGroups(rows, picked) {
       key: "loose", i: -1, here: false, label: phrase("off screen"), keys: "",
       fold: { open, count: loose.length },
       items: open ? loose.map((row) => ({
-        ...row, why: offScreenWhy(row.key), sel: row.key === picked,
-        open: phrase(isHidden(row.key) ? "bring it back" : "open"), openKey: ""
+        ...row, why: offScreenWhy(row.key), sel: row.key === picked
       })) : []
     });
   }
@@ -562,20 +562,21 @@ function parkedRailModel(q, now) {
   const hits = q ? all.filter((a) => `${a.title || ""}\n${a.name}`.toLowerCase().includes(q)) : all;
   if (!hits.length) return null;
   const open = st.archOpen || !!q;
-  const shown = !open ? [] : q ? hits : hits.slice(0, ARCH_SHOWN);
+  const shown = !open ? [] : q ? hits : hits.slice(0, st.archShown);
+  const rest = hits.length - shown.length;
   return {
-    count: hits.length, open, label: phrase("archived"),
+    count: hits.length, open, label: phrase("Archived"),
     shown: shown.map((a) => {
       const busy = reviving.has(archKey(a));
       const title = a.title || a.name;
       return {
         key: archKey(a), name: a.name, where: a.where, parts: hitOf(title, q) || whole(title), busy,
-        when: spanOf(now - a.archivedAt),
+        when: busy ? phrase("coming back…") : spanOf(now - a.archivedAt),
         hint: `${title} — ${phrase("archived {when}", { when: ago(new Date(a.archivedAt).toISOString()) })}`,
-        action: busy ? phrase("coming back…") : phrase("revive")
+        revive: phrase("Revive")
       };
     }),
-    more: open && shown.length < hits.length ? phrase("+ {n} more · see all", { n: hits.length - shown.length }) : ""
+    more: open && rest > 0 ? phrase("Show {n} more", { n: Math.min(ARCH_PAGE, rest) }) : ""
   };
 }
 
@@ -623,7 +624,6 @@ function raycastRailViewModel() {
     searching: st.railSearching || !!q, query: st.railQuery,
     searchSaid: phrase("search a seat"), searchHint: phrase("search a seat ({k})", { k: "/" }), clearSaid: phrase("Clear the search"),
     newSaid: phrase("New chat"), newKey: keyHint("new"), newHint: phrase("New chat ({k}) — shift-click starts it in the project you are in", { k: keyHint("new") || "⌘N" }),
-    found: q ? phrase("{n} of {m} seats", { n: found.length, m: shown.length }) : "", openSaid: phrase("open"),
     loading: loading ? `${phrase("block {n}", { n: 1 })} · ${phrase("loading…")}` : "",
     groups,
     empty: !loading && !found.length && !(q && (parked || teamFound(q))) ? railEmpty(q) : null,
@@ -774,19 +774,20 @@ function railViewModel() {
     });
   }
   const parkedAll = st.data.archived || [];
-  const shown = st.archOpen ? parkedAll.slice(0, ARCH_SHOWN) : [];
+  const shown = st.archOpen ? parkedAll.slice(0, st.archShown) : [];
+  const rest = parkedAll.length - shown.length;
   const parked = parkedAll.length ? {
-    count: parkedAll.length, open: st.archOpen, label: phrase("archived"),
+    count: parkedAll.length, open: st.archOpen, label: phrase("Archived"),
     shown: shown.map((a) => {
       const when = ago(new Date(a.archivedAt).toISOString());
       const busy = reviving.has(archKey(a));
       return {
-        key: archKey(a), name: a.name, where: a.where, title: a.title || a.name, when, busy,
+        key: archKey(a), name: a.name, where: a.where, title: a.title || a.name, when: busy ? phrase("coming back…") : when, busy,
         hint: `${a.title || a.name} — ${phrase("archived {when}", { when })}`,
-        action: busy ? phrase("coming back…") : phrase("revive ↩")
+        revive: phrase("Revive")
       };
     }),
-    more: st.archOpen && parkedAll.length > ARCH_SHOWN ? phrase("+ {n} more · see all", { n: parkedAll.length - ARCH_SHOWN }) : ""
+    more: st.archOpen && rest > 0 ? phrase("Show {n} more", { n: Math.min(ARCH_PAGE, rest) }) : ""
   } : null;
   return { groups, snoozed: snoozedRailModel(), parked, note: st.archNote || "" };
 }
@@ -822,6 +823,10 @@ $("rail-sessions").addEventListener("click", (e) => {
   const shelf = e.target.closest("[data-shelf]");
   if (shelf) return setRailShelf(shelf.dataset.shelf, !st.railShelves[shelf.dataset.shelf]);
   if (e.target.closest("[data-shelf-more]")) return setRailShelf("more", true);
+  if (e.target.closest("[data-arch-more]")) {
+    st.archShown += ARCH_PAGE;
+    return paintRail();
+  }
   const shelfAct = e.target.closest("[data-shelf-act]");
   if (shelfAct) return shelfAct.dataset.shelfAct === "wake" ? wakeSeats([shelfAct.dataset.of]) : unsettleSeats([shelfAct.dataset.of]);
   const unpin = e.target.closest("[data-unpin]");

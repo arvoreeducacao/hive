@@ -74,14 +74,15 @@ test("open in refuses a chat without a folder and reports an app that did not op
   assert.deepEqual(await openIn("finder", "/tmp/repo", { platform: "darwin", run: async () => ({ ok: false }) }), { error: "the app did not open" });
 });
 
-function routes(seats) {
+function routes(seats, { foreground = {} } = {}) {
   const table = [];
   registerChatPanelRoutes((method, path, handler) => table.push({ method, path, handler }), {
     bodyOf: async (req) => req.body,
     isSeatName: (name) => /^[a-z0-9-]+$/.test(String(name || "")),
     seatOf: (name) => seats.find((one) => one.name === name) || null,
     folderOf: async () => "/tmp/repo",
-    hive: "/tmp/hive"
+    hive: "/tmp/hive",
+    foregroundOf: async (name) => (name in foreground ? { known: true, program: foreground[name] } : { known: false, program: "" })
   });
   return async (method, path, { query = "", body = null } = {}) => {
     const route = table.find((one) => one.method === method && one.path === path);
@@ -98,4 +99,13 @@ test("the routes refuse an unknown chat, a bad name and a chat in the cloud", as
   assert.equal((await call("POST", "/api/open-in", { body: { name: "cloudy", app: "finder" } })).status, 409);
   assert.deepEqual((await call("GET", "/api/seat/servers", { query: "?name=cloudy" })).payload.servers, []);
   assert.equal((await call("POST", "/api/seat/servers/stop", { body: { name: "cloudy", pid: 1 } })).status, 409);
+});
+
+test("a terminal says whether a program is running in it, and names the program only then", async () => {
+  const call = routes([{ name: "sh-a", where: "local", kind: "shell" }, { name: "sh-b", where: "local", kind: "shell" }, { name: "sh-c", where: "local", kind: "shell" }, { name: "cloudy", where: "cloud" }], { foreground: { "sh-a": "", "sh-b": "node" } });
+  assert.deepEqual((await call("GET", "/api/seat/running", { query: "?name=sh-a" })).payload, { running: false, program: "" });
+  assert.deepEqual((await call("GET", "/api/seat/running", { query: "?name=sh-b" })).payload, { running: true, program: "node" });
+  assert.deepEqual((await call("GET", "/api/seat/running", { query: "?name=sh-c" })).payload, { running: null, program: "" });
+  assert.equal((await call("GET", "/api/seat/running", { query: "?name=cloudy" })).status, 409);
+  assert.equal((await call("GET", "/api/seat/running", { query: "?name=ghost" })).status, 404);
 });

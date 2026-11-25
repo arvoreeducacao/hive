@@ -980,7 +980,7 @@ function planeCardViewModel(it) {
     when: it.when || "",
     of: it.errand ? `${it.errand} · ${it.name}` : (it.where === "cloud" ? phrase("on the server") : ""),
     said: phrase(LABEL[it.state] || ""),
-    sum: it.summary || it.description || phrase("no status written yet — only the terminal speaks for it"),
+    sum: it.summary || it.description || "",
     chips: chips.map((text, at) => ({ key: at, text }))
   };
 }

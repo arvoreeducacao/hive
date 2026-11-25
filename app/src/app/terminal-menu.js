@@ -8,19 +8,20 @@ function closeTerminalMenu() {
   menu.node = null;
 }
 
-function menuItems(e) {
+function menuItems(e, { addToChat = null } = {}) {
   const term = e.lookingBack ? e.hist?.term : e.term;
   const picked = term?.hasSelection?.() ? term.getSelection() : "";
   return [
+    ...(addToChat ? [{ id: "add", label: phrase("Add to chat"), on: !!picked.trim(), run: () => addToChat(picked) }] : []),
     { id: "copy", label: phrase("Copy"), on: !!picked, run: () => toClipboard(picked) },
     { id: "select-all", label: phrase("Select all"), on: true, run: () => navigateTerminal(e, "select-all") },
     { id: "bottom", label: phrase("Jump to latest"), on: !!e.lookingBack, run: () => navigateTerminal(e, "bottom") }
   ];
 }
 
-function openTerminalMenu(e, x, y, back) {
+function openTerminalMenu(e, x, y, back, options = {}) {
   closeTerminalMenu();
-  const items = menuItems(e);
+  const items = menuItems(e, options);
   const node = document.createElement("div");
   node.className = "term-menu";
   node.setAttribute("role", "menu");
@@ -35,7 +36,7 @@ function openTerminalMenu(e, x, y, back) {
     if (!hit || hit.disabled) return;
     const chosen = items.find((one) => one.id === hit.dataset.id);
     closeTerminalMenu();
-    back?.();
+    if (chosen?.id !== "add") back?.();
     chosen?.run();
   });
   node.addEventListener("keydown", (event) => {

@@ -97,10 +97,10 @@ test("a local seat carries no where chip, a cloud one does", () => {
     { key: "cloud", cls: "cloud", title: "cloud", icon: "#i-cloud", text: "cloud" });
 });
 
-test("the summary falls back to the description, then to the line that says only the terminal speaks", () => {
+test("the summary falls back to the description, and stays blank when the chat wrote neither", () => {
   assert.deepEqual(tile({ seat: { summary: "reading the rail" } }).summary, { text: "reading the rail", empty: false });
   assert.deepEqual(tile({ seat: { description: "the mission" } }).summary, { text: "the mission", empty: false });
-  assert.equal(tile().summary.empty, true);
+  assert.deepEqual(tile().summary, { text: "", empty: true });
 });
 
 test("the chips are the worktrees, then account, the lent keyboard and the pull request — the model and the kind of seat are already on the screen", () => {

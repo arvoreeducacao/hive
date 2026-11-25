@@ -73,6 +73,12 @@ function fenceFor(text) {
   return "`".repeat(Math.max(3, longest + 1));
 }
 
+function terminalExcerpt(text) {
+  const body = String(text).replace(/\s+$/, "");
+  const fence = fenceFor(body);
+  return `${fence}console\n${body}\n${fence}`;
+}
+
 function linesExcerpt(path, from, to, text, language = "") {
   const range = from === to ? `#L${from}` : `#L${from}-${to}`;
   const fence = fenceFor(text);
@@ -134,4 +140,4 @@ if (typeof window !== "undefined") {
   }, true);
 }
 
-export { MENTION_TYPE, asMention, canTake, linesExcerpt, mentionPathOf, putInComposer, startMentionDrag };
+export { MENTION_TYPE, asMention, canTake, linesExcerpt, mentionPathOf, putInComposer, startMentionDrag, terminalExcerpt };

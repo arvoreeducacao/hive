@@ -134,6 +134,17 @@ test("a switch in a card is a switch to a screen reader, and its reset flips it 
   await settle();
 });
 
+test("painting settings that did not change writes nothing, so the panel never wakes its own watcher", async () => {
+  paintSettingResets();
+  const writes = [];
+  const watch = new window.MutationObserver((records) => writes.push(...records));
+  watch.observe($("pref-body"), { subtree: true, attributes: true });
+  paintSettingResets();
+  await settle();
+  watch.disconnect();
+  assert.deepEqual(writes.map((one) => `${one.target.id || one.target.className} ${one.attributeName}`), []);
+});
+
 test("a row without a known default never offers a reset", () => {
   paintSettingResets();
   assert.equal($("f-stt-mic").closest(".set-row").querySelector(".set-reset"), null);

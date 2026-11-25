@@ -619,17 +619,17 @@
   .item.parked .dot-off { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-3); }
   .item.parked .when { font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); opacity: .7; }
   .item.parked:hover .name { color: var(--txt-2); }
-  .item.parked:hover .when { display: none; }
-  .item.parked .revive { display: none; font-family: var(--mono); font-size: 9.5px; color: var(--green); }
-  .item.parked:hover .revive { display: inline; }
-  .item.parked.busy .revive { display: inline; color: var(--yellow); }
-  .item.parked.busy .when { display: none; }
+  .item.parked .revive-ic { all: unset; flex: none; display: none; place-items: center; width: 20px; height: 20px; border-radius: var(--r1); color: var(--txt-2); cursor: pointer; }
+  .item.parked .revive-ic svg { width: 13px; height: 13px; }
+  .item.parked:hover .revive-ic, .item.parked .revive-ic:focus-visible { display: inline-grid; }
+  .item.parked .revive-ic:hover { color: var(--txt); background: var(--panel-3); }
+  .item.parked.busy .when { color: var(--yellow); opacity: 1; }
   .group-title.parked { color: var(--txt-3); cursor: pointer; }
   .group-title.parked .caret { flex: none; width: 10px; height: 10px; opacity: .8; transition: transform 140ms var(--ease); }
   .group-title.parked .caret.shut { transform: rotate(-90deg); }
   .rail-more { padding: 4px 14px 8px; font-family: var(--mono); font-size: 9.5px; color: var(--txt-3); opacity: .7; }
-  .rail-more[data-arch-all] { cursor: pointer; }
-  .rail-more[data-arch-all]:hover { color: var(--accent); opacity: 1; }
+  .rail-more:is([data-arch-all], [data-arch-more]) { cursor: pointer; }
+  .rail-more:is([data-arch-all], [data-arch-more]):hover { color: var(--accent); opacity: 1; }
   .rail-more.parked-note { color: var(--accent); opacity: 1; line-height: 1.5; white-space: normal; }
   .rail-empty { padding: 14px; font-size: 12.5px; color: var(--txt-3); line-height: 1.6; }
   #rail-toggle { position: absolute; top: 5px; left: calc(var(--rail-w) - 29px); z-index: 40; box-sizing: border-box; width: 24px; height: 24px; padding: 0; justify-content: center; line-height: 1; background: var(--panel); border-color: var(--line); border-radius: var(--r1); }
@@ -646,8 +646,7 @@
   #shell.rail-min .group-title span, #shell.rail-min .group-title b { display: none; }
   #shell.rail-min .item { display: flex; justify-content: center; }
   #shell.rail-min .item .name, #shell.rail-min .item .n, #shell.rail-min .item .rtail,
-  #shell.rail-min .item.parked .when, #shell.rail-min .item.parked .revive,
-  #shell.rail-min .item.parked.busy .revive { display: none; }
+  #shell.rail-min .item.parked .when, #shell.rail-min .item.parked .revive-ic { display: none; }
   #shell.rail-min .rail-empty, #shell.rail-min .rail-more { display: none; }
   #shell.rail-min .group-title.parked { padding: 10px 0 4px; }
   #shell.rail-min .group-title.parked .caret { display: block; width: 100%; }
@@ -3873,7 +3872,7 @@
   .sv-empty p { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--txt-3); }
   .sv-empty .sv-empty-said { color: var(--accent); font-family: var(--mono); font-size: 11px; }
   .sv-empty .sv-empty-said[hidden] { display: none; }
-  .sv-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
+  .sv-choices { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 4px; }
   .sv-seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; padding: 2px; background: var(--panel-3); }
   .sv-seg button { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 9px; border-radius: 6px; font-size: 11px; color: var(--txt-3); transition: color 120ms var(--ease), background 120ms var(--ease); }
   .sv-seg button svg { width: 12px; height: 12px; }
@@ -3984,8 +3983,7 @@
     .group-title span, .group-title b { display: none; }
     #rail .item { display: flex; justify-content: center; padding: 8px 0; margin: 1px 4px; }
     #rail .item .name, #rail .item .n, #rail .item .rtail,
-    #rail .item.parked .when, #rail .item.parked .revive,
-    #rail .item.parked.busy .revive { display: none; }
+    #rail .item.parked .when, #rail .item.parked .revive-ic { display: none; }
     .rail-empty, .rail-more { display: none; }
     .group-title.parked { padding: 10px 0 4px; }
     .group-title.parked .caret { display: block; width: 100%; }
@@ -5187,7 +5185,7 @@ try {
         <div class="set-row" data-control="f-appearance" data-search="system macos dark light mode appearance">
           <div class="set-text">
             <label class="set-title" for="f-appearance">light and dark</label>
-            <p class="set-says">One theme, or one for light and one for dark, following macOS.</p>
+            <p class="set-says">One theme, or one for light and one for dark, following the system.</p>
           </div>
           <div class="set-ctl"><select id="f-appearance" data-default="fixed"><option value="fixed">one theme, always</option><option value="system">follow the system</option></select></div>
         </div>
@@ -5558,6 +5556,7 @@ try {
     <div class="set-group">
       <h3 class="set-head" data-t>Cleanup when it settles</h3>
       <div class="set-card">
+        <div class="set-row" data-control="t-stop-on-settle"><div class="set-text"><label class="set-title" for="t-stop-on-settle" data-t>stop what the chat left running</label><p class="set-says">The terminals of the chat that wait at the prompt always close when it settles. With this on, the servers the chat started and the terminals that still run a program stop too.</p></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-stop-on-settle-say"></span><button class="ghost flip" id="t-stop-on-settle" type="button"></button></div></div></div>
         <div class="set-row wide"><div class="set-text"><p class="set-says">When a chat in its own worktree settles, the command of its repository runs in that worktree. A chat in the main checkout is skipped. What the command printed stays in the settle-cleanup folder of the hive.</p></div><div id="settle-commands" class="settle-commands" data-no-t></div><button class="ghost" id="settle-command-add" type="button" data-t>add repository</button></div>
       </div>
     </div>
@@ -5589,10 +5588,10 @@ try {
       </div>
     </div>
     <div class="set-group">
-      <h3 class="set-head">On this Mac</h3>
+      <h3 class="set-head">On this computer</h3>
       <div class="set-card">
         <div class="set-row wide info"><ul class="devices-here" id="devices-here" data-no-t></ul></div>
-        <div class="set-row" id="perm-row" hidden><div class="set-text"><label class="set-title" for="perm-open">macOS permissions</label><p class="set-says">Microphone, screen, accessibility and disk.</p></div><div class="set-ctl"><button class="ghost" id="perm-open" type="button">see</button></div></div>
+        <div class="set-row" id="perm-row" hidden><div class="set-text"><label class="set-title" for="perm-open">System permissions</label><p class="set-says">Microphone, screen, accessibility and disk.</p></div><div class="set-ctl"><button class="ghost" id="perm-open" type="button">see</button></div></div>
       </div>
     </div>
     </section>

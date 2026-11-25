@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { app, state, views } from "./dom.mjs";
 
+Object.defineProperty(globalThis.navigator, "platform", { value: "MacIntel", configurable: true });
 const st = await state();
 const now = { microphone: "granted", screen: "denied", accessibility: "denied", disk: "denied" };
 const opened = [];

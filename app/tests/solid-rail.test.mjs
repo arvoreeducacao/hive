@@ -84,7 +84,7 @@ test("a seat in no block has no tag", () => {
   assert.equal(model.groups[0].items[0].tag, "");
 });
 
-test("the archived fold shows nothing while shut, the first few while open, and says how many more", () => {
+test("the archived fold shows nothing while shut, the first few while open, and shows more in place", () => {
   const archived = Array.from({ length: ARCH_SHOWN + 1 }, (_, n) => ({ name: `old${n + 1}`, where: "local", archivedAt: 0 }));
   const shut = world({ data: { pod: { up: false, name: "" }, sessions: [], archived } });
   assert.equal(shut.parked.count, ARCH_SHOWN + 1);
@@ -94,9 +94,10 @@ test("the archived fold shows nothing while shut, the first few while open, and 
   const open = world({ data: { pod: { up: false, name: "" }, sessions: [], archived }, archOpen: true, reviving: [archKey(archived[0])] });
   assert.deepEqual(open.parked.shown.map((one) => one.key), archived.slice(0, ARCH_SHOWN).map(archKey));
   assert.equal(open.parked.shown[0].busy, true);
-  assert.equal(open.parked.shown[0].action, "coming back…");
-  assert.equal(open.parked.shown[1].action, "revive ↩");
-  assert.equal(open.parked.more, "+ 1 more · see all");
+  assert.equal(open.parked.label, "Archived");
+  assert.equal(open.parked.shown[0].when, "coming back…", "a chat coming back says so in place of its age");
+  assert.equal(open.parked.shown[1].revive, "Revive", "reviving is an icon with its word in the tip");
+  assert.equal(open.parked.more, "Show 1 more");
 });
 
 test("no archived seats, no fold", () => {

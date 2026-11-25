@@ -64,17 +64,19 @@ const rows = (e) => [...e.host.querySelectorAll(".sv-queue .sv-qitem")];
 const bubbles = (e) => (svConvFlushAll(), [...e.scroll.querySelectorAll(".sv-user")]);
 const drawer = (e) => e.host.querySelector(".sv-drawer");
 
-test("a message sent while the turn runs steers it by default; the modifier is what queues it", () => {
+test("a message sent while the turn runs queues by default; the modifier is what steers it", () => {
+  assert.equal(cp.followUp(), "queue");
   assert.equal(cp.dispatchMode({ running: false, alternate: true }), "auto");
-  assert.equal(cp.dispatchMode({ running: true, alternate: false }), "steer");
-  assert.equal(cp.dispatchMode({ running: true, alternate: true }), "queue");
+  assert.equal(cp.dispatchMode({ running: true, alternate: false }), "queue");
+  assert.equal(cp.dispatchMode({ running: true, alternate: true }), "steer");
+  assert.equal(cp.dispatchMode({ running: true, alternate: false, preferred: "steer" }), "steer", "the person can still choose steer as the default");
   assert.equal(cp.dispatchMode({ running: true, alternate: false, steerable: false }), "queue", "a turn that cannot take it, like one compacting, always queues");
 });
 
-test("enter during a turn goes into the turn at once and the bubble says it steered", async () => {
+test("mod+enter during a turn goes into the turn at once and the bubble says it steered", async () => {
   const { e, sent, box } = seat({ busy: true });
   typed(box, "olha também o teste de fila");
-  press(box, "Enter");
+  press(box, "Enter", MOD);
   await rest();
   assert.deepEqual(sent.map((one) => one.type), ["say", "saynow"]);
   assert.equal(sent[1].target, sent[0].cid, "the steer pushes the very message it just said");
@@ -89,10 +91,10 @@ test("enter during a turn goes into the turn at once and the bubble says it stee
   assert.equal(box.value, "");
 });
 
-test("mod+enter during a turn queues just this one, as a dashed row with send now, edit and remove", async () => {
+test("enter during a turn queues the message, as a dashed row with send now, edit and remove", async () => {
   const { e, sent, box } = seat({ busy: true });
   typed(box, "depois disso, revisa");
-  press(box, "Enter", MOD);
+  press(box, "Enter");
   await rest();
   assert.deepEqual(sent.map((one) => one.type), ["say"]);
   const [row] = rows(e);
@@ -104,25 +106,25 @@ test("mod+enter during a turn queues just this one, as a dashed row with send no
   assert.equal(e.host.querySelector(".sv-queue").classList.contains("on"), true);
 });
 
-test("the send button carries the same choice: a modifier-click queues", async () => {
+test("the send button carries the same choice: a modifier-click steers", async () => {
   const { e, sent, box } = seat({ busy: true });
-  typed(box, "fila pelo clique");
+  typed(box, "direto pelo clique");
   e.host.querySelector(".sv-send").dispatchEvent(new window.MouseEvent("click", { bubbles: true, cancelable: true, ...MOD }));
   await rest();
-  assert.deepEqual(sent.map((one) => one.type), ["say"]);
-  assert.equal(rows(e).length, 1);
+  assert.deepEqual(sent.map((one) => one.type), ["say", "saynow"]);
+  assert.equal(rows(e).length, 0);
 });
 
 test("a seat that cannot take a message mid-turn keeps it queued, and the next one goes straight to the line", async () => {
   const { e, sent, box } = seat({ busy: true, answer: (cmd) => (cmd.type === "saynow" ? { ok: false, error: "runs one process per turn" } : null) });
   typed(box, "primeira");
-  press(box, "Enter");
+  press(box, "Enter", MOD);
   await rest();
   assert.equal(rows(e).length, 1, "the refused steer left the message in line");
   assert.equal(e.steerRefused, true);
   assert.equal(form(e).dataset.cpMode, "queue");
   typed(box, "segunda");
-  press(box, "Enter");
+  press(box, "Enter", MOD);
   await rest();
   assert.deepEqual(sent.map((one) => one.type), ["say", "saynow", "say"]);
   assert.equal(rows(e).length, 2);
@@ -141,15 +143,15 @@ test("while the conversation compacts, enter queues and the button says so", asy
   assert.equal(rows(e).length, 1);
 });
 
-test("the button names what enter will do, and holding the modifier flips steer to queue", () => {
+test("the button names what enter will do, and holding the modifier flips queue to steer", () => {
   const { e } = seat({ busy: true });
   const send = e.host.querySelector(".sv-send");
-  assert.equal(form(e).dataset.cpMode, "steer");
-  assert.equal(send.getAttribute("aria-label"), "Steer message");
-  assert.match(send.title, /^Click to steer, .*-click or .* to queue$/);
-  cp.holdMod(true);
   assert.equal(form(e).dataset.cpMode, "queue");
   assert.equal(send.getAttribute("aria-label"), "Queue message");
+  assert.match(send.title, /^Click to queue, .*-click or .* to steer$/);
+  cp.holdMod(true);
+  assert.equal(form(e).dataset.cpMode, "steer");
+  assert.equal(send.getAttribute("aria-label"), "Steer message");
   cp.holdMod(false);
   e.turnOpen = false;
   cp.paintComposer(e);
@@ -160,7 +162,7 @@ async function queueOf(n, opts = {}) {
   const made = seat({ busy: true, ...opts });
   for (let i = 1; i <= n; i++) {
     typed(made.box, `mensagem ${i}`);
-    press(made.box, "Enter", MOD);
+    press(made.box, "Enter");
     await rest();
   }
   return made;
@@ -196,7 +198,7 @@ test("edit takes a queued message into the box and update rewrites it where it s
   assert.equal(resay.text, "mensagem 1, melhor");
   assert.equal(rows(e)[0].querySelector(".cp-q-text").textContent, "mensagem 1, melhor");
   assert.equal(box.value, "o que eu estava escrevendo", "what the person was writing comes back");
-  assert.equal(form(e).dataset.cpMode, "steer");
+  assert.equal(form(e).dataset.cpMode, "queue");
 });
 
 test("a driver from before the rewrite still gets the edit, said again at the back of the line", async () => {
@@ -304,6 +306,7 @@ test("previous walks back with its own answer, and a reloaded question shows wha
   svEvent(e, { type: "driver", subtype: "question_answered", id: "q3", answers: { "Qual **banco** usar?": "Postgres", "Quando subir?": ["Agora"] } });
   assert.equal(e.ask, null);
   assert.deepEqual([...(svConvFlushAll(), e.scroll).querySelectorAll(".sv-q .qsum-a")].map((a) => a.textContent), ["Postgres", "Agora"]);
+  assert.ok(e.scroll.querySelector(".qsum").parentElement.classList.contains("summed"));
 });
 
 const PLAN = `# Fila editável

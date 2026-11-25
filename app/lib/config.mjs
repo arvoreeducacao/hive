@@ -404,8 +404,8 @@ export function cleanGaze(raw, where, problems) {
 
 export const SEND_SHORTCUT_CHOICES = ["enter", "mod-enter-multiline", "mod-enter"];
 export const SEND_SHORTCUT_DEFAULT = "enter";
-export const FOLLOW_UP_CHOICES = ["steer", "queue"];
-export const FOLLOW_UP_DEFAULT = "steer";
+export const FOLLOW_UP_CHOICES = ["queue", "steer"];
+export const FOLLOW_UP_DEFAULT = "queue";
 
 export function cleanSendShortcut(raw, where, problems) {
   if (raw === undefined) return SEND_SHORTCUT_DEFAULT;

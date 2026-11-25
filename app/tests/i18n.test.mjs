@@ -184,3 +184,20 @@ test("every fix the doctor offers reads in portuguese in the palette", () => {
   assert.deepEqual(labels.filter((label) => !PT_BR[label]), []);
   assert.ok(PT_BR["{what}, in Git Bash"] && PT_BR["create the {avd} AVD"], "the windows and android labels are built, so the palette says them by their pattern");
 });
+
+test("the side panel, the chat details, the turn files and the composer bar say every phrase in portuguese", () => {
+  const englishOnPurpose = new Set(["Pull request", "Diff", "Worktree", "Workspace"]);
+  const files = ["pr-side.js", "turn-files-html.js", "turn-files.js", "side-panel.js", "side-panel-diff.js", "chat-details.js", "composer-bar.js", "seat-card-html.js"];
+  const literal = (text) => JSON.parse(`"${text}"`);
+  const said = new Set();
+  for (const file of files) {
+    const source = readFileSync(join(HERE, "src/app", file), "utf8");
+    for (const call of source.matchAll(/\bphrase\(((?:[^()"]|"(?:[^"\\]|\\.)*")*?)(?:,\s*\{|\))/g)) {
+      for (const one of call[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)) said.add(literal(one[1]));
+    }
+    for (const call of source.matchAll(/\b(?:fieldRow\([^,]+,\s*"[^"]*",|item\("[^"]*",)\s*"((?:[^"\\]|\\.)*)"/g)) said.add(literal(call[1]));
+    for (const tab of source.matchAll(/\{ id: "[^"]*", label: "((?:[^"\\]|\\.)*)" \}/g)) said.add(literal(tab[1]));
+  }
+  assert.ok(said.size > 100, "the phrases of these files were found");
+  assert.deepEqual([...said].filter((one) => !englishOnPurpose.has(one) && !PT_BR[one]).sort(), []);
+});
