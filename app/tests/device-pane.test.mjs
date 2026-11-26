@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { putHidden, putText } from "../src/app/dom-writes.js";
 
 const HERE = fileURLToPath(new URL("..", import.meta.url));
 const page = readFileSync(join(HERE, "app.html"), "utf8");
@@ -73,7 +74,7 @@ function world({ device = DEVICE, visible = "visible", answer = { ok: true }, ap
   const api = new Function(
     "VideoDecoder", "EncodedVideoChunk", "document", "setTimeout", "clearTimeout", "fetch", "phrase", "st", "render", "openTile", "releaseKeyboard", "prsOnScreen", "finishOn",
     "closePrs", "closeFinish", "closeCockpit", "closeBrowser", "exitReview", "closeThreadPanel", "pull",
-    "takeFieldPane", "dropFieldPane",
+    "takeFieldPane", "dropFieldPane", "putHidden", "putText",
     `const paneShownFor = (name) => st.open === name;
      ${block}
      return { openDevice, closeDevice, askDeviceFrame, deviceFrameLanded, stopDeviceFrames, paintDeviceChipOfChat, paintDeviceOfChat, pointOnDevice, deviceSaid, deviceApplied,
@@ -83,7 +84,7 @@ function world({ device = DEVICE, visible = "visible", answer = { ok: true }, ap
     st,
     () => {}, () => {}, () => {}, () => false, () => false,
     stub("prs"), stub("finish"), stub("cockpit"), stub("browser"), stub("review"), stub("thread"), pull,
-    () => false, () => false);
+    () => false, () => false, putHidden, putText);
   const pending = () => timers.filter((t) => !t.dead);
   const tick = () => { for (const t of pending()) { t.dead = true; t.fn(); } };
   return { ...api, st, img, gone, live, id, chip, el, document, data, posted, pulls, srcs, tapes, closed, pending, tick, made, seat: () => ({ name: "ana", device: data.sessions[0].device }) };
@@ -422,19 +423,8 @@ test("an action asks for a fresh frame instead of waiting out the beat", async (
   assert.ok(w.pending().at(-1).ms > 0, "and the loop goes back to its beat afterwards");
 });
 
-test("in the new Hive, esc on a chat in full screen minimizes it first and keeps the pane for the way back", () => {
-  const minimize = keys.indexOf("experienceNext() && st.open && !inField");
-  assert.ok(minimize > 0, "esc in full screen no longer goes straight to minimizing");
-  for (const pane of ["  if (st.cockChat && !inField) {", "  if (st.webChat && !inField) {", "  if (st.deviceChat && !inField) {", "  if (threadVisible() && !st.typing) {"]) {
-    assert.ok(keys.indexOf(pane) > minimize, `a pane closes on esc before the chat minimizes: ${pane.trim()}`);
-  }
-  assert.match(cut(keys, "experienceNext() && st.open && !inField", "\n  }", "hold-numbers.js"), /closeTile\(\)/);
-  assert.match(cut(focus, "function closeTile() {", "\n}", "focus-navigation.js"), /keepPane\(\)/);
-});
-
-test("esc closes an open model, effort or login menu before it minimizes the chat", () => {
+test("esc closes an open model, effort or login menu", () => {
   const picker = keys.indexOf('if (e.key === "Escape" && document.querySelector(".sv-menu"))');
   assert.ok(picker > 0, "esc with a menu open no longer closes the menu");
-  assert.ok(picker < keys.indexOf("experienceNext() && st.open && !inField"), "esc minimizes the chat with its menu still open");
-  assert.match(cut(keys, 'if (e.key === "Escape" && document.querySelector(".sv-menu"))', "\n  }", "hold-numbers.js"), /closeEveryPicker\(true\)/);
+  assert.match(cut(keys, 'if (e.key === "Escape" && document.querySelector(".sv-menu"))', "\n  }", "hold-numbers.js"), /closeEveryPicker\(\)/);
 });

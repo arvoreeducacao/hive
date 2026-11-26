@@ -162,7 +162,6 @@ When Claude uses a skill in a native chat, the conversation shows the skill's te
 - `server/engine/protocol.mjs`
 - `server/worktree.mjs`
 - `app/src/app/structured-seats.js`
-- `app/src/app/context-window.js`
 - `app/src/app/chat-and-panes.js`
 - `app/doctor/doctor-readings.mjs`
 - `app/doctor/doctor-runner.mjs`

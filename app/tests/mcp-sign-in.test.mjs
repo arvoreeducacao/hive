@@ -46,6 +46,10 @@ function chat(agent = "claude") {
 
 const notices = (e) => [...e.host.querySelectorAll(".sv-mcp-signin")];
 
+const rows = (e) => [...e.host.querySelectorAll(".sv-mcp-signin .mcp-list > .mcp-row")];
+
+const shown = (el) => !el.closest("[hidden]");
+
 const init = (servers, extra = {}) => ({ type: "system", subtype: "init", session_id: "s1", agent: "claude", mcp_servers: servers, ...extra });
 
 test("a server that needs a sign-in at init shows one notice with its name and a Sign in button", async () => {
@@ -71,6 +75,48 @@ test("the same server is announced once per session, and again in a new session"
   assert.equal(notices(e).length, 2);
 });
 
+test("a lone server shows its row straight away, with no fold to open", async () => {
+  const { e } = chat();
+  svEvent(e, init([{ name: "linear", status: "needs-auth" }]));
+  await settle();
+  const notice = notices(e)[0];
+  assert.equal(shown(notice.querySelector(".mcp-fold")), false);
+  assert.equal(shown(notice.querySelector("button.auth")), true);
+});
+
+test("several servers at init fold into one line that counts them, closed until the person opens it", async () => {
+  const { e } = chat();
+  svEvent(e, init(["figma", "linear", "notion"].map((name) => ({ name, status: "needs-auth" }))));
+  await settle();
+  assert.equal(notices(e).length, 1);
+  const notice = notices(e)[0];
+  const fold = notice.querySelector(".mcp-fold");
+  assert.equal(shown(fold), true);
+  assert.equal(fold.querySelector(".sum").textContent, "3 MCP servers need a sign-in");
+  assert.equal(fold.querySelector(".who").textContent, "figma, linear, notion");
+  assert.equal(fold.getAttribute("aria-expanded"), "false");
+  assert.equal(notice.getAttribute("aria-label"), "3 MCP servers need a sign-in");
+  assert.ok(rows(e).every((row) => !shown(row)));
+  fold.click();
+  assert.equal(fold.getAttribute("aria-expanded"), "true");
+  assert.equal(shown(fold.querySelector(".who")), false);
+  assert.deepEqual(rows(e).filter(shown).map((row) => row.querySelector(".nm").textContent), ["figma", "linear", "notion"]);
+  fold.click();
+  assert.equal(fold.getAttribute("aria-expanded"), "false");
+  assert.ok(rows(e).every((row) => !shown(row)));
+});
+
+test("a server found later in the same session joins the fold instead of adding a second notice", async () => {
+  signIn.MCP_LOOKS_AFTER.splice(0, signIn.MCP_LOOKS_AFTER.length, 5, 5, 5);
+  const { e, status } = chat();
+  status([{ name: "linear", status: "needs-auth" }, { name: "notion", status: "needs-auth" }]);
+  svEvent(e, init([{ name: "linear", status: "needs-auth" }, { name: "notion", status: "pending" }]));
+  await until(() => rows(e).length === 2);
+  assert.equal(notices(e).length, 1);
+  assert.equal(notices(e)[0].querySelector(".mcp-fold .sum").textContent, "2 MCP servers need a sign-in");
+  assert.equal(shown(notices(e)[0].querySelector(".mcp-fold")), true);
+});
+
 test("claude.ai connectors are signed in on claude.ai, so they never get a notice", async () => {
   const { e, asked } = chat();
   svEvent(e, init([{ name: "claude.ai Gmail", status: "needs-auth" }, { name: "claude.ai Drive", status: "pending" }]));
@@ -94,7 +140,7 @@ test("a server still connecting at init is asked about later, and announced if i
   assert.equal(notices(e).length, 0);
   await settle();
   assert.equal(asked.filter((one) => one.op === "mcp").length, 1);
-  assert.deepEqual(notices(e).map((one) => one.dataset.server), ["notion"]);
+  assert.deepEqual(rows(e).map((one) => one.dataset.server), ["notion"]);
 });
 
 test("a Codex chat lists no servers at init, so it asks the driver once per session", async () => {
@@ -105,7 +151,7 @@ test("a Codex chat lists no servers at init, so it asks the driver once per sess
   svEvent(e, { type: "system", subtype: "init", session_id: "t1", agent: "codex" });
   await settle();
   assert.equal(asked.filter((one) => one.op === "mcp").length, 1);
-  assert.deepEqual(notices(e).map((one) => one.dataset.server), ["figma"]);
+  assert.deepEqual(rows(e).map((one) => one.dataset.server), ["figma"]);
 });
 
 test("the /mcp card and the notice sign in through the same flow", () => {
@@ -146,6 +192,29 @@ test("Sign in runs the sign-in, shows the paste box, then turns into the line th
     assert.ok(asked.some((one) => one.op === "mcpReconnect" && one.server === "linear"));
     const lines = [...e.host.querySelectorAll(".sv-meta")].map((one) => one.textContent);
     assert.ok(lines.includes("linear authenticated — its tools answer in this seat now"), lines.join(" | "));
+  } finally {
+    globalThis.fetch = before;
+  }
+});
+
+test("signing in one server of the fold leaves the others folded, with its line above them", { timeout: 45000 }, async () => {
+  const { e } = chat();
+  const before = globalThis.fetch;
+  globalThis.fetch = async (url, options = {}) => ({ ok: true, json: async () => (options.method === "POST" ? { state: "running" } : { state: "done" }) });
+  try {
+    svEvent(e, init(["figma", "linear", "notion"].map((name) => ({ name, status: "needs-auth" }))));
+    await settle();
+    const notice = notices(e)[0];
+    notice.querySelector(".mcp-fold").click();
+    rows(e).find((row) => row.dataset.server === "linear").querySelector("button.auth").click();
+    await until(() => rows(e).length === 2);
+    await settle();
+    assert.deepEqual(rows(e).map((row) => row.dataset.server), ["figma", "notion"]);
+    assert.equal(notice.querySelector(".mcp-fold .sum").textContent, "2 MCP servers need a sign-in");
+    assert.equal(notice.querySelector(".mcp-fold").getAttribute("aria-expanded"), "true");
+    const line = [...e.host.querySelectorAll(".sv-meta")].find((one) => one.textContent === "linear authenticated — its tools answer in this seat now");
+    assert.ok(line, "the signed-in server gets its line");
+    assert.ok(line.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING, "the line sits above the fold");
   } finally {
     globalThis.fetch = before;
   }

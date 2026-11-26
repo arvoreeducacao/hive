@@ -10,7 +10,6 @@ const here = dirname(fileURLToPath(import.meta.url));
 const main = readFileSync(join(here, "..", "main.js"), "utf8");
 const server = readFileSync(join(here, "..", "server.mjs"), "utf8");
 const panes = readFileSync(join(here, "..", "src", "app", "chat-and-panes.js"), "utf8");
-const shelfSource = readFileSync(join(here, "..", "src", "app", "shelf.js"), "utf8");
 const relay = createRequire(import.meta.url)("../main/relay.js");
 const cut = (t, a, b, w) => { const i = t.indexOf(a); assert.ok(i >= 0, `${w}: ${a}`); const j = t.indexOf(b, i); assert.ok(j > i, `${w}: ${b}`); return t.slice(i, j); };
 
@@ -127,15 +126,22 @@ test("the picker tells the server which seat it came from", () => {
   assert.match(panes, /function bornWebFrame\(yard, name, t\) \{/, "name is an argument here — a bare name in any other scope is window.name, and the server refuses it");
 });
 
-test("one chrome is built once and worn by both hosts", () => {
-  const chrome = cut(shelfSource, "function paintPageChrome(host, { page, tab, version, onTab, onVersion }) {", "\n}\n", "shelf.js");
-  assert.match(chrome, /className = "sh-tab"/);
-  assert.match(chrome, /className = "sh-vers"/);
-  assert.match(chrome, /className = "sh-ver"/);
-  const shelfScreen = cut(shelfSource, "function paintShelfView() {", "\n}\n", "shelf.js");
-  assert.match(shelfScreen, /paintPageChrome\(\$\("sh-tabs"\), \{/, "the shelf screen must not build its own strip");
-  assert.ok(!shelfScreen.includes('className = "sh-tab"'), "the shelf screen stopped hand-rolling the tabs");
-  assert.ok(!shelfScreen.includes('className = "sh-ver"'), "the shelf screen stopped hand-rolling the rail");
+test("one chrome is built once and worn by both hosts", async () => {
+  const shelf = await app("shelf");
+  const page = { slug: "one-chrome", title: "One chrome", label: "draft", tabs: { documento: { versions: [{ n: 1, label: "draft", at: 1 }, { n: 2, label: "in-review", at: 2 }] }, telas: { versions: [{ n: 1, label: "draft", at: 3 }] } } };
+  st.shelf = { repo: "https://github.com/acme/shelf", me: "ada", pages: [page] };
+  st.shelfOpen = page.slug;
+  st.shelfTab = "documento";
+  st.shelfVersion = 0;
+  shelf.paintShelf();
+  const rail = document.createElement("div");
+  shelf.paintPageChrome(rail, { page, tab: "documento", version: 0, onTab: () => {}, onVersion: () => {} });
+  const strip = document.getElementById("sh-tabs");
+  assert.ok(strip.querySelector(".sh-tab") && strip.querySelector(".sh-vers .sh-ver"), "the shelf screen has no strip");
+  assert.equal(strip.innerHTML, rail.innerHTML, "the shelf screen and the browser tab wear different strips");
+  st.shelfOpen = null;
+  st.shelf = null;
+  shelf.paintShelf();
   const tabChrome = cut(panes, "function paintArtifactChrome(pane, now) {", "\n}\n", "chat-and-panes.js");
   assert.match(tabChrome, /paintPageChrome\(rail, \{/, "the browser tab wears the same one");
 });
@@ -313,16 +319,3 @@ test("esc in the address bar puts the address back and lets go of the keyboard",
   host.remove();
 });
 
-test("the new hive drops the browser's own header: the browser lives inside the chat", () => {
-  const css = readFileSync(join(here, "..", "assets", "experience.css"), "utf8");
-  assert.match(css, /body\.experience-next \.art\.web > \.art-head \{ display: none; \}/);
-  assert.match(css, /body\.experience-next \.art\.web \.web-url input:is\(:focus, :focus-visible\) \{[^}]*outline-offset: -2px;/, "the focused bar draws its line inside, never over its neighbours");
-});
-
-test("the new tab plus and the close cross sit in the middle of their box", () => {
-  const css = readFileSync(join(here, "..", "assets", "experience.css"), "utf8");
-  for (const which of [".web-plus", ".web-tab > i"]) {
-    const rule = css.match(new RegExp(`body\\.experience-next \\.art\\.web ${which.replace(/[.>]/g, (c) => `\\${c}`)} \\{[^}]*\\}`))?.[0] || "";
-    assert.match(rule, /display: flex; align-items: center; justify-content: center;/, `${which}: a grid would give its hidden text a row of its own and push the icon up`);
-  }
-});

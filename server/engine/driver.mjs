@@ -8,7 +8,7 @@ import { join } from "node:path";
 import { accountRanDry, compactRanDry, answerInput, dismissNote, endedOnApiError, eventLine, lastSeq, compactLine, noConversationToResume, sayEvent, sayGate, queueMiss, resayCommand, hookFate, staleInterrupt, weaveImageMarks, imageEdge, IMAGE_EDGE_CEILING, birthsLeft, peerSayText, unpackShots, shotsToForget, seatTitle, seatPreamble, BIRTHS_MAX, PLAN_INSTRUCTIONS, PLAN_MODES, frontWishes, answerHold, transcriptTail, transcriptFileOf, transcriptEntries, forkPoint, EDIT_NO_RECORD, queueKeeper, FORCE_STOPPED } from "./protocol.mjs";
 import { DEFAULT_ACCOUNT } from "./accounts.mjs";
 import { accountFailover } from "./failover.mjs";
-import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault, promptSuggestionsWanted } from "./agents.mjs";
+import { normalizeClaudeModels, effortFromSettings, pickModelRow, autocompactFromConfig, withAppliedDefault, promptSuggestionsWanted, codeModeWanted, withCodeMode, codeModeRefusal } from "./agents.mjs";
 import { ensureGateway, hubFor } from "../gateway/mcp-gateway.mjs";
 import { withHubSettings } from "./hub-settings.mjs";
 import { claudeConfigPath, readClaudeConfig, hubServers, peerServerFor, routedThroughGateway } from "./mcp-routing.mjs";
@@ -450,6 +450,16 @@ if (EFFORTS_A_SESSION_CAN_BE_BORN_ON.includes(effortLevel)) options.settings = {
 if (!anonymous) Object.assign(options, withHubSettings(options, hubFor(cwd)));
 if (fastMode) options.settings = { ...(options.settings || {}), fastMode: true };
 if (promptSuggestionsWanted({ env: process.env, anonymous })) options.promptSuggestions = true;
+const codeMode = codeModeWanted({ env: process.env, anonymous, bornWith: resumeId ? storedSession.codeMode : undefined });
+if (!resumeId && !anonymous) persistSession({ codeMode });
+if (codeMode) {
+  options.settings = withCodeMode(options.settings);
+  const codeModeTrouble = makeWarnOnce((message) => emit({ type: "driver", subtype: "warning", message }));
+  options.stderr = (text) => {
+    const refused = codeModeRefusal(text);
+    if (refused) codeModeTrouble(refused);
+  };
+}
 
 const builtinClaude = builtinClaudePath();
 const claude = chosenClaude({ builtin: builtinClaude });
@@ -461,7 +471,7 @@ if (claude.path && claude.path !== builtinClaude) {
 }
 
 const extraArgs = {};
-if (process.env.HIVE_REMOTE_CONTROL !== "0" && !anonymous) extraArgs["remote-control"] = name;
+if (process.env.HIVE_REMOTE_CONTROL !== "0" && !anonymous && !codeMode) extraArgs["remote-control"] = name;
 const autocompact = autocompactFromConfig({ autocompact: arg("--autocompact") });
 if (autocompact) extraArgs["autocompact"] = autocompact;
 const givenSessionId = arg("--session-id");

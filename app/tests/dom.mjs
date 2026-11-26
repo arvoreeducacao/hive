@@ -8,6 +8,13 @@ import { Window } from "happy-dom";
 
 registerHooks(hooks);
 
+const nodeSetInterval = globalThis.setInterval;
+globalThis.setInterval = (...args) => {
+  const timer = nodeSetInterval(...args);
+  timer?.unref?.();
+  return timer;
+};
+
 const APP = fileURLToPath(new URL("..", import.meta.url));
 const window = new Window({ url: "http://localhost/", settings: { disableJavaScriptFileLoading: true, disableJavaScriptEvaluation: true, disableCSSFileLoading: true } });
 const markup = readFileSync(join(APP, "app.html"), "utf8").replace(/<script[^>]*src="\/assets\/dist\/hive\.mjs"[^>]*><\/script>/, "");

@@ -264,11 +264,11 @@ test("every string the shelf shows has a portuguese twin", () => {
 });
 
 test("the shelf markup and the strings it needs are wired into the page", () => {
-  for (const id of ["shelf", "sh-gal", "sh-view", "sh-tabs", "sh-frame", "sh-back", "sh-copy", "sh-gh", "btn-shelf", "k-shelf"]) {
-    assert.ok(page.includes(`id="${id}"`), `app.html has no #${id}`);
+  for (const id of ["shelf", "sh-gal", "sh-view", "sh-tabs", "sh-frame", "sh-back", "sh-copy", "sh-gh"]) {
+    assert.ok(document.getElementById(id), `the shelf view never built #${id}`);
   }
-  const frame = page.slice(page.indexOf('<iframe id="sh-frame"')).slice(0, 200);
-  assert.match(frame, /sandbox="allow-scripts allow-popups"/);
+  for (const id of ["shelf-screen", "btn-shelf", "k-shelf"]) assert.ok(page.includes(`id="${id}"`), `app.html has no #${id}`);
+  assert.equal(document.getElementById("sh-frame").getAttribute("sandbox"), "allow-scripts allow-popups");
 
   st.shelf = { me: "jonas", repo: "https://github.com/acme/artifacts", pages: [pageOf()] };
   st.shelfWho = "team"; st.shelfState = ""; st.shelfQuery = "";

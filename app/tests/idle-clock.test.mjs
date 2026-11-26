@@ -87,9 +87,8 @@ test("the face carries no animation of its own any more", () => {
   assert.doesNotMatch(page, /\.av-alive[^{]*\{[^}]*animation/, "and no rule hands one back");
 });
 
-test("the collapsed rail holds every face in it still, the new rail included", () => {
+test("the collapsed rail holds every face in it still", () => {
   assert.match(page, /#shell\.rail-min #rail \.av-alive \{ --av-still: 1; \}/);
-  assert.match(page, /<nav id="rail"[^>]*>.*<div id="rail-next">/, "the new rail lives inside #rail");
   assert.match(page, /body\.no-motion \.av-alive/, "calm and away hold them too");
 });
 

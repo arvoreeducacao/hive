@@ -84,7 +84,7 @@ test("picking a chat on the rail carries it as a chat and as its link, with a gh
   assert.equal(row.draggable, true);
   assert.deepEqual(JSON.parse(carried.getData(SEATS_MIME)), ["login-bug"]);
   assert.equal(carried.getData("text/plain"), "hive://seat/login-bug");
-  assert.equal(carried.effectAllowed, "copy");
+  assert.equal(carried.effectAllowed, "copyMove", "a rail row also moves to another block, so the drag allows both");
   assert.match(carried.image.el.textContent, /Bug do login/);
   assert.ok(document.body.classList.contains("chat-dragging"));
   fire("dragend", row, carried);

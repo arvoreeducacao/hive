@@ -619,3 +619,24 @@ export const PROMPT_SUGGESTIONS_ENV = "HIVE_PROMPT_SUGGESTIONS";
 export function promptSuggestionsWanted({ env = process.env, anonymous = false } = {}) {
   return !anonymous && env?.[PROMPT_SUGGESTIONS_ENV] === "1";
 }
+
+export const CODE_MODE_ENV = "HIVE_CODE_MODE";
+export const CLAUDE_CODE_MODE_ENV = "CLAUDE_CODE_EXPERIMENTAL_CODE_MODE";
+export const CODE_MODE_REFUSED = "Code Mode (experimental) isn't available";
+
+export function codeModeWanted({ env = process.env, anonymous = false, bornWith } = {}) {
+  if (anonymous) return false;
+  if (typeof bornWith === "boolean") return bornWith;
+  return env?.[CODE_MODE_ENV] === "1";
+}
+
+export function withCodeMode(settings) {
+  const held = settings && typeof settings === "object" ? settings : {};
+  const env = held.env && typeof held.env === "object" ? held.env : {};
+  return { ...held, env: { ...env, [CLAUDE_CODE_MODE_ENV]: "1" } };
+}
+
+export function codeModeRefusal(text) {
+  const line = String(text || "").split("\n").find((one) => one.includes(CODE_MODE_REFUSED));
+  return line ? line.replace(/^Warning:\s*/, "").trim() : "";
+}

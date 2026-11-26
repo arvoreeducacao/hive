@@ -11,7 +11,6 @@ const CODEX = [
 ];
 
 function seat(name) {
-  document.body.classList.add("experience-next");
   const tile = document.createElement("div");
   tile.className = "tile";
   const host = document.createElement("div");
@@ -23,8 +22,7 @@ function seat(name) {
 }
 
 function clear() {
-  for (const stray of document.querySelectorAll(".tile, .sv-menu, .sv-scrim")) stray.remove();
-  document.body.classList.remove("experience-next");
+  for (const stray of document.querySelectorAll(".tile, .sv-menu")) stray.remove();
 }
 
 function heldFetch() {
@@ -46,26 +44,6 @@ test("opening the model picker already asks the other providers for their models
   const e = seat("skeleton-ask");
   openSeatPicker(e, "model");
   assert.deepEqual(net.asked, ["/api/catalog?agent=codex"], "the rail's other provider is fetched before anyone clicks it");
-  closeSeatPicker(e, true);
-  clear();
-});
-
-test("a provider still loading shows rows of halftone in place of the models", async () => {
-  clear();
-  st.providers = [{ id: "claude", ready: true }, { id: "codex", ready: true }];
-  const net = heldFetch();
-  const e = seat("skeleton-rows");
-  openSeatPicker(e, "model");
-  e.menu.el.querySelectorAll(".sv-rail-btn")[1].click();
-  const skeleton = e.menu.el.querySelector(".sv-skeleton");
-  assert.ok(skeleton, "no bare loading line that collapses the menu");
-  assert.equal(skeleton.getAttribute("aria-busy"), "true");
-  assert.ok(skeleton.querySelectorAll(".sv-skel-row").length >= 4);
-  assert.equal(skeleton.dataset.rows, String(skeleton.querySelectorAll(".sv-skel-row").length));
-  net.answerAll();
-  await settle();
-  assert.equal(e.menu.el.querySelector(".sv-skeleton"), null);
-  assert.equal(e.menu.el.querySelectorAll(".sv-row").length, 2);
   closeSeatPicker(e, true);
   clear();
 });

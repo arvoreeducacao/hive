@@ -316,3 +316,44 @@ test("a pull request link outside any chat, or a link that is not a pull request
   assert.deepEqual(menus.prMenuItems("https://github.com/o/r/pulls", { name: "a" }), []);
   assert.equal(menus.pullKeyOf("https://github.com/o/r/pull/12/files#diff"), "o/r#12");
 });
+
+test("the menu wears the tone of the place it opened from, names itself only when told, and leaves nothing behind when it closes", () => {
+  const owner = document.createElement("button");
+  const toned = document.createElement("div");
+  toned.dataset.tone = "warm";
+  toned.append(owner);
+  document.body.append(toned);
+  try {
+    menus.openContextMenu([{ label: "um", run: () => ({ ok: true }) }, { separator: true }, { label: "dois", hint: "atalho", disabled: true, run: () => ({ ok: true }) }], { x: 10, y: 20, owner });
+    assert.equal(document.querySelectorAll(".md-menu.md-ctx").length, 1);
+    assert.equal(shown().dataset.tone, "warm");
+    assert.equal(shown().hasAttribute("aria-label"), false, "a menu opened with no label still says one");
+    assert.deepEqual([...shown().children].map((one) => one.className || one.tagName), ["BUTTON", "md-ctx-sep", "BUTTON"]);
+    const [first, last] = shown().querySelectorAll("button");
+    assert.equal(first.tabIndex, -1);
+    assert.equal(first.getAttribute("role"), "menuitem");
+    assert.equal(last.disabled, true);
+    assert.equal(last.getAttribute("aria-disabled"), "true");
+    assert.equal(last.querySelector(".md-ctx-hint").textContent, "atalho");
+    const swallowed = new MouseEvent("contextmenu", { bubbles: false, cancelable: true });
+    shown().dispatchEvent(swallowed);
+    assert.equal(swallowed.defaultPrevented, true, "a right click on the menu itself opened the browser's menu");
+    menus.closeContextMenu();
+    assert.equal(document.querySelector(".md-ctx"), null, "the closed menu stayed in the page");
+  } finally {
+    menus.closeContextMenu();
+    toned.remove();
+  }
+});
+
+test("opening a second menu replaces the first, so only one is ever in the page", () => {
+  const items = [{ label: "um", run: () => ({ ok: true }) }];
+  menus.openContextMenu(items, { x: 1, y: 1, label: "primeiro" });
+  menus.openContextMenu(items, { x: 2, y: 2, label: "segundo" });
+  try {
+    assert.equal(document.querySelectorAll(".md-menu.md-ctx").length, 1);
+    assert.equal(shown().getAttribute("aria-label"), "segundo");
+  } finally {
+    menus.closeContextMenu();
+  }
+});

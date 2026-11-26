@@ -185,20 +185,3 @@ test("in a narrow window the thread takes the chat's room instead of vanishing",
   assert.equal(/\.tile\.threading \.thread \{ display: none; \}/.test(narrow), false);
 });
 
-test("in the new Hive a seat in the mosaic starts with its side open, and folding it is remembered", () => {
-  const tile = tileOf();
-  unfolded.clear();
-  sidesShut.clear();
-  st.open = null;
-  document.body.classList.add("experience-next");
-  try {
-    paintFold("mosaic-seat", tile.el);
-    assert.equal(tile.folded(), false);
-    toggleFold("mosaic-seat");
-    assert.equal(sideShut("mosaic-seat"), true);
-    assert.equal(statusFolded("mosaic-seat"), true);
-  } finally {
-    document.body.classList.remove("experience-next");
-    sidesShut.clear();
-  }
-});

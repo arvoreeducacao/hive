@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const HERE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SERVER = readFileSync(join(HERE, "server.mjs"), "utf8");
-const CLIENT = readFileSync(join(HERE, "src/app/history.js"), "utf8");
 
 function cut(text, name, kind = "async function") {
   const at = text.indexOf(`${kind} ${name}(`);
@@ -58,17 +57,7 @@ test("an asleep pod does not stop the archive from being expired", async () => {
   assert.equal(histCache.at, 0);
 });
 
-test("the sync button asks the archive for a scan, not for the snapshot", () => {
-  const body = cut(CLIENT, "forceSync");
-  assert.match(body, /pullHistory\(true, true\)/, "the button refreshes from the cache it just invalidated");
-  assert.match(body, /await pullHistory/, "the button stops before the list it promised to rebuild");
-  assert.doesNotMatch(body, /catch\s*\{\s*\}/, "a sync that failed still looks exactly like one that worked");
-  assert.match(body, /histSyncBusy/, "the button can be pressed again while the first press is still running");
-});
-
-test("a fresh read reaches the fetch as a query the route reads", () => {
-  const body = cut(CLIENT, "pullHistory", "function");
-  assert.match(body, /"\/api\/archive\?fresh=1"/, "nothing in the client ever asks for a fresh scan");
+test("the route reads a fresh read off the query", () => {
   const routes = readFileSync(join(HERE, "routes/archive.mjs"), "utf8");
   assert.match(routes, /fresh: url\.searchParams\.get\("fresh"\) === "1"/, "the route drops the ask on the floor");
 });

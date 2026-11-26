@@ -1,5 +1,6 @@
+import { chatDetailsView, mountDetailsSwitch } from "../views.js";
 import { render } from "./arrange.js";
-import { esc, phrase, st } from "./core.js";
+import { esc, phrase, solidMounts, st } from "./core.js";
 import { registerChatControl } from "./chat-bar.js";
 import { openWebPage } from "./chat-and-panes.js";
 import { keyHint } from "./leader-key.js";
@@ -24,7 +25,9 @@ const DETAIL_ITEMS = [
   { id: "usage", label: "Usage limits", on: false }
 ];
 
-const card = { node: null, name: "", anchor: null, menu: "", menuAt: null, copied: "", trouble: "" };
+const card = { view: null, name: "", anchor: null, menu: "", menuAt: null, copied: "", trouble: "" };
+
+let usageSwitch = null;
 
 
 function chosenItems() {
@@ -59,13 +62,13 @@ const resetDetailsItems = () => keepItems({});
 
 const itemsAtDefault = () => DETAIL_ITEMS.every((item) => itemOn(item.id) === item.on);
 
-function paintUsageSwitch() {
-  const flip = document.getElementById("btn-details-usage");
-  if (!flip) return;
+function usageSwitchModel() {
   const on = itemOn("usage");
-  flip.textContent = on ? phrase("on") : phrase("off");
-  flip.classList.toggle("on", on);
-  flip.setAttribute("aria-pressed", String(on));
+  return { on, said: on ? phrase("on") : phrase("off") };
+}
+
+function paintUsageSwitch() {
+  usageSwitch?.show(usageSwitchModel());
 }
 
 function freshLimits() {
@@ -83,7 +86,7 @@ const seatOf = (name) => (st.data?.sessions || []).find((one) => one.name === na
 const local = (s) => !!s && s.where === "local";
 
 const repaint = () => {
-  if (card.node) paintCard();
+  if (card.view) paintCard();
   else render();
 };
 
@@ -128,22 +131,10 @@ const machineOf = () => phrase("This computer");
 
 const count = (n) => Number(n || 0).toLocaleString("en-US");
 
-function rowHtml({ icon, label, end = "", act = "", title = "", data = "" }) {
-  const body = `${lucide(icon, "cd-i")}<span class="cd-label">${esc(label)}</span>${end}`;
-  const tip = title ? ` title="${esc(title)}"` : "";
-  return act
-    ? `<button type="button" class="cd-row" data-act="${esc(act)}"${data}${tip}>${body}</button>`
-    : `<div class="cd-row cd-still"${tip}>${body}</div>`;
+function copyOf(act, label) {
+  const done = card.copied === act;
+  return { act, label, title: done ? phrase("Copied") : label, icon: done ? "check" : "copy" };
 }
-
-const sectionHtml = (rows, label) => (rows ? `<section class="cd-sec" aria-label="${esc(label)}">${rows}</section>` : "");
-
-function copyButtonHtml(act, label, view = card) {
-  const done = view.copied === act;
-  return `<button type="button" class="cd-ib" data-act="${esc(act)}" aria-label="${esc(label)}" title="${esc(done ? phrase("Copied") : label)}">${lucide(done ? "check" : "copy")}</button>`;
-}
-
-const lineHtml = (row, tail) => `<div class="cd-line">${row}${tail}</div>`;
 
 function prSaid(p) {
   if (p.state === "merged") return phrase("merged");
@@ -157,31 +148,29 @@ function prSaid(p) {
 }
 
 function prFlag(p) {
-  if (p.state === "merged" || p.state === "closed") return "";
-  if (p.conflict || p.ci === "failed") return lucide("circleX", "cd-flag bad");
-  if (p.ci === "pending" || p.ci === "running") return lucide("circleDashed", "cd-flag");
-  return "";
+  if (p.state === "merged" || p.state === "closed") return null;
+  if (p.conflict || p.ci === "failed") return { icon: "circleX", class: "cd-flag bad" };
+  if (p.ci === "pending" || p.ci === "running") return { icon: "circleDashed", class: "cd-flag" };
+  return null;
 }
 
-function prRowHtml(p) {
+function prOf(p) {
   const number = `#${String(p.tag || "").split("#").pop()}`;
-  const tip = [p.title || p.tag, [number, prSaid(p)].filter(Boolean).join(" · ")].join("\n");
-  return `<button type="button" class="cd-row cd-pr pr-${esc(p.state || "open")}" data-act="cd-pr" data-pr="${esc(p.key)}" title="${esc(tip)}">${lucide(PR_ICONS[p.state] || PR_ICONS.open, "cd-i")}<span class="cd-label">${esc(p.title || p.tag)}</span>${prFlag(p)}</button>`;
+  const title = [p.title || p.tag, [number, prSaid(p)].filter(Boolean).join(" · ")].join("\n");
+  return { key: String(p.key), state: p.state || "open", icon: PR_ICONS[p.state] || PR_ICONS.open, label: String(p.title || p.tag), title, flag: prFlag(p) };
 }
 
 function changesEnd(said) {
-  if (!said || said.state !== "ok") return "";
+  if (!said || said.state !== "ok") return null;
   const added = (said.files || []).reduce((sum, file) => sum + (file.added || 0), 0);
   const removed = (said.files || []).reduce((sum, file) => sum + (file.removed || 0), 0);
-  if (!said.files?.length) return `<span class="cd-end cd-muted">${esc(phrase("clean"))}</span>`;
-  return `<span class="cd-end cd-stat"><span class="add">+${esc(count(added))}</span> <span class="del">−${esc(count(removed))}</span></span>`;
+  if (!said.files?.length) return { clean: phrase("clean") };
+  return { added: count(added), removed: count(removed) };
 }
 
-function serverRowHtml(one) {
-  const tip = [String(one.command || "").trim(), phrase("Open in the panel browser")].filter(Boolean).join("\n");
-  const open = `<button type="button" class="cd-row" data-act="cd-server-open" data-url="${esc(one.url)}" title="${esc(tip)}">${lucide("globe", "cd-i")}<span class="cd-label">localhost:${esc(one.port)}</span></button>`;
-  const stop = `<button type="button" class="cd-ib cd-stop" data-act="cd-server-stop" data-pid="${esc(one.pid)}" aria-label="${esc(phrase("Stop localhost:{port}", { port: one.port }))}" title="${esc(phrase("Stop this server"))}">${lucide("stop")}</button>`;
-  return lineHtml(open, stop);
+function serverOf(one) {
+  const title = [String(one.command || "").trim(), phrase("Open in the panel browser")].filter(Boolean).join("\n");
+  return { key: String(one.pid), pid: one.pid, url: one.url, label: `localhost:${one.port}`, title, stop: phrase("Stop localhost:{port}", { port: one.port }), stopTitle: phrase("Stop this server") };
 }
 
 function accountOfChat(s) {
@@ -198,115 +187,97 @@ function windowName(one) {
   return phrase("Week");
 }
 
-function usageRowHtml(one) {
+function usageWindowOf(one, at) {
   const used = Math.max(0, Math.min(100, Math.round(Number(one.percent) || 0)));
-  const heat = limitHeat(used);
   const back = one.resets_at ? limitWhen(one.resets_at) : "";
   const said = phrase("{label}: {n}% used", { label: limitLabel(one), n: used });
-  const tip = [said, back ? phrase("resets {n}", { n: back }) : "", phrase("Open usage")].filter(Boolean).join("\n");
-  return `<button type="button" class="cd-use${heat ? ` ${heat}` : ""}" data-act="cd-usage" aria-label="${esc(said)}" title="${esc(tip)}"><span class="cd-use-l">${esc(windowName(one))}</span><span class="cd-use-bar" style="--used:${used}%"><i></i></span><span class="cd-use-v">${used}%</span></button>`;
+  const title = [said, back ? phrase("resets {n}", { n: back }) : "", phrase("Open usage")].filter(Boolean).join("\n");
+  return { key: String(at), heat: limitHeat(used) || "", label: windowName(one), used, said, title };
 }
 
-function usageHtml(s) {
+function usageOf(s) {
   const row = accountOfChat(s);
-  if (!row) return "";
+  if (!row) return null;
   const windows = row.limits || [];
-  if (!windows.length) return `<div class="cd-uses"><button type="button" class="cd-use" data-act="cd-usage" title="${esc(accountSaid(row))}"><span class="cd-use-l">${esc(phrase("Limits"))}</span><span class="cd-use-v cd-wide">${esc(phrase("unavailable"))}</span></button></div>`;
-  return `<div class="cd-uses">${windows.map(usageRowHtml).join("")}</div>`;
+  if (!windows.length) return { none: { title: accountSaid(row), label: phrase("Limits"), value: phrase("unavailable") }, windows: [] };
+  return { none: null, windows: windows.map(usageWindowOf) };
 }
 
-function itemsMenuHtml(s) {
-  if (card.menu !== "items") return "";
-  const at = card.menuAt || { x: 0, y: 0 };
+function itemsMenuOf(s) {
+  if (card.menu !== "items") return null;
   const copies = [
     pathOf(s) ? ["cd-copy-path", phrase("Copy path")] : null,
     branchOf(s) ? ["cd-copy-branch", phrase("Copy branch")] : null,
     ["cd-copy-id", phrase("Copy chat ID")]
-  ].filter(Boolean).map(([act, label]) => `<button type="button" role="menuitem" class="cd-pop-i" data-act="${act}"><span class="cd-tick" aria-hidden="true"></span><span>${esc(label)}</span>${card.copied === act ? lucide("check") : ""}</button>`).join("");
-  const checks = DETAIL_ITEMS.map((item) => `<button type="button" role="menuitemcheckbox" aria-checked="${itemOn(item.id)}" class="cd-pop-i" data-act="cd-item" data-item="${esc(item.id)}"><span class="cd-tick" aria-hidden="true">${itemOn(item.id) ? lucide("check") : ""}</span><span>${esc(phrase(item.label))}</span></button>`).join("");
-  const reset = `<button type="button" role="menuitem" class="cd-pop-i" data-act="cd-items-reset"${itemsAtDefault() ? ' aria-disabled="true"' : ""}><span class="cd-tick" aria-hidden="true"></span><span>${esc(phrase("Reset to default"))}</span></button>`;
-  return `<div class="cd-pop cd-ctx" role="menu" aria-label="${esc(phrase("Chat details"))}" style="left:${Math.round(at.x)}px;top:${Math.round(at.y)}px">${copies}<hr><div class="cd-pop-h">${esc(phrase("Show in chat details"))}</div>${checks}<hr>${reset}</div>`;
+  ].filter(Boolean).map(([act, label]) => ({ key: act, act, label, done: card.copied === act }));
+  const checks = DETAIL_ITEMS.map((item) => ({ key: item.id, id: item.id, label: phrase(item.label), on: itemOn(item.id) }));
+  return { label: phrase("Chat details"), at: card.menuAt || { x: 0, y: 0 }, copies, head: phrase("Show in chat details"), checks, reset: { label: phrase("Reset to default"), disabled: itemsAtDefault() } };
 }
 
-function openerHtml(s, view = card) {
-  if (!local(s)) return "";
+function openerOf(s) {
+  if (!local(s)) return null;
   const best = preferredOpener();
-  if (!best) return "";
+  if (!best) return null;
   const keys = keyHint("openIn");
   const said = phrase("Open in {app}", { app: best.name });
-  const list = view.menu === "open" ? `<div class="cd-pop" role="menu">${openersHere().map((one) => `<button type="button" role="menuitemradio" aria-checked="${one.id === best.id}" class="cd-pop-i" data-act="cd-open-with" data-app="${esc(one.id)}"><span>${esc(one.name)}</span>${one.id === best.id ? `<kbd>${esc(keys)}</kbd>` : ""}</button>`).join("")}</div>` : "";
-  return `<div class="cd-open"><button type="button" class="cd-open-main" data-act="cd-open" title="${esc(`${said} (${keys})`)}">${lucide("external", "cd-i")}<span>${esc(said)}</span></button><button type="button" class="cd-open-pick" data-act="cd-open-menu" aria-haspopup="menu" aria-expanded="${view.menu === "open"}" aria-label="${esc(phrase("Choose the app"))}">${lucide("chevronDown")}</button>${list}</div>`;
+  return { said, title: `${said} (${keys})`, keys, pick: phrase("Choose the app"), open: card.menu === "open", apps: openersHere().map((one) => ({ key: String(one.id), id: one.id, name: one.name, best: one.id === best.id })) };
 }
 
-const serversHtml = (s) => serversOf(s).map(serverRowHtml).join("");
-
-function workspaceHtml(s, cloud) {
+function workspaceOf(s, cloud) {
   const tree = (s.trees || []).find((one) => one?.path);
   const path = pathOf(s);
-  const machine = rowHtml({ icon: cloud ? "cloud" : "laptop", label: cloud ? phrase("Server") : machineOf(), title: phrase("Where this chat runs") });
   const folder = tree
-    ? rowHtml({ icon: "worktree", label: phrase("Worktree"), title: tree.path })
-    : rowHtml({ icon: "folder", label: (path || "").replace(/^\/Users\/[^/]+/, "~") || phrase("No folder"), title: path });
-  return machine + (path ? lineHtml(folder, copyButtonHtml("cd-copy-path", phrase("Copy path"))) : folder);
+    ? { icon: "worktree", label: phrase("Worktree"), title: tree.path }
+    : { icon: "folder", label: (path || "").replace(/^\/Users\/[^/]+/, "~") || phrase("No folder"), title: path };
+  return {
+    machine: { icon: cloud ? "cloud" : "laptop", label: cloud ? phrase("Server") : machineOf(), title: phrase("Where this chat runs") },
+    folder,
+    copy: path ? copyOf("cd-copy-path", phrase("Copy path")) : null
+  };
 }
 
-function cardHtml(s) {
-  const cloud = s.where === "cloud";
+function versionOf(s, cloud) {
   const said = itemOn("changes") && (s.cwd || cloud) ? changesOf(s) : null;
   const branch = itemOn("branch") ? branchOf(s) : "";
-  const prs = itemOn("branch") ? (st.prs || []).filter((p) => p.session === s.name && !p.error) : [];
-  const version = [
-    branch ? lineHtml(rowHtml({ icon: "branch", label: branch, title: branch }), copyButtonHtml("cd-copy-branch", phrase("Copy branch"))) : "",
-    prs.map(prRowHtml).join(""),
-    said ? rowHtml({ icon: "diff", label: phrase("Changes"), end: changesEnd(said), act: "cd-diff", title: phrase("Uncommitted changes in this chat's folder") }) : ""
-  ].join("");
-  const sections = [
-    sectionHtml([itemOn("workspace") ? workspaceHtml(s, cloud) : "", itemOn("openIn") ? openerHtml(s) : ""].join(""), phrase("Workspace")),
-    sectionHtml(version, phrase("Version control")),
-    itemOn("servers") ? sectionHtml(serversHtml(s), phrase("Servers")) : "",
-    itemOn("usage") ? sectionHtml(usageHtml(s), phrase("Usage limits")) : ""
-  ].join("");
-  const empty = sections ? "" : `<section class="cd-sec"><button type="button" class="cd-row" data-act="cd-items">${lucide("settings", "cd-i")}<span class="cd-label">${esc(phrase("Choose what shows"))}</span></button></section>`;
-  const trouble = card.trouble ? `<p class="cd-trouble" role="alert">${esc(card.trouble)}</p>` : "";
-  return `${sections}${empty}${trouble}${itemsMenuHtml(s)}`;
+  const prs = itemOn("branch") ? (st.prs || []).filter((p) => p.session === s.name && !p.error).map(prOf) : [];
+  const changed = said ? { label: phrase("Changes"), title: phrase("Uncommitted changes in this chat's folder"), end: changesEnd(said) } : null;
+  if (!branch && !prs.length && !changed) return null;
+  return { branch: branch ? { label: branch, copy: copyOf("cd-copy-branch", phrase("Copy branch")) } : null, prs, changes: changed };
 }
 
-function place() {
-  const node = card.node;
-  const anchor = card.anchor?.isConnected ? card.anchor : document.querySelector(`.chat-ctl[data-name="${CSS.escape(card.name)}"] [data-act="chat-details"]`);
-  if (!node) return;
-  const box = anchor?.getBoundingClientRect() || { right: window.innerWidth - 16, bottom: 56 };
-  const width = node.offsetWidth || 280;
-  node.style.left = `${Math.max(8, Math.min(box.right - width, window.innerWidth - width - 8))}px`;
-  node.style.top = `${Math.min(box.bottom + 6, window.innerHeight - 80)}px`;
-  const menu = node.querySelector(".cd-ctx");
-  if (!menu) return;
-  const room = menu.getBoundingClientRect();
-  if (room.right > window.innerWidth - 8) menu.style.left = `${Math.max(8, window.innerWidth - room.width - 8)}px`;
-  if (room.bottom > window.innerHeight - 8) menu.style.top = `${Math.max(8, window.innerHeight - room.height - 8)}px`;
+function cardModel(s) {
+  const cloud = s.where === "cloud";
+  const workspace = itemOn("workspace") ? workspaceOf(s, cloud) : null;
+  const opener = itemOn("openIn") ? openerOf(s) : null;
+  const version = versionOf(s, cloud);
+  const serverRows = itemOn("servers") ? serversOf(s).map(serverOf) : [];
+  const usage = itemOn("usage") ? usageOf(s) : null;
+  const shown = workspace || opener || version || serverRows.length || usage;
+  return {
+    label: phrase("Chat details"),
+    sections: { workspace: phrase("Workspace"), version: phrase("Version control"), servers: phrase("Servers"), usage: phrase("Usage limits") },
+    workspace,
+    opener,
+    version,
+    servers: serverRows,
+    usage,
+    empty: shown ? "" : phrase("Choose what shows"),
+    trouble: card.trouble,
+    menu: itemsMenuOf(s)
+  };
 }
 
-function focusKey(el) {
-  if (!el?.dataset?.act) return "";
-  const named = `[data-act="${CSS.escape(el.dataset.act)}"]`;
-  if (el.dataset.app) return `${named}[data-app="${CSS.escape(el.dataset.app)}"]`;
-  if (el.dataset.pid) return `${named}[data-pid="${CSS.escape(el.dataset.pid)}"]`;
-  if (el.dataset.url) return `${named}[data-url="${CSS.escape(el.dataset.url)}"]`;
-  if (el.dataset.pr) return `${named}[data-pr="${CSS.escape(el.dataset.pr)}"]`;
-  if (el.dataset.item) return `${named}[data-item="${CSS.escape(el.dataset.item)}"]`;
-  return named;
-}
+const detailsButtonOf = (name) => document.querySelector(`.chat-ctl[data-name="${CSS.escape(name)}"] [data-act="chat-details"]`);
+
+const anchorOf = () => (card.anchor?.isConnected ? card.anchor : detailsButtonOf(card.name));
+
+const placeCard = () => card.view?.place(anchorOf());
 
 function paintCard() {
   const s = seatOf(card.name);
   if (!s) return closeCard();
-  const html = cardHtml(s);
-  if (card.node.dataset.h === html) return place();
-  const held = card.node.contains(document.activeElement) ? focusKey(document.activeElement) : "";
-  card.node.innerHTML = html;
-  card.node.dataset.h = html;
-  place();
-  if (held) card.node.querySelector(held)?.focus();
+  card.view.show(cardModel(s));
+  placeCard();
 }
 
 function openCard(name, anchor) {
@@ -317,37 +288,29 @@ function openCard(name, anchor) {
   card.anchor = anchor || null;
   card.menu = "";
   card.trouble = "";
-  const node = document.createElement("div");
-  node.className = "cd-card";
-  node.setAttribute("role", "dialog");
-  node.setAttribute("aria-label", phrase("Chat details"));
-  node.tabIndex = -1;
-  node.addEventListener("click", (event) => cardClick(event));
-  node.addEventListener("contextmenu", (event) => cardMenu(event));
-  document.body.appendChild(node);
-  card.node = node;
   changes.delete(name);
   servers.delete(name);
   if (itemOn("usage")) freshLimits();
-  paintCard();
-  node.focus({ preventScroll: true });
+  card.view = chatDetailsView(cardModel(s), { click: cardClick, menu: openItemsMenu });
+  placeCard();
+  card.view.focusCard({ preventScroll: true });
   anchor?.setAttribute?.("aria-expanded", "true");
   return true;
 }
 
 function closeCard(giveFocusBack = true) {
-  if (!card.node) return false;
+  if (!card.view) return false;
   const anchor = card.anchor;
   const name = card.name;
-  card.node.remove();
-  card.node = null;
+  card.view.close();
+  card.view = null;
   card.menu = "";
   anchor?.setAttribute?.("aria-expanded", "false");
-  if (giveFocusBack) (anchor?.isConnected ? anchor : document.querySelector(`.chat-ctl[data-name="${CSS.escape(name)}"] [data-act="chat-details"]`))?.focus({ preventScroll: true });
+  if (giveFocusBack) (anchor?.isConnected ? anchor : detailsButtonOf(name))?.focus({ preventScroll: true });
   return true;
 }
 
-const toggleCard = (name, anchor) => (card.node && card.name === name ? closeCard() : openCard(name, anchor));
+const toggleCard = (name, anchor) => (card.view && card.name === name ? closeCard() : openCard(name, anchor));
 
 function markCopied(view, act, text) {
   if (!text) return;
@@ -385,107 +348,85 @@ function openInBrowser(name, url) {
   openWebPage(name, url);
 }
 
-function detailsAct(name, hit, view = card) {
+function detailsAct(name, hit) {
   const s = seatOf(name);
-  const act = hit?.dataset?.act || "";
+  const act = hit?.act || "";
   if (!s || !act.startsWith("cd-")) return false;
-  if (act === "cd-open-menu") view.menu = view.menu === "open" ? "" : "open";
-  else if (act === "cd-item") { setDetailsItem(hit.dataset.item, !itemOn(hit.dataset.item)); return true; }
+  if (act === "cd-open-menu") card.menu = card.menu === "open" ? "" : "open";
+  else if (act === "cd-item") { setDetailsItem(hit.item, !itemOn(hit.item)); return true; }
   else if (act === "cd-items-reset") { if (!itemsAtDefault()) resetDetailsItems(); return true; }
-  else if (act === "cd-items") { const box = hit.getBoundingClientRect(); openItemsMenu(box.left, box.bottom + 4); return true; }
+  else if (act === "cd-items") { openItemsMenu(hit.box.left, hit.box.bottom + 4); return true; }
   else if (act === "cd-usage") { closeCard(false); openUsage(); return true; }
-  else if (act === "cd-copy-path") markCopied(view, act, pathOf(s));
-  else if (act === "cd-copy-branch") markCopied(view, act, branchOf(s));
-  else if (act === "cd-copy-id") markCopied(view, act, s.name);
-  else if (act === "cd-open") { openWith(s, preferredOpener()?.id, view); return true; }
-  else if (act === "cd-open-with") { openWith(s, hit.dataset.app, view); return true; }
+  else if (act === "cd-copy-path") markCopied(card, act, pathOf(s));
+  else if (act === "cd-copy-branch") markCopied(card, act, branchOf(s));
+  else if (act === "cd-copy-id") markCopied(card, act, s.name);
+  else if (act === "cd-open") { openWith(s, preferredOpener()?.id); return true; }
+  else if (act === "cd-open-with") { openWith(s, hit.app); return true; }
   else if (act === "cd-diff") { closeCard(false); openSurface(s.name, DIFF_ID); return true; }
-  else if (act === "cd-pr") { closeCard(false); openPrTab(s.name, hit.dataset.pr); return true; }
-  else if (act === "cd-server-open") { openInBrowser(s.name, hit.dataset.url); return true; }
-  else if (act === "cd-server-stop") { stopServer(s, hit.dataset.pid, view); return true; }
+  else if (act === "cd-pr") { closeCard(false); openPrTab(s.name, hit.pr); return true; }
+  else if (act === "cd-server-open") { openInBrowser(s.name, hit.url); return true; }
+  else if (act === "cd-server-stop") { stopServer(s, hit.pid); return true; }
   else return false;
   repaint();
   return true;
 }
 
-function cardClick(event) {
-  event.stopPropagation();
-  const hit = event.target.closest("[data-act]");
+function cardClick(hit) {
   if (!hit) {
     if (card.menu === "items") { card.menu = ""; repaint(); }
     return;
   }
-  const inMenu = !!hit.closest(".cd-ctx");
-  if (card.menu === "items" && !inMenu) card.menu = "";
-  if (!detailsAct(card.name, hit, card)) return;
-  if (inMenu && card.node && card.menu === "items" && !hit.matches('[data-act="cd-item"], [data-act="cd-items-reset"]')) { card.menu = ""; repaint(); card.node?.focus(); return; }
-  if (card.menu && card.node && !inMenu) card.node.querySelector(".cd-pop .cd-pop-i")?.focus();
+  if (card.menu === "items" && !hit.inMenu) card.menu = "";
+  if (!detailsAct(card.name, hit)) return;
+  if (hit.inMenu && card.view && card.menu === "items" && hit.act !== "cd-item" && hit.act !== "cd-items-reset") { card.menu = ""; repaint(); card.view?.focusCard(); return; }
+  if (card.menu && card.view && !hit.inMenu) card.view.focusPop();
 }
 
 function openItemsMenu(x, y) {
-  if (!card.node) return;
+  if (!card.view) return;
   card.menu = "items";
   card.menuAt = { x, y };
   paintCard();
-  card.node.querySelector(".cd-ctx .cd-pop-i")?.focus();
-}
-
-function cardMenu(event) {
-  const target = event.target;
-  const selection = window.getSelection?.();
-  if (target.closest?.("input, textarea, a[href]") || (selection && !selection.isCollapsed && card.node.contains(selection.anchorNode))) return;
-  event.preventDefault();
-  event.stopPropagation();
-  openItemsMenu(event.clientX, event.clientY);
-}
-
-function cardKeys(event) {
-  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-    const all = [...card.node.querySelectorAll(card.menu ? ".cd-pop .cd-pop-i" : "button")];
-    const at = all.indexOf(document.activeElement);
-    const next = all[(at + (event.key === "ArrowDown" ? 1 : -1) + all.length) % all.length];
-    if (next) { event.preventDefault(); next.focus(); }
-  }
+  card.view.focusItemsMenu();
 }
 
 window.addEventListener("keydown", (event) => {
-  if (!card.node || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (!card.view || event.metaKey || event.ctrlKey || event.altKey) return;
   if (event.key === "Escape") {
     event.preventDefault();
     event.stopImmediatePropagation();
-    if (card.menu) { card.menu = ""; repaint(); (card.node.querySelector('[aria-expanded="false"][aria-haspopup="menu"]') || card.node).focus(); return; }
+    if (card.menu) { card.menu = ""; repaint(); card.view.focusPicker(); return; }
     closeCard();
     return;
   }
-  if (!card.node.contains(document.activeElement) || event.key === "Tab") return;
+  if (!card.view.holdsFocus() || event.key === "Tab") return;
   if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
     event.preventDefault();
-    const box = card.node.getBoundingClientRect();
+    const box = card.view.box();
     openItemsMenu(box.left + 12, box.top + 12);
     event.stopPropagation();
     return;
   }
-  cardKeys(event);
+  card.view.step(event, !!card.menu);
   event.stopPropagation();
 }, true);
 
 document.addEventListener("pointerdown", (event) => {
-  if (!card.node || card.node.contains(event.target) || event.target.closest?.('[data-act="chat-details"]')) return;
+  if (!card.view || card.view.owns(event.target) || event.target.closest?.('[data-act="chat-details"]')) return;
   closeCard(false);
 }, true);
 
-window.addEventListener("resize", () => place());
+window.addEventListener("resize", () => placeCard());
 
-document.getElementById("btn-details-usage")?.addEventListener("click", (event) => {
-  event.stopPropagation();
-  setDetailsItem("usage", !itemOn("usage"));
+solidMounts.push(() => {
+  const host = document.querySelector('[data-control="btn-details-usage"] > .set-ctl');
+  if (host) usageSwitch = mountDetailsSwitch(host, usageSwitchModel(), () => setDetailsItem("usage", !itemOn("usage")));
 });
 document.getElementById("help")?.addEventListener("focusin", paintUsageSwitch);
-document.addEventListener("hive:limits", () => { if (card.node && itemOn("usage")) paintCard(); });
-paintUsageSwitch();
+document.addEventListener("hive:limits", () => { if (card.view && itemOn("usage")) paintCard(); });
 
 function detailsButtonHtml(name) {
-  const on = !!card.node && card.name === name;
+  const on = !!card.view && card.name === name;
   const said = keyHint("details") ? `${phrase("Chat details")} (${keyHint("details")})` : phrase("Chat details");
   return `<button type="button" class="cb-btn${on ? " on" : ""}" data-act="chat-details" aria-haspopup="dialog" aria-expanded="${on}" aria-label="${esc(phrase("Chat details"))}" title="${esc(said)}">${lucide("squareMenu")}</button>`;
 }

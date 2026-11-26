@@ -1,7 +1,15 @@
-import { For, Show } from "solid-js";
+import { For, Show, createEffect, on } from "solid-js";
 import { mountView } from "./view.jsx";
 
 function PlaneBar(props) {
+  const bar = () => props.model;
+  createEffect(on(() => [bar().on, bar().x, bar().y, bar().paint], ([shown, x, y]) => {
+    props.host.hidden = !shown;
+    if (!shown) return;
+    const frame = props.host.parentElement?.clientWidth || 0;
+    props.host.style.left = `${Math.max(8, Math.min(x, frame - props.host.offsetWidth - 8))}px`;
+    props.host.style.top = `${Math.max(8, y - props.host.offsetHeight - 8)}px`;
+  }));
   return (
     <Show when={props.model.on}>
       <Show when={props.model.area} fallback={
@@ -57,7 +65,7 @@ function PlaneCard(props) {
 }
 
 export function mountPlaneBar(host, actions) {
-  return mountView(host, PlaneBar, { on: false, area: false, tints: [], tintLabel: "", rename: "", duplicate: "", remove: "" }, { actions });
+  return mountView(host, PlaneBar, { on: false, area: false, tints: [], tintLabel: "", rename: "", duplicate: "", remove: "", x: 0, y: 0, paint: 0 }, { actions, host });
 }
 
 export function mountPlaneMap(host) {

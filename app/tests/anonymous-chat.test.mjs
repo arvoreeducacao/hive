@@ -112,7 +112,7 @@ test("the anonymous driver loads no settings, no MCP, no preamble and keeps no t
   assert.match(block, /options\.strictMcpConfig = true;/);
   assert.match(block, /options\.persistSession = false;/);
   assert.match(driver, /function seatMcpServers\(configDir\) \{\n  if \(anonymous\) return \{\};/);
-  assert.match(driver, /HIVE_REMOTE_CONTROL !== "0" && !anonymous\) extraArgs\["remote-control"\]/);
+  assert.match(driver, /HIVE_REMOTE_CONTROL !== "0" && !anonymous && !codeMode\) extraArgs\["remote-control"\]/);
   assert.match(driver, /if \(anonymous \|\| !sleepAfter\(\)\) return;/);
 });
 

@@ -25,6 +25,7 @@ const SETTING_DEFAULTS = {
   "f-tools": "all",
   "f-compact": "",
   "t-context-usage": false,
+  "t-code-mode": false,
   "t-limits-foot": false,
   "t-agent-updates": true,
   "f-quiet-days": ["2", ""],

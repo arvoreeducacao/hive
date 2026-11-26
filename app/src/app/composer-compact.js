@@ -4,6 +4,7 @@ import { esc, every, phrase } from "./core.js";
 import { composerIcon } from "./composer-icons.js";
 import { boxHasContent, composerMode, onComposerDriver, onComposerMode, onComposerSend, paintComposer } from "./composer-modes.js";
 import { structPool, svLine } from "./structured-seats.js";
+import { putAttr, putHidden, putText, putTitle } from "./dom-writes.js";
 
 const COMPACTION_SUGGESTION_MIN_TOKENS = 200_000;
 
@@ -65,20 +66,20 @@ function paintCompact(e, form, mode) {
   const tokens = mode === "idle" ? compactOffer(e) : 0;
   const chip = tokens ? chipOf(e, form) : form.querySelector(".sv-btns > .cp-compact");
   if (!chip) return;
-  chip.hidden = !tokens;
+  putHidden(chip, !tokens);
   if (!tokens) return;
   const said = compactTokens(tokens);
   const compacts = !e.keepFullHistory;
-  chip.setAttribute("aria-pressed", String(compacts));
-  chip.setAttribute("aria-label", phrase("Compact {tokens} tokens of history before sending", { tokens: said }));
-  chip.title = `${compacts ? phrase("Next send compacts {tokens} tokens first.", { tokens: said }) : phrase("Next send keeps all {tokens} tokens.", { tokens: said })}\n${compacts ? phrase("Click to keep full history") : phrase("Click to compact first")}`;
-  chip.querySelector(".cp-compact-word").textContent = compacts ? phrase("Compact") : phrase("Keep");
-  chip.querySelector(".cp-compact-n").textContent = said;
+  putAttr(chip, "aria-pressed", String(compacts));
+  putAttr(chip, "aria-label", phrase("Compact {tokens} tokens of history before sending", { tokens: said }));
+  putTitle(chip, `${compacts ? phrase("Next send compacts {tokens} tokens first.", { tokens: said }) : phrase("Next send keeps all {tokens} tokens.", { tokens: said })}\n${compacts ? phrase("Click to keep full history") : phrase("Click to compact first")}`);
+  putText(chip.querySelector(".cp-compact-word"), compacts ? phrase("Compact") : phrase("Keep"));
+  putText(chip.querySelector(".cp-compact-n"), said);
   if (!compacts) return;
   const send = form.querySelector(".sv-send");
   if (!send || e.sending) return;
-  send.setAttribute("aria-label", phrase("Compact and send"));
-  send.title = phrase("Summarize {tokens} tokens of history, then send", { tokens: said });
+  putAttr(send, "aria-label", phrase("Compact and send"));
+  putTitle(send, phrase("Summarize {tokens} tokens of history, then send", { tokens: said }));
 }
 
 async function compactThenSend(e, alternate) {

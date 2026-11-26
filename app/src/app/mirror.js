@@ -5,7 +5,7 @@ import { keyLabel } from "./brand-face.js";
 import { svEvent } from "./chat-and-panes.js";
 import { svReset } from "./chat-stretches.js";
 import { svConvShow } from "./conversation-model.js";
-import { $, GLYPH, LABEL, esc, every, experienceNext, phrase, raycastOn, saveUnfolded, solidMounts, st, stateColor, stopBeat, unfolded } from "./core.js";
+import { $, GLYPH, LABEL, esc, every, phrase, raycastOn, saveUnfolded, solidMounts, st, stateColor, stopBeat, unfolded } from "./core.js";
 import { retitlingNow } from "./chat-name.js";
 import { closeTile, goTo, goToBlock, goToSpace, openFromList, pull } from "./focus-navigation.js";
 import { askNewChat, drafts } from "./draft-seat.js";
@@ -461,6 +461,109 @@ function toggleRailFolder(repo) {
 
 const opened = (picked) => (row) => ({ ...row, sel: row.key === picked });
 
+const SUBCHATS_SHUT_KEY = "hive.subchatsShut";
+
+st.subchatsShut = new Set();
+
+try { st.subchatsShut = new Set(JSON.parse(localStorage.getItem(SUBCHATS_SHUT_KEY) || "[]")); } catch {}
+
+const openersNow = () => new Map(st.data.sessions.map((one) => [one.name, one.by || ""]));
+
+function openedUnder(key, opener, openers = openersNow()) {
+  const line = new Set();
+  for (let at = openers.get(key) || ""; at && !line.has(at); at = openers.get(at) || "") {
+    if (at === opener) return true;
+    line.add(at);
+  }
+  return false;
+}
+
+function backToOpener(name) {
+  closeTile();
+  goTo(name);
+}
+
+function toggleSubchats(name) {
+  const inside = !!st.open && openedUnder(st.open, name);
+  if (st.subchatsShut.has(name) && !inside) st.subchatsShut.delete(name);
+  else st.subchatsShut.add(name);
+  try { localStorage.setItem(SUBCHATS_SHUT_KEY, JSON.stringify([...st.subchatsShut])); } catch {}
+  if (inside && st.subchatsShut.has(name)) return backToOpener(name);
+  paintRail();
+}
+
+function openerOnRail(row, shown, openers) {
+  if (row.pinned) return "";
+  const by = openers.get(row.key) || "";
+  if (!by || by === row.key || !shown.has(by)) return "";
+  return openedUnder(by, row.key, openers) ? "" : by;
+}
+
+st.subchatsDoneOpen = new Set();
+
+function toggleSettledSubchats(name) {
+  const inside = !!st.open && seatSection(st.open) === "settled" && st.data.sessions.find((one) => one.name === st.open)?.by === name;
+  if (st.subchatsDoneOpen.has(name) || inside) {
+    st.subchatsDoneOpen.delete(name);
+    if (inside) return backToOpener(name);
+  } else st.subchatsDoneOpen.add(name);
+  paintRail();
+}
+
+function settledSubchatRow(row, picked) {
+  const mark = seatMark(row.key);
+  return {
+    ...row, sel: row.key === picked, quiet: true, picked: isPicked(row.key),
+    why: phrase("settled {when}", { when: ago(new Date(mark.settledAt || Date.now()).toISOString()) }),
+    act: { act: "unsettle", say: phrase("Reopen"), icon: "i-reply" }
+  };
+}
+
+const holdsPicked = (row, picked) => row.key === picked || !!row.kids?.items.some((kid) => holdsPicked(kid, picked)) || !!row.kids?.settled?.items.some((one) => one.key === picked);
+
+function subchatsSum(open, done) {
+  if (open) return phrase(open === 1 ? "1 subchat open" : "{n} subchats open", { n: open });
+  return phrase(done === 1 ? "1 subchat, settled" : "{n} subchats, all settled", { n: done });
+}
+
+function nestSubchats(rows, picked, settled = [], openers = openersNow()) {
+  const shown = new Set(rows.map((row) => row.key));
+  const kidsOf = new Map();
+  const doneOf = new Map();
+  const add = (map, by, row) => map.set(by, [...(map.get(by) || []), row]);
+  for (const row of rows) {
+    const by = openerOnRail(row, shown, openers);
+    if (by) add(kidsOf, by, row);
+  }
+  for (const row of settled) {
+    const by = openerOnRail(row, shown, openers);
+    if (by) add(doneOf, by, row);
+  }
+  if (!kidsOf.size && !doneOf.size) return rows;
+  const searching = !!st.railQuery.trim();
+  const withKids = (row) => {
+    const kids = (kidsOf.get(row.key) || []).map((kid) => withKids({ ...kid, sel: kid.key === picked }));
+    const done = doneOf.get(row.key) || [];
+    if (!kids.length && !done.length) return row;
+    const doneHere = done.some((one) => one.key === picked);
+    const open = !st.subchatsShut.has(row.key) || searching || doneHere || kids.some((kid) => holdsPicked(kid, picked));
+    const doneOpen = st.subchatsDoneOpen.has(row.key) || searching || doneHere;
+    return {
+      ...row,
+      kids: {
+        open, items: kids, dots: kids.map((kid) => kid.state),
+        settled: done.length ? { open: doneOpen, say: phrase(done.length === 1 ? "1 settled" : "{n} settled", { n: done.length }), items: doneOpen ? done.map((one) => settledSubchatRow(one, picked)) : [] } : null,
+        sumSaid: subchatsSum(kids.length, done.length),
+        toggleSay: phrase(open ? "Hide its subchats" : "Show its subchats"),
+        groupSaid: phrase("subchats of {who}", { who: row.title || row.key })
+      }
+    };
+  };
+  return rows.filter((row) => !openerOnRail(row, shown, openers)).map(withKids);
+}
+
+const railOrder = (items) => items.flatMap((it) => [it, ...(it.kids?.open ? [...railOrder(it.kids.items), ...(it.kids.settled?.items || [])] : [])]);
+
 function projectOf(name) {
   const seat = st.data.sessions.find((one) => one.name === name);
   const repo = (seat?.trees || []).find((tree) => tree?.repo)?.repo;
@@ -490,7 +593,7 @@ function blockGroups(rows, picked) {
     const n = blockNumber(i);
     const block = phrase("block {n}", { n });
     groups.push({
-      key: b.id || `b${i}`, i: mine ? i : -1, here, items,
+      key: b.id || `b${i}`, i: mine ? i : -1, to: i, here, items,
       label: mine ? block : `${spaceName(spaceOf(b.ws))} · ${block}`,
       keys: mine && n <= 9 && st.keys.block ? keyLabel(st.keys.block, n) : ""
     });
@@ -540,10 +643,14 @@ function workingGroup(working, picked) {
 
 function railGroups(rows, picked) {
   const q = st.railQuery.trim();
-  const shelved = (id) => rows.filter((row) => seatSection(row.key) === id);
+  const openers = openersNow();
+  const awake = new Set(rows.filter((row) => !["snoozed", "settled"].includes(seatSection(row.key))).map((row) => row.key));
+  const settledKids = rows.filter((row) => seatSection(row.key) === "settled" && openerOnRail(row, awake, openers));
+  const tucked = new Set(settledKids.map((row) => row.key));
+  const shelved = (id) => rows.filter((row) => seatSection(row.key) === id && !tucked.has(row.key));
   const shelves = [shelfGroup("snoozed", shelved("snoozed"), picked, q), shelfGroup("settled", shelved("settled"), picked, q)].filter(Boolean);
   const kept = new Set(shelves.flatMap((g) => shelved(g.shelf).map((row) => row.key)));
-  const marked = rows.filter((row) => !kept.has(row.key)).map(markedRow);
+  const marked = nestSubchats(rows.filter((row) => !kept.has(row.key) && !tucked.has(row.key)).map(markedRow), picked, settledKids, openers);
   const pinned = marked.filter((row) => row.pinned);
   const unpinned = marked.filter((row) => !row.pinned);
   const working = st.threadRules.workingSection ? unpinned.filter((row) => WORKING_STATES.has(row.state)) : [];
@@ -609,7 +716,7 @@ function raycastRailViewModel() {
   });
   const picked = st.mirrorDev ? "" : st.open || activeItems()[st.focus]?.key || "";
   const groups = railGroups(found, picked);
-  const order = groups.flatMap((g) => g.items);
+  const order = groups.flatMap((g) => railOrder(g.items));
   st.railCursor = Math.max(0, Math.min(st.railCursor, order.length - 1));
   if (q && order.length) order[st.railCursor].cursor = true;
   const parked = parkedRailModel(q, now);
@@ -637,7 +744,7 @@ function teamFound(q) {
 }
 
 function railKeys() {
-  return (railShown?.groups || []).flatMap((g) => g.items.map((it) => it.key));
+  return (railShown?.groups || []).flatMap((g) => railOrder(g.items).map((it) => it.key));
 }
 
 function showOnRail(where) {
@@ -753,7 +860,7 @@ function byBlockThenPane(a, b) {
 function railViewModel() {
   if (raycastOn()) return raycastRailViewModel();
   const groups = [];
-  if (!experienceNext()) for (const g of [
+  for (const g of [
     { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
     { key: "local", label: phrase("local · your machine"), icon: "i-local" }
   ]) {
@@ -841,6 +948,10 @@ $("rail-sessions").addEventListener("click", (e) => {
     leaveMirror();
     return void document.dispatchEvent(new CustomEvent("hive:open-terminal", { detail: { name: term.dataset.terminalOf } }));
   }
+  const kids = e.target.closest("[data-kids-toggle]");
+  if (kids) return toggleSubchats(kids.dataset.kidsToggle);
+  const kidsDone = e.target.closest("[data-kids-done]");
+  if (kidsDone) return toggleSettledSubchats(kidsDone.dataset.kidsDone);
   if (e.target.closest("[data-hidden-toggle]")) return setHiddenOpen(!st.hiddenOpen);
   if (raycastOn()) {
     const block = e.target.closest(".group-title[data-i]");
@@ -855,6 +966,71 @@ $("rail-sessions").addEventListener("click", (e) => {
   leaveMirror();
   openFromList(item.dataset.name);
 });
+
+const railBlockTitle = (ev) => ev.target.closest?.(".rail-blk[data-to] > .group-title");
+
+const carriesOnRail = (name) => !soloSeat && !st.mirrorDev && st.blocks.some((b) => b.keys.includes(name));
+
+function railBlockAt(ev) {
+  const title = st.dragSeat ? railBlockTitle(ev) : null;
+  if (!title) return null;
+  const i = Number(title.parentElement.dataset.to);
+  return st.blocks[i] && !st.blocks[i].keys.includes(st.dragSeat) ? { title, i } : null;
+}
+
+function clearRailDrop(keep) {
+  for (const one of $("rail-sessions").querySelectorAll(".group-title.drop")) if (one !== keep) one.classList.remove("drop");
+}
+
+$("rail-sessions").addEventListener("dragstart", (ev) => {
+  const row = ev.target.closest?.(".item[data-name]");
+  if (!row || !raycastOn() || !carriesOnRail(row.dataset.name)) return;
+  st.dragSeat = row.dataset.name;
+  st.dragTook = false;
+  st.dragOutside = false;
+  document.body.classList.add("seat-dragging");
+  row.classList.add("lifting");
+  row.addEventListener("dragend", () => endRailDrag(row), { once: true });
+});
+
+function endRailDrag(row) {
+  row.classList.remove("lifting");
+  st.dragSeat = null;
+  st.dragOutside = false;
+  document.body.classList.remove("seat-dragging");
+  $("blocks").querySelectorAll("button").forEach((b) => b.classList.remove("drop"));
+  clearRailDrop();
+  closeTrade();
+}
+
+$("rail-sessions").addEventListener("dragover", (ev) => {
+  if (!st.dragSeat) return;
+  const at = railBlockAt(ev);
+  clearRailDrop(at?.title);
+  if (!at) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  at.title.classList.add("drop");
+  openTrade(at.i, at.title, { beside: true });
+});
+
+$("rail-sessions").addEventListener("dragleave", (ev) => {
+  const title = railBlockTitle(ev);
+  if (!title || title.contains(ev.relatedTarget) || tradeBox?.contains(ev.relatedTarget)) return;
+  title.classList.remove("drop");
+});
+
+$("rail-sessions").addEventListener("drop", (ev) => {
+  const at = railBlockAt(ev);
+  clearRailDrop();
+  if (!at) return;
+  ev.preventDefault();
+  st.dragTook = true;
+  landOnBlock(st.dragSeat, at.i);
+  closeTrade();
+});
+
+document.addEventListener("dragend", () => clearRailDrop(), true);
 
 document.addEventListener("hive:marks", () => {
   render();
@@ -1195,7 +1371,7 @@ function closeTrade() {
   st.tradeOn = -1;
 }
 
-function openTrade(i, tab) {
+function openTrade(i, tab, { beside = false } = {}) {
   if (st.tradeOn === i) return;
   closeTrade();
   const keys = seatsToTradeOn(i, st.dragSeat);
@@ -1211,12 +1387,12 @@ function openTrade(i, tab) {
         <span class="dot ${esc(it?.state || "idle")}"></span>
         <span>${esc(it?.title || it?.name || key)}</span></button>`;
     }).join("") +
-    `<div class="foot">${esc(phrase("dropping on the tab, and not on a name, trades with the last."))}</div>`;
+    `<div class="foot">${esc(phrase(beside ? "dropping on the block's name, and not on a chat, trades with the last." : "dropping on the tab, and not on a name, trades with the last."))}</div>`;
   document.body.appendChild(box);
   tradeBox = box;
   const at = tab.getBoundingClientRect();
-  box.style.left = `${Math.max(8, Math.min(at.left, innerWidth - box.offsetWidth - 8))}px`;
-  box.style.top = `${at.bottom + 6}px`;
+  box.style.left = `${Math.max(8, Math.min(beside ? at.right + 8 : at.left, innerWidth - box.offsetWidth - 8))}px`;
+  box.style.top = `${beside ? Math.max(8, Math.min(at.top - 6, innerHeight - box.offsetHeight - 8)) : at.bottom + 6}px`;
   box.addEventListener("dragover", (ev) => {
     if (!st.dragSeat) return;
     ev.preventDefault();
@@ -1234,4 +1410,4 @@ function openTrade(i, tab) {
   });
 }
 
-export { ARCH_OPEN_KEY, ARCH_SHOWN, HIDDEN_OPEN_KEY, MIRROR_LIVE_TICK, RAIL_SHOWS, RAIL_SHOWS_KEY, archKey, archNoteTimer, archiveSeatNow, cancelParking, parkWhen, wakeParkedNow, armMirrorLive, blockKey, blockTab, blocksSolid, blocksViewModel, closeMirrorChat, closeRailSearch, closeTrade, focusedSeat, forgetMirrorChats, mirrorChat, mirrorChatKey, mirrorReading, mirrorWait, openMirrorChat, openRailCursor, openRailSearch, openTrade, paintBlocks, paintRail, paintTeamRail, pullMirrorLive, railKeys, railSolid, railViewModel, reviveArchived, reviving, sayOnRail, searchRail, setArchOpen, setHiddenOpen, showOnRail, spanOf, stepRailCursor, sweepMirrorChats, teamChatPrefix, teamRailSolid, teamRailViewModel, teamSeatKey, tradeBox, seatsSaid };
+export { ARCH_OPEN_KEY, ARCH_SHOWN, HIDDEN_OPEN_KEY, MIRROR_LIVE_TICK, RAIL_SHOWS, RAIL_SHOWS_KEY, archKey, archNoteTimer, archiveSeatNow, cancelParking, parkWhen, wakeParkedNow, armMirrorLive, blockKey, blockTab, blocksSolid, blocksViewModel, closeMirrorChat, closeRailSearch, closeTrade, focusedSeat, forgetMirrorChats, mirrorChat, mirrorChatKey, mirrorReading, mirrorWait, openMirrorChat, openRailCursor, openRailSearch, openTrade, paintBlocks, paintRail, paintTeamRail, pullMirrorLive, railKeys, railSolid, railViewModel, reviveArchived, reviving, sayOnRail, searchRail, setArchOpen, setHiddenOpen, toggleSubchats, showOnRail, spanOf, stepRailCursor, sweepMirrorChats, teamChatPrefix, teamRailSolid, teamRailViewModel, teamSeatKey, tradeBox, seatsSaid };

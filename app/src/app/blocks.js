@@ -339,7 +339,21 @@ function itemOf(key) {
 
 const ofBlock = (b) => (b ? b.keys.map(itemOf).filter(Boolean) : []);
 
-const activeItems = () => ofBlock(st.blocks[st.block]);
+function subchatOf(key) {
+  const by = st.data.sessions.find((s) => s.name === key)?.by || "";
+  if (!by || by === key) return "";
+  return st.data.sessions.some((s) => s.name === by && !s.of) ? by : "";
+}
+
+function subchatOpen() {
+  if (!st.open || !st.data.sessions.some((s) => s.name === st.open && s.by)) return null;
+  return st.blocks.some((b) => b.keys.includes(st.open)) ? null : itemOf(st.open);
+}
+
+function activeItems() {
+  const alone = subchatOpen();
+  return alone ? [alone] : ofBlock(st.blocks[st.block]);
+}
 
 const stripItems = () => blocksOf(st.space).flatMap((b, lane) => ofBlock(b).map((it, at) => ({ it, lane, at, here: b === st.blocks[st.block] })));
 
@@ -410,12 +424,8 @@ function landOnBlock(key, i, onto) {
   return true;
 }
 
-/* a chat another chat opened lives outside the blocks on purpose — the person did not ask for that
-   tile. Asking to see one is the moment it earns a place: it lands where there is room and, from
-   there on, it is a tile like any other. A seat in a window of its own is not this case: that one
-   comes back through reclaimSeat, which closes the window first. */
 function bringSeatIn(key) {
-  if (detached.has(key)) return false;
+  if (detached.has(key) || subchatOf(key)) return false;
   unhideSeat(key);
   if (st.blocks.some((b) => b.keys.includes(key))) return false;
   if (!st.data.sessions.some((s) => s.name === key && !s.of)) return false;
@@ -474,6 +484,7 @@ function tidy() {
         if (name && alive.has(name)) {
           key = name;
           if (st.open === c) st.open = name;
+          if (subchatOf(name)) continue;
         } else if (!jobs.has(id) && !justCreated.has(id)) continue;
       } else if (c.startsWith("file:")) {
         if (!editors.has(c.slice(5))) continue;
@@ -482,7 +493,7 @@ function tidy() {
       } else if (shelvedAway(c)) {
         shelvedFrom.set(c, b.id);
         continue;
-      } else if (leftForGood(c, alive) || detached.has(c) || hidden.has(c) || st.data.sessions.some((s) => s.name === c && s.of)) continue;
+      } else if (leftForGood(c, alive) || detached.has(c) || hidden.has(c) || subchatOf(c) || st.data.sessions.some((s) => s.name === c && s.of)) continue;
       if (seen.has(key)) continue;
       seen.add(key);
       kept.push(key);
@@ -501,6 +512,7 @@ function tidy() {
   for (const j of jobs.values()) {
     if (seen.has(`job:${j.id}`)) continue;
     if (j.name && seen.has(j.name)) continue;
+    if (j.settled && j.name && alive.has(j.name)) continue;
     /* a chat another chat opened does not take the screen while it is being born, for the same
        reason it does not take it once it is alive: the person did not ask for that tile. It is
        read beside the chat that opened it, and it is one click from the field. */
@@ -555,4 +567,4 @@ function blockTitle(b, items) {
     : phrase("{name} and {n} more seats: {names}", { name: head, n: rest.length, names: rest.join(", ") });
 }
 
-export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, bringShelvedIn, hideSeat, hidden, hiddenUntil, isHidden, shelvedAway, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };
+export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, subchatOf, subchatOpen, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, bringShelvedIn, hideSeat, hidden, hiddenUntil, isHidden, shelvedAway, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };

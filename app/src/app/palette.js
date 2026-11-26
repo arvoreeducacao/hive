@@ -3,9 +3,8 @@ import { closeSpace, hideUntilItEnds, hideUntilItWorks, menuKeys, menuMove, menu
 import { blockNumber, blocksOf, labelOf, ofBlock, openSpace, seatsOf, spaceName, spaceOf } from "./blocks.js";
 import { codeOf, keyLabel, modsMatch, saveConfig, whichAction } from "./brand-face.js";
 import { setAnswered, setSound } from "./chimes-and-notices.js";
-import { $, ACTIONS, ACTION_SAID, DIGIT_ACTIONS, IS_MAC, LABEL, LANGUAGES, esc, experienceNext, phrase, raycastOn, solidMounts, st, stateColor, svgIcon } from "./core.js";
+import { $, ACTIONS, ACTION_SAID, DIGIT_ACTIONS, IS_MAC, LABEL, LANGUAGES, esc, phrase, raycastOn, solidMounts, st, stateColor, svgIcon } from "./core.js";
 import { openChatFind } from "./chat-find.js";
-import { openPrInASeat } from "./page-in-a-seat.js";
 import { baseName, fileKey, openInEditor } from "./files-editor.js";
 import { goTo, goToBlock, goToSpace, releaseKeyboard } from "./focus-navigation.js";
 import { shortDir } from "./history.js";
@@ -720,7 +719,7 @@ function palModel(q) {
     icon: "i-pr",
     name: p.title || p.key,
     ctx: `${p.repo}#${p.number}${p.ci ? ` · ${CI_LABEL[p.ci] || p.ci}` : ""}`,
-    go: () => { if (experienceNext()) return openPrInASeat(p); st.openPr = p.key; openPrs(); }
+    go: () => { st.openPr = p.key; openPrs(); }
   }));
   section(phrase("pull requests"), ranked(reviews).slice(0, 12));
 

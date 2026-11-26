@@ -53,12 +53,11 @@ test("a click on the icon opens the chat with its drawer on the terminal that ru
   assert.equal(net.shells.length, before, "no new shell is opened");
 });
 
-test("in the Novo Hive the tile header carries the same icon, and its click opens the terminal that runs something", async () => {
+test("off the raycast look the tile header carries the same icon, and its click opens the terminal that runs something", async () => {
   const { tiles } = await app("leader-key");
   const wear = (next) => {
     document.body.classList.toggle("experience-raycast", !next);
-    document.body.classList.toggle("experience-next", next);
-    document.dispatchEvent(new CustomEvent("hive:experience", { detail: { experience: next ? "experimental" : "raycast", was: next ? "raycast" : "experimental" } }));
+    document.dispatchEvent(new CustomEvent("hive:experience", { detail: { experience: next ? "current" : "raycast", was: next ? "raycast" : "current" } }));
   };
   wear(true);
   try {

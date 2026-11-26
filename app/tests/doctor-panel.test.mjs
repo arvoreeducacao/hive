@@ -11,7 +11,7 @@ const page = readFileSync(join(HERE, "app.html"), "utf8");
 
 const st = await state();
 const { $ } = await app("core");
-await app("history");
+await app("alerts-button");
 await app("hold-numbers");
 
 test("the panel makes its own home, so no screen can take it away", () => {

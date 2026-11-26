@@ -200,7 +200,7 @@ document.addEventListener("dragstart", (ev) => {
   drag.fromPicks = fromPicks;
   const overlay = OVERLAYS.find((one) => hit.row.closest(one.within));
   drag.leave = overlay?.leave || null;
-  ev.dataTransfer.effectAllowed = "copy";
+  ev.dataTransfer.effectAllowed = "copyMove";
   ev.dataTransfer.setData(SEATS_MIME, JSON.stringify(seats.map((seat) => seat.name)));
   ev.dataTransfer.setData("text/plain", seats.map((seat) => `hive://seat/${seat.name}`).join("\n"));
   drag.ghost = ghostOf(seats);
@@ -234,10 +234,11 @@ document.addEventListener("dragleave", (ev) => {
 
 document.addEventListener("drop", (ev) => {
   if (!carriesSeats(ev)) return;
+  const target = dropTargetOf(ev.target);
+  if (!target) return;
   ev.preventDefault();
   ev.stopPropagation();
   const seats = seatsCarried(ev);
-  const target = dropTargetOf(ev.target);
   const fromPicks = drag.fromPicks;
   markOver(null);
   if (drag.seats.length) endDrag();

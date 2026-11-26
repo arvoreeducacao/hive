@@ -10,7 +10,6 @@ const DOCTOR_CORE = new URL("../doctor/doctor-core.mjs", import.meta.url).href;
 registerHooks({ resolve: (spec, context, next) => next(spec === "/assets/doctor-core.mjs" ? DOCTOR_CORE : spec, context) });
 
 const HERE = fileURLToPath(new URL("..", import.meta.url));
-const next = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
 const top = readFileSync(join(HERE, "assets", "raycast", "top.css"), "utf8");
 
 const st = await state();
@@ -87,7 +86,6 @@ test("the update offer is an icon whose words live in the tooltip and in text on
   assert.ok($("upd-said").classList.contains("sr-only"));
   assert.ok(button.querySelector(".lbl svg.hex"), "the hexagon is what the person sees");
   assert.match(top, /#btn-update\.upd:not\(\.busy, \.held\)::after \{[^}]*background: var\(--blue\)/, "the default visual marks the offer with a blue dot");
-  assert.match(next, /#btn-update\.upd:not\(\.busy, \.held\)::after \{[^}]*background: var\(--blue\)/, "the new hive marks the offer with a blue dot");
   paintUpdate({ behind: 0, mine: {} });
 });
 
@@ -98,8 +96,7 @@ test("the more button is a drawn icon, not a mono letter", () => {
   assert.ok(document.getElementById("i-more"), "the sprite carries the icon");
 });
 
-test("in the new hive the clock only shows up to say the hive stopped answering", () => {
-  assert.match(next, /body\.experience-next #clock:not\(\.lost\) \{ display: none; \}/);
+test("the clock is marked lost while the hive stops answering", () => {
   markHiveReach(false);
   try {
     assert.equal($("clock").classList.contains("lost"), true);

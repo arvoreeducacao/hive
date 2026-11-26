@@ -138,13 +138,46 @@ function RaycastSeat(props) {
           <svg aria-hidden="true"><use href={`#${act().icon}`} /></svg>
         </button>
       )}</Show>
+      <Show when={props.seat.kids}>{(kids) => (
+        <>
+          <Show when={kids().dots.length}>
+            <span class="rkids-sum" title={kids().sumSaid} aria-label={kids().sumSaid}>
+              <For each={kids().dots}>{(state) => <i class={`rc-dot ${state}`} aria-hidden="true"></i>}</For>
+            </span>
+          </Show>
+          <button type="button" class="rkids-toggle" data-kids-toggle={props.seat.name} aria-expanded={kids().open ? "true" : "false"} title={kids().toggleSay} aria-label={kids().toggleSay}>
+            <svg classList={{ caret: true, shut: !kids().open }} aria-hidden="true"><use href="#i-chev" /></svg>
+          </button>
+        </>
+      )}</Show>
     </div>
+  );
+}
+
+function RaycastSeatTree(props) {
+  return (
+    <>
+      <RaycastSeat seat={props.seat} />
+      <Show when={props.seat.kids?.open}>
+        <div class="rail-kids" role="group" aria-label={props.seat.kids.groupSaid}>
+          <For each={props.seat.kids.items}>{(kid) => <RaycastSeatTree seat={kid} />}</For>
+          <Show when={props.seat.kids.settled}>{(done) => (
+            <>
+              <div class="rail-more rail-kids-done" data-kids-done={props.seat.name} role="button" tabindex="-1" aria-expanded={done().open ? "true" : "false"}>
+                <svg classList={{ caret: true, shut: !done().open }} aria-hidden="true"><use href="#i-chev" /></svg>{done().say}
+              </div>
+              <For each={done().items}>{(one) => <RaycastSeat seat={one} />}</For>
+            </>
+          )}</Show>
+        </div>
+      </Show>
+    </>
   );
 }
 
 function RaycastGroup(props) {
   return (
-    <div class="rail-blk" classList={{ cur: props.group.here }}>
+    <div class="rail-blk" classList={{ cur: props.group.here }} data-to={props.group.to >= 0 ? props.group.to : undefined}>
       <Show
         when={props.group.fold}
         fallback={
@@ -172,7 +205,7 @@ function RaycastGroup(props) {
           </div>
         )}
       </Show>
-      <For each={props.group.items}>{(seat) => <RaycastSeat seat={seat} />}</For>
+      <For each={props.group.items}>{(seat) => <RaycastSeatTree seat={seat} />}</For>
       <Show when={props.group.more}><div class="rail-more" data-shelf-more role="button" tabindex="-1">{props.group.more}</div></Show>
     </div>
   );

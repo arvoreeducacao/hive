@@ -412,6 +412,27 @@ function setContextUsage(on) {
   saveConfig({ contextUsage: on }).then((r) => adoptContextUsage(r)).catch(() => {});
 }
 
+function paintCodeMode() {
+  const flip = $("t-code-mode");
+  if (!flip) return;
+  const on = !!st.codeMode;
+  flip.textContent = on ? "on" : "off";
+  flip.classList.toggle("on", on);
+  flip.setAttribute("aria-pressed", on ? "true" : "false");
+  $("s-code-mode-say").textContent = on ? phrase("new Claude chats start in Code Mode") : phrase("new Claude chats start with the ordinary tools");
+}
+
+function adoptCodeMode(r) {
+  st.codeMode = !!r.config?.codeMode;
+  paintCodeMode();
+}
+
+function setCodeMode(on) {
+  st.codeMode = on;
+  paintCodeMode();
+  saveConfig({ codeMode: on }).then((r) => adoptCodeMode(r)).catch(() => {});
+}
+
 function paintAutoUpdateAgents() {
   const flip = $("t-agent-updates");
   if (!flip) return;
@@ -505,4 +526,4 @@ function setDiaryDays(raw) {
   saveConfig({ pruneDiariesAfterDays: diaryDays(raw) }).then((r) => adoptDiaryDays(r)).catch(() => {});
 }
 
-export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptAutoUpdateAgents, paintAutoUpdateAgents, setAutoUpdateAgents, adoptKeepAwake, paintKeepAwake, setKeepAwake, adoptContextUsage, paintContextUsage, setContextUsage, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, hostOf, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };
+export { QUIET_DAYS_DEFAULT, QUIET_DAYS_RANGE, adoptAutoUpdateAgents, paintAutoUpdateAgents, setAutoUpdateAgents, adoptKeepAwake, paintKeepAwake, setKeepAwake, adoptContextUsage, paintContextUsage, setContextUsage, adoptCodeMode, paintCodeMode, setCodeMode, adoptQuietDays, quietDays, setQuietDays, DIARY_DAYS_DEFAULT, adoptDiaryDays, diaryDays, setDiaryDays, AUTOCOMPACT_AUTO, AUTOCOMPACT_RANGE_K, CALM_KEY, visualWorn, whenMotionChanges, DIM_KEY, MENTION, PERSON, SEAT_STATE, adoptAutocompact, adoptCalm, adoptPrefs, autocompactK, calmly, ceilingReachesASeat, nameSlug, hostOf, expandMentions, expandPeople, paintAutocompactReach, paintCalm, paintMachines, paintPhone, paintPrefs, paintShare, palAt, peerChoices, peerHandle, personAwake, personChoices, personHandle, personSays, pickPerson, pickSeat, roomTakesKey, seatHandle, seatLabel, seatSays, seatTakesCeiling, setAutocompact, setAway, setCalm, setPref, shellLineOf, shellModeOf, splitPeerHandle };

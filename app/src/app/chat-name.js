@@ -1,9 +1,9 @@
 import { render } from "./arrange.js";
 import { esc, phrase, st } from "./core.js";
-import { behaviorOn } from "./experience.js";
 import { pull, releaseKeyboard } from "./focus-navigation.js";
 import { tiles } from "./leader-key.js";
 import { nodeOf } from "./seat-menu.js";
+import { putAttr, putTitle } from "./dom-writes.js";
 
 st.renaming = "";
 
@@ -13,7 +13,6 @@ const retitlingNow = (s) => !!s && (!!s.retitling || st.retitlingAsked.has(s.nam
 
 
 function nameHint(s) {
-  if (behaviorOn("titleClick")) return phrase("click to rename this chat");
   if (s.mine) return phrase("the name you wrote — double-click to change it");
   return phrase("double-click to rename this chat");
 }
@@ -30,9 +29,9 @@ function paintName(el, s) {
   slot.classList.toggle("naming", !!s.naming);
   const regenerating = !s.naming && retitlingNow(s);
   slot.classList.toggle("title-regenerating", regenerating);
-  if (regenerating) slot.setAttribute("aria-busy", "true");
-  else slot.removeAttribute("aria-busy");
-  slot.title = s.naming ? phrase("naming this chat in the background — the first words hold the seat until the name lands") : nameHint(s);
+  if (regenerating) putAttr(slot, "aria-busy", "true");
+  else if (slot.hasAttribute("aria-busy")) slot.removeAttribute("aria-busy");
+  putTitle(slot, s.naming ? phrase("naming this chat in the background — the first words hold the seat until the name lands") : nameHint(s));
 }
 
 async function rename(s, written) {

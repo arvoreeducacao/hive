@@ -94,8 +94,3 @@ test("the list is fetched at boot, so the first open has something to paint", ()
   assert.match(boot, /pullHistory\(true\);/, "nothing fetches the archive until somebody opens the panel");
   assert.ok(boot.indexOf("bootSolid();") < boot.indexOf("pullHistory(true);"), "the fetch lands before the panel exists to paint it");
 });
-
-test("the window only says it is reading when it holds no rows at all", () => {
-  const client = readFileSync(join(HERE, "src/app/history.js"), "utf8");
-  assert.match(client, /st\.histLoading = !st\.histSessions\.length;/, "opening the window blanks the list it already had");
-});

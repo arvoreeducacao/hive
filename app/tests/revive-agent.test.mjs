@@ -5,7 +5,6 @@ import { join } from "node:path";
 
 const HERE = new URL("..", import.meta.url).pathname;
 const server = readFileSync(join(HERE, "server.mjs"), "utf8");
-const history = readFileSync(join(HERE, "src/app/history.js"), "utf8");
 const cut = (text, from, to) => {
   const a = text.indexOf(from);
   assert.ok(a >= 0, `${from} is not in the source`);
@@ -37,15 +36,11 @@ test("a revive opens the seat on the agent that started the conversation", () =>
   assert.match(revive, /agent: other \|\| "claude",\n\s+cwd: dir \|\| fallback/, "the fleet forgets which agent the revived seat runs on");
   assert.match(revive, /JSON\.stringify\(\{ session_id: id, \.\.\.\(other \? \{ agent: other, cwd: dir \|\| fallback, \.\.\.\(wanted \? \{ model: wanted, model_id: wanted \} : \{\}\) \} : \{\}\) \}/);
   assert.match(revive, /if \(wanted\) assertSpawnArgs\(\{ model: wanted \}\);/, "a model off a history row reaches the shell unchecked");
-  assert.match(history, /agent: agentOfRow\(s\), model: s\.model \|\| ""/);
 });
 
-test("a revive on the box is never handed a folder from this desk, and the person hears why a revive did not open", () => {
+test("a revive on the box is never handed a folder from this desk", () => {
   const revive = cut(server, "async function reviveSession(", "const PREVIEW_TAIL_BYTES");
   assert.match(revive, /cwd: dir\.startsWith\(`\$\{CLOUD_ROOT\}\/`\) \? dir : ""/, "a synced session's local folder is sent to the box, where it does not exist, and the seat dies on the spot");
-  const reviveAs = cut(history, "async function reviveAs(", "$(\"rh-native\")");
-  assert.match(reviveAs, /catch \(wrong\)/);
-  assert.match(reviveAs, /could not revive it/, "a refused revive is swallowed, and the history panel just sits there");
 });
 
 test("bring-local says plainly that another agent's conversation cannot be copied, instead of hunting a claude transcript", () => {

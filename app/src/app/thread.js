@@ -2,8 +2,7 @@ import { anchorNotes, lineOf, openNotes, plainOf, sideOf } from "/assets/review-
 import { render } from "./arrange.js";
 import { blockWithRoom, itemOf, openBlock, saveBlockAt, saveBlocks } from "./blocks.js";
 import { closeBrowser, closeCockpit, closeDevice, wireLinks } from "./chat-and-panes.js";
-import { $, IS_MAC, LABEL, apiGet, emojiOf, esc, every, experienceNext, messageHtml, phrase, previewOf, raycastOn, solidMounts, st, svgIcon } from "./core.js";
-import { openPrInASeat } from "./page-in-a-seat.js";
+import { $, IS_MAC, LABEL, apiGet, emojiOf, esc, every, messageHtml, phrase, previewOf, raycastOn, solidMounts, st, svgIcon } from "./core.js";
 import { sendToSeat } from "./seat-layout.js";
 import { goTo, openTile, pull, releaseKeyboard, takeKeyboard } from "./focus-navigation.js";
 import { pool } from "./leader-key.js";
@@ -325,7 +324,6 @@ function movePrPanel(target) {
 function reviewInChat(name, key) {
   const p = (key && st.prs.find((x) => x.key === key)) || prOfChat(name);
   if (!p) return;
-  if (experienceNext()) return openPrInASeat(p);
   if (st.cockChat) closeCockpit();
   if (st.webChat) closeBrowser();
   if (st.deviceChat) closeDevice();
@@ -733,8 +731,6 @@ solidMounts.push((hive) => {
           $("pr-url").focus();
           return;
         }
-        const p = experienceNext() && st.prs.find((x) => x.key === key);
-        if (p) return openPrInASeat(p);
         st.openPr = key; st.openFile = null; st.openCheck = ""; paintPrs();
       },
       review: (session, key) => reviewInChat(session, key)

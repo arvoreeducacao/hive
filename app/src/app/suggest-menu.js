@@ -1,14 +1,11 @@
-import { dimYardsUnderScrims } from "./chat-and-panes.js";
 import { editBox } from "./composer-editing.js";
 import { fileIconOf, fileKindOf, fileParts } from "./composer-file-kinds.js";
 import { rankCommands } from "./composer-search.js";
-import { esc, experienceNext, phrase, st, composerShaped } from "./core.js";
+import { esc, phrase, st, composerShaped } from "./core.js";
 import { peerChoices, personChoices, seatHandle, seatLabel } from "./pure-helpers.js";
 import { MENU_MARK, SLASH_FAMILY_NAME, SLASH_FAMILY_ORDER, slashFamily } from "./structured-seats.js";
 import { PR_SETTLE_MS, filterPullRequests, prEmptyText, prRowHtml } from "./pr-mentions.js";
-
-const CARET_GAP = 6;
-const COMPOSER_GAP = 8;
+import { putHidden } from "./dom-writes.js";
 
 const CARET_KEYS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"]);
 
@@ -39,69 +36,10 @@ function suggestMenu({ textarea, suggest, mine, commands, files, prs = null, gro
   let dismissed = null;
   let prTimer = null;
 
-  let scrim = null;
-
-  const dropScrim = () => {
-    scrim?.remove();
-    scrim = null;
-    dimYardsUnderScrims();
-  };
-
-  const raiseScrim = () => {
-    if (scrim?.isConnected || !experienceNext()) return;
-    scrim = document.createElement("div");
-    scrim.className = "sv-scrim";
-    scrim.addEventListener("mousedown", (mev) => {
-      mev.preventDefault();
-      closeMenu();
-    });
-    (suggest.closest(".tile") || suggest.parentElement).appendChild(scrim);
-    dimYardsUnderScrims();
-  };
-
-  const caretLineTop = () => {
-    const ink = textarea.parentElement?.querySelector(".sv-ink");
-    if (!ink) return null;
-    const probe = ink.cloneNode(false);
-    probe.style.visibility = "hidden";
-    const mark = document.createElement("span");
-    mark.textContent = "\u200b";
-    probe.append(document.createTextNode(textarea.value.slice(0, textarea.selectionStart ?? textarea.value.length)), mark);
-    ink.after(probe);
-    const top = mark.getBoundingClientRect().top - textarea.scrollTop;
-    probe.remove();
-    return top;
-  };
-
-  const placeOverCaret = () => {
-    suggest.style.transform = "";
-    suggest.classList.remove("over-text");
-    if (!experienceNext() || suggest.hidden) return;
-    const line = caretLineTop();
-    if (line === null) return;
-    const box = getComputedStyle(textarea);
-    const firstLine = textarea.getBoundingClientRect().top + (parseFloat(box.borderTopWidth) || 0) + (parseFloat(box.paddingTop) || 0);
-    const composer = textarea.closest(".sv-composer");
-    const tray = composer?.querySelector(".sv-attach");
-    const nothingAbove = line <= firstLine + 1 && !(tray && tray.getBoundingClientRect().height > 0);
-    const bottom = suggest.getBoundingClientRect().bottom;
-    const lift = nothingAbove && composer
-      ? composer.getBoundingClientRect().top - COMPOSER_GAP - bottom
-      : line - CARET_GAP - bottom;
-    if (nothingAbove ? Math.abs(lift) < 1 : lift <= 0) return;
-    suggest.style.transform = `translateY(${Math.round(lift)}px)`;
-    if (!nothingAbove) suggest.classList.add("over-text");
-  };
-
-  textarea.addEventListener("scroll", () => { if (menu) placeOverCaret(); });
-
   const closeMenu = () => {
     menu = null;
-    dropScrim();
-    suggest.style.transform = "";
-    suggest.classList.remove("over-text");
-    suggest.hidden = true;
-    suggestKeys.hidden = true;
+    putHidden(suggest, true);
+    putHidden(suggestKeys, true);
     suggestList.innerHTML = "";
   };
 
@@ -137,8 +75,6 @@ function suggestMenu({ textarea, suggest, mine, commands, files, prs = null, gro
     const m = menu;
     if (!m) return closeMenu();
     suggest.hidden = false;
-    raiseScrim();
-    placeOverCaret();
     const raycast = composerShaped();
     if (m.prItems) return renderHashMenu(m, emptyMsg);
     if (!m.items.length && raycast) {

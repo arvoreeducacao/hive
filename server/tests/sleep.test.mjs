@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { sleepVerdict, sleepAfterMs, SLEEP_AFTER_MS, SLEEP_UNWATCHED_MS, rebornArgs, rebornScript, canBeReborn, childrenGone } from "../sleep.mjs";
+import { bootsAsleep, comesBackAsleep, restingState, sleepVerdict, sleepAfterMs, SLEEP_AFTER_MS, SLEEP_UNWATCHED_MS, rebornArgs, rebornScript, canBeReborn, childrenGone } from "../sleep.mjs";
 
 const base = {
   now: 100000,
@@ -162,4 +162,47 @@ test("before a rebirth the driver waits for its children to leave, and gives up 
   let clock = 0;
   const never = async () => ["123"];
   assert.equal(await childrenGone({ pid: 1, graceMs: 1000, list: never, wait: async () => { clock += 600; }, now: () => clock }), false);
+});
+
+test("a chat the hive opens again comes back asleep when it was asleep or idle past the sleep time, so the boot starts no agent for it", () => {
+  const resting = { structured: true, agent: "claude", now: 10_000_000, afterMs: SLEEP_UNWATCHED_MS };
+  assert.equal(bootsAsleep({ ...resting, asleep: true }), true);
+  assert.equal(bootsAsleep({ ...resting, lastActivity: resting.now - SLEEP_UNWATCHED_MS }), true);
+  assert.equal(bootsAsleep({ ...resting, lastActivity: resting.now - 1000 }), false, "a chat that spoke a moment ago is still awake");
+  assert.equal(bootsAsleep({ ...resting, lastActivity: 0 }), false, "without a transcript date nothing says the chat was idle");
+  assert.equal(bootsAsleep({ ...resting, asleep: true, queued: 1 }), false, "a chat with a message waiting has to answer it");
+  assert.equal(bootsAsleep({ ...resting, asleep: true, afterMs: 0 }), false, "sleep turned off keeps every chat awake");
+  assert.equal(bootsAsleep({ ...resting, asleep: true, agent: "codex" }), false, "only the claude driver knows how to be born asleep");
+  assert.equal(bootsAsleep({ ...resting, asleep: true, structured: false }), false, "a terminal chat has no driver to sleep");
+});
+
+test("a chat about to come back is read for its sleep, its waiting messages and when its diary last moved", () => {
+  const dir = mkdtempSync(join(tmpdir(), "resting-"));
+  const metaFile = join(dir, "orca.json");
+  const diary = join(dir, "orca.ndjson");
+  writeFileSync(metaFile, JSON.stringify({ asleep: true, queue: [{ text: "oi" }] }));
+  writeFileSync(diary, "{}\n");
+  const read = restingState({ metaFile, diary });
+  assert.equal(read.asleep, true);
+  assert.equal(read.queued, 1);
+  assert.ok(Math.abs(read.lastActivity - Date.now()) < 60000, "the diary date is not when it last moved");
+  assert.deepEqual(restingState({ metaFile: join(dir, "none.json"), diary: join(dir, "none.ndjson") }), { asleep: false, queued: 0, lastActivity: 0 },
+    "a chat with no record is read as awake, so it comes back as it always did");
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test("the seat a restore brings back is asked about its own session and diary under the state dir", () => {
+  const stateDir = mkdtempSync(join(tmpdir(), "comes-back-"));
+  mkdirSync(join(stateDir, "sessions"));
+  mkdirSync(join(stateDir, "events"));
+  writeFileSync(join(stateDir, "sessions", "orca.json"), JSON.stringify({ asleep: true }));
+  writeFileSync(join(stateDir, "sessions", "lua.json"), JSON.stringify({ asleep: false }));
+  writeFileSync(join(stateDir, "events", "lua.ndjson"), "{}\n");
+  const env = {};
+  assert.equal(comesBackAsleep({ name: "orca", kind: "structured" }, { stateDir, env }), true);
+  assert.equal(comesBackAsleep({ name: "lua", kind: "structured" }, { stateDir, env }), false, "a chat that spoke a moment ago came back asleep");
+  assert.equal(comesBackAsleep({ name: "lua", kind: "structured" }, { stateDir, env, now: Date.now() + SLEEP_UNWATCHED_MS + 1000 }), true);
+  assert.equal(comesBackAsleep({ name: "orca", kind: "structured" }, { stateDir, env: { HIVE_SLEEP_AFTER_MS: "0" } }), false);
+  assert.equal(comesBackAsleep({ name: "orca", kind: "classic" }, { stateDir, env }), false);
+  rmSync(stateDir, { recursive: true, force: true });
 });

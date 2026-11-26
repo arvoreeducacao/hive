@@ -1,11 +1,8 @@
-import { openArtifactTab, openBrowser, openWebPage, webAddress, webOfSeat } from "./chat-and-panes.js";
+import { openArtifactTab, openBrowser, openWebPage, webOfSeat } from "./chat-and-panes.js";
 import { openDraft } from "./draft-seat.js";
-import { $, st } from "./core.js";
-import { closeShelf, pullShelf, shelfLinkTab, shelfOnScreen, shelfPickedProposal, shelfTabsOf } from "./shelf.js";
+import { st } from "./core.js";
+import { closeShelf, pullShelf, shelfLinkTab, shelfOnScreen, shelfPickedProposal } from "./shelf.js";
 import { shelfPageOf, shelfPaneIndex } from "./subagents-dock.js";
-import { chatOfPr } from "./seat-menu.js";
-import { closePrs, prsOnScreen } from "./thread.js";
-import { PR_PAGE_ADDRESS, prPageAddress } from "/assets/pr-page.mjs";
 
 const SEAT_NAME_MAX = 40;
 
@@ -79,40 +76,6 @@ function openProposalInASeat(page, proposal, asked) {
   openWebPage(name, proposal.url);
 }
 
-const tabOnThePr = (web, address) => (web?.tabs || []).find((t) => t.kind !== "artifact" && (t.url === address || String(t.url || "").startsWith(`${address}/`)));
-
-const PR_PAGE = /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+(?:[/?#]|$)/;
-
-const tabOnAnyPr = (web) => (web?.tabs || []).find((t) => t.kind !== "artifact" && (PR_PAGE.test(String(t.url || "")) || PR_PAGE_ADDRESS.test(String(t.url || ""))));
-
-function chatShowing(address) {
-  for (const [name, web] of webOfSeat) if (tabOnThePr(web, address)) return name;
-  return "";
-}
-
-function openPrInASeat(p) {
-  const address = p?.key ? prPageAddress(p.key) : webAddress(p?.url || "");
-  if (!address) return;
-  if (prsOnScreen()) closePrs();
-  const name = chatOfPr(p) || chatShowing(address) || openDraft().key;
-  if (!name) return window.open(address, "_blank");
-  const web = webOfSeat.get(name);
-  const same = tabOnThePr(web, address);
-  if (same) return openWebPage(name, same.url);
-  openWebPage(name, address, tabOnAnyPr(web));
-}
-
 window.hiveOpenPage = openPageInASeat;
 
-$("sh-seat")?.addEventListener("click", () => {
-  const page = (st.shelf?.pages || []).find((one) => one.slug === st.shelfOpen);
-  if (!page) return;
-  const tabs = shelfTabsOf(page);
-  openPageInASeat({
-    slug: page.slug,
-    tab: tabs.includes(st.shelfTab) ? st.shelfTab : "",
-    version: Number(st.shelfVersion) || 0
-  });
-});
-
-export { chatShowing, nameForPage, openPageInASeat, openPrInASeat, pageOnTheShelf, seatOfPage, seatThatPublished, seatYouClickedFrom };
+export { nameForPage, openPageInASeat, pageOnTheShelf, seatOfPage, seatThatPublished, seatYouClickedFrom };

@@ -13,7 +13,7 @@ import "./composer-dictation.js";
 import "./composer-provider.js";
 import { closeAsk, dropAsk, noteAsk } from "./composer-ask.js";
 import { composerDriverNote, composerDriverState, composerSaw, paintComposer, repaintComposers, stopLanded } from "./composer-modes.js";
-import { dressPlanCard, forgetPlan, notePlan } from "./composer-plan.js";
+import { forgetPlan, notePlan } from "./composer-plan.js";
 import { paintQueue } from "./composer-queue.js";
 
 function pruneAsks(e, pending) {
@@ -27,4 +27,4 @@ function composerHeard(e) {
   paintComposer(e);
 }
 
-export { closeAsk, composerDriverNote, composerDriverState, composerHeard, composerSaw, dressPlanCard, forgetPlan, noteAsk, notePlan, paintComposer, paintQueue, pruneAsks, repaintComposers };
+export { closeAsk, composerDriverNote, composerDriverState, composerHeard, composerSaw, forgetPlan, noteAsk, notePlan, paintComposer, paintQueue, pruneAsks, repaintComposers };

@@ -4,7 +4,7 @@ import { app, dom, state, views } from "./dom.mjs";
 
 const st = await state();
 await views();
-const { CLIMB_WAIT, bindFloorShell, climbTo, closeArrange, dressDrag, landOnFloor, openArrange, paintArrange, stopClimb } = await app("arrange");
+const { CLIMB_WAIT, climbTo, closeArrange, dressDrag, landOnFloor, openArrange, paintArrange, stopClimb } = await app("arrange");
 const { $ } = await app("core");
 
 const host = $("arrange");
@@ -30,8 +30,6 @@ function lay(shape) {
 
 function fresh(shape) {
   closeArrange();
-  host.hidden = true;
-  host.innerHTML = "";
   st.LIMIT = 4;
   st.focus = 0;
   st.calmOn = false;
@@ -43,8 +41,7 @@ function fresh(shape) {
   lay(shape || []);
   st.space = "w0";
   st.arrangeFloor = "w0";
-  host.hidden = false;
-  paintArrange();
+  openArrange();
 }
 
 /* happy-dom has no drag payload of its own, so the event carries the same shape the browser gives */

@@ -1,3 +1,4 @@
+import { contextMenuView } from "../views.js";
 import { phrase, st } from "./core.js";
 import { openOutside, openWebPage } from "./chat-and-panes.js";
 import { closeTableMenu, landingOf } from "./markdown-rich.js";
@@ -11,7 +12,6 @@ import { pullPrs } from "./thread.js";
 const WEB_LINK = /^https?:\/\//i;
 const PULL_LINK = /^https?:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/pull\/(\d+)(?:[/?#]|$)/i;
 const FILE_TARGET = ".md-chip[data-kind=file], a.md-file";
-const EDGE = 6;
 const KEY_ECHO_MS = 400;
 
 let menu = null;
@@ -99,7 +99,7 @@ function fileLanding(el) {
   const held = seatHolding(el);
   const seat = { name: el.dataset.seat || held?.name || "", where: el.dataset.where || held?.where || "local" };
   if (!seat.name) return null;
-  if (el.classList.contains("md-chip")) return el.dataset.path ? { seat, rel: el.dataset.path, line: Number(el.dataset.line) || 0 } : null;
+  if (el.matches(".md-chip")) return el.dataset.path ? { seat, rel: el.dataset.path, line: Number(el.dataset.line) || 0 } : null;
   const landing = landingOf(el.dataset.path, seat);
   return landing ? { seat, rel: landing.rel, line: landing.line } : null;
 }
@@ -120,108 +120,44 @@ export function menuTargetOf(node) {
 
 export function closeContextMenu(refocus = false) {
   if (!menu) return;
-  const { el, owner } = menu;
+  const { view, owner } = menu;
   menu = null;
-  el.remove();
+  view.close();
   if (refocus && owner?.isConnected) owner.focus({ preventScroll: true });
 }
 
-function place(el, x, y) {
-  const box = el.getBoundingClientRect();
-  const wide = document.documentElement.clientWidth || innerWidth;
-  const tall = document.documentElement.clientHeight || innerHeight;
-  const left = Math.max(EDGE, Math.min(x, wide - box.width - EDGE));
-  const top = y + box.height + EDGE > tall ? Math.max(EDGE, y - box.height) : y;
-  el.style.left = `${Math.round(left)}px`;
-  el.style.top = `${Math.round(top)}px`;
-}
+const menuModel = (shown) => ({
+  label: shown.label,
+  tone: shown.tone,
+  x: shown.x,
+  y: shown.y,
+  note: shown.note,
+  items: shown.items.map((item, at) => ({ key: String(at), separator: !!item.separator, label: item.label || "", hint: item.hint || "", disabled: !!item.disabled }))
+});
 
-function sayTrouble(el, why) {
-  let note = el.querySelector(".md-ctx-note");
-  if (!note) {
-    note = document.createElement("p");
-    note.className = "md-ctx-note";
-    note.setAttribute("role", "alert");
-    el.append(note);
-  }
-  note.textContent = why;
-}
-
-async function pick(item, el) {
+async function pick(item, view) {
   const byKey = !!menu?.byKey;
   const said = await item.run();
-  if (!menu || menu.el !== el) return;
-  if (said?.error) return sayTrouble(el, said.error);
-  closeContextMenu(byKey && !!item.copy);
-}
-
-function onMenuKey(ev) {
-  if (!menu) return;
-  const items = [...menu.el.querySelectorAll("button:not(:disabled)")];
-  const at = items.indexOf(document.activeElement);
-  const go = (n) => items[(n + items.length) % items.length]?.focus({ preventScroll: true });
-  if (ev.key === "Tab") {
-    ev.stopPropagation();
-    return closeContextMenu(true);
+  if (!menu || menu.view !== view) return;
+  if (said?.error) {
+    menu.shown.note = said.error;
+    return view.show(menuModel(menu.shown));
   }
-  if (ev.key === "Enter" || ev.key === " ") return void ev.stopPropagation();
-  if (ev.key === "ArrowDown") go(at + 1);
-  else if (ev.key === "ArrowUp") go(at < 0 ? items.length - 1 : at - 1);
-  else if (ev.key === "Home") go(0);
-  else if (ev.key === "End") go(items.length - 1);
-  else if (ev.key === "Escape") closeContextMenu(true);
-  else return;
-  ev.preventDefault();
-  ev.stopPropagation();
+  closeContextMenu(byKey && !!item.copy);
 }
 
 export function openContextMenu(items, { x, y, owner = null, label = "", byKey = false }) {
   closeContextMenu();
   closeTableMenu();
   if (!items.length) return null;
-  const el = document.createElement("div");
-  el.className = "md-menu md-ctx";
-  el.setAttribute("role", "menu");
-  if (label) el.setAttribute("aria-label", label);
-  const tone = owner?.closest?.("[data-tone]")?.dataset.tone;
-  if (tone) el.dataset.tone = tone;
-  for (const item of items) {
-    if (item.separator) {
-      const line = document.createElement("div");
-      line.className = "md-ctx-sep";
-      line.setAttribute("role", "separator");
-      el.append(line);
-      continue;
-    }
-    const button = document.createElement("button");
-    button.type = "button";
-    button.tabIndex = -1;
-    button.setAttribute("role", "menuitem");
-    button.textContent = item.label;
-    if (item.hint) {
-      const hint = document.createElement("span");
-      hint.className = "md-ctx-hint";
-      hint.textContent = item.hint;
-      button.append(hint);
-    }
-    if (item.disabled) {
-      button.disabled = true;
-      button.setAttribute("aria-disabled", "true");
-    }
-    button.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      pick(item, el);
-    });
-    el.append(button);
-  }
-  el.addEventListener("keydown", onMenuKey);
-  el.addEventListener("contextmenu", (ev) => ev.preventDefault());
-  document.body.append(el);
-  place(el, x, y);
-  menu = { el, owner, byKey, at: Date.now() };
-  el.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
-  return el;
+  const shown = { items, label, tone: owner?.closest?.("[data-tone]")?.dataset.tone || "", x, y, note: "" };
+  const view = contextMenuView(menuModel(shown), {
+    pick: (at) => pick(items[at], view),
+    close: (refocus) => closeContextMenu(refocus)
+  });
+  menu = { view, owner, byKey, at: Date.now(), shown };
+  view.focusFirst();
+  return view.el;
 }
 
 function pickedInside(el) {
@@ -235,7 +171,7 @@ function showFor(target, at) {
 }
 
 function onContext(ev) {
-  if (menu?.el.contains(ev.target)) return;
+  if (menu?.view.el.contains(ev.target)) return;
   const target = menuTargetOf(ev.target);
   if (!target || pickedInside(target.el)) return closeContextMenu();
   ev.preventDefault();
@@ -255,7 +191,7 @@ function onKey(ev) {
 }
 
 function onPointer(ev) {
-  if (menu && !menu.el.contains(ev.target)) closeContextMenu();
+  if (menu && !menu.view.el.contains(ev.target)) closeContextMenu();
 }
 
 function onScroll(ev) {

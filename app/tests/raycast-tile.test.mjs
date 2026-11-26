@@ -36,8 +36,8 @@ function model(world = {}, look = { pos: world.pos ?? -1 }) {
     const esc = (t) => String(t);
     const LABEL = { idle: "idle", needs: "needs you", working: "working", stalled: "stalled" };
     const PILL_LABEL = { ...LABEL, needs: "needs input", stalled: "quiet" };
-    const experienceNext = () => false;
     const drivingNow = () => false;
+    const subchatOf = () => "";
     const GLYPH = { idle: "g-idle", needs: "g-needs", working: "g-working", stalled: "g-stalled" };
     const WHERE_ICON = { local: "#i-local", cloud: "#i-cloud" };
     const shortBranch = (b) => (String(b || "").split("/").filter(Boolean).pop() || "").replace(/^-+/, "");
@@ -201,17 +201,6 @@ test("with the flag on the composer is one box: the words, then a bar with the c
   } finally { flag(false); }
 });
 
-test("the Novo Hive gets the same box: the words, then a bar with the clip, the model and send", () => {
-  document.body.classList.add("experience-next");
-  try {
-    const e = seatNamed("rc-next");
-    const form = e.host.querySelector(".sv-composer");
-    assert.deepEqual(kids(form), ["sv-box", "sv-foot"]);
-    assert.deepEqual(kids(form.querySelector(".sv-bar")), ["sv-clip", "sv-bar-fill", "sv-pick", "sv-ctx", "sv-btns"]);
-    assert.equal(form.querySelector("textarea").placeholder, phrase("Ask anything. @ files, / commands"));
-  } finally { document.body.classList.remove("experience-next"); }
-});
-
 test("turning the flag off puts every node back where main had it, listeners and all", () => {
   flag(true);
   const e = seatNamed("rc-back");
@@ -303,10 +292,3 @@ test("hovering the head shows only the close: browser, phone, pencil and fold st
   } finally { flag(false); }
 });
 
-test("the New Hive drops the badge row: the glyph beside the name says the state, and a card with nothing else under the head gives the row back to the body", () => {
-  const next = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
-  assert.match(next, /body\.experience-next \.tile \.t-state > \.t-pill \{ display: none; \}/);
-  assert.match(next, /body\.experience-next #canvas > \.tile:not\(\.open\) \.side > \.t-state:not\(:has\(> \.t-using\)\) \{ display: none; \}/);
-  assert.match(next, /body\.experience-next \.tile \.t-glyph \{ display: block;[^}]*color: var\(--pill-hue\);/);
-  assert.match(page, /\.t-grip, \.t-place, \.t-using, \.t-glyph \{ display: none; \}/, "the glyph shows outside the New Hive");
-});

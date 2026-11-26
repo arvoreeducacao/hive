@@ -17,11 +17,12 @@ test("the mac build says why it wants the microphone, in words a person reads", 
   assert.match(said, /never leaves/i, "the sentence must say the sound stays on the machine");
 });
 
-test("only the hive window may use the microphone, and nothing else may use anything", () => {
+test("only the hive window may use the microphone, and the pages a seat opens may only write images to the clipboard", () => {
   assert.match(main, /window_\.webContents\.session\.setPermissionRequestHandler/);
+  assert.match(main, /if \(permission === "clipboard-sanitized-write"\) return grant\(wc === window_\.webContents\)/);
   assert.match(main, /if \(permission !== "media" && permission !== "display-capture"\) return grant\(false\)/);
   assert.match(main, /grant\(wc === window_\.webContents && details\?\.isMainFrame !== false\)/, "a frame inside the window, such as a page a chat drew, never gets the microphone");
-  assert.match(main, /seatBrowser\.setPermissionRequestHandler\(\(_wc, _permission, grant\) => grant\(false\)\)/, "the pages a seat opens stay locked out");
+  assert.match(main, /seatBrowser\.setPermissionRequestHandler\(\(_wc, permission, grant\) => grant\(permission === "clipboard-sanitized-write"\)\)/, "the pages a seat opens get nothing but the clipboard write a copy-image button asks for");
 });
 
 test("on a mac the app asks the system before it opens the microphone", () => {

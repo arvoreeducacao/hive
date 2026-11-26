@@ -1,8 +1,9 @@
 import { mock, test } from "node:test";
 import assert from "node:assert/strict";
-import { app, state } from "./dom.mjs";
+import { app, state, views } from "./dom.mjs";
 
 const st = await state();
+await views();
 const { arrangeFloorStep, arrangeWheel, closeArrange, deckFloor, openArrange, paintArrange } = await app("arrange");
 const { $ } = await app("core");
 
@@ -30,14 +31,12 @@ function onSpace(id) {
 
 function fresh() {
   closeArrange();
-  host.hidden = true;
-  host.innerHTML = "";
   st.LIMIT = 4;
   st.focus = 0;
   st.calmOn = false;
   st.mirrorDev = "";
   st.seatsKnown = true;
-  st.data = { sessions: ["a1", "a2", "b1", "c1"].map((name) => ({ name, state: "idle" })), spawning: [] };
+  st.data = { sessions: ["a1", "a2", "b1", "c1"].map((name) => ({ name, state: "idle" })), spawning: [], archived: [], pod: { up: false, name: "" } };
   laySpaces(["crm", "hive", "super"]);
   lay([{ ws: "w0", keys: ["a1", "a2"] }, { ws: "w1", keys: ["b1"] }, { ws: "w2", keys: ["c1"] }]);
   onSpace("w0");
@@ -59,15 +58,22 @@ test("the pile draws one floor per workspace, plus the one that opens a new one"
   assert.equal(floors().filter((el) => el.classList.contains("here")).length, 1);
 });
 
-test("a repaint rewrites what is inside a floor and keeps the floor itself", () => {
+test("a repaint brings what is inside a floor up to date and keeps the floor itself", () => {
   fresh();
   paintArrange();
   const was = floors();
-  const inside = was.map(innerOf);
+  assert.ok(was.map(innerOf).every((el) => el), "every floor had contents to begin with");
+  st.blocks[0].label = "the mirror";
+  st.blocks[1].keys.push("b2");
+  st.data.sessions.push({ name: "b2", state: "needs" });
+  st.spaces[2].name = "studio";
   paintArrange();
   assert.deepEqual(floors(), was, "the sections survived — this is what lets the transform animate");
-  assert.ok(inside.every((el) => el), "every floor had contents to begin with");
-  assert.ok(floors().every((el, i) => innerOf(el) && innerOf(el) !== inside[i]), "and their contents were written again");
+  assert.equal(was[0].querySelector('.a-card[data-i="0"] .name').textContent, "the mirror", "a block renamed shows its new name");
+  assert.deepEqual([...was[1].querySelectorAll(".a-chip")].map((el) => el.dataset.key), ["b1", "b2"], "a seat that joined shows in its lane");
+  assert.equal(was[1].querySelector('.a-chip[data-key="b2"]').dataset.state, "needs");
+  assert.equal(was[1].querySelectorAll(".a-slot").length, 2, "and the free slots shrank");
+  assert.equal(was[2].querySelector(".fl-name").value, "studio", "a workspace renamed elsewhere shows the new name");
 });
 
 test("changing floor moves the same sections instead of building new ones", () => {
@@ -166,10 +172,16 @@ test("the name being typed is not torn out from under the cursor", () => {
   const naming = one.querySelector(".fl-name");
   assert.ok(naming, "the floor carries the field its name is typed into");
   naming.focus();
+  naming.value = "sales and sal";
   const inside = [innerOf(one), innerOf(two)];
+  st.blocks[0].label = "renamed while typing";
+  st.blocks[1].label = "the other floor";
+  st.spaces[0].name = "sales from elsewhere";
   paintArrange();
   assert.equal(innerOf(one), inside[0], "the floor whose name is being typed was left alone");
   assert.equal(document.activeElement, naming, "and the field kept the cursor");
-  assert.notEqual(innerOf(two), inside[1], "every other floor was written again");
+  assert.equal(naming.value, "sales and sal", "and what was typed");
+  assert.notEqual(one.querySelector('.a-card[data-i="0"] .name').textContent, "renamed while typing", "nothing inside that floor was redrawn");
+  assert.equal(two.querySelector('.a-card[data-i="1"] .name').textContent, "the other floor", "every other floor was brought up to date");
   naming.blur();
 });

@@ -197,3 +197,98 @@ test("the files a turn changed show under it in any structure, and Open diff ope
   assert.match(one.html, /data-act="turn-diff"/);
   assert.match(one.html, /data-act="turn-revert"/);
 });
+
+const reopen = async () => {
+  st.open = "lote";
+  st.focus = 0;
+  render();
+  await settle();
+  if (!card()) press("KeyB", { mod: true, shift: true });
+  await settle();
+  return card();
+};
+
+test("the card is a dialog that takes the focus when it opens, and the arrows walk its buttons around", async () => {
+  const open = await reopen();
+  assert.equal(open.getAttribute("role"), "dialog");
+  assert.equal(open.getAttribute("aria-label"), "Chat details");
+  assert.equal(open.tabIndex, -1);
+  assert.equal(document.activeElement, open);
+  const buttons = [...open.querySelectorAll("button")];
+  press("ArrowDown", {}, open);
+  assert.equal(document.activeElement, buttons[0]);
+  press("ArrowUp", {}, buttons[0]);
+  assert.equal(document.activeElement, buttons.at(-1), "up from the first button wraps to the last");
+});
+
+test("a copy shows a check on its button for a moment and keeps the focus there", async () => {
+  const copy = card().querySelector('[data-act="cd-copy-branch"]');
+  copy.focus();
+  copy.click();
+  await settle();
+  const after = card().querySelector('[data-act="cd-copy-branch"]');
+  assert.equal(after.getAttribute("title"), "Copied");
+  assert.equal(after.getAttribute("aria-label"), "Copy branch");
+  assert.match(after.innerHTML, /M20 6 9 17l-5-5/);
+  assert.equal(document.activeElement, after);
+});
+
+test("a pull request of the chat shows its state, its checks and its number on a row of its own", async () => {
+  st.prs = [{ session: "lote", key: "o/lote#7", tag: "o/lote#7", repo: "o/lote", number: 7, title: "Lote consignado", state: "open", ci: "failed" }];
+  press("Escape", {}, card());
+  await reopen();
+  const row = card().querySelector('[data-act="cd-pr"]');
+  assert.ok(row);
+  assert.equal(row.className, "cd-row cd-pr pr-open");
+  assert.equal(row.dataset.pr, "o/lote#7");
+  assert.equal(row.getAttribute("title"), "Lote consignado\n#7 · checks failing");
+  assert.ok(row.querySelector("svg.cd-flag.bad"));
+  st.prs = [];
+  press("Escape", {}, card());
+  await reopen();
+  assert.equal(card().querySelector('[data-act="cd-pr"]'), null);
+});
+
+test("Shift+F10 opens the choice, a ticked item keeps the focus, and a press outside closes the card without taking the focus back", async () => {
+  card().querySelector("button").focus();
+  press("F10", { shift: true }, document.activeElement);
+  await settle();
+  assert.ok(card().querySelector(".cd-ctx"));
+  assert.equal(document.activeElement, card().querySelector(".cd-ctx .cd-pop-i"));
+  const servers = card().querySelector('.cd-ctx [data-item="servers"]');
+  servers.focus();
+  servers.click();
+  await settle();
+  assert.equal(document.activeElement, card().querySelector('.cd-ctx [data-item="servers"]'));
+  assert.equal(document.activeElement.getAttribute("aria-checked"), "false");
+  assert.equal(card().querySelector('.cd-ctx [data-act="cd-items-reset"]').getAttribute("aria-disabled"), null);
+  card().querySelector('.cd-ctx [data-act="cd-items-reset"]').click();
+  await settle();
+  assert.equal(card().querySelector('.cd-ctx [data-act="cd-items-reset"]').getAttribute("aria-disabled"), "true");
+  card().querySelector('.cd-ctx [data-act="cd-copy-id"]').click();
+  await settle();
+  assert.equal(card().querySelector(".cd-ctx"), null, "a copy from the menu closes the menu");
+  assert.equal(document.activeElement, card());
+  document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  assert.equal(card(), null);
+  const button = document.querySelector('.chat-ctl[data-name="lote"] [data-act="chat-details"]');
+  assert.notEqual(document.activeElement, button);
+});
+
+test("the settings switch shows whether usage limits sit in the card, and flipping it turns them on and off", async () => {
+  const flip = document.getElementById("btn-details-usage");
+  assert.ok(flip.closest('.set-row[data-control="btn-details-usage"]'));
+  assert.equal(flip.textContent, "off");
+  assert.equal(flip.getAttribute("aria-pressed"), "false");
+  assert.equal(flip.classList.contains("on"), false);
+  assert.ok(flip.classList.contains("flip") && flip.classList.contains("ghost"));
+  assert.ok(flip.hasAttribute("data-no-t"));
+  flip.click();
+  assert.equal(flip.textContent, "on");
+  assert.equal(flip.getAttribute("aria-pressed"), "true");
+  assert.ok(flip.classList.contains("on"));
+  assert.equal(JSON.parse(localStorage.getItem("hive.details.items")).usage, true);
+  flip.click();
+  assert.equal(flip.textContent, "off");
+  assert.equal(localStorage.getItem("hive.details.items"), null);
+});

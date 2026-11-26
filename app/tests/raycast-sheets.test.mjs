@@ -63,8 +63,8 @@ test("every region has its own sheet in app/assets/raycast, and nothing else liv
   assert.deepEqual(raycastSheets().sort(), REGIONS.map((one) => `raycast/${one}.css`).sort());
 });
 
-test("the raycast sheets are linked after experience.css, served as css and shipped in the package", () => {
-  const anchor = html.indexOf('<link rel="stylesheet" href="/assets/experience.css">');
+test("the raycast sheets are linked after secret-asks.css, served as css and shipped in the package", () => {
+  const anchor = html.indexOf('<link rel="stylesheet" href="/assets/secret-asks.css">');
   assert.ok(anchor > 0);
   let last = anchor;
   for (const sheet of REGIONS.map((one) => `raycast/${one}.css`)) {

@@ -14,6 +14,7 @@ const { render } = await app("arrange");
 const { closeTile, openTile } = await app("focus-navigation");
 const { openBrowser, openCockpit, openDevice } = await app("chat-and-panes");
 const { openThreadOf, reviewInChat } = await app("thread");
+const { toggleSidePanel } = await app("side-panel");
 
 const HERE = fileURLToPath(new URL("../src/app", import.meta.url));
 const read = (file) => readFileSync(join(HERE, file), "utf8");
@@ -145,6 +146,17 @@ test("shutting the panel yourself is how you are given an empty seat next time",
   closeTile();
   openTile("ana");
   assert.equal(st.threadChat, null, "a seat closed with nothing open comes back with nothing open");
+});
+
+test("opening the side panel over a thread hides the thread instead of stranding it", () => {
+  hive({ said: [THREAD] });
+  openTile("ana");
+  openThreadOf("ana", THREAD.key);
+  assert.equal(document.getElementById("thread").hidden, false);
+
+  toggleSidePanel("ana");
+  assert.equal(st.threadChat, null);
+  assert.equal(document.getElementById("thread").hidden, true, "a thread pane with no chat behind it has no way to be closed");
 });
 
 test("each seat is opened with its own panel, never with the neighbour's", () => {

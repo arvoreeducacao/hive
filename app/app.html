@@ -583,7 +583,6 @@
 
   #rail { border-right: 1px solid var(--line); display: grid; grid-template-rows: minmax(0, 1fr) auto; min-height: 0; background: linear-gradient(180deg, rgba(255,255,255,.016), transparent 220px), var(--panel); }
   #rail-list { overflow-y: auto; padding: 34px 0 14px; }
-  #rail-next, #rail-next-foot { display: none; }
   #rail-list::-webkit-scrollbar { width: 8px; }
   #rail-list::-webkit-scrollbar-thumb { background: var(--line); }
   #knock-dock { border-top: 1px solid var(--line-2); padding: 8px; display: grid; gap: 6px; background: var(--panel-3); }
@@ -3239,7 +3238,7 @@
   #shot-next { right: 16px; }
   .md .md-codebox[data-view="diagram"] > .md-mermaid { cursor: zoom-in; border-radius: 6px; }
   .md .md-codebox[data-view="diagram"] > .md-mermaid:focus-visible { outline: 2px solid color-mix(in srgb, var(--blue) 70%, transparent); outline-offset: 2px; }
-  .shot-tools, .x-split, .x-split-thread, .x-split-pane, .y-split { display: none; }
+  .x-split, .x-split-thread, .y-split { display: none; }
   .tile.open { position: relative; }
   body:not([data-experience-off~="resizeInfo"]) .tile.open:not(.folded:not(.arting)) { --open-side: var(--x-info-width, 380px); }
   .tile.open.threading { grid-template-columns: minmax(0, var(--open-side)) minmax(0, var(--x-thread-width, 392px)) minmax(0, 1fr); }
@@ -4609,7 +4608,7 @@
 
   body.look-dimension #day, body.look-dimension #shelf, body.look-dimension #prs, body.look-dimension #usage, body.look-dimension #providers, body.look-dimension #extensions, body.look-dimension #routines, body.look-dimension #worktrees, body.look-dimension #pod, body.look-dimension #portaria, body.look-dimension #workspace { inset: 60px 16px 16px; border-radius: var(--r-frame); border: 1px solid var(--ln-2); background: var(--panel); box-shadow: var(--nav-shadow), 0 30px 80px -40px rgba(0,0,0,.7); overflow: hidden; }
   body.look-dimension #usage, body.look-dimension #routines, body.look-dimension #worktrees, body.look-dimension #portaria, body.look-dimension #workspace { overflow-y: auto; }
-  body.look-dimension:not(.experience-next):has(#status-strip:not(:empty)) :is(#day, #shelf, #prs, #usage, #providers, #extensions, #routines, #worktrees, #pod, #portaria, #workspace) { top: 96px; }
+  body.look-dimension:has(#status-strip:not(:empty)) :is(#day, #shelf, #prs, #usage, #providers, #extensions, #routines, #worktrees, #pod, #portaria, #workspace) { top: 96px; }
   body.look-dimension .errand { border: 0; border-radius: var(--r-card); padding: 16px 18px; background: var(--frost); box-shadow: var(--hair); }
   body.look-dimension .errand.needs { background: var(--wash), var(--frost); }
   body.look-dimension .day-say { padding: 8px 8px 8px 16px; border: 1px solid var(--ln-2); border-radius: var(--r-pill); background: var(--panel); box-shadow: var(--nav-shadow); }
@@ -4705,8 +4704,8 @@
   body.look-dimension.seat-dragging #blocks button:not([aria-pressed="true"]), body.look-dimension.seat-dragging #blocks .ws-one:not(.on) { border-style: dashed; border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--txt); }
   body.look-dimension.seat-dragging #blocks button.drop, body.look-dimension.seat-dragging #blocks .ws-one.drop { border-style: solid; border-color: var(--accent); }
   body.look-dimension .sv-composer:not(:focus-within):not(.ready) textarea { overflow: hidden; white-space: nowrap; }
+  #ver.nightly::after { content: " · Nightly"; color: oklch(81.1% .111 293.571); }
 </style>
-<link rel="stylesheet" href="/assets/experience.css">
 <link rel="stylesheet" href="/assets/secret-asks.css">
 <link rel="stylesheet" href="/assets/raycast/foundation.css">
 <link rel="stylesheet" href="/assets/raycast/top.css">
@@ -4734,9 +4733,7 @@
 <link rel="stylesheet" href="/assets/appearance.css">
 </head>
 <body>
-<script>try {
-  if (localStorage.getItem("hive.experience") !== "experimental" || new URLSearchParams(location.search).has("experience")) document.body.classList.add("experience-raycast");
-} catch {}
+<script>document.body.classList.add("experience-raycast");
 try {
   const worn = JSON.parse(localStorage.getItem("hive.theme.css") || "null");
   if (worn) for (const [cssVar, color] of Object.entries(worn)) {
@@ -4908,7 +4905,7 @@ try {
 
 <div id="shell" data-t>
   <div id="face-gate" hidden></div>
-  <nav id="rail" aria-label="Sessions"><div id="rail-list" data-no-t><button id="rail-wt" class="rail-wt" hidden></button><div id="rail-next"></div><div id="rail-sessions"></div><div id="rail-team"></div><div id="rail-next-foot"></div></div><div id="knock-dock" hidden aria-label="asking for a keyboard"></div></nav>
+  <nav id="rail" aria-label="Sessions"><div id="rail-list" data-no-t><button id="rail-wt" class="rail-wt" hidden></button><div id="rail-sessions"></div><div id="rail-team"></div></div><div id="knock-dock" hidden aria-label="asking for a keyboard"></div></nav>
   <button class="ghost" id="rail-toggle" title="collapse the sidebar" aria-label="collapse the sidebar"><svg aria-hidden="true"><use href="#i-rail"/></svg></button>
   <main id="stage">
     <div id="strip" data-t>
@@ -4923,17 +4920,7 @@ try {
       <div id="plane-world"><svg id="plane-wires" aria-hidden="true"><g transform="translate(20000,20000)"></g></svg></div>
       <div id="plane-empty" hidden></div>
       <div id="plane-map" title="the whole field — click to look somewhere else"><div class="in"></div></div>
-      <div id="plane-hud" data-no-t>
-        <button id="plane-out" aria-label="zoom out">&minus;</button>
-        <span class="k" id="plane-k">100%</span>
-        <button id="plane-in" aria-label="zoom in">+</button>
-        <button id="plane-fit">fit</button>
-        <button id="plane-tidy">tidy</button>
-        <button id="plane-area">+ area</button>
-        <button id="plane-note">+ note</button>
-        <span class="sep"></span>
-        <button id="plane-undo" disabled>undo</button>
-      </div>
+      <div id="plane-hud" data-no-t></div>
       <div class="pbar" id="plane-bar" data-no-t hidden></div>
       <div id="plane-said" data-no-t hidden></div>
     </div>
@@ -5014,36 +5001,7 @@ try {
   </form>
 </section>
 
-<section id="shelf" data-t hidden aria-label="The pages this team published">
-  <div class="sh-top">
-    <h2>Shelf</h2>
-    <span class="sh-count" id="sh-count" data-no-t></span>
-    <input id="sh-search" class="sh-search" spellcheck="false" autocomplete="off" placeholder="search" />
-    <div class="sh-filters" id="sh-filters" data-no-t></div>
-  </div>
-  <div class="sh-gal" id="sh-gal" data-no-t></div>
-  <div class="sh-view" id="sh-view" data-no-t hidden>
-    <div class="sh-vh">
-      <button class="sh-back" id="sh-back" aria-label="back to the shelf">&larr;</button>
-      <b id="sh-vtitle"></b>
-      <span class="sh-lab" id="sh-vlab"></span>
-      <span class="sh-vwho" id="sh-vwho"></span>
-      <span class="sh-vacts">
-        <button class="btn" id="sh-talk" aria-pressed="false">comments</button>
-        <button class="btn" id="sh-seat">open in a seat</button>
-        <button class="btn" id="sh-copy">copy link</button>
-        <button class="btn" id="sh-gh">see on GitHub</button>
-        <button class="btn sh-ico" id="sh-wide" aria-pressed="false" title="full screen" aria-label="full screen"><svg aria-hidden="true"><use href="#i-expand"/></svg></button>
-      </span>
-    </div>
-    <div class="sh-tabs" id="sh-tabs"></div>
-    <div class="sh-main">
-      <div class="sh-stage"><iframe id="sh-frame" sandbox="allow-scripts allow-popups" title="the page this team published"></iframe><button class="sh-exit" id="sh-narrow" hidden>leave <kbd>esc</kbd></button></div>
-      <aside class="sh-side" id="sh-side" data-no-t hidden aria-label="comments on this page"></aside>
-    </div>
-    <div class="sh-vf" id="sh-vf"></div>
-  </div>
-</section>
+<div id="shelf-screen" style="display: contents"></div>
 
 
 <section id="portaria" data-t hidden aria-label="Who reaches this hive — devices and people">
@@ -5078,43 +5036,11 @@ try {
   <div class="th-foot" id="th-foot" data-no-t></div>
 </aside>
 
-<div class="modal" id="revive-how" data-t>
-  <div class="box" style="width: min(520px, 92vw)">
-    <h2>How should it come back?</h2>
-    <p class="hint" id="rh-title"></p>
-    <div class="rh-opts">
-      <button class="rh-opt" id="rh-native"><b>native chat</b><span>the structured seat — markdown, cards, instant commands, questions as buttons</span></button>
-      <button class="rh-opt" id="rh-tui"><b>classic TUI</b><span>the terminal exactly as this session last saw it</span></button>
-    </div>
-    <div class="foot"><span>enter picks the native chat · esc cancels</span></div>
-  </div>
-</div>
-
-<div class="modal" id="hist-preview" data-t>
-  <div class="box">
-    <h2 id="hp-title" data-no-t></h2>
-    <p class="hint" id="hp-meta" data-no-t></p>
-    <div class="hp-msgs" id="hp-msgs" data-no-t></div>
-    <div class="foot"><span>enter revives · esc closes</span><button class="btn" id="hp-revive">revive</button></div>
-  </div>
-</div>
-
 <section id="providers" data-t hidden aria-label="Providers and accounts — the agents this hive seats, their logins and limits"></section>
 
 <section id="extensions" data-t hidden aria-label="Extensions — what this hive runs on top of the hive"></section>
 
-<div class="modal" id="history" data-t>
-  <div class="box">
-    <h2>Past sessions</h2>
-    <div class="hist-top">
-      <input id="hist-search" autocomplete="off" spellcheck="false" placeholder="search title, old title, chat name, prompt or folder…" />
-      <span class="hint" id="hist-count"></span>
-    </div>
-    <div class="arch" id="hist-list" data-no-t></div>
-    <div class="hist-sync" id="hist-sync" data-no-t></div>
-    <div class="foot"><span><b>revive</b> reopens the chat with its whole context, in the same directory, as a new seat — it asks whether you want the native chat or the TUI · esc closes</span><button class="btn" id="hist-ok">close</button></div>
-  </div>
-</div>
+<div id="history-screens" style="display: contents"></div>
 
 <div class="modal" id="archived" data-t>
   <div class="box">
@@ -5135,7 +5061,6 @@ try {
       <button type="button" data-pane="keyboard">Keyboard</button>
       <button type="button" data-pane="look">Look</button>
       <button type="button" data-pane="performance">Performance</button>
-      <button type="button" data-pane="experimental">Experiments</button>
       <button type="button" data-pane="dictation">Dictation</button>
       <button type="button" data-pane="meetings">Meetings</button>
       <button type="button" data-pane="character">Your character</button>
@@ -5260,7 +5185,7 @@ try {
     <div class="set-group">
       <h3 class="set-head">Chat details</h3>
       <div class="set-card">
-        <div class="set-row" data-control="btn-details-usage" data-search="usage limits details"><div class="set-text"><label class="set-title" for="btn-details-usage">usage limits in chat details</label><p class="set-says">The bottom of the chat details card shows how much is left in each limit of the login that chat uses.</p></div><div class="set-ctl"><button class="ghost flip" id="btn-details-usage" type="button" aria-pressed="false" data-no-t></button></div></div>
+        <div class="set-row" data-control="btn-details-usage" data-search="usage limits details"><div class="set-text"><label class="set-title" for="btn-details-usage">usage limits in chat details</label><p class="set-says">The bottom of the chat details card shows how much is left in each limit of the login that chat uses.</p></div><div class="set-ctl"></div></div>
       </div>
     </div>
     </section>
@@ -5286,27 +5211,6 @@ try {
         <div class="set-row" data-control="f-provider-check"><div class="set-text"><label class="set-title" for="f-provider-check">check the agents' login and version</label><p class="set-says">The login and the version of Claude, Codex and the others.</p></div><div class="set-ctl"><select id="f-provider-check" data-default="auto"></select></div></div>
       </div>
     </div>
-    </section>
-    <section class="pref-pane" data-pane="experimental" hidden>
-      <h2 data-t>Experiments</h2>
-      <div class="set-group">
-        <h3 class="set-head">New Hive</h3>
-        <div class="set-card">
-          <div class="set-row" data-control="experience-toggle"><div class="set-text">
-            <span class="set-title">Try new Hive</span>
-            <p class="set-says">Try the next Hive at your own pace. This first step includes the visual foundation; the rest of the screens will follow. No features are removed.</p>
-            <p class="set-says">This choice applies to this Hive installation, including its other windows. It does not change your teammates' settings.</p>
-            <p class="set-state" id="experience-state" role="status" aria-live="polite" data-no-t></p>
-            <details class="experience-notes set-more"><summary>What changed</summary>
-              <p class="hint">Experimental foundation: charcoal surfaces, orange selection, square controls and sage message bubbles. Conversations and commands stay the same. Fonts and performance settings are preserved.</p>
-            </details>
-            <details class="experience-notes set-more"><summary>Recovery</summary>
-              <p class="hint">If New Hive fails, open Hive with ?experience=raycast in its address, or remove experience from your Hive configuration file. Recovery does not close your chats.</p>
-              <a id="experience-recovery" href="?experience=raycast">Open Hive without New Hive</a>
-            </details>
-          </div><div class="set-ctl"><button type="button" class="btn" id="experience-toggle" disabled data-no-t>…</button></div></div>
-        </div>
-      </div>
     </section>
     <section class="pref-pane" data-pane="dictation" hidden>
     <h2 data-t>Dictation</h2>
@@ -5503,6 +5407,12 @@ try {
     </div>
     </div>
     <div class="set-group">
+      <h3 class="set-head">Code Mode</h3>
+      <div class="set-card">
+        <div class="set-row" data-control="t-code-mode"><div class="set-text"><label class="set-title" for="t-code-mode">start Claude chats in Code Mode</label><p class="set-says">A new Claude chat on this machine writes JavaScript that makes several tool calls at once. Experimental.</p><details class="set-more"><summary>More about this</summary><p class="hint">On, a new Claude chat on this machine starts with <code>CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1</code> and Claude writes a piece of JavaScript that makes the tool calls; the chat shows each call as usual. It needs Claude Code 2.1.323 or newer and Opus 5.5, Sonnet 5.5, Haiku 5.5 or Fable 5.2. A chat in Code Mode opens without remote control. A chat keeps the mode it was born with, so a change here reaches only new chats. If Claude Code refuses the mode, the chat says why and starts with the ordinary tools. Off unless you turn it on.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-code-mode-say"></span><button class="ghost flip" id="t-code-mode" type="button"></button></div></div></div>
+      </div>
+    </div>
+    <div class="set-group">
       <h3 class="set-head">Agent updates</h3>
       <div class="set-card">
         <div class="set-row" data-control="t-agent-updates"><div class="set-text"><label class="set-title" for="t-agent-updates">update the agents on their own</label><p class="set-says">The hive installs a newer Claude, Codex or other agent as soon as it is out.</p><details class="set-more"><summary>More about this</summary><p class="hint">On, the hive looks for a newer Claude, Codex or other agent every hour and installs it as soon as it is out, the same as the update button at the top. A chat that is open keeps its version until it comes back; a new chat starts on the newest one. An agent the hive cannot update for you still shows at the top, with the command to run.</p></details></div><div class="set-ctl"><div class="sound-row"><span class="fixed" id="s-agent-updates-say"></span><button class="ghost flip" id="t-agent-updates" type="button"></button></div></div></div>
@@ -5673,13 +5583,11 @@ try {
   <div class="shot-floor" id="shot-floor"><img id="shot-img" alt="" hidden /><p id="shot-note"></p></div>
   <button type="button" class="shot-nav" id="shot-prev" data-go="prev" aria-label="previous image" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
   <button type="button" class="shot-nav" id="shot-next" data-go="next" aria-label="next image" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
-  <div class="shot-tools" id="shot-tools" role="group" aria-label="image zoom"><button type="button" class="ghost" data-zoom="out" aria-label="zoom out">−</button><output id="shot-pct" aria-live="polite">100%</output><button type="button" class="ghost" data-zoom="in" aria-label="zoom in">+</button><button type="button" class="ghost" data-zoom="actual">actual size</button><button type="button" class="ghost" data-zoom="fit">fit</button></div>
 </div>
 <div id="hud" role="status" aria-live="polite" hidden></div>
 <div id="quit-hint" role="status" aria-live="assertive" data-no-t hidden></div>
 <div class="sr-only" id="sr-chat-detail" aria-live="polite" data-no-t></div>
 <div class="sr-only" id="sr-chat-status" aria-live="polite" data-no-t></div>
-<div id="rail-hud"></div>
 
 <div class="which" id="which"><div class="which-head" id="which-head"></div><div class="which-grid" id="which-grid"></div></div>
 <section id="welcome" data-t hidden aria-label="Welcome to the hive">

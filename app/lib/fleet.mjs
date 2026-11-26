@@ -66,7 +66,8 @@ function structuredDriverCmd(seat, dir, autocompact = "") {
   const model = seat.model ? ` --model '${seat.model}'` : "";
   const compactAt = autocompact ? ` --autocompact ${autocompact}` : "";
   const asAgent = agent ? ` --agent ${agent}` : "";
-  return `node ${dir}/${driverFileFor(agent || "claude")}${asAgent} --name ${seat.name} --cwd \\$PWD --resume-id ${seat.id}${model}${compactAt}`;
+  const asleep = seat.asleep && !agent ? " --asleep" : "";
+  return `node ${dir}/${driverFileFor(agent || "claude")}${asAgent} --name ${seat.name} --cwd \\$PWD --resume-id ${seat.id}${model}${compactAt}${asleep}`;
 }
 
 const posixOf = (path) => String(path).replace(/\\/g, "/");
@@ -216,6 +217,7 @@ export function localRestorePlan(seats, { hub, hiveHome, remoteControl = true, e
       const dir = engineDir || join(hub, REPO_FOLDER, "server", "engine");
       const args = [join(dir, driverFileFor(agent || "claude")), ...(agent ? ["--agent", agent] : []), "--name", seat.name, "--cwd", cwd, "--resume-id", seat.id, ...withModel];
       if (autocompact) args.push("--autocompact", autocompact);
+      if (seat.asleep && !agent) args.push("--asleep");
       return { name: seat.name, kind: "structured", cwd, fallback: hub, program: "node", args, env: { ...account, HIVE_STATE_DIR: hiveHome } };
     }
     if (agent) {

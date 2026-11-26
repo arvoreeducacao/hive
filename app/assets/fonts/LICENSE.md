@@ -53,20 +53,11 @@ DM Sans (Colophon Foundry, Google), Geist and Geist Mono (Vercel) are licensed u
 
 Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
 
-This Font Software is licensed under the SIL Open Font License, Version 1.1, the same license as Tektur below. Both files carry the variable weight axis. The latin one is the subset packaged by inter-ui 4.1.1 (variable-latin/InterVariable-subset.woff2), which keeps the stylistic sets the app turns on; the latin-ext one is the subset packaged by Fontsource (@fontsource-variable/inter 5.3.0).
+This Font Software is licensed under the SIL Open Font License, Version 1.1, the license copied below. Both files carry the variable weight axis. The latin one is the subset packaged by inter-ui 4.1.1 (variable-latin/InterVariable-subset.woff2), which keeps the stylistic sets the app turns on; the latin-ext one is the subset packaged by Fontsource (@fontsource-variable/inter 5.3.0).
 
-### IBM Plex Sans
+### SIL Open Font License
 
-Copyright 2019 IBM Corp. All rights reserved.
-
-This Font Software is licensed under the SIL Open Font License, Version 1.1, the same license as Tektur below. The woff2 files here are the latin and latin-ext subsets of the variable weight axis, as packaged by Fontsource (@fontsource-variable/ibm-plex-sans 5.3.0).
-
-### Tektur
-
-Copyright 2023 The Tektur Project Authors (https://www.github.com/hyvyys/Tektur)
-
-This Font Software is licensed under the SIL Open Font License, Version 1.1.
-This license is copied below, and is also available with a FAQ at:
+The SIL Open Font License, Version 1.1, is copied below, and is also available with a FAQ at:
 https://scripts.sil.org/OFL
 
 

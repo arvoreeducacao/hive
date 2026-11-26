@@ -160,23 +160,3 @@ test("the pane has back, forward and reload, and they go dead when there is nowh
   assert.equal(panes.webTouch.has("arrows"), true, "the person driving keeps the page awake too");
 });
 
-test("a picker that dims a seat dims the page that seat has open, and only that one", () => {
-  const { closeSeatPicker, dimYardsUnderScrims } = panes;
-  const css = readFileSync(new URL("../assets/experience.css", import.meta.url), "utf8");
-  assert.match(css, /body\.experience-next #webyard \.yard\.dimmed::after \{[^}]*inset: 0;[^}]*background: rgba\(8, 8, 8, \.62\);/, "the page wears the same shade as the seat");
-  const mine = yardOf("dim-mine");
-  const other = yardOf("dim-other");
-  const tile = document.createElement("div");
-  tile.className = "tile";
-  tile.dataset.name = "dim-mine";
-  document.body.appendChild(tile);
-  const scrim = document.createElement("div");
-  scrim.className = "sv-scrim";
-  tile.appendChild(scrim);
-  dimYardsUnderScrims();
-  assert.ok(mine.classList.contains("dimmed"), "the seat's own page goes dark with it");
-  assert.ok(!other.classList.contains("dimmed"), "a page of another seat stays lit");
-  closeSeatPicker(null);
-  assert.ok(!mine.classList.contains("dimmed"), "closing the picker lights the page again");
-  tile.remove();
-});

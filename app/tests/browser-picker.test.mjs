@@ -200,28 +200,12 @@ test("answering in the chat writes in the conversation first, then hands the sea
   assert.match(handed.body.said, /reply_on_page/);
 });
 
-test("in the new hive, adding to the chat leaves no comment and no pin on the page", async () => {
-  document.body.classList.add("experience-next");
-  seatOnAPage("chat-only-seat", { id: "t1", kind: "artifact", slug: "as-telas", tab: "telas", version: 2, url: "shelf://as-telas/" });
-  const frame = { dataset: { id: "t1" }, send: () => {}, capturePage: async () => ({ toDataURL: () => "" }) };
-  const calls = await dialled(() => askOnTheElement("chat-only-seat", frame, {
-    said: "e se ficasse em cima?", selector: "#f-1 .cta", elAt: "criar-turma", where: "chat", rect: { x: 0, y: 0, width: 4, height: 4 }
-  }), { comment: { id: "c-7" }, comments: [] });
-  document.body.classList.remove("experience-next");
-  assert.equal(calls.some((one) => one.url === "/api/shelf/comment"), false);
-  const handed = calls.find((one) => one.url === "/api/browser/reference");
-  assert.equal(handed.body.said, "e se ficasse em cima?");
-  assert.doesNotMatch(handed.body.said, /reply_on_page/);
-});
-
-test("in the new hive, answering a pin from the chat still answers in its conversation", async () => {
-  document.body.classList.add("experience-next");
+test("answering a pin from the chat answers in its conversation", async () => {
   seatOnAPage("pin-reply-seat", { id: "t1", kind: "artifact", slug: "as-telas", tab: "telas", version: 2, url: "shelf://as-telas/" });
   const frame = { dataset: { id: "t1" }, send: () => {}, capturePage: async () => ({ toDataURL: () => "" }) };
   const calls = await dialled(() => askOnTheElement("pin-reply-seat", frame, {
     said: "e agora?", selector: "#f-1 .cta", elAt: "criar-turma", where: "chat", re: "c-3", rect: { x: 0, y: 0, width: 4, height: 4 }
   }), { comment: { id: "c-9", re: "c-3" }, comments: [] });
-  document.body.classList.remove("experience-next");
   assert.equal(calls.find((one) => one.url === "/api/shelf/comment")?.body.re, "c-3");
 });
 
@@ -329,14 +313,4 @@ test("a page the agent opened with the pane shut never says the person is lookin
   assert.match(born, /showingArtifact\(name\) && frameIsUpFront\(name, frame\)/, "o dom-ready tem de usar o mesmo guarda da batida");
   const watch = cut(src, "function watchPagePins(name, frame)", "function threadsOnThePage", "chat-and-panes.js");
   assert.match(watch, /showingArtifact\(name\) && frameIsUpFront\(name, frame\)/, "e a batida, o mesmo do dom-ready");
-});
-
-test("in the new hive the box has one door off the shelf and two named ones on it", () => {
-  const doors = cut(picker, "function doorsOfAsk(card)", "\n}\n", "seat-preload");
-  assert.match(doors, /page\.style\.display = shelf \? "" : "none";/, "off the shelf, commenting on the page and adding to the chat were the same thing");
-  assert.match(picker, /const onTheShelf = \(\) => location\.protocol === "shelf:";/);
-  assert.match(picker, /sendAsk\(askLook && !onTheShelf\(\) \? "chat" : "page"\)/, "⌘↵ presses the door that is on screen");
-  assert.match(picker, /ipcRenderer\.on\("hive-ask-look"/);
-  assert.match(panesSource, /frame\.send\("hive-ask-look", \{ next: experienceNext\(\), chat: phrase\("add to the chat"\), page: phrase\("comment on the page"\)/);
-  assert.match(picker, /responder no chat/, "the current hive keeps its two doors as they were");
 });

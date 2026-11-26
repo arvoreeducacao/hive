@@ -29,11 +29,12 @@ test("a right click inside a field or over selected text leaves the seat menu sh
 });
 
 test("the window answers that right click with cut, copy and paste, and copies an image or a link under the pointer", () => {
-  const from = main.indexOf('webContents.on("context-menu"');
-  const hook = main.slice(from, main.indexOf('webContents.on("did-finish-load"', from));
+  assert.match(main, /window_\.webContents\.on\("context-menu", \(_event, params\) => popEditMenu\(window_\.webContents, params\)\)/);
+  const from = main.indexOf("function popEditMenu(");
+  const hook = main.slice(from, main.indexOf("function createWindow(", from));
   assert.match(hook, /if \(!params\.isEditable && !params\.selectionText && !image && !link\) return;/);
   for (const role of ["cut", "copy", "paste", "selectAll"]) assert.match(hook, new RegExp(`role: "${role}"`));
-  assert.match(hook, /copyImageAt\(params\.x, params\.y\)/);
+  assert.match(hook, /contents\.copyImageAt\(params\.x, params\.y\)/);
   assert.match(hook, /clipboard\.writeText\(link\)/);
 });
 

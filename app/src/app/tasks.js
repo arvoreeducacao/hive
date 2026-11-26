@@ -888,4 +888,4 @@ $("tasks").addEventListener("keydown", (ev) => {
 setTimeout(() => pullTasks(), 1500);
 setInterval(() => pullTasks(), TASKS_POLL);
 
-export { closeTasks, myOpenTaskCount, myOpenTasks, openTasks, paintTasks, pickTask, pullTasks, shownTasks, stepTask, taskActions, taskMatches, taskBrief, tasksModel, tasksOn, ui as tasksUi };
+export { closeTasks, myOpenTasks, openTasks, paintTasks, pullTasks, shownTasks, stepTask, taskActions, taskMatches, taskBrief, tasksModel, tasksOn, ui as tasksUi };

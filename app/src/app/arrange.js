@@ -1,9 +1,9 @@
 import { avatarPulse } from "./avatars.js";
-import { activeItems, blockTitle, blocksOf, itemOf, stripItems, labelOf, landOnBlock, moveToNewBlock, nameSpace, ofBlock, openSpace, seatsOf, soloSeat, spaceName, spaceOf, tidy } from "./blocks.js";
+import { activeItems, blockNumber, blockTitle, blocksOf, itemOf, stripItems, labelOf, landOnBlock, moveToNewBlock, nameSpace, ofBlock, openSpace, seatsOf, soloSeat, spaceName, spaceOf, subchatOpen, tidy } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { paintYards } from "./chat-and-panes.js";
 import { healStructuredScroll } from "./chat-stretches.js";
-import { $, LABEL, batch, esc, every, paneOfSeat, perf, phrase, raycastOn, solidMounts, st, stateColor, statusFolded } from "./core.js";
+import { $, LABEL, batch, every, paneOfSeat, perf, phrase, raycastOn, solidMounts, st, stateColor, statusFolded } from "./core.js";
 import { dayOnScreen, dayWhatItDecided, paintDay } from "./day.js";
 import { createFileTile, dropEditor, updateFile } from "./files-editor.js";
 import { createDraftTile, updateDraft } from "./draft-seat.js";
@@ -22,6 +22,7 @@ import { mirrorRow } from "./team.js";
 import { movePrPanel, moveThreadPanel } from "./thread.js";
 import { emptyWallModel, swapSeats } from "./tiles.js";
 import { followFocusedChat } from "./screen-reader.js";
+import { putAttr, putHidden, putText, putTitle } from "./dom-writes.js";
 
 st.arrangeCursor = { i: 0, j: 0 };
 
@@ -45,7 +46,17 @@ st.arrangeClimbTo = "";
 
 const CLIMB_WAIT = 400;
 
-const arrangeOn = () => !$("arrange").hidden;
+let deckOpen = false;
+
+let deckRise = 0;
+
+let deckModel = null;
+
+let deckSolid = null;
+
+let climbMark = "";
+
+const arrangeOn = () => deckOpen;
 
 const canArrange = () => !soloSeat && !st.mirrorDev;
 
@@ -71,18 +82,11 @@ function openArrange() {
   const here = activeItems()[st.focus]?.key;
   const j = here ? st.blocks[st.block]?.keys.indexOf(here) : -1;
   st.arrangeCursor = { i: Math.max(0, st.block), j: Math.max(0, j) };
-  const host = $("arrange");
-  if (!st.arrangeScrim) {
-    st.arrangeScrim = true;
-    host.addEventListener("mousedown", (ev) => { if (ev.target === host) closeArrange(); });
-  }
   wheelPile = 0;
   wheelStepAt = 0;
-  host.hidden = false;
-  host.classList.remove("up");
+  deckOpen = true;
+  deckRise += 1;
   paintArrange();
-  void host.offsetWidth;
-  host.classList.add("up");
 }
 
 function closeArrange() {
@@ -92,9 +96,9 @@ function closeArrange() {
   st.arrangeOver = -1;
   clearTimeout(st.arrangeLanding);
   stopClimb();
-  $("arrange").classList.remove("up");
-  $("arrange").hidden = true;
-  $("arrange").innerHTML = "";
+  deckOpen = false;
+  deckModel = null;
+  deckSolid?.show({ ...DECK_SHUT, rise: deckRise });
 }
 
 function arrangeLandOn(id) {
@@ -120,34 +124,31 @@ function arrangeSay() {
   if (st.arrangeHeld) {
     const it = itemOf(st.arrangeHeld);
     const takers = st.blocks.filter((b) => !b.keys.includes(st.arrangeHeld)).length + 1;
-    return `${phrase("moving")} <em>${esc(it?.title || it?.name || st.arrangeHeld)}</em> — ${phrase("{n} blocks take it, on any floor", { n: takers })}`;
+    return { lead: `${phrase("moving")} `, em: it?.title || it?.name || st.arrangeHeld, rest: ` — ${phrase("{n} blocks take it, on any floor", { n: takers })}` };
   }
   const w = spaceOf(deckFloor());
   const cards = floorCards(w.id).length;
-  return `<em>${esc(spaceName(w))}</em> — ${cards === 1 ? phrase("1 block") : phrase("{n} blocks", { n: cards })} · ${phrase("{n} seats", { n: seatsOf(w.id) })}`;
+  return { lead: "", em: spaceName(w), rest: ` — ${cards === 1 ? phrase("1 block") : phrase("{n} blocks", { n: cards })} · ${phrase("{n} seats", { n: seatsOf(w.id) })}` };
 }
 
 function arrangeChip(key, i, j) {
   const it = itemOf(key);
   const state = it?.state || "idle";
-  const held = st.arrangeHeld === key;
-  /* the swap mark belongs to the lane being aimed at: on every full lane at once it is noise */
-  const swap = !held && st.blocks[i]?.keys.length >= st.LIMIT && takingLane(i);
-  const at = st.arrangeCursor.i === i && st.arrangeCursor.j === j;
-  return `<button type="button" class="a-chip${held ? " lifting" : ""}${swap ? " swap" : ""}${at ? " at" : ""}" draggable="true"
-      data-key="${esc(key)}" data-i="${i}" data-j="${j}" data-state="${esc(state)}"
-      title="${esc(it?.title || key)}">
-      <span class="st"><i style="background:${stateColor(state)}"></i>${esc(phrase(LABEL[state] || state))}</span>
-      <span class="nm">${esc(it?.title || it?.name || key)}</span>
-      ${it?.errand ? `<span class="er">${esc(it.errand)}</span>` : ""}
-    </button>`;
+  return {
+    key: `chip:${key}`, seat: key, i, j, state,
+    color: stateColor(state),
+    label: phrase(LABEL[state] || state),
+    title: it?.title || key,
+    name: it?.title || it?.name || key,
+    errand: it?.errand || "",
+    at: st.arrangeCursor.i === i && st.arrangeCursor.j === j,
+    lifting: false,
+    swap: false
+  };
 }
 
 function arrangeSlot(i, j) {
-  const hot = !!st.arrangeHeld && !st.blocks[i]?.keys.includes(st.arrangeHeld);
-  const at = st.arrangeCursor.i === i && st.arrangeCursor.j === j;
-  return `<button type="button" class="a-slot${hot ? " hot" : ""}${at ? " at" : ""}" data-i="${i}" data-j="${j}">
-      ${hot ? esc(phrase("drop here")) : esc(phrase("free"))}</button>`;
+  return { key: `slot:${i}:${j}`, i, j, at: st.arrangeCursor.i === i && st.arrangeCursor.j === j, hot: false, text: "" };
 }
 
 /* the mouse wins while it is over a lane; the keyboard cursor answers when it is not */
@@ -179,53 +180,69 @@ function floorInner(w, front) {
     const items = ofBlock(b);
     const cells = [];
     for (let j = 0; j < st.LIMIT; j++) cells.push(j < b.keys.length ? arrangeChip(b.keys[j], i, j) : arrangeSlot(i, j));
-    const taking = takingLane(i);
-    const n = blocksOf(w.id).indexOf(b) + 1;
-    return `<div class="a-card${i === st.block && w.id === st.space ? " here" : ""}${b.keys.length >= st.LIMIT ? " full" : ""}${taking ? " taking" : ""}" data-i="${i}">
-      <div class="a-top"><i>${n}</i><span class="name">${esc(labelOf(b, items).txt || phrase("unnamed"))}</span><em>${b.keys.length}/${st.LIMIT}</em></div>
-      <div class="a-grid">${cells.join("")}</div>
-      <div class="a-note">${esc(arrangeNote(i))}</div>
-    </div>`;
-  }).join("");
-
+    return {
+      key: `card:${i}`, i,
+      n: blocksOf(w.id).indexOf(b) + 1,
+      name: labelOf(b, items).txt || phrase("unnamed"),
+      count: `${b.keys.length}/${st.LIMIT}`,
+      here: i === st.block && w.id === st.space,
+      full: b.keys.length >= st.LIMIT,
+      taking: false,
+      note: "",
+      cells
+    };
+  });
   const newAt = st.arrangeCursor.i === arrangeNewCard() && w.id === deckFloor();
-  const room = front
-    ? `<button type="button" class="a-new${st.arrangeHeld ? " hot" : ""}${newAt ? " at" : ""}" data-w="${esc(w.id)}">
-        <span class="plus">+</span><span class="t">${esc(phrase("new block"))}</span></button>`
-    : "";
+  return dressInner({
+    cards,
+    room: front ? { at: newAt, hot: false, say: phrase("new block") } : null,
+    name: w.name,
+    placeholder: spaceName(w),
+    nameLabel: phrase("what this workspace is about"),
+    seats: `${floorCards(w.id).length}·${seatsOf(w.id)}`,
+    moreLabel: phrase("rename or close this workspace")
+  });
+}
 
-  return `<div class="surface"><div class="grid"></div>
-      <div class="fl-blocks">${cards}${room}</div>
-    </div>
-    <div class="tag" data-w="${esc(w.id)}"><span class="swatch"></span>
-      <input class="fl-name" data-w="${esc(w.id)}" value="${esc(w.name)}" placeholder="${esc(spaceName(w))}" spellcheck="false"
-        aria-label="${esc(phrase("what this workspace is about"))}" />
-      <span class="seats">${floorCards(w.id).length}·${seatsOf(w.id)}</span>
-      <button type="button" class="fl-more-btn" data-w="${esc(w.id)}"
-        title="${esc(phrase("rename or close this workspace"))}"
-        aria-label="${esc(phrase("rename or close this workspace"))}">×</button></div>`;
+function dressInner(inner) {
+  if (!inner?.cards) return inner;
+  const held = st.arrangeHeld;
+  return {
+    ...inner,
+    cards: inner.cards.map((card) => ({
+      ...card,
+      taking: takingLane(card.i),
+      note: arrangeNote(card.i),
+      cells: card.cells.map((cell) => {
+        if (cell.seat) {
+          const mine = cell.seat === held;
+          return { ...cell, lifting: mine, swap: !mine && st.blocks[cell.i]?.keys.length >= st.LIMIT && takingLane(cell.i) };
+        }
+        const hot = !!held && !st.blocks[cell.i]?.keys.includes(held);
+        return { ...cell, hot, text: hot ? phrase("drop here") : phrase("free") };
+      })
+    })),
+    room: inner.room && { ...inner.room, hot: !!held }
+  };
 }
 
 function freshInner() {
-  return `<div class="surface"><div class="grid"></div>
-      <div class="fl-empty"><span class="plus">+</span><span class="t">${esc(phrase("new workspace"))}</span>
-      <span class="s">${esc(phrase("another subject, with blocks of its own — the next chat opens in it"))}</span></div>
-    </div>
-    <div class="tag" data-w=""><span class="swatch"></span>${esc(phrase("new workspace"))}</div>`;
+  return { title: phrase("new workspace"), say: phrase("another subject, with blocks of its own — the next chat opens in it") };
 }
 
-function placeFloors(host) {
-  const at = floorAt();
-  host.querySelectorAll(".floor").forEach((el) => {
-    const d = Number(el.dataset.d);
-    const away = d < -1 || d >= FLOORS_SHOWN;
-    const ty = d < 0 ? d * -166 * 1.9 : d * -166;
-    const tz = d < 0 ? Math.abs(d) * -150 * 0.45 : d * -150;
-    el.style.transform = `translate3d(0,${ty}px,${tz}px)`;
-    el.style.opacity = away ? 0 : d === 0 ? 1 : d > 0 ? Math.max(.44, .92 - (d - 1) * .12) : .34;
-    el.style.pointerEvents = !away && d >= 0 ? "auto" : "none";
-  });
-  return at;
+function floorShell(id, at, front) {
+  const d = (id === "" ? st.spaces.length : st.spaces.findIndex((x) => x.id === id)) - at;
+  const away = d < -1 || d >= FLOORS_SHOWN;
+  const ty = d < 0 ? d * -166 * 1.9 : d * -166;
+  const tz = d < 0 ? Math.abs(d) * -150 * 0.45 : d * -150;
+  return {
+    d,
+    here: !!id && id === front,
+    climbing: !!climbMark && id === climbMark,
+    transform: `translate3d(0,${ty}px,${tz}px)`,
+    opacity: away ? 0 : d === 0 ? 1 : d > 0 ? Math.max(.44, .92 - (d - 1) * .12) : .34,
+    pointer: !away && d >= 0 ? "auto" : "none"
+  };
 }
 
 let wheelPile = 0;
@@ -256,29 +273,7 @@ function arrangeWheel(ev) {
   arrangeFloorStep(d);
 }
 
-const part = (tag, cls, into) => {
-  const el = document.createElement(tag);
-  el.className = cls;
-  if (into) into.appendChild(el);
-  return el;
-};
-
-function arrangeScaffold(host) {
-  if (host.querySelector(".deck")) return;
-  host.innerHTML = "";
-  part("div", "glow", host);
-  const scene = part("div", "scene", host);
-  part("div", "deck", scene);
-  part("div", "fl-more", host).hidden = true;
-  const foot = part("div", "fl-foot", host);
-  part("span", "say", foot);
-  part("span", "keys", foot).innerHTML =
-    `<span><kbd>shift</kbd><kbd>↑</kbd><kbd>↓</kbd> ${esc(phrase("floor"))}</span>
-     <span><kbd>←</kbd><kbd>→</kbd> ${esc(phrase("seat"))}</span>
-     <span><kbd>space</kbd> ${esc(phrase("pick up"))}</span>
-     <span><kbd>esc</kbd> ${esc(phrase("close"))}</span>`;
-  scene.addEventListener("wheel", arrangeWheel, { passive: false });
-}
+const DECK_SHUT = { key: "arrange", on: false, rise: 0, floors: [], more: "", moreShown: false, say: { lead: "", em: "", rest: "" }, keys: { floor: "", seat: "", pickUp: "", close: "" } };
 
 const spaceOfSeat = (key) => {
   const b = st.blocks.find((one) => one.keys.includes(key));
@@ -289,33 +284,39 @@ function stopClimb() {
   clearTimeout(st.arrangeClimb);
   st.arrangeClimb = 0;
   st.arrangeClimbTo = "";
-  $("arrange").querySelectorAll(".floor.climbing").forEach((one) => one.classList.remove("climbing"));
+  if (!climbMark) return;
+  climbMark = "";
+  markClimb();
+}
+
+function markClimb() {
+  if (!deckModel) return;
+  deckModel = { ...deckModel, floors: deckModel.floors.map((one) => ({ ...one, climbing: !!climbMark && one.w === climbMark })) };
+  deckSolid?.show(deckModel);
 }
 
 /* the floor comes forward without redrawing anything: the seat in your hand lives in one of
    these cards, and rebuilding them mid-gesture is what used to kill the drag */
-function slideFloors(host) {
+function slideFloors() {
+  if (!deckModel) return;
   const at = floorAt();
-  host.querySelectorAll(".floor").forEach((el) => {
-    const id = el.dataset.w;
-    const idx = id === "" ? st.spaces.length : st.spaces.findIndex((x) => x.id === id);
-    el.dataset.d = String(idx - at);
-    el.classList.toggle("here", !!id && id === deckFloor());
-  });
-  placeFloors(host);
+  const front = deckFloor();
+  deckModel = { ...deckModel, floors: deckModel.floors.map((one) => ({ ...one, ...floorShell(one.w, at, front) })) };
+  deckSolid?.show(deckModel);
 }
 
 function climbTo(id) {
   if (!id || id === deckFloor() || st.arrangeClimbTo === id) return;
   stopClimb();
   st.arrangeClimbTo = id;
-  $("arrange").querySelector(`.floor[data-w="${CSS.escape(id)}"]`)?.classList.add("climbing");
+  climbMark = id;
+  markClimb();
   st.arrangeClimb = setTimeout(() => {
     st.arrangeClimb = 0;
     st.arrangeClimbTo = "";
     if (!st.arrangeHeld || !st.spaces.some((w) => w.id === id)) return;
     st.arrangeFloor = id;
-    slideFloors($("arrange"));
+    slideFloors();
     dressDrag();
   }, calmly() ? 0 : CLIMB_WAIT);
 }
@@ -340,216 +341,188 @@ function landOnFloor(id) {
   arrangeFollow(key);
 }
 
-function bindFloorShell(el) {
-  el.addEventListener("click", (ev) => {
-    if (ev.target.closest(".a-chip, .a-slot, .a-new, .fl-name, .fl-more-btn")) return;
-    const id = el.dataset.w;
-    /* carrying a seat, the click puts it down here — it never walks you to another workspace */
-    if (st.arrangeHeld) { landOnFloor(id); return; }
-    if (id === "") { const w = openSpace(""); closeArrange(); goToSpace(w.id); return; }
-    arrangeLandOn(id);
-  });
-  el.addEventListener("contextmenu", (ev) => {
-    const id = el.dataset.w;
-    if (!id) return;
-    ev.preventDefault();
-    openSpaceMenu(id, ev.clientX, ev.clientY);
-  });
-  el.addEventListener("dragover", (ev) => {
-    if (!st.arrangeHeld) return;
-    /* a lane answers for itself, and stops the event when it takes the seat */
-    if (ev.target.closest(".a-card")) return;
-    const id = el.dataset.w;
-    /* the floor the seat already lives in has nothing to offer outside its lanes, so the
-       cursor keeps saying no there instead of promising a move that does nothing */
-    if (id !== "" && id === spaceOfSeat(st.arrangeHeld)) return;
-    ev.preventDefault();
-    ev.dataTransfer.dropEffect = "move";
-    if (id && id !== deckFloor()) climbTo(id);
-    else {
-      stopClimb();
-      if (st.arrangeOver !== -1) { st.arrangeOver = -1; dressDrag(); }
-    }
-  });
-  el.addEventListener("dragleave", (ev) => {
-    if (el.contains(ev.relatedTarget)) return;
-    if (st.arrangeClimbTo === el.dataset.w) stopClimb();
-  });
-  el.addEventListener("drop", (ev) => {
-    if (!st.arrangeHeld || ev.target.closest(".a-card, .a-new")) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    landOnFloor(el.dataset.w);
-  });
+function floorClick(ev, id) {
+  if (ev.target.closest(".a-chip, .a-slot, .a-new, .fl-name, .fl-more-btn")) return;
+  /* carrying a seat, the click puts it down here — it never walks you to another workspace */
+  if (st.arrangeHeld) { landOnFloor(id); return; }
+  if (id === "") { const w = openSpace(""); closeArrange(); goToSpace(w.id); return; }
+  arrangeLandOn(id);
 }
 
-function bindFloor(el) {
-  el.querySelectorAll(".fl-name").forEach((one) => {
-    one.addEventListener("click", (ev) => ev.stopPropagation());
-    one.addEventListener("keydown", (ev) => {
-      ev.stopPropagation();
-      if (ev.key === "Enter") one.blur();
-      if (ev.key === "Escape") { one.value = spaceOf(one.dataset.w).name; one.blur(); }
-    });
-    one.addEventListener("change", () => { nameSpace(one.dataset.w, one.value); paintArrange(); paintBlocks(); });
-    one.addEventListener("blur", () => { nameSpace(one.dataset.w, one.value); paintBlocks(); });
-  });
+function floorMenu(ev, id) {
+  if (!id) return;
+  ev.preventDefault();
+  openSpaceMenu(id, ev.clientX, ev.clientY);
+}
 
-  /* the same menu the right button opens, with a door you can see */
-  el.querySelectorAll(".fl-more-btn").forEach((one) => {
-    one.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      const at = one.getBoundingClientRect();
-      openSpaceMenu(one.dataset.w, at.left, at.bottom + 6);
-    });
-  });
+function floorDragOver(ev, id) {
+  if (!st.arrangeHeld) return;
+  /* a lane answers for itself, and stops the event when it takes the seat */
+  if (ev.target.closest(".a-card")) return;
+  /* the floor the seat already lives in has nothing to offer outside its lanes, so the
+     cursor keeps saying no there instead of promising a move that does nothing */
+  if (id !== "" && id === spaceOfSeat(st.arrangeHeld)) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  if (id && id !== deckFloor()) climbTo(id);
+  else {
+    stopClimb();
+    if (st.arrangeOver !== -1) { st.arrangeOver = -1; dressDrag(); }
+  }
+}
 
-  el.querySelectorAll(".a-card").forEach((one) => {
-    const i = Number(one.dataset.i);
-    one.addEventListener("dragover", (ev) => {
-      if (!st.arrangeHeld || st.blocks[i]?.keys.includes(st.arrangeHeld)) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      ev.dataTransfer.dropEffect = "move";
-      /* a lane of a floor further back brings its floor forward, same as its empty surface */
-      const w = one.closest(".floor")?.dataset.w;
-      if (w && w !== deckFloor()) climbTo(w);
-      else stopClimb();
-      if (st.arrangeOver === i) return;
-      st.arrangeOver = i;
-      dressDrag();
-    });
-    one.addEventListener("dragleave", (ev) => {
-      if (one.contains(ev.relatedTarget) || st.arrangeOver !== i) return;
-      st.arrangeOver = -1;
-      dressDrag();
-    });
-    /* the whole lane takes the seat: on a name it says who leaves, anywhere else the last one does */
-    one.addEventListener("drop", (ev) => {
-      if (!st.arrangeHeld) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      arrangeDrop(st.arrangeHeld, i, ev.target.closest(".a-chip")?.dataset.key || null);
-    });
-  });
+function floorDragLeave(ev, id) {
+  if (ev.currentTarget.contains(ev.relatedTarget)) return;
+  if (st.arrangeClimbTo === id) stopClimb();
+}
 
-  el.querySelectorAll(".a-chip").forEach((one) => {
-    const key = one.dataset.key;
-    const i = Number(one.dataset.i);
-    const j = Number(one.dataset.j);
-    one.addEventListener("click", (ev) => { ev.stopPropagation(); if (!st.arrangeDragging) arrangeTake(key, i, j); });
-    /* nothing is redrawn while the gesture is alive: this element is the one in the person's
-       hand, and taking it out of the page mid-drag is what used to lose the drop */
-    one.addEventListener("dragstart", (ev) => {
-      st.arrangeDragging = true;
-      st.arrangeHeld = key;
-      st.arrangeOver = -1;
-      ev.dataTransfer.effectAllowed = "move";
-      ev.dataTransfer.setData("text/plain", key);
-      dressDrag();
-    });
-    one.addEventListener("dragend", () => {
-      st.arrangeDragging = false;
-      st.arrangeOver = -1;
-      stopClimb();
-      if (!st.arrangeHeld) return;
-      st.arrangeHeld = null;
-      if (arrangeOn()) paintArrange();
-    });
-  });
+function floorDrop(ev, id) {
+  if (!st.arrangeHeld || ev.target.closest(".a-card, .a-new")) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  landOnFloor(id);
+}
 
-  el.querySelectorAll(".a-slot").forEach((one) => {
-    one.addEventListener("click", (ev) => ev.stopPropagation());
-  });
+function nameChange(id, value) {
+  nameSpace(id, value);
+  paintArrange();
+  paintBlocks();
+}
 
-  el.querySelectorAll(".a-new").forEach((one) => {
-    one.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      if (st.arrangeHeld) arrangeDrop(st.arrangeHeld, arrangeNewCard(), null);
-    });
-    one.addEventListener("dragover", (ev) => {
-      if (!st.arrangeHeld) return;
-      ev.preventDefault();
-      ev.dataTransfer.dropEffect = "move";
-    });
-    one.addEventListener("drop", (ev) => {
-      if (!st.arrangeHeld) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      arrangeDrop(st.arrangeHeld, arrangeNewCard(), null);
-    });
-  });
+function nameBlur(id, value) {
+  nameSpace(id, value);
+  paintBlocks();
+}
+
+/* the same menu the right button opens, with a door you can see */
+function moreClick(ev, id) {
+  ev.stopPropagation();
+  const at = ev.currentTarget.getBoundingClientRect();
+  openSpaceMenu(id, at.left, at.bottom + 6);
+}
+
+function laneDragOver(ev, i) {
+  if (!st.arrangeHeld || st.blocks[i]?.keys.includes(st.arrangeHeld)) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  ev.dataTransfer.dropEffect = "move";
+  /* a lane of a floor further back brings its floor forward, same as its empty surface */
+  const w = ev.currentTarget.closest(".floor")?.dataset.w;
+  if (w && w !== deckFloor()) climbTo(w);
+  else stopClimb();
+  if (st.arrangeOver === i) return;
+  st.arrangeOver = i;
+  dressDrag();
+}
+
+function laneDragLeave(ev, i) {
+  if (ev.currentTarget.contains(ev.relatedTarget) || st.arrangeOver !== i) return;
+  st.arrangeOver = -1;
+  dressDrag();
+}
+
+/* the whole lane takes the seat: on a name it says who leaves, anywhere else the last one does */
+function laneDrop(ev, i) {
+  if (!st.arrangeHeld) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  arrangeDrop(st.arrangeHeld, i, ev.target.closest(".a-chip")?.dataset.key || null);
+}
+
+function chipClick(ev, key, i, j) {
+  ev.stopPropagation();
+  if (!st.arrangeDragging) arrangeTake(key, i, j);
+}
+
+/* nothing is rebuilt while the gesture is alive: this element is the one in the person's
+   hand, and taking it out of the page mid-drag is what used to lose the drop */
+function chipDragStart(ev, key) {
+  st.arrangeDragging = true;
+  st.arrangeHeld = key;
+  st.arrangeOver = -1;
+  ev.dataTransfer.effectAllowed = "move";
+  ev.dataTransfer.setData("text/plain", key);
+  dressDrag();
+}
+
+function chipDragEnd() {
+  st.arrangeDragging = false;
+  st.arrangeOver = -1;
+  stopClimb();
+  if (!st.arrangeHeld) return;
+  st.arrangeHeld = null;
+  if (arrangeOn()) paintArrange();
+}
+
+function newClick(ev) {
+  ev.stopPropagation();
+  if (st.arrangeHeld) arrangeDrop(st.arrangeHeld, arrangeNewCard(), null);
+}
+
+function newDragOver(ev) {
+  if (!st.arrangeHeld) return;
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+}
+
+function newDrop(ev) {
+  if (!st.arrangeHeld) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  arrangeDrop(st.arrangeHeld, arrangeNewCard(), null);
 }
 
 /* everything the drag changes on screen is a class or a line of text, so it is written straight
    onto the elements already there. paintArrange rebuilds the deck, which a live gesture cannot take. */
 function dressDrag() {
-  const host = $("arrange");
-  if (!host || host.hidden) return;
-  const held = st.arrangeHeld;
-  host.querySelectorAll(".a-chip").forEach((one) => {
-    const i = Number(one.dataset.i);
-    const mine = one.dataset.key === held;
-    one.classList.toggle("lifting", mine);
-    one.classList.toggle("swap", !mine && st.blocks[i]?.keys.length >= st.LIMIT && takingLane(i));
-  });
-  host.querySelectorAll(".a-slot").forEach((one) => {
-    const i = Number(one.dataset.i);
-    const hot = !!held && !st.blocks[i]?.keys.includes(held);
-    one.classList.toggle("hot", hot);
-    one.textContent = hot ? phrase("drop here") : phrase("free");
-  });
-  host.querySelectorAll(".a-card").forEach((one) => {
-    const i = Number(one.dataset.i);
-    one.classList.toggle("taking", takingLane(i));
-    const note = one.querySelector(".a-note");
-    if (note) note.textContent = arrangeNote(i);
-  });
-  host.querySelectorAll(".a-new").forEach((one) => one.classList.toggle("hot", !!held));
-  const say = host.querySelector(".fl-foot .say");
-  if (say) say.innerHTML = arrangeSay();
+  if (!deckModel || !arrangeOn()) return;
+  deckModel = { ...deckModel, floors: deckModel.floors.map((one) => ({ ...one, inner: dressInner(one.inner) })), say: arrangeSay() };
+  deckSolid?.show(deckModel);
 }
+
+const namingFloor = () => {
+  const now = document.activeElement;
+  return now?.matches?.("#arrange .fl-name") ? now.dataset.w : null;
+};
 
 function paintArrange() {
-  const host = $("arrange");
   st.arrangeFloor = deckFloor();
-  arrangeScaffold(host);
-  const deck = host.querySelector(".deck");
   const at = floorAt();
   const front = deckFloor();
-  const ids = st.spaces.map((w) => w.id).concat([""]);
-
-  for (const el of [...deck.children]) if (!ids.includes(el.dataset.w)) el.remove();
-
-  ids.forEach((id) => {
+  const naming = namingFloor();
+  const was = new Map((deckModel?.floors || []).map((one) => [one.w, one.inner]));
+  const floors = st.spaces.map((w) => w.id).concat([""]).map((id) => {
     const w = id ? spaceOf(id) : FRESH_FLOOR;
-    let el = deck.querySelector(`.floor[data-w="${CSS.escape(id)}"]`);
-    if (!el) {
-      el = document.createElement("section");
-      el.className = "floor";
-      el.dataset.w = id;
-      deck.appendChild(el);
-      bindFloorShell(el);
-    }
-    const naming = el.contains(document.activeElement) && document.activeElement.classList.contains("fl-name");
-    if (!naming && !st.arrangeDragging) {
-      el.innerHTML = id ? floorInner(w, id === front) : freshInner();
-      bindFloor(el);
-    }
-    el.style.setProperty("--wtint", w.tint);
-    el.classList.toggle("fresh", !id);
-    el.classList.toggle("here", !!id && id === front);
-    el.dataset.d = String((id === "" ? st.spaces.length : st.spaces.findIndex((x) => x.id === id)) - at);
+    const inner = naming === id || st.arrangeDragging ? was.get(id) ?? null : id ? floorInner(w, id === front) : freshInner();
+    return { key: `floor:${id}`, w: id, tint: w.tint, fresh: !id, inner, ...floorShell(id, at, front) };
   });
-
-  placeFloors(host);
-
   const above = st.spaces.length - at - FLOORS_SHOWN;
-  const more = host.querySelector(".fl-more");
-  more.hidden = above <= 0;
-  if (above > 0) more.textContent = phrase("+{n} further up", { n: above });
-  host.querySelector(".fl-foot .say").innerHTML = arrangeSay();
+  deckModel = {
+    key: "arrange",
+    on: deckOpen,
+    rise: deckRise,
+    floors,
+    more: above > 0 ? phrase("+{n} further up", { n: above }) : deckModel?.more || "",
+    moreShown: above > 0,
+    say: arrangeSay(),
+    keys: { floor: phrase("floor"), seat: phrase("seat"), pickUp: phrase("pick up"), close: phrase("close") }
+  };
+  deckSolid?.show(deckModel);
 }
+
+solidMounts.push((hive) => {
+  deckSolid = hive.mountArrangeDeck($("arrange"), {
+    close: () => closeArrange(),
+    wheel: (ev) => arrangeWheel(ev),
+    nameOf: (id) => spaceOf(id).name,
+    floorClick, floorMenu, floorDragOver, floorDragLeave, floorDrop,
+    nameChange, nameBlur, moreClick,
+    laneDragOver, laneDragLeave, laneDrop,
+    chipClick, chipDragStart, chipDragEnd,
+    newClick, newDragOver, newDrop
+  });
+  if (deckModel) deckSolid.show(deckModel);
+});
 
 function arrangeTake(key, i, j) {
   if (!st.arrangeHeld) {
@@ -649,10 +622,21 @@ function paintStrip(b, list) {
     if (document.activeElement !== inp) inp.value = "";
     return;
   }
+  const sub = subchatOpen();
+  if (sub) {
+    const opener = st.data.sessions.find((one) => one.name === sub.by);
+    inp.disabled = true;
+    const head = opener?.title || sub.by;
+    inp.value = `${head.length > 24 ? `${head.slice(0, 23).trimEnd()}…` : head} / ${sub.title || sub.name}`;
+    inp.title = subchatAway();
+    return;
+  }
   inp.disabled = false;
   if (document.activeElement !== inp) inp.value = labelOf(b, list).txt;
   inp.title = phrase("click to name the block");
 }
+
+const subchatAway = () => phrase("outside the blocks · Esc goes back to {block}", { block: phrase("block {n}", { n: blockNumber(st.block) }) });
 
 let stripSolid = null;
 
@@ -732,8 +716,8 @@ function paintCalls() {
   const calling = st.data.sessions.filter((s) => s.state === "needs");
   const said = `${calling.length} ${calling.length === 1 ? phrase("needs you") : phrase("need you")}`;
   const btn = $("btn-calls");
-  btn.title = [said, ...calling.map((s) => s.title || s.name), keyHint("calls")].join(" · ");
-  btn.setAttribute("aria-label", said);
+  putTitle(btn, [said, ...calling.map((s) => s.title || s.name), keyHint("calls")].join(" · "));
+  putAttr(btn, "aria-label", said);
 }
 
 function paintEverything({ animate = true } = {}) {
@@ -741,10 +725,10 @@ function paintEverything({ animate = true } = {}) {
   avatarPulse();
   document.body.classList.toggle("typing-on", !!st.typing);
   const onPlane = planeShown();
-  $("canvas").hidden = !!st.mirrorDev || onPlane;
-  $("plane").hidden = !onPlane;
-  for (const id of ["btn-plane", "btn-plane-top"]) $(id).setAttribute("aria-pressed", st.planeOn ? "true" : "false");
-  $("mirror").hidden = !st.mirrorDev;
+  putHidden($("canvas"), !!st.mirrorDev || onPlane);
+  putHidden($("plane"), !onPlane);
+  for (const id of ["btn-plane", "btn-plane-top"]) putAttr($(id), "aria-pressed", st.planeOn ? "true" : "false");
+  putHidden($("mirror"), !st.mirrorDev);
   if (st.mirrorDev) {
     paintStripEdges();
     paintYards();
@@ -766,13 +750,14 @@ function paintEverything({ animate = true } = {}) {
   if (st.seatMenuFor && !st.data.sessions.some((i) => i.name === st.seatMenuFor)) closeSeatMenu();
   if (st.reviewChat && (st.open !== st.reviewChat || !list.some((i) => i.name === st.reviewChat))) st.reviewChat = null;
   if (!st.reviewChat) movePrPanel($("prs"));
-  if (st.threadChat && (st.open !== st.threadChat || !list.some((i) => i.name === st.threadChat))) {
-    st.threadChat = null;
+  if (st.threadChat && (st.open !== st.threadChat || !list.some((i) => i.name === st.threadChat))) st.threadChat = null;
+  if (!st.threadChat && !$("thread").hidden) {
     $("thread").hidden = true;
     every("threads", 45000, () => pullThreads(false));
   }
   if (!st.threadChat) moveThreadPanel(document.body);
   const live = new Set(st.blocks.flatMap((x) => x.keys));
+  if (subchatOpen()) live.add(st.open);
   const liveEls = new Set([...live].map((key) => tiles.get(key)).filter(Boolean));
   for (const [key, el] of tiles) {
     if (!live.has(key) && !liveEls.has(el)) {
@@ -843,9 +828,9 @@ function paintEverything({ animate = true } = {}) {
   const flights = flipEnd(moved);
   healStructuredScroll();
   const calls = st.data.sessions.filter((s) => s.state === "needs").length;
-  $("n-calls").textContent = calls;
+  putText($("n-calls"), String(calls));
   paintCalls();
-  $("btn-calls").hidden = calls === 0;
+  putHidden($("btn-calls"), calls === 0);
   if (palOn()) palPaint();
   if (dayOnScreen()) paintDay();
   dayWhatItDecided();
@@ -870,4 +855,4 @@ function blankViewModel() {
   };
 }
 
-export { CLIMB_WAIT, FLOORS_SHOWN, FRESH_FLOOR, WHEEL_CALM, WHEEL_GAP, WHEEL_WORTH, arrangeChip, arrangeDrop, arrangeFloorStep, arrangeFollow, arrangeKeys, arrangeLandOn, arrangeNewCard, arrangeNote, arrangeOn, arrangeSay, arrangeScaffold, arrangeSlot, arrangeStep, arrangeTake, arrangeWheel, bindFloor, bindFloorShell, blankSides, climbTo, dressDrag, landOnFloor, slideFloors, stopClimb, takingLane, blankViewModel, canArrange, closeArrange, deckFloor, floorAt, floorCards, floorInner, freshInner, layoutKey, layoutSeen, openArrange, paintArrange, paintEverything, paintStrip, part, placeFloors, render, stripSolid, stripViewModel, wheelAt, wheelPile, wheelStepAt };
+export { CLIMB_WAIT, FLOORS_SHOWN, FRESH_FLOOR, WHEEL_CALM, WHEEL_GAP, WHEEL_WORTH, arrangeChip, arrangeDrop, arrangeFloorStep, arrangeFollow, arrangeKeys, arrangeLandOn, arrangeNewCard, arrangeNote, arrangeOn, arrangeSay, arrangeSlot, arrangeStep, arrangeTake, arrangeWheel, blankSides, climbTo, dressDrag, landOnFloor, slideFloors, stopClimb, takingLane, blankViewModel, canArrange, closeArrange, deckFloor, floorAt, floorCards, floorInner, freshInner, layoutKey, layoutSeen, openArrange, paintArrange, paintEverything, paintStrip, render, stripSolid, stripViewModel, wheelAt, wheelPile, wheelStepAt, floorShell, dressInner, floorClick, floorDragOver, laneDragOver, chipDragStart, chipDragEnd };

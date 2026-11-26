@@ -30,7 +30,7 @@ test("a pull request row says when it moved in the language of the app, not 'N d
   assert.equal(inPortuguese(() => prPopRowModel({ ...p, review: "changes_requested" }).why), "mudanças pedidas");
 });
 
-test("the strings the palette, the history, the usage screen and the day screen paint go through phrase()", () => {
+test("the strings the palette, the usage screen and the day screen paint go through phrase()", () => {
   const palette = src("app/palette.js");
   assert.match(palette, /section\(phrase\("blocks"\)/);
   assert.match(palette, /section\(phrase\("actions"\)/);
@@ -39,7 +39,6 @@ test("the strings the palette, the history, the usage screen and the day screen 
   assert.match(palette, /name: phrase\("block \{n\}", \{ n: blockNumber\(i\) \}\)/);
   assert.match(palette, /phrase\("environment · \{n\} warnings"/);
   assert.match(palette, /phrase\("checked \{when\}", \{ when: st\.alerts\.checked \}\)/);
-  assert.match(src("app/history.js"), /phrase\("\{n\} sessions", \{ n: st\.histSessions\.length \}\)/);
   assert.match(src("app/usage.js"), /phrase\("\{from\} to \{to\}"/);
   assert.match(src("app/usage.js"), /say: say \? phrase\(say\) : ""/);
   assert.match(src("app/usage.js"), /mean: number\(p\.mean_when_active\)/);
@@ -50,7 +49,6 @@ test("the strings the palette, the history, the usage screen and the day screen 
 test("the row dot and the sync strip of the history no longer share a class, so neither wears the other's size", () => {
   assert.equal(page.split("\n").filter((line) => line.trim().startsWith(".hist-sync {")).length, 1);
   assert.match(page, /\.hist-synced \{ font-size: 8px;/);
-  assert.match(src("panels/history.jsx"), /class=\{`hist-synced \$\{props\.row\.sync\.tone\}`\}/);
 });
 
 test("a header button the model hides stays hidden even though its style unsets the browser's defaults", () => {

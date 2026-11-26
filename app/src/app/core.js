@@ -18,6 +18,7 @@ import { THEME_UI_VARS, THEME_TERM_KEYS, THEME_NAME_MAX, hex6, cleanThemeDef, th
 import { every, stopBeat, beatOn } from "/assets/pollers.mjs";
 import { apiGet, apiPost } from "/assets/api.mjs";
 import { makePerf, perfWanted, watchLongTasks } from "/assets/perf.mjs";
+import { putAttr, putHidden, putTitle } from "./dom-writes.js";
 
 window.__hiveState = st;
 
@@ -177,12 +178,10 @@ const saveSidesShut = () => localStorage.setItem("hive.sideshut", JSON.stringify
 
 const sideShut = (name) => sidesShut.has(name);
 
-const experienceNext = () => document.body.classList.contains("experience-next");
-
 const raycastOn = () => document.body.classList.contains("experience-raycast");
-const composerShaped = () => raycastOn() || experienceNext();
+const composerShaped = () => raycastOn();
 
-const statusFolded = (name) => (experienceNext() ? sideShut(name) : !unfolded.has(name));
+const statusFolded = (name) => !unfolded.has(name);
 
 const foldedNow = (name) => (st.open === name ? sideShut(name) : statusFolded(name));
 
@@ -194,13 +193,18 @@ function paintFold(name, el) {
   tile.classList.toggle("folded", on);
   const b = tile.querySelector(".t-fold");
   if (b) {
-    b.hidden = false;
-    b.innerHTML = svgIcon(on ? "i-plus" : "i-minus");
-    b.setAttribute("aria-pressed", String(on));
-    b.title = on
+    putHidden(b, false);
+    const icon = on ? "i-plus" : "i-minus";
+    if (b.dataset.icon !== icon) {
+      b.dataset.icon = icon;
+      b.innerHTML = svgIcon(icon);
+    }
+    putAttr(b, "aria-pressed", String(on));
+    const said = on
       ? (alone ? phrase("bring the cards back") : phrase("bring the status back"))
       : (alone ? phrase("fold the cards away — the chat takes the room") : phrase("fold the status away — the terminal takes the room"));
-    b.setAttribute("aria-label", b.title);
+    putTitle(b, said);
+    putAttr(b, "aria-label", said);
   }
 }
 
@@ -719,4 +723,4 @@ function fontFromPanel() {
   };
 }
 
-export { $, chordKeys, parseChord, ACTION_GROUPS, ACTION_NAMES, BLOB_FACE, composerShaped, experienceNext, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody, FONT_AREA_FIELDS };
+export { $, chordKeys, parseChord, ACTION_GROUPS, ACTION_NAMES, BLOB_FACE, composerShaped, raycastOn, RAYCAST_COLOR, RAYCAST_FONT, RAYCAST_TERMINAL, RAYCAST_THEME, ACTION_SAID, ACTIONS, apiGet, apiPost, avatarFor, avatarKey, avatarSvg, batch, beatOn, BLOCK_SIZE_DEFAULT, BLOCK_SIZE_KEY, BLOCK_SIZE_RANGE, blockSizeSaved, BUILTIN_THEMES, builtinTheme, chooseOption, HIVE_CLASSIC_THEME, cleanThemeDef, CODE_NAME, COLOR, COLOURS, commandCounts, commandOf, commandsIn, commandSpot, COMPOSER_MIN, COOLS_AFTER, createEffect, createMemo, createRoot, CTRL_KEYS, dealFaces, DEFAULT_CHORDS, DEFAULT_KEYS, DEFAULT_LANGUAGE, DEFAULT_LEADER, defaultChord, defaultChords, DIGIT_ACTIONS, digitSpan, DIRECT_MODES, emojiOf, esc, every, FACES, faceSlot, finishSeen, FitAddon, fleetMood, FOCUS_MOVES, FONT_TAIL, fontFromPanel, forgetUpload, formatKey, fullThemeDef, GLYPH, hex6, HIVE_THEME, holdOf, IS_MAC, isImageName, isNativeCommand, isOff, KEY_WORD, LABEL, LANGUAGES, PILL_LABEL, liveMarkdown, liveStart, liveStep, lookDeltas, lookFor, MAC_KEYS, makePerf, markFinishSeen, markUpload, messageHtml, MOD_WORD, MOOD_BREATH, mountPet, mountPlayer, mountVisitor, MOVE_DIRS, CHAT_SCROLLS, NATIVE_COMMAND_NAMES, MOVE_MODES, nearestFree, OFF_WORDS, on, ORDER, overrides, paintFold, paintFonts, paintStatic, paneOfSeat, parseAvatar, parseKey, parseThemeShare, perf, phrase, PLAY_IDS, playOfMood, previewOf, RAW_CODE, reachRef, readPage, refuseDrop, renderKey, renderMarkdown, renderMarkdownBlocks, RETIRED_ACTIONS, RUNAWAY_RUNS, saveFinishSeen, saveSidesShut, saveUnfolded, sayPage, screenOpens, SHAPES, sideShut, sidesShut, SLOTS, solidMounts, speak, st, STALE_AFTER, stateColor, statusFolded, STAYS, steady, stopBeat, SV_ASK, SV_ASK_SLIM, svgIcon, Terminal, THEME, THEME_NAME_MAX, THEME_TERM_KEYS, THEME_UI_VARS, themeCssVars, themeDef, themeShareJson, UNBOUND_KEYS, unfolded, untrack, watchLongTasks, WEAR, WEAR_SLOTS, wearKey, WebLinksAddon, withCommand, withoutCommand, withTail, WORD_KEY, wornThemeName, isDressed, parseWear, fitsBody, FONT_AREA_FIELDS };

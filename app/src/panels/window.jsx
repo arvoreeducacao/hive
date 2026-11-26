@@ -39,7 +39,7 @@ export function Head(props) {
   );
 }
 
-function FootParts(props) {
+export function FootParts(props) {
   const f = () => props.model;
   return (
     <>

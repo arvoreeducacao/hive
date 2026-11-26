@@ -8,6 +8,7 @@ import { writeHiveShellRc } from "./engine/hive-shell.mjs";
 import { hiveRoot, hubDir, sideOf, stateDir as stateDirOf, workspaceRoot } from "./engine/paths.mjs";
 import { prepareWorktree } from "./worktree.mjs";
 import { driverFileFor } from "./sessions.mjs";
+import { comesBackAsleep } from "./sleep.mjs";
 import { inlineImageMarks, missionImagesFile } from "./engine/protocol.mjs";
 
 const ENGINE = join(dirname(fileURLToPath(import.meta.url)), "engine");
@@ -351,7 +352,7 @@ export function createSeats({
     }
   }
 
-  async function place({ name, kind, cwd, model, effort, agent, structured, sessionId, resumeId, promptFile, accountDir, compactAt, remoteControl, continueLast = false }) {
+  async function place({ name, kind, cwd, model, effort, agent, structured, sessionId, resumeId, promptFile, accountDir, compactAt, remoteControl, continueLast = false, asleep = false }) {
     const command = seatCommand({
       hub: cwd,
       fallback: (resumeId || kind === "shell") ? hub : "",
@@ -370,6 +371,7 @@ export function createSeats({
       accountDir,
       remoteControl,
       continueLast,
+      asleep,
       side: sideOf(base, env),
       carry: carry(),
       addDir: base
@@ -574,7 +576,8 @@ export function createSeats({
           resumeId: seat.kind === "shell" || terminalOnAnother ? "" : String(seat.id),
           continueLast: terminalOnAnother,
           compactAt: String(compactAt || ""),
-          remoteControl: env.HIVE_REMOTE_CONTROL !== "0"
+          remoteControl: env.HIVE_REMOTE_CONTROL !== "0",
+          asleep: comesBackAsleep(seat, { stateDir: base, env })
         });
         if (placed.error) { skipped.push({ name: seat.name, why: placed.error }); continue; }
         if (seat.kind !== "shell") await holdDeadWindow(seat.name, false);
