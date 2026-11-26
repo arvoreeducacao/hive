@@ -66,7 +66,8 @@ export function seatCommand({
   shell = "bash",
   fallback = "",
   continueLast = false,
-  anonymous = false
+  anonymous = false,
+  asleep = false
 }) {
   const arrival = arrivalAt(hub, fallback);
   if (kind === "shell") return `${arrival.go}${arrival.then}${hiveShellExec(shell, stateDir)}`;
@@ -90,6 +91,7 @@ export function seatCommand({
     if (agent === "claude" && fast === true) words.push(" --fast");
     if (promptFile) words.push(` --prompt-file ${quoteForShell(promptFile)}`);
     if (anonymous) words.push(" --anon");
+    if (asleep && agent === "claude" && resumeId) words.push(" --asleep");
   } else if (agent === "opencode") {
     const back = resumeId ? ` -s ${quoteForShell(resumeId)}` : continueLast ? " -c" : "";
     words.push(`${carried}${held}${mine} opencode --agent build${model_}${back}`);

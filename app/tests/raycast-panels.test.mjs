@@ -196,41 +196,58 @@ test("with the flag on, up and down walk the tasks and a row says the chat's sta
 
 const shelfApi = await app("shelf");
 
-test("the shelf is dressed as a window with the flag on and gets its own markup back, nodes and all, with it off", async () => {
-  const before = $("shelf").innerHTML;
-  const search = $("sh-search");
-  const gallery = $("sh-gal");
+test("the shelf is dressed as a window with the flag on and gets its own markup back with it off, and its search answers in both", async () => {
+  const type = (text) => {
+    $("sh-search").value = text;
+    $("sh-search").dispatchEvent(new dom.Event("input", { bubbles: true }));
+  };
   st.shelf = { repo: "https://github.com/acme/shelf", me: "juno", pages: [
     { slug: "one", title: "One", owner: "juno", label: "draft", tabs: { telas: [{ n: 1 }] }, at: Date.now() },
     { slug: "two", title: "Two", owner: "ana", label: "decided", tabs: { documento: [{ n: 2 }] }, at: Date.now() }
   ] };
   st.shelfPick = "";
-  await withFlag(() => {
-    $("shelf").hidden = false;
-    shelfApi.paintShelf();
-    assert.ok($("shelf").classList.contains("pw"));
-    assert.ok($("shelf").querySelector(":scope > .pw-head #sh-search"), "the search moved into the head");
-    assert.equal($("sh-search"), search, "the very same input, so its listeners stay");
-    assert.equal(gallery.className, "pw-list");
-    assert.ok($("sh-prev") && $("sh-foot") && $("sh-close"));
-    assert.ok($("sh-gal").querySelectorAll(".pw-row").length >= 1);
-    const model = shelfApi.shelfGalleryWindowModel();
-    assert.equal(model.raycast, true);
-    assert.ok(st.shelfPick, "the first page is picked");
-    assert.equal(shelfApi.shelfPreviewModel().page.slug, st.shelfPick);
-  });
-  assert.equal($("shelf").classList.contains("pw"), false);
-  assert.equal($("sh-prev"), null);
-  assert.equal($("sh-search"), search);
-  assert.equal(search.className, "sh-search");
-  assert.equal(search.getAttribute("placeholder"), "search");
-  assert.equal(gallery.className, "sh-gal");
-  assert.ok($("shelf").querySelector(":scope > .sh-top #sh-search"), "the search is back in the old bar");
-  $("shelf").hidden = true;
-  shelfApi.closeShelf();
-  assert.equal($("shelf").innerHTML.replace(/\s+/g, " ").includes("pw-head"), false);
-  assert.equal(before.includes("pw-head"), false);
-  st.shelf = null;
+  st.shelfQuery = "";
+  st.shelfWho = "team";
+  st.shelfState = "";
+  st.shelfShut = new Set();
+  st.shelfShown = true;
+  shelfApi.paintShelf();
+  try {
+    await withFlag(() => {
+      assert.ok($("shelf").classList.contains("pw"));
+      assert.ok($("shelf").querySelector(":scope > .pw-head #sh-search"), "the search moved into the head");
+      assert.equal($("sh-search").getAttribute("aria-label"), "Search by title, author or slug");
+      assert.equal($("sh-count").className, "pw-count");
+      assert.equal($("sh-gal").className, "pw-list");
+      assert.equal($("sh-gal").getAttribute("role"), "listbox");
+      assert.ok($("sh-prev") && $("sh-foot") && $("sh-close"));
+      assert.equal($("sh-gal").querySelectorAll(".pw-row").length, 2);
+      const model = shelfApi.shelfGalleryWindowModel();
+      assert.equal(model.raycast, true);
+      assert.ok(st.shelfPick, "the first page is picked");
+      assert.equal(shelfApi.shelfPreviewModel().page.slug, st.shelfPick);
+      type("two");
+      assert.equal($("sh-gal").querySelectorAll(".pw-row").length, 1, "the search in the head does not reach the list");
+      type("");
+    });
+    assert.equal($("shelf").classList.contains("pw"), false);
+    assert.equal($("sh-prev"), null);
+    assert.equal($("sh-search").className, "sh-search");
+    assert.equal($("sh-search").getAttribute("placeholder"), "search");
+    assert.equal($("sh-search").getAttribute("aria-label"), null);
+    assert.equal($("sh-count").className, "sh-count");
+    assert.equal($("sh-gal").className, "sh-gal");
+    assert.ok($("shelf").querySelector(":scope > .sh-top #sh-search"), "the search is back in the old bar");
+    assert.equal($("sh-gal").querySelectorAll(".sh-card").length, 2);
+    type("two");
+    assert.equal($("sh-gal").querySelectorAll(".sh-card").length, 1, "the search in the old bar does not reach the gallery");
+  } finally {
+    st.shelfQuery = "";
+    shelfApi.closeShelf();
+    st.shelf = null;
+  }
+  assert.equal($("shelf").hidden, true);
+  assert.equal($("shelf").innerHTML.includes("pw-head"), false);
 });
 
 const dayApi = await app("day");

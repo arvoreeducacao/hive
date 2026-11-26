@@ -1,5 +1,5 @@
 import { render } from "./arrange.js";
-import { activeItems, attachSeat, bringSeatIn, bringShelvedIn, blocksOf, detached, landOnBlock, moveToNewBlock, saveBlockAt, saveBlocks, saveSpaceAt, spaceAt } from "./blocks.js";
+import { activeItems, attachSeat, bringSeatIn, bringShelvedIn, blocksOf, detached, landOnBlock, moveToNewBlock, saveBlockAt, saveBlocks, saveSpaceAt, spaceAt, subchatOf, subchatOpen } from "./blocks.js";
 import { reloadConfig } from "./brand-face.js";
 import { driveBrowsers, openBrowser, openCockpit, openDevice, stopDeviceFrames } from "./chat-and-panes.js";
 import { keepStructuredUp, soakDrafts } from "./chat-stretches.js";
@@ -21,6 +21,7 @@ import { exitReview, openThreadOf, pullPrs, reviewInChat } from "./thread.js";
 import { swapSeats } from "./tiles.js";
 import { clockOptions } from "./clock-format.js";
 import { followFocusedChat } from "./screen-reader.js";
+import { putAttr, putText } from "./dom-writes.js";
 
 const RAYCAST_CLOCK = { hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" };
 
@@ -48,10 +49,10 @@ function takeKeyboard(name, callIt) {
 
 function markSays(mark, said) {
   if (!mark) return;
-  mark.setAttribute("aria-label", said);
+  putAttr(mark, "aria-label", said);
   const title = mark.querySelector("title");
-  if (title) title.textContent = said;
-  else mark.setAttribute("title", said);
+  if (title) putText(title, said);
+  else putAttr(mark, "title", said);
 }
 
 function releaseKeyboard(focusBody = true) {
@@ -157,6 +158,14 @@ function reclaimSeat(name) {
 }
 
 function goTo(name) {
+  if (!detached.has(name) && subchatOf(name) && !st.blocks.some((b) => b.keys.includes(name))) {
+    st.peek = "";
+    seenSeat(name);
+    noteOpen(globalThis.localStorage, name, Date.now(), "");
+    releaseKeyboard();
+    st.mirrorDev = "";
+    return openTile(name);
+  }
   st.peek = isShelved(name) ? name : "";
   if (st.peek) bringShelvedIn(name);
   seenSeat(name);
@@ -181,6 +190,7 @@ function goTo(name) {
 }
 
 function openBeside(name) {
+  if (!detached.has(name) && subchatOf(name)) return goTo(name);
   const here = st.blocks[st.block];
   if (!here || here.ws !== st.space) return goTo(name);
   if (here.keys.includes(name)) return render();
@@ -338,15 +348,20 @@ function openTile(name, restore = true) {
   markFinishSeen(name);
   markSeatLandedSeen(name);
   let i = st.blocks.findIndex((b) => b.keys.includes(name));
-  if (i < 0 && (reclaimSeat(name) || bringSeatIn(name))) i = st.blocks.findIndex((b) => b.keys.includes(name));
-  if (i < 0) return;
+  const alone = i < 0 && !detached.has(name) && !!subchatOf(name);
+  if (i < 0 && !alone && (reclaimSeat(name) || bringSeatIn(name))) i = st.blocks.findIndex((b) => b.keys.includes(name));
+  if (i < 0 && !alone) return;
   keepPane();
   if (st.cockChat && st.cockChat !== name) st.cockChat = null;
   if (st.webChat && st.webChat !== name) st.webChat = null;
   if (st.deviceChat && st.deviceChat !== name) { st.deviceChat = null; stopDeviceFrames(); }
+  if (alone && !subchatOpen()) st.blockFocus = st.focus;
   st.open = name;
-  st.block = i;
-  st.focus = Math.max(0, st.blocks[i].keys.indexOf(name));
+  if (alone) st.focus = 0;
+  else {
+    st.block = i;
+    st.focus = Math.max(0, st.blocks[i].keys.indexOf(name));
+  }
   render();
   if (restore) restorePane(name);
 }
@@ -357,7 +372,9 @@ function closeTile() {
   st.webChat = null;
   if (st.deviceChat) { st.deviceChat = null; stopDeviceFrames(); }
   if (st.reviewChat) exitReview();
+  const fromSubchat = !!subchatOpen();
   st.open = null;
+  if (fromSubchat) st.focus = st.blockFocus || 0;
   render();
 }
 

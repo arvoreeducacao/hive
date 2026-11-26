@@ -1,5 +1,6 @@
 import { codeBlockAt, fenceEnter, fenceTab } from "./composer-fences.js";
 import { listContinuation, listIndent, listOutdent, onListLine } from "./composer-lists.js";
+import { readlineEdit } from "./composer-readline.js";
 
 function editBox(box, start, end, text, selection = null) {
   if (start === end && !text) {
@@ -33,7 +34,16 @@ function tabEdit(value, start, end, shift) {
   return shift && onListLine(value, start) ? { consumed: true } : null;
 }
 
+function readlineKeys(kev, box) {
+  const line = readlineEdit(kev, box);
+  if (!line) return false;
+  kev.preventDefault();
+  editBox(box, line.start, line.end, line.text, line.selection);
+  return true;
+}
+
 function editingKeys(kev, box) {
+  if (readlineKeys(kev, box)) return true;
   if (kev.key !== "Enter" && kev.key !== "Tab") return false;
   if (kev.isComposing || kev.keyCode === 229 || kev.metaKey || kev.ctrlKey || kev.altKey) return false;
   const value = box.value;
@@ -46,4 +56,4 @@ function editingKeys(kev, box) {
   return true;
 }
 
-export { editBox, editingKeys, enterEdit, tabEdit };
+export { editBox, editingKeys, enterEdit, readlineKeys, tabEdit };

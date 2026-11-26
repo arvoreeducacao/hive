@@ -4,15 +4,15 @@ import { markCopied } from "./avatars.js";
 import { forgetSeat } from "./blocks.js";
 import { attachFilesToSeat, interruptStructured, rememberSent, svCmd, svEarlier, svReset, svTrimTurns, svTypePath } from "./chat-stretches.js";
 import { svForked } from "./chat-fork.js";
-import { closeAsk, composerDriverNote, composerSaw, dressPlanCard, forgetPlan, noteAsk, notePlan, paintQueue } from "./composer.js";
+import { closeAsk, composerDriverNote, composerSaw, noteAsk, paintQueue } from "./composer.js";
+import { closePlanCard, svPlanCard } from "./composer-plan.js";
 import { dressCatalog, paintFastMark, paintModelFoot, rememberSeatPick } from "./composer-models.js";
 import { rememberedModel, rememberedOptions } from "./model-memory.js";
 import { seatEventSeen } from "./seat-events.js";
-import { dropCompactShow, endCompactShow, startCompactShow } from "./context-window.js";
 import { paintSaidChips } from "./context-chips.js";
 import { svConvBubbleOf, svConvDispatched, svConvDraftDrop, svConvMentions, svConvNote, svConvPeer, svConvSwitch, svConvRecovered, svConvResay, svConvRetry, svConvRewind, svConvRunOff, svConvSaid, svConvSaidAs, svConvSettle, svConvShow, svConvSteer, svConvSteerSaw, svConvStopped, svConvStream, svConvThink, svConvThinking, svConvThumb, svConvTurnEnded, svConvTurnStart, svConvUnsay } from "./conversation-model.js";
 import { editFailed } from "./edit-message.js";
-import { $, apiGet, chooseOption, esc, experienceNext, raycastOn, forgetUpload, liveMarkdown, lookFor, markUpload, NATIVE_COMMAND_NAMES, phrase, reachRef, readPage, renderMarkdown, sayPage, st, svgIcon } from "./core.js";
+import { $, apiGet, chooseOption, esc, raycastOn, forgetUpload, liveMarkdown, lookFor, markUpload, NATIVE_COMMAND_NAMES, phrase, reachRef, readPage, renderMarkdown, sayPage, st, svgIcon } from "./core.js";
 import { effortBars } from "/assets/behavior-defaults.mjs";
 import { drafts } from "./draft-seat.js";
 import { closeTile, openTile, pull, releaseKeyboard } from "./focus-navigation.js";
@@ -32,8 +32,10 @@ import { keyFromPage, registerSurface, sidePanelWebHost } from "./side-panel.js"
 import { dressWebPane, paintWebExtras, tabIconHtml, watchFrame, webChord } from "./web-pane-extras.js";
 import { toClipboard } from "./terminal-history.js";
 import { closePrs, closeThreadPanel, exitReview, openThreadOf, prsOnScreen, pullPrs } from "./thread.js";
+import { closeQuestion, dropQuestion, questionCard } from "./question-card.js";
 import { ARTIFACT_LINK, toolSays, trimBody } from "./tool-face.js";
 import { svMcpApp } from "./mcp-apps.js";
+import { putHidden, putText } from "./dom-writes.js";
 
 const PR_LINK = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/\d+(?:[/?#]\S*)?$/;
 
@@ -55,7 +57,6 @@ function homeOfLink(name, href) {
   if ((href.match(ARTIFACT_LINK) || [])[0] === href) return () => openArtifactUrl(name, href);
   if (PR_LINK.test(href)) return () => openPrLink(name, href);
   if (THREAD_LINK.test(href)) return () => openThreadLink(name, href);
-  if (name && experienceNext() && /^https?:\/\/[^\s]+$/i.test(href)) return () => openWebPage(name, href);
   return null;
 }
 
@@ -579,7 +580,7 @@ function paintWebChipOfChat(el, s) {
   const web = webOfSeat.get(s.name);
   const tab = tabOfSeatDriving(s.name) || web?.tabs[web.active];
   const open_ = web?.tabs.filter((t) => t.url).length || 0;
-  chip.hidden = !open_;
+  putHidden(chip, !open_);
   if (!open_) return;
   let where = tab?.url || "";
   try {
@@ -587,7 +588,7 @@ function paintWebChipOfChat(el, s) {
     where = seen.host || decodeURIComponent(seen.pathname).split("/").filter(Boolean).pop() || where;
   } catch {}
   const how = web.asleep ? phrase("asleep") : (open_ > 1 ? tabsSaid(open_) : "");
-  chip.querySelector("span").textContent = how ? `${where} · ${how}` : where;
+  putText(chip.querySelector("span"), how ? `${where} · ${how}` : where);
 }
 
 function paintDeviceChipOfChat(el, s) {
@@ -603,9 +604,9 @@ function paintDeviceChipOfChat(el, s) {
     chip.addEventListener("click", (ev) => { ev.stopPropagation(); ev.preventDefault(); openDevice(el.dataset.name); });
   }
   const d = s.device;
-  chip.hidden = !d;
+  putHidden(chip, !d);
   if (!d) return;
-  chip.querySelector("span").textContent = `${d.avd || d.serial || d.platform} · ${d.booted ? phrase("live") : phrase("off")}`;
+  putText(chip.querySelector("span"), `${d.avd || d.serial || d.platform} · ${d.booted ? phrase("live") : phrase("off")}`);
   chip.classList.toggle("live", !!d.booted);
 }
 
@@ -718,15 +719,15 @@ function paintCanopyOfChat(el, s) {
     img.addEventListener("error", () => { shot.dataset.broken = img.dataset.here; shot.hidden = true; });
     img.addEventListener("load", () => { shot.hidden = false; });
   }
-  chip.hidden = !tabs;
-  if (!tabs) { shot.hidden = true; return; }
-  chip.querySelector("span").textContent = tabsSaid(tabs);
+  putHidden(chip, !tabs);
+  if (!tabs) { putHidden(shot, true); return; }
+  putText(chip.querySelector("span"), tabsSaid(tabs));
   chip.classList.toggle("live", s.canopy.live > 0);
   chip.classList.toggle("held", !(s.canopy.live > 0) && s.canopy.held > 0);
-  shot.querySelector("span").textContent = s.canopy.title || s.canopy.url || "";
+  putText(shot.querySelector("span"), s.canopy.title || s.canopy.url || "");
   const src = frameUrlOf(s.name, "");
   if (img.dataset.here !== src) { img.dataset.here = src; img.src = src; }
-  if (shot.dataset.broken === src) shot.hidden = true;
+  if (shot.dataset.broken === src) putHidden(shot, true);
 }
 
 function paintCockpitOfChat(el, s) {
@@ -1108,12 +1109,6 @@ const yardOf = (name) => {
   return yard;
 };
 
-const dimYardsUnderScrims = () => {
-  for (const [name, yard] of webYards) {
-    yard.classList.toggle("dimmed", !!document.querySelector(`.tile[data-name="${CSS.escape(name)}"] > .sv-scrim`));
-  }
-};
-
 const frameOfTab = (name, tab) => {
   if (!tab || !tab.url) return null;
   return webYards.get(name)?.querySelector(`webview[data-id="${tab.id}"]`) || null;
@@ -1186,7 +1181,6 @@ function bornWebFrame(yard, name, t) {
   });
   frame.addEventListener("dom-ready", () => {
     try { frame.send("hive-quote-label", phrase("quote")); } catch {}
-    try { frame.send("hive-ask-look", { next: experienceNext(), chat: phrase("add to the chat"), page: phrase("comment on the page"), reply: phrase("reply"), keys: phrase("{chord}↵ adds", { chord: applePlatform() ? "⌘" : "ctrl+" }) }); } catch {}
     PINS_HELD.delete(frameKey(name, frame));
     FACES_HELD.delete(frameKey(name, frame));
     HERE_EL.delete(frameKey(name, frame));
@@ -1266,26 +1260,10 @@ function paintYards() {
   }
 }
 
-const FOCUS_STROKE = 2;
-
-function insideFocusStroke(stage) {
-  const box = stage.getBoundingClientRect();
-  const tile = stage.closest(".tile");
-  if (!tile) return box;
-  const seat = tile.getBoundingClientRect();
-  const border = getComputedStyle(tile);
-  const inset = (side) => (parseFloat(border[`border${side}Width`]) || 0) + FOCUS_STROKE;
-  const left = Math.ceil(Math.max(box.left, seat.left + inset("Left")));
-  const top = Math.ceil(Math.max(box.top, seat.top + inset("Top")));
-  const right = Math.floor(Math.min(box.right, seat.right - inset("Right")));
-  const bottom = Math.floor(Math.min(box.bottom, seat.bottom - inset("Bottom")));
-  return { left, top, width: right - left, height: bottom - top };
-}
-
 function placeYard(name, yard) {
   const showing = st.webChat === name && paneShownFor(name);
   const stage = showing ? webPaneOfName(name)?.querySelector(".art-stage") : null;
-  const box = stage && experienceNext() ? insideFocusStroke(stage) : stage?.getBoundingClientRect();
+  const box = stage?.getBoundingClientRect();
   const onstage = !!box && box.width > 1 && box.height > 1;
   yard.classList.toggle("onstage", onstage);
   if (!onstage) return false;
@@ -1867,7 +1845,6 @@ async function askOnTheElement(name, frame, ask) {
   const tab = tabOfFrame(name, frame);
   if (tab?.kind !== "artifact" || !tab.slug) return sendPickReference(name, frame, ask);
   if (!said) return;
-  if (experienceNext() && ask.where === "chat" && !ask.re) return sendPickReference(name, frame, ask);
   const pin = { frame: ask.frame || "", name: ask.name || "", el: ask.selector, elAt: ask.elAt || "", x: ask.x || 0, y: ask.y || 0 };
   let wrote = null;
   try {
@@ -2182,557 +2159,15 @@ function markArtRows(name) {
 const QUESTION_CLOSERS = ["question_answered", "question_dismissed", "question_failed"];
 const PLAN_CLOSERS = ["plan_approved", "plan_dismissed"];
 
-const PLAN_FRONTS = /```frentes\s*\n([\s\S]*?)```/;
-
-const PLAN_HERE = { aqui: "local", local: "local", "this machine": "local", maquina: "local", servidor: "cloud", cloud: "cloud", pod: "cloud", server: "cloud" };
-
-const NO_MODEL = /^(padr[aã]o|default|-|—)$/i;
-
-/* the plan writes one field for both — "claude/opus", or just "opus", or "padrão". The card has a
-   picker for each, so the line is split here and whatever is missing stays empty: empty means the
-   chat opens on what its account would have picked anyway. */
-function frontAgentAndModel(said) {
-  const raw = String(said || "").trim();
-  if (!raw || NO_MODEL.test(raw)) return { agent: "", model: "" };
-  const cut = raw.indexOf("/");
-  const agent = cut > 0 ? raw.slice(0, cut).trim().toLowerCase() : "";
-  const model = cut > 0 ? raw.slice(cut + 1).trim() : raw;
-  if (agent && !AGENT_NAMES[agent]) return { agent: "", model: raw };
-  return { agent, model: NO_MODEL.test(model) ? "" : model };
-}
-
-function planFronts(plan) {
-  const block = PLAN_FRONTS.exec(String(plan || ""));
-  if (!block) return [];
-  return block[1].split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
-    const [name, said, where, repo, ...does] = line.split("·").map((piece) => piece.trim());
-    return {
-      name: String(name || "").toLowerCase(),
-      ...frontAgentAndModel(said),
-      where: PLAN_HERE[String(where || "").toLowerCase()] || "",
-      repo: repo || "",
-      does: does.join(" · "),
-    };
-  }).filter((one) => one.name);
-}
-
-const planWithoutFronts = (plan) => String(plan || "").replace(PLAN_FRONTS, "").trim();
-
-function closeQuestion(card) {
-  const hadFocus = card.contains(document.activeElement);
-  card.classList.add("answered");
-  card.inert = true;
-  if (hadFocus) card.closest(".sv")?.querySelector(".sv-composer textarea")?.focus();
-}
-
-function questionCard(questions, send) {
-  if (raycastOn()) return questionCardRaycast(questions, send);
-  const said = (text) => (experienceNext() ? titleCase(text) : text);
-  const card = document.createElement("div");
-  card.className = "sv-q";
-  const chosen = new Map();
-  const typed = new Map();
-  const steps = [];
-  const total = questions?.length || 0;
-  let at = 0;
-  let sending = false;
-
-  const answerOf = (q) => {
-    const free = (typed.get(q?.question) || "").trim();
-    return free ? [free] : (chosen.get(q?.question) || []);
-  };
-
-  const submit = () => {
-    if (sending) return;
-    const answers = {};
-    for (let i = 0; i < total; i++) {
-      const q = questions[i];
-      const got = answerOf(q);
-      if (!got.length) return show(i);
-      answers[q.question] = q.multiSelect ? got : got[0];
-    }
-    sending = true;
-    trouble.textContent = "";
-    paintNav();
-    Promise.resolve(send(answers)).then((r) => {
-      sending = false;
-      if (r?.ok) return closeQuestion(card);
-      trouble.textContent = r?.error || phrase("the answer did not land — try again");
-      paintNav();
-    });
-  };
-
-  const nav = document.createElement("div");
-  nav.className = "qnav";
-  const back = document.createElement("button");
-  back.className = "qback";
-  back.type = "button";
-  back.textContent = `\u2190 ${said(phrase("back"))}`;
-  back.addEventListener("click", () => show(at - 1));
-  const next = document.createElement("button");
-  next.className = "qnext";
-  next.type = "button";
-  const nextText = document.createElement("span");
-  const nextKey = document.createElement("span");
-  nextKey.className = "qkey";
-  nextKey.textContent = "\u21e7\u23ce";
-  next.appendChild(nextText);
-  next.appendChild(nextKey);
-  next.addEventListener("click", () => (at === total - 1 ? submit() : show(at + 1)));
-  nav.appendChild(back);
-  nav.appendChild(next);
-
-  const trouble = document.createElement("div");
-  trouble.className = "qerr";
-
-  const paintNav = () => {
-    back.hidden = at === 0;
-    nextText.textContent = said(sending ? phrase("sending…") : (at === total - 1 ? phrase("send") : phrase("next")));
-    next.disabled = sending || !answerOf(questions[at]).length;
-  };
-
-  const show = (n) => {
-    at = Math.max(0, Math.min(total - 1, n));
-    for (let i = 0; i < steps.length; i++) steps[i].hidden = i !== at;
-    paintNav();
-  };
-
-  questions.forEach((q, qi) => {
-    const step = document.createElement("div");
-    step.className = "qstep";
-    const head = document.createElement("div");
-    head.className = "qh";
-    const title = document.createElement("span");
-    title.textContent = q.header || said(phrase("question"));
-    head.appendChild(title);
-    if (total > 1) {
-      const count = document.createElement("span");
-      count.className = "qcount";
-      count.textContent = `${qi + 1}/${total}`;
-      head.appendChild(count);
-    }
-    step.appendChild(head);
-    const text = document.createElement("div");
-    text.className = "qq";
-    text.textContent = q.question;
-    step.appendChild(text);
-    const hint = document.createElement("div");
-    hint.className = "qhint";
-    hint.textContent = said(q.multiSelect
-      ? phrase("pick as many as you like, then {n}", { n: qi < total - 1 ? phrase("next") : phrase("send") })
-      : phrase("pick one"));
-    step.appendChild(hint);
-    const opts = document.createElement("div");
-    opts.className = "qopts";
-    const input = document.createElement("input");
-    (q.options || []).forEach((o, oi) => {
-      const btn = document.createElement("button");
-      btn.className = "qo";
-      btn.type = "button";
-      if (oi < 9) {
-        const digit = document.createElement("span");
-        digit.className = "qn";
-        digit.textContent = String(oi + 1);
-        btn.appendChild(digit);
-      }
-      const body = document.createElement("span");
-      body.className = "qob";
-      const label = document.createElement("span");
-      label.className = "qol";
-      label.textContent = o.label;
-      body.appendChild(label);
-      if (o.description) {
-        const desc = document.createElement("span");
-        desc.className = "qod";
-        desc.textContent = o.description;
-        body.appendChild(desc);
-      }
-      btn.appendChild(body);
-      btn.addEventListener("click", () => {
-        input.value = "";
-        typed.delete(q.question);
-        const got = chosen.get(q.question) || [];
-        if (q.multiSelect) {
-          const was = got.indexOf(o.label);
-          if (was >= 0) got.splice(was, 1); else got.push(o.label);
-          chosen.set(q.question, got);
-          btn.classList.toggle("sel");
-          return paintNav();
-        }
-        chosen.set(q.question, [o.label]);
-        for (const b of opts.querySelectorAll(".qo")) b.classList.toggle("sel", b === btn);
-        if (qi < total - 1) return show(qi + 1);
-        paintNav();
-      });
-      opts.appendChild(btn);
-    });
-    step.appendChild(opts);
-    const free = document.createElement("div");
-    free.className = "qfree";
-    input.placeholder = said(phrase("or answer in your own words"));
-    input.addEventListener("input", () => {
-      typed.set(q.question, input.value);
-      if (input.value.trim()) {
-        chosen.delete(q.question);
-        for (const b of opts.querySelectorAll(".qo")) b.classList.remove("sel");
-      }
-      paintNav();
-    });
-    input.addEventListener("keydown", (kev) => {
-      kev.stopPropagation();
-      if (kev.key !== "Enter") return;
-      kev.preventDefault();
-      if (!answerOf(q).length) return;
-      if (qi < total - 1) return show(qi + 1);
-      submit();
-    });
-    free.appendChild(input);
-    step.appendChild(free);
-    steps.push(step);
-    card.appendChild(step);
-  });
-  card.appendChild(trouble);
-  card.appendChild(nav);
-  show(0);
-  return card;
-}
-
-function questionCardRaycast(questions, send) {
-  const said = (text) => (experienceNext() ? titleCase(text) : text);
-  const card = document.createElement("div");
-  card.className = "sv-q";
-  const chosen = new Map();
-  const typed = new Map();
-  const steps = [];
-  const total = questions?.length || 0;
-  let at = 0;
-  let sending = false;
-
-  const answerOf = (q) => {
-    const free = (typed.get(q?.question) || "").trim();
-    return free ? [free] : (chosen.get(q?.question) || []);
-  };
-
-  const submit = () => {
-    if (sending) return;
-    const answers = {};
-    for (let i = 0; i < total; i++) {
-      const q = questions[i];
-      const got = answerOf(q);
-      if (!got.length) return show(i);
-      answers[q.question] = q.multiSelect ? got : got[0];
-    }
-    sending = true;
-    trouble.textContent = "";
-    paintNav();
-    Promise.resolve(send(answers)).then((r) => {
-      sending = false;
-      if (r?.ok) return closeQuestion(card);
-      trouble.textContent = r?.error || phrase("the answer did not land — try again");
-      paintNav();
-    });
-  };
-
-  const nav = document.createElement("div");
-  nav.className = "qnav";
-  const back = document.createElement("button");
-  back.className = "qback";
-  back.type = "button";
-  back.textContent = `\u2190 ${said(phrase("back"))}`;
-  back.addEventListener("click", () => show(at - 1));
-  const grow = document.createElement("span");
-  grow.className = "qgrow";
-  const later = document.createElement("button");
-  later.className = "qlater";
-  later.type = "button";
-  later.innerHTML = `<span>${esc(said(phrase("Later")))}</span><span class="rc-key">esc</span>`;
-  later.addEventListener("click", () => putOff(true));
-  const next = document.createElement("button");
-  next.className = "qnext";
-  next.type = "button";
-  const nextText = document.createElement("span");
-  const nextKey = document.createElement("span");
-  nextKey.className = "rc-key";
-  nextKey.textContent = "\u21b5";
-  next.appendChild(nextText);
-  next.appendChild(nextKey);
-  next.addEventListener("click", () => (at === total - 1 ? submit() : show(at + 1, true)));
-  nav.appendChild(back);
-  nav.appendChild(grow);
-  nav.appendChild(later);
-  nav.appendChild(next);
-
-  const wake = document.createElement("button");
-  wake.className = "qwake";
-  wake.type = "button";
-  wake.addEventListener("click", () => putOff(false));
-
-  const putOff = (off) => {
-    const hadFocus = card.contains(document.activeElement);
-    card.classList.toggle("later", off);
-    wake.innerHTML = `<i class="rc-dot needs" aria-hidden="true"></i><span>${esc(questions[at]?.question || "")}</span><span class="qwake-go">${esc(said(phrase("answer")))}</span>`;
-    if (off && hadFocus) card.closest(".sv")?.querySelector(".sv-composer textarea")?.focus();
-    if (!off) (steps[at]?.querySelector(".qo.sel") || steps[at]?.querySelector(".qo"))?.focus({ preventScroll: true });
-  };
-
-  card.addEventListener("keydown", (kev) => {
-    if (kev.target.closest(".qfree")) return;
-    if (kev.key === "Escape" && !card.classList.contains("later")) {
-      kev.preventDefault();
-      kev.stopPropagation();
-      return putOff(true);
-    }
-    if (kev.key === "Enter" && !kev.shiftKey && !kev.metaKey && !kev.ctrlKey && !kev.altKey && kev.target.closest(".qo, .qnext")) {
-      kev.preventDefault();
-      kev.stopPropagation();
-      if (!next.disabled) next.click();
-      return;
-    }
-    if (/^[1-9]$/.test(kev.key) && !kev.metaKey && !kev.ctrlKey && !kev.altKey) {
-      const btn = steps[at]?.querySelectorAll(".qo")[Number(kev.key) - 1];
-      if (!btn) return;
-      kev.preventDefault();
-      kev.stopPropagation();
-      btn.click();
-      btn.focus({ preventScroll: true });
-    }
-  });
-
-  const trouble = document.createElement("div");
-  trouble.className = "qerr";
-
-  const hintOf = (q, i) => {
-    const n = Math.min(9, q?.options?.length || 0);
-    const pick = n ? (q?.multiSelect ? phrase("pick as many as you like with 1–{n}", { n }) : phrase("pick one with 1–{n}", { n })) : "";
-    const go = i < total - 1 ? phrase("↵ answers and opens question {a} of {b}", { a: i + 2, b: total }) : phrase("↵ sends the answer");
-    return said([pick, go].filter(Boolean).join(" · "));
-  };
-
-  const paintNav = () => {
-    back.hidden = at === 0;
-    nextText.textContent = said(sending ? phrase("sending…") : phrase("Answer"));
-    next.disabled = sending || !answerOf(questions[at]).length;
-    steps.forEach((step, i) => {
-      for (const b of step.querySelectorAll(".qo")) b.setAttribute("aria-pressed", String(b.classList.contains("sel")));
-      step.querySelector(".qhint").textContent = hintOf(questions[i], i);
-    });
-  };
-
-  const show = (n, focus = false) => {
-    at = Math.max(0, Math.min(total - 1, n));
-    for (let i = 0; i < steps.length; i++) steps[i].hidden = i !== at;
-    paintNav();
-    if (focus) (steps[at]?.querySelector(".qo.sel") || steps[at]?.querySelector(".qo"))?.focus({ preventScroll: true });
-  };
-
-  questions.forEach((q, qi) => {
-    const step = document.createElement("div");
-    step.className = "qstep";
-    const head = document.createElement("div");
-    head.className = "qh";
-    const dot = document.createElement("i");
-    dot.className = "rc-dot needs";
-    dot.setAttribute("aria-hidden", "true");
-    head.appendChild(dot);
-    const title = document.createElement("span");
-    title.textContent = q.header ? `${said(phrase("question"))} · ${q.header}` : said(phrase("question"));
-    head.appendChild(title);
-    if (total > 1) {
-      const count = document.createElement("span");
-      count.className = "qcount";
-      count.textContent = `${qi + 1}/${total}`;
-      head.appendChild(count);
-    }
-    step.appendChild(head);
-    const text = document.createElement("div");
-    text.className = "qq";
-    text.textContent = q.question;
-    step.appendChild(text);
-    const hint = document.createElement("div");
-    hint.className = "qhint";
-    step.appendChild(hint);
-    const opts = document.createElement("div");
-    opts.className = "qopts";
-    const input = document.createElement("input");
-    (q.options || []).forEach((o, oi) => {
-      const btn = document.createElement("button");
-      btn.className = "qo";
-      btn.type = "button";
-      if (oi < 9) {
-        const digit = document.createElement("span");
-        digit.className = "qn rc-key";
-        digit.textContent = String(oi + 1);
-        btn.appendChild(digit);
-      }
-      const body = document.createElement("span");
-      body.className = "qob";
-      const label = document.createElement("span");
-      label.className = "qol";
-      label.textContent = o.label;
-      body.appendChild(label);
-      if (o.description) {
-        const desc = document.createElement("span");
-        desc.className = "qod";
-        desc.textContent = o.description;
-        body.appendChild(desc);
-      }
-      btn.appendChild(body);
-      const picked = document.createElement("span");
-      picked.className = "qchosen";
-      picked.innerHTML = `${svgIcon("i-check")}<span>${esc(said(phrase("chosen")))}</span>`;
-      btn.appendChild(picked);
-      btn.addEventListener("click", () => {
-        input.value = "";
-        typed.delete(q.question);
-        const got = chosen.get(q.question) || [];
-        if (q.multiSelect) {
-          const was = got.indexOf(o.label);
-          if (was >= 0) got.splice(was, 1); else got.push(o.label);
-          chosen.set(q.question, got);
-          btn.classList.toggle("sel");
-          return paintNav();
-        }
-        chosen.set(q.question, [o.label]);
-        for (const b of opts.querySelectorAll(".qo")) b.classList.toggle("sel", b === btn);
-        paintNav();
-      });
-      opts.appendChild(btn);
-    });
-    step.appendChild(opts);
-    const free = document.createElement("div");
-    free.className = "qfree";
-    input.placeholder = said(phrase("or answer in your own words"));
-    input.addEventListener("input", () => {
-      typed.set(q.question, input.value);
-      if (input.value.trim()) {
-        chosen.delete(q.question);
-        for (const b of opts.querySelectorAll(".qo")) b.classList.remove("sel");
-      }
-      paintNav();
-    });
-    input.addEventListener("keydown", (kev) => {
-      kev.stopPropagation();
-      if (kev.key !== "Enter") return;
-      kev.preventDefault();
-      if (!answerOf(q).length) return;
-      if (qi < total - 1) return show(qi + 1, true);
-      submit();
-    });
-    free.appendChild(input);
-    step.appendChild(free);
-    steps.push(step);
-    card.appendChild(step);
-  });
-  card.appendChild(trouble);
-  card.appendChild(nav);
-  card.appendChild(wake);
-  show(0);
-  return card;
-}
-
 function svQuestionCard(e, ev) {
   const card = questionCard(ev.questions, (answers) =>
     svCmd(e, { type: "answer", id: ev.id, answers }).then((r) => {
       if (r?.ok) e.asked.delete(ev.id);
       return r;
-    }));
-  card.dataset.id = ev.id;
+    }), ev.id);
   e.asked.set(ev.id, card);
   svAppend(e, card);
   noteAsk(e, ev, card);
-}
-
-const modelsOfAgent = new Map();
-
-/* an answer that came back empty is not an answer: the claude catalogue boots a session to reply,
-   and one bad moment early in the app used to leave every later card saying there was no model. */
-function agentModels(agent) {
-  const id = AGENT_NAMES[agent] || "claude";
-  if (modelsOfAgent.has(id)) return Promise.resolve(modelsOfAgent.get(id));
-  return fetch(`/api/catalog?agent=${encodeURIComponent(id)}`)
-    .then((r) => r.json())
-    .then((answer) => {
-      const rows = answer?.error ? [] : normalizeLooseModels(answer?.models);
-      if (rows.length) modelsOfAgent.set(id, rows);
-      return rows;
-    })
-    .catch(() => []);
-}
-
-function fillModelBox(box, rows, wanted) {
-  const chosen = wanted || box.dataset.want || "";
-  box.innerHTML = "";
-  const first = document.createElement("option");
-  first.value = "";
-  first.textContent = phrase("the account default");
-  box.appendChild(first);
-  for (const m of rows) {
-    if (m.isDefault) continue;
-    const opt = document.createElement("option");
-    opt.value = m.value;
-    opt.textContent = pillLabel(m.label) + (m.context ? ` · ${m.context}` : "");
-    box.appendChild(opt);
-  }
-  const known = modelNamed(rows, chosen);
-  if (chosen && !known) {
-    const kept = document.createElement("option");
-    kept.value = chosen;
-    kept.textContent = chosen;
-    box.appendChild(kept);
-  }
-  box.value = known ? known.value : chosen;
-  box.dataset.want = box.value;
-}
-
-function fillAgentBox(box, where, wanted) {
-  /* a front bound for the server is not held to the logins of this machine: the pod has its own,
-     and refusing them here would leave the row unable to say what it plainly means. */
-  const ids = where === "cloud" ? Object.keys(AGENT_NAMES) : readyAgents(wanted);
-  box.innerHTML = "";
-  for (const id of ids) {
-    const opt = document.createElement("option");
-    opt.value = id;
-    opt.textContent = providerName(id);
-    if (where !== "cloud" && !providerReady(id)) opt.disabled = true;
-    box.appendChild(opt);
-  }
-  box.value = ids.includes(wanted) ? wanted : (ids.find((id) => where === "cloud" || providerReady(id)) || ids[0] || "claude");
-}
-
-/* the row is the control, not a report: the plan says which model and which side it imagined, and
-   the person changes either one right here, before anything is opened. What the card sends back is
-   what opens — the chat that wrote the plan does not get to overrule it. A column the plan left
-   blank is not a blank row: it starts on what this chat itself runs, which is what "leave it out"
-   meant when the chat opened another by hand. */
-function frontPickers(row, one, e) {
-  const agentBox = row.querySelector(".ra");
-  const modelBox = row.querySelector(".rm");
-  const whereBox = row.querySelector(".rw");
-  const mine = { agent: seatAgent(e), where: e?.where === "cloud" ? "cloud" : "local" };
-  for (const [value, said] of [["local", phrase("here")], ["cloud", phrase("on the server")]]) {
-    const opt = document.createElement("option");
-    opt.value = value;
-    opt.textContent = said;
-    whereBox.appendChild(opt);
-  }
-  whereBox.value = one.where || mine.where;
-  fillAgentBox(agentBox, whereBox.value, AGENT_NAMES[one.agent] ? one.agent : mine.agent);
-  modelBox.dataset.want = one.model || "";
-  fillModelBox(modelBox, [], one.model || "");
-  /* the answer of an agent the row has since left is not this row's answer: two changes in a row
-     used to let the slower fetch paint its models under the name of the faster one. */
-  const load = () => {
-    const asked = agentBox.value;
-    return agentModels(asked).then((rows) => {
-      if (agentBox.value !== asked) return;
-      fillModelBox(modelBox, rows, modelBox.dataset.want);
-    });
-  };
-  agentBox.addEventListener("change", () => { modelBox.dataset.want = ""; load(); });
-  modelBox.addEventListener("change", () => { modelBox.dataset.want = modelBox.value; });
-  whereBox.addEventListener("change", () => { fillAgentBox(agentBox, whereBox.value, agentBox.value); load(); });
-  load();
-  return () => ({ name: one.name, agent: agentBox.value, model: modelBox.value, where: whereBox.value });
 }
 
 const FRONT_STATE = { needs: "needs you", done: "done", working: "working", idle: "idle", opening: "opening" };
@@ -2810,88 +2245,6 @@ function paintFrontsOfChat(el, s) {
     row.querySelector(".fr-said").textContent = one.said || one.now || "";
     row.querySelector(".fr-meta").textContent = [one.where === "cloud" ? phrase("on the server") : phrase("here"), one.model && pillLabel(prettyModelId(one.model).name)].filter(Boolean).join(" \u00b7 ");
   });
-}
-
-function wearTheChosenFronts(card, chosen) {
-  const rows = [...card.querySelectorAll(".prow")];
-  for (const row of rows) {
-    const wish = (Array.isArray(chosen) ? chosen : []).find((one) => one?.name === row.querySelector(".rn")?.textContent);
-    if (wish) {
-      const agentBox = row.querySelector(".ra");
-      const whereBox = row.querySelector(".rw");
-      const modelBox = row.querySelector(".rm");
-      if (agentBox && wish.agent) agentBox.value = wish.agent;
-      if (whereBox && wish.where) whereBox.value = wish.where;
-      if (modelBox) {
-        if (wish.model && ![...modelBox.options].some((o) => o.value === wish.model)) modelBox.appendChild(new Option(wish.model, wish.model));
-        modelBox.value = wish.model || "";
-      }
-    }
-    for (const box of row.querySelectorAll("select")) box.disabled = true;
-  }
-}
-
-function svPlanCard(e, ev) {
-  const fronts = planFronts(ev.plan);
-  const card = document.createElement("div");
-  card.className = "sv-plan";
-  card.dataset.id = ev.id;
-  const head = document.createElement("div");
-  head.className = "ph";
-  head.innerHTML = `<span class="tag"></span><span class="say"></span><span class="phn"></span>`;
-  head.querySelector(".tag").textContent = phrase("plan");
-  head.querySelector(".say").textContent = phrase("this chat stopped, and it is waiting for you");
-  head.querySelector(".phn").textContent = fronts.length ? phrase("{n} chats", { n: fronts.length }) : "";
-  const body = document.createElement("div");
-  body.className = "pb";
-  body.innerHTML = renderMarkdown(planWithoutFronts(ev.plan));
-  wireLinks(e.name, body);
-  enrichMarkdown(body, { seat: e });
-  const rows = document.createElement("div");
-  rows.className = "prows";
-  const asked = [];
-  for (const one of fronts) {
-    const row = document.createElement("div");
-    row.className = "prow";
-    row.innerHTML = `<span class="rn"></span><span class="rd"></span><span class="rr">`
-      + `<select class="ra" aria-label="${esc(phrase("which chat program runs this front"))}"></select>`
-      + `<select class="rm" aria-label="${esc(phrase("the model this front runs on"))}"></select>`
-      + `<select class="rw" aria-label="${esc(phrase("where this front runs"))}"></select></span>`;
-    row.querySelector(".rn").textContent = one.name;
-    row.querySelector(".rd").textContent = [one.repo, one.does].filter(Boolean).join(" · ");
-    asked.push(frontPickers(row, one, e));
-    rows.appendChild(row);
-  }
-  const foot = document.createElement("div");
-  foot.className = "pf";
-  const go = document.createElement("button");
-  go.type = "button";
-  go.className = "btn pri";
-  go.textContent = fronts.length ? phrase("Approve and open") : phrase("Approve");
-  const change = document.createElement("button");
-  change.type = "button";
-  change.className = "btn ghost";
-  change.textContent = phrase("Change the plan");
-  const cost = document.createElement("span");
-  cost.className = "cost";
-  cost.textContent = fronts.length ? phrase("{n} of {max} of the budget", { n: fronts.length, max: 3 }) : "";
-  foot.append(go, change, cost);
-  go.addEventListener("click", () => {
-    go.disabled = true;
-    const chosen = asked.map((read) => read());
-    svCmd(e, { type: "answer", id: ev.id, answers: { plan: "go", fronts: chosen } }).then((r) => {
-      if (r?.ok) {
-        e.asked.delete(ev.id);
-        wearTheChosenFronts(card, chosen);
-      } else go.disabled = false;
-    });
-  });
-  change.addEventListener("click", () => { e.host.querySelector(".sv-composer textarea")?.focus(); });
-  card.append(head, body, rows, foot);
-  dressPlanCard(e, card, ev.plan, planWithoutFronts(ev.plan));
-  e.asked.set(ev.id, card);
-  svAppend(e, card);
-  notePlan(e, ev, card);
 }
 
 function svDraftPaint(e) {
@@ -3157,10 +2510,8 @@ function svEvent(e, ev) {
     if (ev.subtype === "status") {
       if (live && ev.status === "compacting") {
         svActivity(e, phrase("compacting the conversation…"));
-        startCompactShow(e);
       }
       if (ev.compact_result && ev.compact_result !== "success") {
-        dropCompactShow(e);
         svLine(e, "sv-meta warn", `${phrase("compact failed")}${ev.compact_error ? ` — ${ev.compact_error}` : ""}`);
         if (live) refreshContext(e);
       }
@@ -3172,7 +2523,6 @@ function svEvent(e, ev) {
       const secs = m.duration_ms ? ` · ${Math.max(1, Math.round(m.duration_ms / 1000))}s` : "";
       const how = m.trigger === "auto" ? phrase("on its own") : m.trigger === "idle" ? phrase("while idle, before the cache expired") : phrase("you asked");
       svLine(e, "sv-meta sv-compacted", phrase("context compacted ({how}) · {pre} → {post} tokens{secs}", { how, pre: kfmt(m.pre_tokens), post: kfmt(m.post_tokens), secs }));
-      if (live) endCompactShow(e, m);
       if (live) refreshContext(e);
       return;
     }
@@ -3255,25 +2605,7 @@ function svEvent(e, ev) {
        chat stopped and is waiting — whatever agent sent it, and whatever it ends up being called. */
     if (ev.subtype === "plan" && ev.id) { if (live) svActivity(e, phrase("waiting for you to read the plan")); return svPlanCard(e, ev); }
     if (ev.subtype === "todo") return void svLine(e, "sv-meta", ev.text || "");
-    if (PLAN_CLOSERS.includes(ev.subtype)) {
-      forgetPlan(e, ev.id);
-      const card = e.asked.get(ev.id);
-      e.asked.delete(ev.id);
-      if (!card) return;
-      card.classList.add("answered");
-      /* a card read again after a reload is a record, not a control: the pickers show what was
-         actually opened, and none of them can be moved any more. */
-      wearTheChosenFronts(card, ev.fronts);
-      const foot = card.querySelector(".pf");
-      if (foot) {
-        foot.textContent = "";
-        const said = document.createElement("span");
-        said.className = "cost";
-        said.textContent = ev.subtype === "plan_approved" ? phrase("approved") : phrase("dropped — you said it in the chat instead");
-        foot.appendChild(said);
-      }
-      return;
-    }
+    if (PLAN_CLOSERS.includes(ev.subtype)) return void closePlanCard(e, ev);
     if (ev.subtype === "mode_changed") {
       e.mode = ev.mode === "plan" ? "plan" : "";
       paintPills(e);
@@ -3285,13 +2617,7 @@ function svEvent(e, ev) {
       closeAsk(e, ev, c);
       if (!c) return;
       closeQuestion(c);
-      if (ev.subtype !== "question_answered") {
-        c.classList.add("dropped");
-        const note = document.createElement("div");
-        note.className = "qdesc";
-        note.textContent = ev.subtype === "question_dismissed" ? phrase("dropped — you said it in the chat instead") : `dropped — ${ev.error || phrase("the answer did not fit")}`;
-        c.appendChild(note);
-      }
+      if (ev.subtype !== "question_answered") dropQuestion(c, ev.subtype === "question_dismissed" ? phrase("dropped — you said it in the chat instead") : `dropped — ${ev.error || phrase("the answer did not fit")}`);
       e.asked.delete(ev.id);
       return;
     }
@@ -3800,14 +3126,10 @@ function repaintColumnsPicker(e) {
   if (e.menu?.el?.classList.contains("cp-pick")) e.menu.repaint?.();
 }
 
-function closeSeatPicker(e, cancel = false) {
-  const commit = cancel ? null : e?.menu?.commit;
+function closeSeatPicker(e) {
   if (e?.menu) e.menu = null;
   for (const stray of document.querySelectorAll(".sv-menu")) stray.remove();
-  for (const lit of document.querySelectorAll(".sv-pill.open, .sv-ctx.open")) lit.classList.remove("open");
-  for (const scrim of document.querySelectorAll(".sv-scrim")) scrim.remove();
-  dimYardsUnderScrims();
-  commit?.();
+  for (const lit of document.querySelectorAll(".sv-pill.open")) lit.classList.remove("open");
 }
 
 function clickLeavesPicker(target) {
@@ -3881,11 +3203,11 @@ document.addEventListener("mousedown", (ev) => {
   closeEveryPicker();
 }, true);
 
-function closeEveryPicker(cancel = false) {
-  for (const e of structPool.values()) if (e.menu) closeSeatPicker(e, cancel);
-  for (const d of drafts.values()) if (d.e.menu) closeSeatPicker(d.e, cancel);
+function closeEveryPicker() {
+  for (const e of structPool.values()) if (e.menu) closeSeatPicker(e);
+  for (const d of drafts.values()) if (d.e.menu) closeSeatPicker(d.e);
   for (const stray of document.querySelectorAll(".sv-menu")) stray.remove();
-  for (const lit of document.querySelectorAll(".sv-pill.open, .sv-ctx.open")) lit.classList.remove("open");
+  for (const lit of document.querySelectorAll(".sv-pill.open")) lit.classList.remove("open");
 }
 
 const PICKER_CAP = 384;
@@ -3907,35 +3229,6 @@ function pickerFit(seat, bar) {
   const least = Math.min(PICKER_FLOOR, seat.height - PICKER_AIR);
   const tall = Math.max(0, Math.min(PICKER_CAP, Math.max(above, least)));
   return { tall, over: Math.max(0, tall - above) };
-}
-
-const ANCHOR_GAP = 20;
-
-const ANCHOR_MARGIN = 8;
-
-const ANCHOR_CAP = 460;
-
-const ANCHOR_WIDTH = 400;
-
-const SKELETON_FLOOR = 4;
-
-const SKELETON_CAP = 8;
-
-const SKELETON_WIDTHS = [[46, 78], [34, 62], [52, 70], [40, 84], [30, 58], [44, 66]];
-
-const VOLUME_WIDTH = 320;
-
-const VOLUME_STEPS = 4;
-
-function anchorToPill(menu, pill, seat, bar, wide = ANCHOR_WIDTH) {
-  const at = pill.getBoundingClientRect();
-  const width = Math.min(wide, seat.width - ANCHOR_MARGIN * 2);
-  const left = Math.max(seat.left + ANCHOR_MARGIN, Math.min(at.left, seat.right - ANCHOR_MARGIN - width));
-  const room = at.top - seat.top - ANCHOR_GAP - ANCHOR_MARGIN;
-  menu.style.width = `${width}px`;
-  menu.style.left = `${left - bar.left}px`;
-  menu.style.bottom = `${bar.bottom - at.top + ANCHOR_GAP}px`;
-  menu.style.maxHeight = `${Math.max(PICKER_FLOOR, Math.min(ANCHOR_CAP, room))}px`;
 }
 
 function pickerRow({ label, hint, key, on, locked }) {
@@ -3991,16 +3284,6 @@ function openSeatPicker(e, kind) {
   for (const lit of document.querySelectorAll(".sv-pill.open")) lit.classList.remove("open");
   composer.appendChild(el);
   pill?.classList.add("open");
-  const anchored = experienceNext() && (asked === "model" || kind === "effort");
-  const volume = anchored && kind === "effort";
-  el.classList.toggle("anchored", anchored);
-  el.classList.toggle("volume", volume);
-  if (anchored) {
-    const scrim = document.createElement("div");
-    scrim.className = "sv-scrim";
-    (e.host.closest(".tile") || e.host).appendChild(scrim);
-    dimYardsUnderScrims();
-  }
   /* no listener of its own: one per open is one per open to leak, and a seat view
      dropped with a picker in it left its handler on the document holding a node
      that is no longer on screen — from then on every mousedown anywhere read as
@@ -4013,7 +3296,6 @@ function openSeatPicker(e, kind) {
   e.menu = raycast
     ? { kind, asked, el, repaint: () => { if (e.menu?.el === el) paint(); } }
     : { kind, el, repaint: () => { if (e.menu?.el === el) paint(); } };
-  if (volume) e.menu.commit = () => { if (staged !== null) pickEffort(staged); };
 
   let rows = [];
   const search = el.querySelector(".q");
@@ -4068,36 +3350,6 @@ function openSeatPicker(e, kind) {
     if (canTransfer) for (const name of offered) if (name !== mine) fetchForeignCatalog(name);
   }
 
-  let paintedRows = 0;
-  let paintedHeight = 0;
-
-  const sayLoading = (headline, body = "") => {
-    if (!anchored) return say(headline, body);
-    list.textContent = "";
-    search.hidden = true;
-    const box = document.createElement("div");
-    box.className = "sv-skeleton";
-    box.setAttribute("role", "status");
-    box.setAttribute("aria-busy", "true");
-    const said = document.createElement("span");
-    said.className = "sv-skel-said";
-    said.textContent = body ? `${headline} ${body}` : headline;
-    box.appendChild(said);
-    const count = Math.max(SKELETON_FLOOR, Math.min(SKELETON_CAP, paintedRows || SKELETON_FLOOR));
-    box.style.setProperty("--rows", count);
-    box.dataset.rows = count;
-    for (let i = 0; i < count; i++) {
-      const [name, note] = SKELETON_WIDTHS[i % SKELETON_WIDTHS.length];
-      const row = document.createElement("div");
-      row.className = "sv-skel-row";
-      row.style.setProperty("--i", i);
-      row.innerHTML = `<span class="tick"></span><span class="nm"><b style="width:${name}%"></b><i style="width:${note}%"></i></span>`;
-      box.appendChild(row);
-    }
-    list.appendChild(box);
-    if (paintedHeight) list.style.minHeight = `${paintedHeight}px`;
-  };
-
   const say = (headline, body) => {
     list.innerHTML = `<div class="empty"><b></b><span></span></div>`;
     list.querySelector("b").textContent = headline;
@@ -4124,15 +3376,13 @@ function openSeatPicker(e, kind) {
 
   const paintMenu = (heldLevel) => {
     const q = input.value.trim().toLowerCase();
-    if (rows.length) paintedRows = rows.length;
-    paintedHeight = list.offsetHeight;
     list.style.minHeight = "";
     list.textContent = "";
     rows = [];
     search.hidden = false;
     if (kind === "model" && viewing !== mine && canTransfer) {
       const foreign = foreignCatalogs.get(viewing);
-      if (!foreign || foreign.loading) return sayLoading(phrase("loading models…"));
+      if (!foreign || foreign.loading) return say(phrase("loading models…"));
       if (foreign.error) return say(phrase("could not load this provider's models"), foreign.error);
       if (!raycast) return paintModels(q, foreign.models, viewing);
       const head = document.createElement("div");
@@ -4155,10 +3405,10 @@ function openSeatPicker(e, kind) {
     if (kind === "account") return paintLogins();
     if (e.catalogError) return say(phrase("no picker in this chat"), e.catalogError);
     if (!e.catalog) {
-      return sayLoading(phrase("asking this chat what it can run…"),
+      return say(phrase("asking this chat what it can run…"),
                  e.turnOpen ? phrase("it is mid-turn, so it may take a moment to answer") : "");
     }
-    if (kind === "effort") volume ? paintVolume() : paintEfforts();
+    if (kind === "effort") paintEfforts();
     else if (columns) {
       paintModels(q);
       paintEffortColumn(heldLevel);
@@ -4259,7 +3509,7 @@ function openSeatPicker(e, kind) {
     if (stepProvider(kev)) return true;
     if (kev.key === "Escape" && !kev.metaKey && !kev.ctrlKey && !kev.altKey && !kev.shiftKey) {
       kev.preventDefault();
-      closeSeatPicker(e, true);
+      closeSeatPicker(e);
       e.host.querySelector(".sv-composer textarea")?.focus();
       return true;
     }
@@ -4286,7 +3536,7 @@ function openSeatPicker(e, kind) {
     const at = effortRows.indexOf(document.activeElement);
     if (["Enter", " ", "Tab"].includes(kev.key) || kev.metaKey || kev.ctrlKey || kev.altKey) return false;
     kev.preventDefault();
-    if (kev.key === "Escape") { closeSeatPicker(e, true); e.host.querySelector(".sv-composer textarea")?.focus(); }
+    if (kev.key === "Escape") { closeSeatPicker(e); e.host.querySelector(".sv-composer textarea")?.focus(); }
     else if (kev.key === "ArrowLeft") input.focus();
     else if (kev.key === "ArrowDown" || kev.key === "ArrowUp") effortRows[(Math.max(0, at) + (kev.key === "ArrowDown" ? 1 : -1) + effortRows.length) % effortRows.length]?.focus();
     else if (kev.key === "Home") effortRows[0]?.focus();
@@ -4349,58 +3599,6 @@ function openSeatPicker(e, kind) {
       list.appendChild(item);
       rows.push(item);
     }
-  };
-
-  let staged = null;
-
-  const stageEffort = (value) => {
-    staged = value;
-    paint();
-  };
-
-  const stepVolume = (by) => {
-    const row = catalogRow(e);
-    const levels = row?.efforts || [];
-    const at = levels.findIndex((lv) => lv.value === (staged ?? (e.effort || row?.defaultEffort || "")));
-    const next = levels[Math.max(0, Math.min(levels.length - 1, at + by))];
-    if (next) stageEffort(next.value);
-  };
-
-  const paintVolume = () => {
-    const row = catalogRow(e);
-    const levels = row?.efforts || [];
-    if (!levels.length) return say(phrase("nothing to choose here"), phrase("this model does not take thinking levels — it decides on its own"));
-    const at = levels.findIndex((lv) => lv.value === (staged ?? (e.effort || row?.defaultEffort || "")));
-    const level = levels[at];
-    const box = document.createElement("div");
-    box.className = "sv-volume";
-    box.innerHTML = `<div class="vh"><span class="vl"></span><span class="vv"><span class="vdef"></span><b class="vn"></b></span></div><div class="vrow"><button type="button" class="vbtn less"></button><div class="vbar"></div><button type="button" class="vbtn more"></button></div>`;
-    box.querySelector(".vl").textContent = phrase("Thinking");
-    box.querySelector(".vn").textContent = level ? level.label || titleCase(level.value) : phrase("default");
-    if (level && level.value === row?.defaultEffort) box.querySelector(".vdef").textContent = `(${phrase("default")})`;
-    const less = box.querySelector(".less");
-    const more = box.querySelector(".more");
-    less.title = phrase("think less");
-    more.title = phrase("think more");
-    less.setAttribute("aria-label", less.title);
-    more.setAttribute("aria-label", more.title);
-    less.disabled = at <= 0;
-    more.disabled = at >= levels.length - 1;
-    less.addEventListener("click", () => stepVolume(-1));
-    more.addEventListener("click", () => stepVolume(1));
-    const bar = box.querySelector(".vbar");
-    levels.forEach((lv, i) => {
-      const step = document.createElement("button");
-      step.type = "button";
-      step.className = "vlv";
-      step.title = lv.value === row?.defaultEffort ? `${lv.label || lv.value} (${phrase("default")})` : lv.label || lv.value;
-      step.setAttribute("aria-label", step.title);
-      step.innerHTML = `<i${i <= at ? "" : ' class="dot"'}></i>`.repeat(VOLUME_STEPS);
-      step.addEventListener("click", () => stageEffort(lv.value));
-      bar.appendChild(step);
-    });
-    for (const button of box.querySelectorAll("button")) button.addEventListener("mousedown", (ev) => ev.preventDefault());
-    list.appendChild(box);
   };
 
   const paintModels = (q, catalog = e.catalog || [], agent = mine) => {
@@ -4581,7 +3779,7 @@ function openSeatPicker(e, kind) {
   input.addEventListener("input", () => { cursor = -1; paint(); });
   input.addEventListener("keydown", (kev) => {
     kev.stopPropagation();
-    if (kev.key === "Escape") { kev.preventDefault(); closeSeatPicker(e, true); e.host.querySelector(".sv-composer textarea")?.focus(); return; }
+    if (kev.key === "Escape") { kev.preventDefault(); closeSeatPicker(e); e.host.querySelector(".sv-composer textarea")?.focus(); return; }
     const bare = !kev.metaKey && !kev.ctrlKey && !kev.altKey && !kev.shiftKey;
     if (columns && bare && kev.key === "ArrowRight" && input.selectionStart === input.value.length && input.selectionEnd === input.value.length) {
       const highlighted = rows[cursor];
@@ -4594,9 +3792,6 @@ function openSeatPicker(e, kind) {
       const on = rail.querySelector(".sv-rail-btn.on") || rail.querySelector(".sv-rail-btn");
       if (on) { kev.preventDefault(); on.focus(); return; }
     }
-    if (volume && ["ArrowLeft", "ArrowDown", "-"].includes(kev.key)) { kev.preventDefault(); return stepVolume(-1); }
-    if (volume && ["ArrowRight", "ArrowUp", "+", "="].includes(kev.key)) { kev.preventDefault(); return stepVolume(1); }
-    if (volume && kev.key === "Enter") { kev.preventDefault(); closeSeatPicker(e); e.host.querySelector(".sv-composer textarea")?.focus(); return; }
     if (kev.key === "ArrowDown") { kev.preventDefault(); return moveCursor(1); }
     if (kev.key === "ArrowUp") { kev.preventDefault(); return moveCursor(-1); }
     if (kev.key === "Enter") { kev.preventDefault(); return void (rows[cursor] || rows[0])?.click(); }
@@ -4606,7 +3801,7 @@ function openSeatPicker(e, kind) {
       if (on) { kev.preventDefault(); on.focus(); }
       return;
     }
-    if ((raycast || experienceNext()) && kev.key === "Tab" && !rail.hidden && rail.children.length > 1) {
+    if (raycast && kev.key === "Tab" && !rail.hidden && rail.children.length > 1) {
       kev.preventDefault();
       const tabs = [...rail.children];
       const at = tabs.findIndex((one) => one.classList.contains("on"));
@@ -4622,7 +3817,6 @@ function openSeatPicker(e, kind) {
     const seat = e.host.getBoundingClientRect();
     const bar = composer.getBoundingClientRect();
     if (!seat.height || !bar.height) return;
-    if (anchored && pill) return anchorToPill(el, pill, seat, bar, volume ? VOLUME_WIDTH : ANCHOR_WIDTH);
     const { tall, over } = pickerFit(seat, bar);
     el.style.maxHeight = `${tall}px`;
     el.style.bottom = over ? `${composer.clientHeight + PICKER_LIFT - over}px` : "";
@@ -4950,4 +4144,4 @@ function svUserThumb(e, bubble, path) {
   return svConvThumb(e, bubble, path);
 }
 
-export { REVIEW_ASK, dimYardsUnderScrims, referenceLine, anchorToPill, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, insideFocusStroke, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, prettyModelId, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserHover, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, setPlanMode, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };
+export { REVIEW_ASK, referenceLine, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserHover, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, setPlanMode, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };

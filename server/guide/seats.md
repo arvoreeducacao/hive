@@ -63,6 +63,7 @@ Pick "anonymous" under "Where it runs". The box says: "Runs on this mac and leav
 
 - **Images and files**: paste a screenshot (Cmd+V or Ctrl+V) or drop files on the chat or on the new-chat box. One drop takes up to 6 files, 24 MB per file and 32 MB in total. Programs (exe, dmg, deb, apk, jar and similar), empty files and folders are refused. An image becomes an `[Image #n]` mark in the text; another file goes in as its path. Files land in `~/.hive/shots/<chat>/` (the new-chat box uses `<hub>/.hive/assets/`) and are deleted after 7 days (env `HIVE_SHOTS_DAYS`).
 - **Prefixes**: `/` a command, `@` a file in the hub, `#` "the name of another chat, to hand it over to the one you are writing to", `~` "someone's name, to hand their hive over. They see any question before it lands", `!` a shell line (see "The terminal and shell lines").
+- **Terminal keys**: the chat box, the new-chat box and the box that edits a message move the cursor like a terminal prompt. Ctrl+E goes to the end of the line. On Linux and Windows, Alt+B and Alt+F jump a word back and forward; letters and digits make a word, so `_`, `.` and `/` split one. On macOS, ⌥ types a character, so use ⌥← and ⌥→. While the cursor is in one of these boxes, these keys belong to it, not to a shortcut bound to the same keys.
 - **Drafts**: text you typed and did not send is kept per chat in `~/.hive/drafts.json` (up to 20,000 characters, up to 300 chats). It comes back after a restart and on a paired phone.
 - **Queue**: a message sent while the chat works waits as "queued". Its buttons are "push it into the turn now — no waiting" and "take it back into the box — it will not be sent (↑ in the empty box)". A message that already went into the turn "cannot be taken back". ⌘Enter (Ctrl+Enter) in the box stops the turn and sends right away, without the queue.
 - **Edit a message**: hover one of your own messages in a native Claude chat and press the pencil beside "copy" ("edit and redo from here"). The message turns into a box in its place: Enter or "redo from here" sends the new words, Esc or "cancel" leaves it as it was. The chat forgets everything after that message and answers again from there; files on disk stay as they are. A chat that is working stops first ("stop and redo"). Messages from another chat, messages from before the conversation was compacted, anonymous chats and chats on other providers cannot be edited.
@@ -195,10 +196,20 @@ Compaction sums up a long conversation and carries on from the summary.
 
 - **Ceiling**: the `autocompact` key in `~/.hive/config.jsonc`, or Settings, "The conversation", "sum up the conversation at". `auto` (empty) leaves it to the agent. `100k` to `1000k` sets your own ceiling. A chat takes a new ceiling when it comes back, not while it runs.
 - **Which chats take it**: native chats on Claude, Codex, Kimi, Kiro, Cursor and OpenCode. Gemini and Antigravity compact by their own rules and post a warning. A TUI chat takes it only on Claude. On Kimi, Kiro and Cursor, if the summary is still above the ceiling, the chat says so and stops compacting on its own until it reopens.
-- **By hand**: `/compact [focus]`, or "Compact conversation" in the context window. During a turn it waits as "queued", with "compact now, without waiting for the turn" and "do not compact".
+- **By hand**: `/compact [focus]`.
 - **Starting fresh**: `/fresh` starts the chat over in a new session instead of summing it up. It runs like a provider change to the same provider: "waiting for the current turn before starting fresh…", "saving the conversation for the fresh start…", "starting a new session…". The chat keeps its name, folder, model, effort and account. The chat says "started fresh", with the path of the saved conversation. Your next message carries an extract (the first request and the recent conversation) and the path of `conversation.md`, which the agent searches with `rg` when it needs more. If it fails, the old session comes back ("restoring the previous session…").
 - **The chat sees how full it is**: the `contextUsage` key in `~/.hive/config.jsonc`, or Settings, "The conversation", "tell a Claude chat how full it is". Off by default. On, every Claude chat on this machine starts with `CLAUDE_CODE_ENABLE_TOKEN_USAGE_ATTACHMENT=1` and reads `Token usage: <used>/<total>; <left> remaining`. The total is the ceiling minus what Claude keeps for the reply (200k gives 180000). A chat takes it when it comes back. Cloud chats do not take it. The setting is internal to Claude Code, so a CLI update can change it.
-- **Context window**: the gauge in a native chat's composer opens "Context": "{used} of {max} used", split into "Conversation", "Setup", "Reserved", "Free" and "Outside the window". It turns hot at 90%. The chat details show "{pct} of {size} context" under "Last turn".
+- **Context window**: the gauge in a native chat's composer runs `/context`. The chat details show "{pct} of {size} context" under "Last turn".
+
+## Code Mode
+
+Code Mode is an experimental Claude Code feature: Claude writes a piece of JavaScript that makes the tool calls, and the chat shows each call under its usual name.
+
+- **Turn it on**: the `codeMode` key in `~/.hive/config.jsonc`, or Settings, "Code Mode", "start Claude chats in Code Mode". Off by default.
+- **Which chats take it**: new native Claude chats on this machine. The driver opens the session with `CLAUDE_CODE_EXPERIMENTAL_CODE_MODE=1` in the `env` of the SDK `settings` option, the only place where `claude -p` and Agent SDK apps read it. Cloud chats, TUI chats and anonymous chats do not take it.
+- **A chat keeps the mode it was born with**: the driver writes `codeMode` to `sessions/<chat>.json` when the session starts and reads it back on every resume. Claude Code refuses to resume a Code Mode session with the mode off, and a session born without it resumes without it. A change in Settings reaches only new chats, `/fresh` included.
+- **No remote control**: Claude Code turns Code Mode off, with no warning, when the session has `--remote-control`. A Code Mode chat opens without it.
+- **When Claude Code refuses**: the chat posts Claude Code's own line, for example `Code Mode (experimental) isn't available: ...`, and runs with the ordinary tools. Requirements: Claude Code 2.1.323 or newer, a subscription, Console or cloud-provider login (not a gateway), and Opus 5.5, Sonnet 5.5, Haiku 5.5 or Fable 5.2.
 
 ## Sleep and idle compaction on long silence
 
@@ -341,7 +352,6 @@ To watch a chat's events live, run `tail -f ~/.hive/events/<name>.ndjson`.
 - `app/src/app/draft-seat.js`
 - `app/src/app/new-chat.js`
 - `app/src/app/seat-menu.js`
-- `app/src/app/context-window.js`
 - `app/src/app/provider-transfer.js`
 - `app/src/app/history.js`
 - `app/src/app/archived.js`

@@ -9,6 +9,7 @@ import { armMirrorLive, closeMirrorChat, forgetMirrorChats, openMirrorChat, swee
 import { wireShelfLinks } from "./picture-preview.js";
 import { ago } from "./pod.js";
 import { calmly, paintMachines, paintPhone, paintShare } from "./pure-helpers.js";
+import { putHidden } from "./dom-writes.js";
 
 const TONES = ["#7DCFFF", "#4EA96F", "#8A7CB0", "#E0AF68", "#6FA3B4", "#CD694A", "#9C988F"];
 
@@ -163,7 +164,7 @@ async function pullKnocks() {
 let knocksKey = "";
 
 function paintKnocks() {
-  $("knock-dock").hidden = !st.knocksOpen.length;
+  putHidden($("knock-dock"), !st.knocksOpen.length);
   knocksSolid.show(knocksViewModel());
 }
 
@@ -246,8 +247,8 @@ function paintNudge() {
   if (ahead.length !== st.nudgeQueue.length) st.nudgeQueue = ahead;
   const k = st.nudgeQueue[0] || null;
   st.nudgeNow = k;
-  $("nudge").hidden = !k;
-  $("nudge-scrim").hidden = !k;
+  putHidden($("nudge"), !k);
+  putHidden($("nudge-scrim"), !k);
   if (!k) return stopNudging();
   const mine = st.data.sessions.filter((x) => x.name && x.kind !== "shell");
   $("nudge-asked").hidden = !isAsk(k);

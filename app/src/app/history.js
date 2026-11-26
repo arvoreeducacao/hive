@@ -1,8 +1,7 @@
-import { $, esc, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { $, phrase, st } from "./core.js";
 import { pull, releaseKeyboard } from "./focus-navigation.js";
-import { keyHint } from "./leader-key.js";
-import { palOn, palPaint } from "./palette.js";
 import { ago } from "./pod.js";
+import { mountHistory } from "../panels/history.jsx";
 import { markUp, rankSessions } from "/assets/archive-search.mjs";
 
 const shortDir = (p) => (p ? String(p).split("/").filter(Boolean).slice(-2).join("/") : "");
@@ -19,28 +18,70 @@ st.histDeep = new Map();
 
 st.histPage = 1;
 
+st.histQuery = "";
+
+st.histBringing = new Set();
+
 let histSeq = 0;
 
 let deepSeq = 0;
 
 let deepTimer = null;
 
+let historySolid = null;
+
+const shown = { open: false, list: { count: "", hint: "", rows: [], scanning: false }, sync: { mode: "off" } };
+
+let wordsSaid = { language: null, words: null };
+
+function historyWords() {
+  if (wordsSaid.language === st.language && wordsSaid.words) return wordsSaid.words;
+  wordsSaid = { language: st.language, words: sayHistoryWords() };
+  return wordsSaid.words;
+}
+
+function sayHistoryWords() {
+  return {
+    archive: {
+      title: phrase("Past sessions"),
+      search: phrase("search title, old title, chat name, prompt or folder…"),
+      revive: phrase("revive"),
+      reviveSay: phrase("reopens the chat with its whole context, in the same directory, as a new seat — it asks whether you want the native chat or the TUI · esc closes"),
+      close: phrase("close")
+    },
+    preview: { foot: phrase("enter revives · esc closes"), revive: phrase("revive") },
+    revive: {
+      head: phrase("How should it come back?"),
+      native: phrase("native chat"), nativeSay: phrase("the structured seat — markdown, cards, instant commands, questions as buttons"),
+      tui: phrase("classic TUI"), tuiSay: phrase("the terminal exactly as this session last saw it"),
+      foot: phrase("enter picks the native chat · esc cancels")
+    }
+  };
+}
+
+function historyScreensModel() {
+  return {
+    open: shown.open, query: st.histQuery, list: shown.list, sync: shown.sync,
+    preview: previewModel(), revive: reviveModel(), words: historyWords()
+  };
+}
+
+function paintHistoryScreens() {
+  historySolid?.show(historyScreensModel());
+}
+
+const historyOnScreen = () => shown.open;
+
 function closeHistory() {
-  if (typeof closePreview === "function") closePreview();
-  $("history").classList.remove("on");
+  closePreview();
+  shown.open = false;
+  paintHistoryScreens();
 }
 
 function renderHistory() {
-  const model = historyViewModel();
-  $("hist-count").textContent = model.count;
-  historySolid.show(model);
-  for (const one of $("hist-list").querySelectorAll("[data-down]")) {
-    one.disabled = false;
-    one.textContent = model.rows.find((row) => row.at === Number(one.dataset.down))?.downSay ?? one.textContent;
-  }
+  shown.list = historyViewModel();
+  paintHistoryScreens();
 }
-
-let historySolid = null;
 
 function scanningSay() {
   const watch = st.histWatch;
@@ -50,26 +91,26 @@ function scanningSay() {
     : phrase("looking for new chats");
 }
 
-function countSay(shown, matched, asked) {
+function countSay(shownRows, matched, asked) {
   const found = asked
     ? phrase("{n} of {total}", { n: matched, total: st.histSessions.length })
     : phrase("{n} sessions", { n: st.histSessions.length });
-  const more = shown < matched ? phrase("showing the first {n}", { n: shown }) : "";
+  const more = shownRows < matched ? phrase("showing the first {n}", { n: shownRows }) : "";
   return [found, more, scanningSay()].filter(Boolean).join(" · ");
 }
 
 function historyViewModel() {
   if (st.histLoading) return { count: phrase("reading…"), hint: phrase("reading the archives…"), rows: [], scanning: true };
-  const asked = $("hist-search").value.trim();
+  const asked = st.histQuery.trim();
   const ranked = rankSessions(st.histSessions, asked, { deep: st.histDeep });
-  const shown = ranked.slice(0, ROWS_AT_ONCE * st.histPage);
-  const count = countSay(shown.length, ranked.length, asked);
+  const page = ranked.slice(0, ROWS_AT_ONCE * st.histPage);
+  const count = countSay(page.length, ranked.length, asked);
   if (!ranked.length) {
     return { count, hint: st.histSessions.length ? phrase("nothing matches") : phrase("nothing in the archives yet"), rows: [], scanning: !!st.histWatch };
   }
   return {
     count, hint: "", scanning: !!st.histWatch,
-    rows: shown.map(({ session: s, order, hit, formerly }) => ({
+    rows: page.map(({ session: s, order, hit, formerly }) => ({
       key: `${s.where}/${s.id}`, at: order, where: s.where,
       whereSay: s.where === "cloud" ? "cloud" : "local",
       agent: agentOfRow(s),
@@ -84,7 +125,9 @@ function historyViewModel() {
       when: ago(new Date(s.at).toISOString()),
       peekSay: phrase("preview"), peekHint: phrase("read the conversation before reviving it"),
       down: s.where === "cloud" && agentOfRow(s) === "claude",
-      downSay: phrase("continue here"), downHint: phrase("copy the transcript off the server and continue it on this machine"),
+      downBusy: st.histBringing.has(`${s.where}/${s.id}`),
+      downSay: st.histBringing.has(`${s.where}/${s.id}`) ? phrase("copying it here…") : phrase("continue here"),
+      downHint: phrase("copy the transcript off the server and continue it on this machine"),
       reviveSay: phrase("revive")
     }))
   };
@@ -93,12 +136,9 @@ function historyViewModel() {
 const agentOfRow = (s) => (s?.agent && s.agent !== "claude" ? String(s.agent) : "claude");
 
 function sayArchivesTrouble(said) {
-  historySolid.show({ count: $("hist-count").textContent, hint: said, rows: [] });
+  shown.list = { ...shown.list, hint: said, rows: [] };
+  paintHistoryScreens();
 }
-
-solidMounts.push((hive) => {
-  historySolid = hive.mountHistory($("hist-list"));
-});
 
 function pullHistory(quiet, fresh) {
   const seq = ++histSeq;
@@ -115,7 +155,7 @@ function pullHistory(quiet, fresh) {
     st.histSessions = next;
     st.histWatch = watch;
     if (!quiet || changed) renderHistory();
-    if (d.stale) setTimeout(() => { if (seq === histSeq && $("history").classList.contains("on")) pullHistory(true); }, quiet ? 1500 : 1000);
+    if (d.stale) setTimeout(() => { if (seq === histSeq && historyOnScreen()) pullHistory(true); }, quiet ? 1500 : 1000);
   }).catch(() => {
     if (seq !== histSeq) return;
     st.histLoading = false;
@@ -131,6 +171,10 @@ st.histSyncTrouble = "";
 
 st.histSyncBusy = false;
 
+st.histSyncSetting = false;
+
+st.histSyncTyped = null;
+
 function syncAgo(ms) {
   return ms ? ago(new Date(ms).toISOString()) : "never";
 }
@@ -140,21 +184,20 @@ function toggleSyncEdit(on) {
   renderSyncStrip();
 }
 
+function paintSyncStrip() {
+  shown.sync = syncStripViewModel();
+  if (shown.sync.mode !== "edit") st.histSyncTyped = null;
+  paintHistoryScreens();
+}
+
 function renderSyncStrip(data) {
   if (data !== undefined) {
     const repoChanged = (data?.local?.repo || "") !== (st.histSync?.local?.repo || "");
     st.histSync = data;
     if (repoChanged) st.histSyncEditing = false;
   }
-  const model = syncStripViewModel();
-  syncStripSolid.show(model);
-  const now = $("sync-now");
-  if (now) { now.disabled = !!model.busy; now.textContent = model.nowSay; }
-  const go = $("sync-go");
-  if (go) { go.disabled = false; go.textContent = model.goSay; }
+  paintSyncStrip();
 }
-
-let syncStripSolid = null;
 
 function syncStripViewModel() {
   if (!st.histSync || !st.histSync.engine || !st.histSync.local) return { mode: "off" };
@@ -175,22 +218,18 @@ function syncStripViewModel() {
       changeSay: phrase("change")
     };
   }
-  const typed = $("hist-sync").querySelector?.("#sync-repo")?.value?.trim() || "";
   return {
     mode: "edit",
     hint: st.histSyncEditing
       ? phrase("point the sync at another private repo — the old one keeps what it already holds")
       : phrase("these transcripts live only where they were born — 31 days, then gone"),
     placeholder: phrase("https://github.com/you/claude-sessions.git"),
-    typed: typed || (st.histSyncEditing ? s.local.repo : s.suggestion || ""),
-    goSay: phrase("sync to a private GitHub repo"),
+    typed: st.histSyncTyped ?? (st.histSyncEditing ? s.local.repo : s.suggestion || ""),
+    goBusy: st.histSyncSetting,
+    goSay: st.histSyncSetting ? phrase("setting it up — the first push takes a minute…") : phrase("sync to a private GitHub repo"),
     cancelSay: st.histSyncEditing ? phrase("cancel") : ""
   };
 }
-
-solidMounts.push((hive) => {
-  syncStripSolid = hive.mountSyncStrip($("hist-sync"));
-});
 
 function pullSyncStatus() {
   let settled = false;
@@ -205,12 +244,11 @@ function pullSyncStatus() {
    person to press the button, since expiring the archive's clock starts no scan
    on its own: only a read does. It asks for a real scan now, holds itself shut
    until that lands, and says so when the sync could not run. */
-async function forceSync(btn) {
+async function forceSync() {
   if (st.histSyncBusy) return;
   st.histSyncBusy = true;
   st.histSyncTrouble = "";
-  btn.disabled = true;
-  btn.textContent = phrase("syncing…");
+  paintSyncStrip();
   try {
     const r = await (await fetch("/api/session-sync/run", { method: "POST" })).json();
     if (!r.ok) throw new Error(r.error || "?");
@@ -226,11 +264,11 @@ async function forceSync(btn) {
   }
 }
 
-async function configureSync(btn) {
-  const repo = $("sync-repo").value.trim();
-  if (!repo) return;
-  btn.disabled = true;
-  btn.textContent = phrase("setting it up — the first push takes a minute…");
+async function configureSync() {
+  const repo = syncStripViewModel().typed?.trim();
+  if (!repo || st.histSyncSetting) return;
+  st.histSyncSetting = true;
+  paintSyncStrip();
   try {
     const r = await (await fetch("/api/session-sync", {
       method: "POST", headers: { "content-type": "application/json" },
@@ -238,101 +276,124 @@ async function configureSync(btn) {
     })).json();
     if (!r.ok) throw new Error(r.error || "?");
   } catch {}
+  st.histSyncSetting = false;
   pullSyncStatus();
 }
 
 function openHistory() {
   releaseKeyboard();
-  $("history").classList.add("on");
-  $("hist-search").value = "";
+  shown.open = true;
+  st.histQuery = "";
   st.histDeep = new Map();
   st.histPage = 1;
   deepSeq += 1;
+  renderHistory();
   $("hist-search").focus();
   pullSyncStatus();
   pullHistory(false);
 }
 
-async function bringLocal(btn) {
-  const s = st.histSessions[Number(btn.dataset.down)];
-  if (!s) return;
-  btn.disabled = true;
-  btn.textContent = phrase("copying it here…");
+function holdBringing(key, held) {
+  const next = new Set(st.histBringing);
+  if (held) next.add(key);
+  else next.delete(key);
+  st.histBringing = next;
+  renderHistory();
+}
+
+async function bringLocal(at) {
+  const s = st.histSessions[at];
+  const key = s && `${s.where}/${s.id}`;
+  if (!s || st.histBringing.has(key)) return;
+  holdBringing(key, true);
   try {
     const r = await (await fetch("/api/bring-local", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ id: s.id, cwd: s.cwd, title: s.title, structured: true, agent: agentOfRow(s) })
     })).json();
     if (!r.ok) throw new Error(r.error || "?");
+    holdBringing(key, false);
     closeHistory();
     pull();
   } catch {
-    btn.disabled = false;
-    btn.textContent = phrase("continue here");
+    holdBringing(key, false);
   }
 }
 
-$("hist-list").addEventListener("click", async (e) => {
-  const down = e.target.closest("[data-down]");
-  if (down) return bringLocal(down);
-  const peek = e.target.closest("[data-peek]");
-  if (peek) return openPreview(Number(peek.dataset.peek));
-  const btn = e.target.closest(".hist-revive");
-  if (!btn) return;
-  const s = st.histSessions[Number(btn.dataset.i)];
-  if (!s) return;
-  st.reviveTarget = s;
-  $("rh-title").textContent = s.title || s.id;
-  $("revive-how").classList.add("on");
-});
-
 st.previewTarget = null;
 
-function previewOnScreen() { return $("hist-preview").classList.contains("on"); }
+st.previewRead = { note: "", messages: [] };
+
+function previewModel() {
+  const s = st.previewTarget;
+  if (!s) return { open: false, title: "", meta: "", note: "", messages: [] };
+  return {
+    open: true, title: s.title || s.id,
+    meta: [shortDir(s.cwd), ago(new Date(s.at).toISOString())].filter(Boolean).join(" · "),
+    note: st.previewRead.note, messages: st.previewRead.messages
+  };
+}
+
+function previewOnScreen() { return !!st.previewTarget; }
 
 function closePreview() {
   st.previewTarget = null;
-  $("hist-preview").classList.remove("on");
+  paintHistoryScreens();
+}
+
+function previewMessages(messages, s) {
+  return messages.map((m, i) => ({
+    key: String(i), role: m.role === "user" ? "user" : "assistant",
+    who: m.role === "user" ? phrase("you") : agentOfRow(s), text: m.text
+  }));
 }
 
 async function openPreview(i) {
   const s = st.histSessions[i];
   if (!s) return;
   st.previewTarget = s;
-  $("hp-title").textContent = s.title || s.id;
-  $("hp-meta").textContent = [shortDir(s.cwd), ago(new Date(s.at).toISOString())].filter(Boolean).join(" · ");
-  $("hp-msgs").innerHTML = `<p class="hint">${phrase("reading the conversation…")}</p>`;
-  $("hist-preview").classList.add("on");
+  st.previewRead = { note: phrase("reading the conversation…"), messages: [] };
+  paintHistoryScreens();
   try {
     const r = await (await fetch(`/api/archive/preview?id=${encodeURIComponent(s.id)}&where=${encodeURIComponent(s.where)}&agent=${encodeURIComponent(agentOfRow(s))}`)).json();
     if (st.previewTarget !== s || !previewOnScreen()) return;
     if (!r.ok) throw new Error(r.error || "?");
-    $("hp-msgs").innerHTML = r.messages.length
-      ? r.messages.map((m) => `<div class="hp-msg ${m.role === "user" ? "user" : "assistant"}"><b>${m.role === "user" ? esc(phrase("you")) : esc(agentOfRow(s))}</b><span>${esc(m.text)}</span></div>`).join("")
-      : `<p class="hint">${phrase("nothing readable in this transcript")}</p>`;
-    $("hp-msgs").scrollTop = $("hp-msgs").scrollHeight;
+    st.previewRead = r.messages.length
+      ? { note: "", messages: previewMessages(r.messages, s) }
+      : { note: phrase("nothing readable in this transcript"), messages: [] };
+    paintHistoryScreens();
+    const box = $("hp-msgs");
+    box.scrollTop = box.scrollHeight;
   } catch (wrong) {
     if (st.previewTarget !== s || !previewOnScreen()) return;
-    $("hp-msgs").innerHTML = `<p class="hint">${phrase("could not read the conversation")}${wrong?.message && wrong.message !== "?" ? ` — ${esc(wrong.message)}` : ""}</p>`;
+    st.previewRead = { note: `${phrase("could not read the conversation")}${wrong?.message && wrong.message !== "?" ? ` — ${wrong.message}` : ""}`, messages: [] };
+    paintHistoryScreens();
   }
 }
 
-$("hp-revive").addEventListener("click", () => {
+st.reviveTarget = null;
+
+function reviveModel() {
+  const s = st.reviveTarget;
+  return s ? { open: true, title: s.title || s.id } : { open: false, title: "" };
+}
+
+function askRevive(s) {
+  if (!s) return;
+  st.reviveTarget = s;
+  paintHistoryScreens();
+}
+
+function reviveFromPreview() {
   const s = st.previewTarget;
   if (!s) return;
   closePreview();
-  st.reviveTarget = s;
-  $("rh-title").textContent = s.title || s.id;
-  $("revive-how").classList.add("on");
-});
-
-$("hist-preview").addEventListener("click", (e) => { if (e.target === $("hist-preview")) closePreview(); });
-
-st.reviveTarget = null;
+  askRevive(s);
+}
 
 function closeReviveHow() {
   st.reviveTarget = null;
-  $("revive-how").classList.remove("on");
+  paintHistoryScreens();
 }
 
 async function reviveAs(structured) {
@@ -348,31 +409,13 @@ async function reviveAs(structured) {
     closeHistory();
     pull();
   } catch (wrong) {
-    $("hist-count").textContent = `${phrase("could not revive it")}${wrong?.message && wrong.message !== "?" ? ` — ${wrong.message}` : ""}`;
+    shown.list = { ...shown.list, count: `${phrase("could not revive it")}${wrong?.message && wrong.message !== "?" ? ` — ${wrong.message}` : ""}` };
+    paintHistoryScreens();
   }
 }
 
-$("rh-native").addEventListener("click", () => reviveAs(true));
-
-$("rh-tui").addEventListener("click", () => reviveAs(false));
-
-$("revive-how").addEventListener("click", (e) => { if (e.target === $("revive-how")) closeReviveHow(); });
-
-$("hist-sync").addEventListener("click", (e) => {
-  if (e.target.closest("#sync-change")) return toggleSyncEdit(true);
-  if (e.target.closest("#sync-cancel")) return toggleSyncEdit(false);
-  const now = e.target.closest("#sync-now");
-  if (now && !now.disabled) return forceSync(now);
-  const btn = e.target.closest("#sync-go");
-  if (btn) configureSync(btn);
-});
-
-$("hist-sync").addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && e.target.id === "sync-repo") $("sync-go")?.click();
-});
-
 function searchDeeper() {
-  const asked = $("hist-search").value.trim();
+  const asked = st.histQuery.trim();
   const seq = ++deepSeq;
   if (asked.length < 3) {
     if (st.histDeep.size) { st.histDeep = new Map(); renderHistory(); }
@@ -387,62 +430,42 @@ function searchDeeper() {
   }).catch(() => {});
 }
 
-function moreRows() {
-  const list = $("hist-list");
+function moreRows(list = $("hist-list")) {
   if (list.scrollTop + list.clientHeight < list.scrollHeight - 240) return;
   if (st.histPage * ROWS_AT_ONCE >= st.histSessions.length) return;
   st.histPage += 1;
   renderHistory();
 }
 
-function searchTyped() {
+function searchTyped(text = st.histQuery) {
+  st.histQuery = text;
   st.histPage = 1;
   renderHistory();
   clearTimeout(deepTimer);
   deepTimer = setTimeout(searchDeeper, 180);
 }
 
-$("hist-search").addEventListener("input", searchTyped);
-
-$("hist-list").addEventListener("scroll", moreRows);
-
-$("btn-history").addEventListener("click", () => ($("history").classList.contains("on") ? closeHistory() : openHistory()));
-
-document.addEventListener("hive-alerts", (e) => {
-  const { count, state, hidden } = e.detail;
-  st.alerts = {
-    count, state, hidden,
-    total: e.detail.total || 0,
-    items: e.detail.items || [],
-    automatic: e.detail.automatic || [],
-    checked: e.detail.checked || "",
-    checking: !!e.detail.checking
-  };
-  if (palOn()) palPaint();
-  if (raycastOn()) return paintRaycastAlerts();
-  const b = $("btn-alerts");
-  b.style.display = count ? "" : "none";
-  $("n-alerts").textContent = count;
-  b.classList.toggle("fail", state === "fail");
-  b.title = phrase("open the environment panel");
+historySolid = mountHistory($("history-screens"), {
+  actions: {
+    close: () => closeHistory(),
+    search: (text) => searchTyped(text),
+    scrolled: (list) => moreRows(list),
+    peek: (at) => openPreview(at),
+    down: (at) => bringLocal(at),
+    revive: (at) => askRevive(st.histSessions[at]),
+    closePreview: () => closePreview(),
+    reviveFromPreview: () => reviveFromPreview(),
+    closeRevive: () => closeReviveHow(),
+    reviveAs: (structured) => reviveAs(structured),
+    syncTyped: (text) => { st.histSyncTyped = text; },
+    syncGo: () => configureSync(),
+    syncNow: () => forceSync(),
+    syncEdit: (on) => toggleSyncEdit(on)
+  }
 });
 
-function paintRaycastAlerts() {
-  const { count, state } = st.alerts;
-  const b = $("btn-alerts");
-  b.style.display = "";
-  b.hidden = !count;
-  $("n-alerts").textContent = count;
-  const say = $("alerts-say");
-  if (say) say.textContent = count === 1 ? phrase("alert") : phrase("alerts");
-  b.classList.toggle("fail", state === "fail");
-  b.title = `${phrase("open the environment panel")} · ${keyHint("alerts")}`;
-}
+paintHistoryScreens();
 
-$("btn-alerts").addEventListener("click", () => window.hiveDoctorOpen?.());
+$("btn-history").addEventListener("click", () => (historyOnScreen() ? closeHistory() : openHistory()));
 
-$("hist-ok").addEventListener("click", closeHistory);
-
-$("history").addEventListener("click", (e) => { if (e.target === $("history")) closeHistory(); });
-
-export { agentOfRow, bringLocal, closeHistory, closePreview, closeReviveHow, configureSync, forceSync, histSeq, historySolid, historyViewModel, openHistory, openPreview, previewOnScreen, pullHistory, pullSyncStatus, renderHistory, renderSyncStrip, reviveAs, moreRows, sayArchivesTrouble, searchDeeper, searchTyped, shortDir, syncAgo, syncStripSolid, syncStripViewModel, toggleSyncEdit };
+export { agentOfRow, bringLocal, closeHistory, closePreview, closeReviveHow, configureSync, forceSync, histSeq, historyOnScreen, historyScreensModel, historySolid, historyViewModel, openHistory, openPreview, previewOnScreen, pullHistory, pullSyncStatus, renderHistory, renderSyncStrip, reviveAs, reviveFromPreview, moreRows, sayArchivesTrouble, searchDeeper, searchTyped, shortDir, syncAgo, syncStripViewModel, toggleSyncEdit };

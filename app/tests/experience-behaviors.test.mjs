@@ -1,15 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { Window } from 'happy-dom';
 import { createExperienceBehaviors } from '../src/app/experience-behaviors.js';
-import { EXPERIENCE_BEHAVIORS, INFO_WIDTH_DEFAULT, THREAD_WIDTH_DEFAULT, cleanExperienceOff, cleanInfoHeight, cleanInfoWidth, cleanPaneWidth, cleanPatch, cleanThreadWidth } from '../lib/config.mjs';
+import { EXPERIENCE_BEHAVIORS, INFO_WIDTH_DEFAULT, THREAD_WIDTH_DEFAULT, cleanExperienceOff, cleanInfoHeight, cleanInfoWidth, cleanPatch, cleanThreadWidth } from '../lib/config.mjs';
 
-function setup({ experience = true, tileWidth = 1200, tileHeight = 800, sideHeight = 500, mode = '', viewWidth = 1440 } = {}) {
-  const win = new Window({ url: 'http://hive/', width: viewWidth });
+function setup({ tileWidth = 1200, tileHeight = 800, sideHeight = 500, mode = '' } = {}) {
+  const win = new Window({ url: 'http://hive/' });
   const { document } = win;
-  document.body.innerHTML = `<article class="tile open ${mode}"><div class="side"></div><div class="well"></div><div class="x-split" tabindex="0"></div><div class="x-split-thread" tabindex="0"></div><div class="y-split" tabindex="0"></div><div class="x-split-pane" tabindex="0"></div></article>`;
-  document.body.classList.toggle('experience-next', experience);
+  document.body.innerHTML = `<article class="tile open ${mode}"><div class="side"></div><div class="well"></div><div class="x-split" tabindex="0"></div><div class="x-split-thread" tabindex="0"></div><div class="y-split" tabindex="0"></div></article>`;
   const tile = document.querySelector('.tile');
   Object.defineProperty(tile, 'clientWidth', { get: () => tileWidth });
   Object.defineProperty(tile, 'clientHeight', { get: () => tileHeight });
@@ -29,7 +27,8 @@ const settle = win => new Promise(resolve => win.setTimeout(resolve, 450));
 test('only the known behaviors can be switched off, and the column width stays in range', () => {
   const problems = [];
   assert.deepEqual(cleanExperienceOff(undefined, 'file', problems), []);
-  assert.deepEqual(cleanExperienceOff(['imageZoom', 'imageZoom'], 'file', problems), ['imageZoom']);
+  assert.deepEqual(cleanExperienceOff(['resizeInfo', 'resizeInfo'], 'file', problems), ['resizeInfo']);
+  assert.deepEqual(cleanExperienceOff(['imageZoom', 'titleClick', 'resizeInfo'], 'file', problems), ['resizeInfo']);
   assert.deepEqual(cleanExperienceOff(['everything'], 'file', problems), []);
   assert.equal(cleanInfoWidth(undefined, 'file', problems), INFO_WIDTH_DEFAULT);
   assert.equal(cleanInfoWidth(520, 'file', problems), 520);
@@ -38,16 +37,6 @@ test('only the known behaviors can be switched off, and the column width stays i
   assert.equal(problems.length, 3);
   assert.deepEqual(cleanPatch({ experienceOff: EXPERIENCE_BEHAVIORS, infoWidth: 300 }), { clean: { experienceOff: EXPERIENCE_BEHAVIORS, infoWidth: 300 }, problems: [] });
   assert.equal(cleanPatch({ infoWidth: '300' }).problems.length, 1);
-});
-
-test('a behavior is on only inside the new Hive and while it is not listed as off', () => {
-  const { document, behaviors } = setup();
-  behaviors.adopt({ config: { experienceOff: ['imageZoom'] } });
-  assert.equal(behaviors.behaviorOn('imageZoom'), false);
-  assert.equal(behaviors.behaviorOn('titleClick'), true);
-  assert.equal(document.body.dataset.experienceOff, 'imageZoom');
-  document.body.classList.remove('experience-next');
-  assert.equal(behaviors.behaviorOn('titleClick'), false);
 });
 
 test('the saved width comes back from the config, and a missing one falls back to 380px', () => {
@@ -96,17 +85,6 @@ test('the handle does nothing when the behavior is off or the tile is not open',
   assert.deepEqual([...off.saved, ...closed.saved], []);
 });
 
-test('the new Hive text font applies only while the sans preference is the default one', () => {
-  const { document, behaviors } = setup();
-  const defaults = { font: { sans: 'system-ui, sans-serif' } };
-  behaviors.adopt({ config: { font: { sans: 'system-ui, sans-serif' } }, defaults });
-  assert.equal(document.body.dataset.fontDefault, 'true');
-  behaviors.adopt({ config: { font: { sans: 'Inter, sans-serif' } }, defaults });
-  assert.equal(document.body.dataset.fontDefault, 'false');
-  behaviors.adopt({ config: { font: { sans: 'system-ui, sans-serif' } } });
-  assert.equal(document.body.dataset.fontDefault, 'false');
-});
-
 test('the sizes of the thread and of the details height are cleaned like the column width', () => {
   const problems = [];
   assert.equal(cleanThreadWidth(undefined, 'file', problems), THREAD_WIDTH_DEFAULT);
@@ -120,25 +98,8 @@ test('the sizes of the thread and of the details height are cleaned like the col
   assert.deepEqual(cleanPatch({ infoHeight: null, threadWidth: 420, splitsLearned: true }), { clean: { infoHeight: null, threadWidth: 420, splitsLearned: true }, problems: [] });
 });
 
-test('the column resizes in the current Hive too, not only in the new one', () => {
-  const { behaviors, key, width } = setup({ experience: false, tileWidth: 900 });
-  behaviors.adopt({ config: { infoWidth: 400 } });
-  key('ArrowRight');
-  assert.equal(width(), '410px');
-});
-
-test('beside a pane the column keeps room for the chat next to it and leaves the pane at least 420px', () => {
+test('beside a pane the column spares the pane at least 420px', () => {
   const { behaviors, key, width, handle } = setup({ tileWidth: 1280, mode: 'arting' });
-  behaviors.adopt({ config: { infoWidth: 400 } });
-  key('End');
-  assert.equal(width(), '492px');
-  key('Home');
-  assert.equal(width(), '320px');
-  assert.equal(handle.getAttribute('aria-valuemin'), '320');
-});
-
-test('on a narrow window the chat goes back under the details, so beside a pane the column only spares the pane', () => {
-  const { behaviors, key, width, handle } = setup({ tileWidth: 1280, mode: 'arting', viewWidth: 800 });
   behaviors.adopt({ config: { infoWidth: 400 } });
   key('End');
   assert.equal(width(), '824px');
@@ -192,59 +153,4 @@ test('the hint on the handles goes away after the first resize, and the saved fl
   assert.equal(saved[0].splitsLearned, true);
   behaviors.adopt({ config: { splitsLearned: true } });
   assert.equal(document.body.classList.contains('x-splits-learned'), true);
-});
-
-test('the browser pane widens while the chat keeps 320px, and the arrows follow the side it grows from', async () => {
-  const { win, document, behaviors, press, prop, saved } = setup({ tileWidth: 1400, mode: 'arting' });
-  behaviors.adopt({ config: { infoWidth: 380, splitsLearned: true } });
-  const pane = document.querySelector('.x-split-pane');
-  const key = press(pane);
-  key('End');
-  assert.equal(prop('--x-pane-width'), '700px');
-  key('Home');
-  assert.equal(prop('--x-pane-width'), '420px');
-  key('ArrowLeft');
-  assert.equal(prop('--x-pane-width'), '430px');
-  key('ArrowRight');
-  assert.equal(prop('--x-pane-width'), '420px');
-  pane.dispatchEvent(new win.MouseEvent('dblclick', { bubbles: true }));
-  assert.equal(prop('--x-pane-width'), '');
-  await settle(win);
-  assert.deepEqual(saved, [{ paneWidth: null }]);
-});
-
-test('the saved pane width comes back from the config and is cleaned like the other sizes', () => {
-  const { behaviors, prop } = setup({ tileWidth: 1400, mode: 'arting' });
-  behaviors.adopt({ config: { paneWidth: 520 } });
-  assert.equal(prop('--x-pane-width'), '520px');
-  const problems = [];
-  assert.equal(cleanPaneWidth(undefined, 'file', problems), null);
-  assert.equal(cleanPaneWidth(null, 'file', problems), null);
-  assert.equal(cleanPaneWidth(640, 'file', problems), 640);
-  assert.equal(cleanPaneWidth(100, 'file', problems), null);
-  assert.equal(problems.length, 1);
-  assert.deepEqual(cleanPatch({ paneWidth: 600 }), { clean: { paneWidth: 600 }, problems: [] });
-});
-
-test('a pane width saved on a wider screen leaves the chat its 320px and keeps the handle on screen', () => {
-  const css = readFileSync(new URL('../assets/experience.css', import.meta.url), 'utf8');
-  const rule = (selector) => {
-    const start = css.indexOf(`${selector} {`);
-    assert.ok(start >= 0, `missing rule ${selector}`);
-    return css.slice(start, css.indexOf('}', start));
-  };
-  assert.match(rule('body.experience-next .tile.open.arting'), /grid-template-columns: minmax\(0, var\(--open-side\)\) minmax\(320px, 1fr\) minmax\(0, var\(--x-pane-width, 1\.25fr\)\)/);
-  assert.match(rule('body.experience-next .tile.open.arting.draft'), /grid-template-columns: minmax\(320px, 1fr\) minmax\(0, var\(--x-pane-width, 1\.25fr\)\)/);
-  assert.match(rule('body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting:not(.deviced, .draft) > .x-split-pane'), /right: calc\(min\(var\(--x-pane-width, [^;]+\), 100% - var\(--open-side\) - 320px\) - 4px\)/);
-  assert.match(rule('body.experience-next:not([data-experience-off~="resizeInfo"]) .tile.open.arting.draft:not(.deviced) > .x-split-pane'), /right: calc\(min\(var\(--x-pane-width, [^;]+\), 100% - 320px\) - 4px\)/);
-});
-
-test('in a new chat there is no details column, so the pane only spares the chat its 320px', () => {
-  const { document, behaviors, press, prop } = setup({ tileWidth: 1200, mode: 'arting draft' });
-  behaviors.adopt({ config: { infoWidth: 380 } });
-  const key = press(document.querySelector('.x-split-pane'));
-  key('End');
-  assert.equal(prop('--x-pane-width'), '880px');
-  key('Home');
-  assert.equal(prop('--x-pane-width'), '420px');
 });

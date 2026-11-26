@@ -113,6 +113,6 @@ test("the pencil shows on your own message in a native chat, and never on a mess
 });
 
 test("enter with a modifier inside a message box belongs to the box, not to the full-screen key", () => {
-  assert.match(keys, /const aMessageBoxKeepsEnter = \(e\) => codeOf\(e\) === "Enter" && !!e\.target\?\.closest\?\.\("\.sv-composer, \.sv-edit"\);/);
-  assert.match(keys, /const m = aMessageBoxKeepsEnter\(e\) \? null : whichAction\(e\);/);
+  assert.match(keys, /const aMessageBoxKeepsKey = \(e\) => \(codeOf\(e\) === "Enter" \|\| !!readlineChord\(e\)\) && !!e\.target\?\.closest\?\.\("\.sv-composer, \.sv-edit"\);/);
+  assert.match(keys, /const m = aMessageBoxKeepsKey\(e\) \? null : whichAction\(e\);/);
 });

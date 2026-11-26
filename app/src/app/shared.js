@@ -4,7 +4,7 @@ import { activeItems } from "./blocks.js";
 import { offerFace, paintGate, saveConfig } from "./brand-face.js";
 import { setSound } from "./chimes-and-notices.js";
 import { composerLive, paintComposer } from "./composer-modes.js";
-import { BLOB_FACE, chordKeys, parseChord, createEffect, createRoot, experienceNext, raycastOn, RAYCAST_FONT, RAYCAST_TERMINAL, DEFAULT_KEYS, DEFAULT_LEADER, defaultChords, DIGIT_ACTIONS, DIRECT_MODES, formatKey, fullThemeDef, HIVE_THEME, isOff, MOVE_MODES, on, paintFold, parseAvatar, parseKey, parseWear, phrase, renderKey, RETIRED_ACTIONS, saveSidesShut, saveUnfolded, sidesShut, solidMounts, st, steady, SV_ASK, SV_ASK_SLIM, THEME, themeCssVars, themeDef, unfolded, untrack, withTail, wornThemeName } from "./core.js";
+import { BLOB_FACE, chordKeys, parseChord, createEffect, createRoot, raycastOn, RAYCAST_FONT, RAYCAST_TERMINAL, DEFAULT_KEYS, DEFAULT_LEADER, defaultChords, DIGIT_ACTIONS, DIRECT_MODES, formatKey, fullThemeDef, HIVE_THEME, isOff, MOVE_MODES, on, paintFold, parseAvatar, parseKey, parseWear, phrase, renderKey, RETIRED_ACTIONS, saveSidesShut, saveUnfolded, sidesShut, solidMounts, st, steady, SV_ASK, SV_ASK_SLIM, THEME, themeCssVars, themeDef, unfolded, untrack, withTail, wornThemeName } from "./core.js";
 import { paintFaceSheet } from "./face-door.js";
 import { renderHistory } from "./history.js";
 import { paintHold } from "./hold-numbers.js";
@@ -12,7 +12,6 @@ import { disarmLeader, paintKeys, pool } from "./leader-key.js";
 import { paintLimPop, paintLimitChip } from "./limit-chip.js";
 import { paintBlocks, paintRail, paintTeamRail } from "./mirror.js";
 import { paintRailToggle } from "./new-chat.js";
-import { paintNextRail } from "./next-rail.js";
 import { paintProviders } from "./providers.js";
 import { paintPalPreview } from "./palette.js";
 import { paintPlaneMap } from "./plane.js";
@@ -40,7 +39,7 @@ function bootSolid() {
 
 const REACTIVE_PAINTERS = () => [
   paintGate, paintKeys, paintChoices, paintThemes, paintSettingsFace, paintFaceSheet, paintTour, paintRelnotes,
-  paintRail, paintNextRail, paintTeamRail, paintWorktreeRail, paintRailToggle, paintKnocks, paintBlocks, paintHold,
+  paintRail, paintTeamRail, paintWorktreeRail, paintRailToggle, paintKnocks, paintBlocks, paintHold,
   paintPrButton, paintPrPop, paintLimitChip, paintLimPop, paintPlaneMap, paintPalPreview,
   renderMirror, paintWorktrees, paintWorkspace, paintPortaria, renderHistory, paintPrList, paintPrMid, paintProviders, paintShelf
 ];
@@ -114,11 +113,10 @@ function adoptTheme(r) {
 
 function toggleFold(name) {
   const alone = st.open === name;
-  const shared = alone || experienceNext();
-  const kept = shared ? sidesShut : unfolded;
+  const kept = alone ? sidesShut : unfolded;
   if (kept.has(name)) kept.delete(name);
   else kept.add(name);
-  if (shared) saveSidesShut();
+  if (alone) saveSidesShut();
   else saveUnfolded();
   paintFold(name);
   const e = pool.get(name);
@@ -301,3 +299,4 @@ document.addEventListener("hive:experience", (event) => {
   if (st.fontPrefs) applyFonts(st.fontPrefs);
   applyTheme();
 });
+

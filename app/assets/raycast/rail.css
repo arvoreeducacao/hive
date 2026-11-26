@@ -220,3 +220,20 @@ body:where(.experience-raycast) #rail .item.off > .rc-dot { margin-top: 6px; }
   :where(body.experience-raycast) .rail-wt .wt-head { flex-direction: column; gap: 4px; }
   :where(body.experience-raycast) .rail-wt .wt-n { display: block; }
 }
+:where(body.experience-raycast) #rail-sessions .group-title.drop { border-radius: var(--r1); color: var(--txt); background: var(--rail-well); box-shadow: inset 0 0 0 1px var(--accent); }
+:where(body.experience-raycast) #rail-sessions .item.lifting { opacity: .45; }
+:where(body.experience-raycast) .item .rkids-sum { flex: none; display: flex; align-items: center; gap: 3px; }
+:where(body.experience-raycast) .item .rkids-sum .rc-dot { width: 6px; height: 6px; box-shadow: none; }
+:where(body.experience-raycast) .item .rkids-sum .rc-dot.ready { box-shadow: inset 0 0 0 1.2px var(--txt-2); }
+:where(body.experience-raycast) .item .rkids-sum .rc-dot.stalled { box-shadow: inset 0 0 0 1.2px var(--yellow); }
+:where(body.experience-raycast) .item .rkids-toggle { flex: none; display: grid; place-items: center; width: 18px; height: 18px; margin-right: -4px; padding: 0; border: 0; border-radius: 4px; background: none; color: var(--txt-3); cursor: pointer; }
+:where(body.experience-raycast) .item .rkids-toggle:hover { background: var(--rail-hover); color: var(--txt); }
+:where(body.experience-raycast) .item .rkids-toggle svg { width: 12px; height: 12px; transition: transform 140ms var(--ease); }
+:where(body.experience-raycast) .item .rkids-toggle .caret.shut { transform: rotate(-90deg); }
+:where(body.experience-raycast) .rail-kids { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 4px 11px; padding-left: 9px; border-left: 1px solid var(--line); }
+:where(body.experience-raycast) .rail-kids .item { height: 26px; padding-left: 6px; }
+:where(body.experience-raycast) #shell.rail-min .rail-kids { margin: 0; padding: 0; border: 0; }
+:where(body.experience-raycast) #shell.rail-min .item :is(.rkids-sum, .rkids-toggle) { display: none; }
+:where(body.experience-raycast) .rail-kids .rail-kids-done { gap: 6px; min-height: 24px; padding-left: 6px; color: var(--txt-3); }
+:where(body.experience-raycast) .rail-kids .rail-kids-done svg { width: 11px; height: 11px; transition: transform 140ms var(--ease); }
+:where(body.experience-raycast) .rail-kids .rail-kids-done .caret.shut { transform: rotate(-90deg); }

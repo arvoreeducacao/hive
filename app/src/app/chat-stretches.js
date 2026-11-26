@@ -8,8 +8,7 @@ import { paintForkButton } from "./chat-fork.js";
 import { paintReplyButton, takesMessage } from "./chat-reply.js";
 import { FOLLOW_SLACK, svConvCutKey, svConvElements, svConvHasBar, svConvLetGo, svConvMount, svConvPrepend, svConvRestore, svConvScrolled, svConvSeed, svConvShow, svConvShowNow, svConvFlush, svConvShowSubs, svConvShown, svConvShownAt, svConvStick, svConvTimelineOn, svConvTurnStarts, svConvTurnsBehind } from "./conversation-model.js";
 import { inkChips } from "./context-chips.js";
-import { openContextWindow } from "./context-window.js";
-import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, experienceNext, isImageName, isNativeCommand, phrase, st, withCommand, withoutCommand, composerShaped } from "./core.js";
+import { COMPOSER_MIN, IS_MAC, SV_ASK, SV_ASK_SLIM, batch, commandCounts, commandSpot, commandsIn, isImageName, isNativeCommand, phrase, st, withCommand, withoutCommand, composerShaped } from "./core.js";
 import { releaseKeyboard } from "./focus-navigation.js";
 import { receiving, tiles } from "./leader-key.js";
 import { draftExtrasKept, draftFromElsewhere, draftKept, keepDraft, keepDraftNow } from "./kept-drafts.js";
@@ -93,7 +92,6 @@ const withoutQuotes = (quotes, said) => {
 
 function paintComposerReady(host, ready) {
   host.querySelector(".sv-composer").classList.toggle("ready", ready);
-  host.closest(".tile")?.classList.toggle("composer-ready", ready);
 }
 
 function svAttachImage(e, path) {
@@ -944,7 +942,7 @@ function getStructured(s) {
   host.querySelector(".sv-pill-model").addEventListener("click", () => openSeatPicker(e, "model"));
   host.querySelector(".sv-pill-effort").addEventListener("click", () => openSeatPicker(e, "effort"));
   host.querySelector(".sv-pill-account").addEventListener("click", () => openSeatPicker(e, "account"));
-  host.querySelector(".sv-ctx").addEventListener("click", () => experienceNext() ? openContextWindow(e) : runNativeCommand(e, "context"));
+  host.querySelector(".sv-ctx").addEventListener("click", () => runNativeCommand(e, "context"));
   e.type = (text, images = []) => deliver(String(text).trim(), Array.isArray(images) ? images : [], false);
   const restoreBox = (snap) => {
     e.restoring = true;
@@ -1315,7 +1313,7 @@ function svRoom(host, textarea, spare = SV_SPARE) {
   if (!composer || !host.clientHeight) return Infinity;
   let taken = spare + composer.offsetHeight - textarea.offsetHeight;
   for (const el of host.children) {
-    if (el.classList.contains("sv-scroll") || !el.offsetHeight) continue;
+    if (el.classList.contains("sv-scroll") || el.classList.contains("sv-drawer") || !el.offsetHeight) continue;
     const style = getComputedStyle(el);
     if (style.position === "absolute") continue;
     taken += (parseFloat(style.marginTop) || 0) + (parseFloat(style.marginBottom) || 0);

@@ -123,3 +123,21 @@ test("a chat drawn before the server named it still turns into the live chat, in
   assert.equal(live[0].dataset.name, "voo");
   assert.deepEqual([...st.blocks[0].keys], ["voo"]);
 });
+
+test("a chat opened outside this screen and first seen already alive is its live tile, never the opening card painted over it", () => {
+  hive({ sessions: [seat("neighbor")], spawning: [], keys: ["neighbor"] });
+  const doctor = seat("environment-all", { title: "environment: 3 findings" });
+  st.data = { ...st.data, sessions: [seat("neighbor"), doctor], spawning: [{ ...job, id: "n12", name: "environment-all", landed: 1 }] };
+  render();
+  render();
+  assert.deepEqual([...st.blocks[0].keys], ["neighbor", "environment-all"], "the job of a seat already alive takes no place of its own");
+  const live = () => onCanvas().find((t) => t.dataset.name === "environment-all");
+  assert.equal(live().querySelector(".t-name").textContent, "environment: 3 findings");
+  assert.ok(live().querySelector(".t-close"), "the tile keeps its close button");
+
+  st.data = { ...st.data, spawning: [] };
+  render();
+  assert.equal(onCanvas().length, 2);
+  assert.equal(live().querySelector(".t-name").textContent, "environment: 3 findings");
+  assert.ok(live().querySelector(".t-close"));
+});

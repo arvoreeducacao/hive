@@ -19,7 +19,7 @@ const visibleRows = () => rows().filter((row) => !row.classList.contains("miss")
 
 test("every pane is made of groups of cards, and every control row names its title and its controls", () => {
   const panes = [...$("pref-body").querySelectorAll(".pref-pane")];
-  assert.equal(panes.length, 14);
+  assert.equal(panes.length, 13);
   for (const pane of panes) assert.ok(pane.querySelector(".set-group .set-card .set-row"), `${pane.dataset.pane} has no card`);
   for (const row of $("pref-body").querySelectorAll(".set-row[data-control]")) {
     assert.ok(row.querySelector(".set-title")?.textContent.trim(), `${row.dataset.control} has no title`);
@@ -28,7 +28,7 @@ test("every pane is made of groups of cards, and every control row names its tit
 });
 
 test("the controls keep the ids the rest of the app reaches for", () => {
-  const ids = ["f-look", "f-lang", "f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap", "cfg-path", "cfg-ignored", "f-visual", "experience-toggle", "experience-state", "experience-recovery", "t-stt", "stt-say", "stt-box", "f-stt-model", "stt-state", "stt-bar", "stt-get", "stt-stop", "stt-drop", "f-stt-mic", "f-stt-lang", "cfg-mug", "cfg-open", "cfg-pick", "cfg-face", "cfg-roll", "cfg-strip", "f-pet", "f-brand", "f-gaze", "s-needs", "p-needs", "t-needs", "s-answered", "p-answered", "t-answered", "p-asked", "t-knocks", "s-knocks-say", "s-volume", "s-volume-n", "f-layout", "f-size", "f-shots", "f-tools", "f-compact", "t-context-usage", "s-context-usage-say", "t-agent-updates", "s-agent-updates-say", "f-quiet-days", "f-diary-days", "slack-state", "slack-code-box", "slack-code", "slack-connect", "slack-forget", "help-hint", "help-leader", "help-keys", "btn-dim", "k-dim", "btn-share", "btn-phone", "btn-machines", "in-machine", "ver"];
+  const ids = ["f-look", "f-lang", "f-sans", "f-mono", "f-term", "f-chat-line", "f-chat-gap", "cfg-path", "cfg-ignored", "f-visual", "t-stt", "stt-say", "stt-box", "f-stt-model", "stt-state", "stt-bar", "stt-get", "stt-stop", "stt-drop", "f-stt-mic", "f-stt-lang", "cfg-mug", "cfg-open", "cfg-pick", "cfg-face", "cfg-roll", "cfg-strip", "f-pet", "f-brand", "f-gaze", "s-needs", "p-needs", "t-needs", "s-answered", "p-answered", "t-answered", "p-asked", "t-knocks", "s-knocks-say", "s-volume", "s-volume-n", "f-layout", "f-size", "f-shots", "f-tools", "f-compact", "t-context-usage", "s-context-usage-say", "t-agent-updates", "s-agent-updates-say", "f-quiet-days", "f-diary-days", "slack-state", "slack-code-box", "slack-code", "slack-connect", "slack-forget", "help-hint", "help-leader", "help-keys", "btn-dim", "k-dim", "btn-share", "btn-phone", "btn-machines", "in-machine", "ver"];
   for (const id of ids) assert.equal(document.querySelectorAll(`#${id}`).length, 1, `#${id} should be on the page once`);
 });
 
@@ -65,13 +65,11 @@ test("the switches that left the ⋯ menu live in their sections and reset to wh
 
 test("the ⋯ menu writes its keys as grey text, and the settings speak in sentence case with plain selects", () => {
   const page = readFileSync(new URL("../app.html", import.meta.url), "utf8");
-  const next = readFileSync(new URL("../assets/experience.css", import.meta.url), "utf8");
   const panels = readFileSync(new URL("../assets/raycast/panels.css", import.meta.url), "utf8");
   const rule = (sheet, selector) => sheet.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\{([^}]*)\\}`))?.[1] || "";
   const keys = rule(page, "#top #more .ghost kbd");
   assert.match(keys, /border: 0/);
   assert.match(keys, /background: none/);
-  assert.match(rule(next, "body.experience-next #top #more .ghost kbd"), /padding: 0/, "the new hive does not box them either");
   const head = rule(page, "#help .set-head");
   assert.match(head, /text-transform: none/);
   assert.match(head, /font-size: 13px/);

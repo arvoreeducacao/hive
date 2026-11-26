@@ -546,6 +546,22 @@ function openSeatWindow(name) {
   });
 }
 
+function popEditMenu(contents, params) {
+  const image = params.mediaType === "image";
+  const link = /^https?:/i.test(params.linkURL || "") ? params.linkURL : "";
+  if (!params.isEditable && !params.selectionText && !image && !link) return;
+  const can = params.editFlags || {};
+  Menu.buildFromTemplate([
+    ...(link ? [{ label: "Copy Link", click: () => clipboard.writeText(link) }, { type: "separator" }] : []),
+    ...(image ? [{ label: "Copy Image", click: () => contents.copyImageAt(params.x, params.y) }, { type: "separator" }] : []),
+    { role: "cut", enabled: !!(params.isEditable && can.canCut) },
+    { role: "copy", enabled: !!can.canCopy },
+    { role: "paste", enabled: !!(params.isEditable && can.canPaste) },
+    { type: "separator" },
+    { role: "selectAll", enabled: !!can.canSelectAll }
+  ]).popup({ window: window_ });
+}
+
 function createWindow() {
   window_ = new BrowserWindow({
     ...readState(),
@@ -578,21 +594,7 @@ function createWindow() {
     if (!window_ || window_.isDestroyed()) return;
     window_.webContents.executeJavaScript(`document.documentElement.classList.toggle("fullscreen", ${on})`).catch(() => {});
   };
-  window_.webContents.on("context-menu", (_event, params) => {
-    const image = params.mediaType === "image";
-    const link = /^https?:/i.test(params.linkURL || "") ? params.linkURL : "";
-    if (!params.isEditable && !params.selectionText && !image && !link) return;
-    const can = params.editFlags || {};
-    Menu.buildFromTemplate([
-      ...(link ? [{ label: "Copy Link", click: () => clipboard.writeText(link) }, { type: "separator" }] : []),
-      ...(image ? [{ label: "Copy Image", click: () => window_.webContents.copyImageAt(params.x, params.y) }, { type: "separator" }] : []),
-      { role: "cut", enabled: !!(params.isEditable && can.canCut) },
-      { role: "copy", enabled: !!can.canCopy },
-      { role: "paste", enabled: !!(params.isEditable && can.canPaste) },
-      { type: "separator" },
-      { role: "selectAll", enabled: !!can.canSelectAll }
-    ]).popup({ window: window_ });
-  });
+  window_.webContents.on("context-menu", (_event, params) => popEditMenu(window_.webContents, params));
   window_.webContents.on("did-finish-load", () => {
     window_.webContents.insertCSS(APP_CSS + (IS_MAC ? MAC_TOP_CSS : OVERLAY_TOP_CSS));
     const fonts = fontCss();
@@ -620,6 +622,7 @@ function createWindow() {
     return { action: "deny" };
   });
   window_.webContents.session.setPermissionRequestHandler((wc, permission, grant, details) => {
+    if (permission === "clipboard-sanitized-write") return grant(wc === window_.webContents);
     if (permission !== "media" && permission !== "display-capture") return grant(false);
     grant(wc === window_.webContents && details?.isMainFrame !== false);
   });
@@ -634,7 +637,7 @@ function createWindow() {
   });
 
   const seatBrowser = session.fromPartition("persist:seat-browser");
-  seatBrowser.setPermissionRequestHandler((_wc, _permission, grant) => grant(false));
+  seatBrowser.setPermissionRequestHandler((_wc, permission, grant) => grant(permission === "clipboard-sanitized-write"));
   seatBrowser.on("will-download", (_event, item) => {
     const folder = app.getPath("downloads");
     const named = String(item.getFilename() || "download").replace(/[\\/]/g, "_");
@@ -977,6 +980,7 @@ function createWindow() {
       return { action: "deny" };
     });
     if (guest.session === seatBrowser) {
+      guest.on("context-menu", (_event, params) => popEditMenu(guest, params));
       seatWc.add(guest.id);
       guest.once("destroyed", () => seatWc.delete(guest.id));
       try { guest.debugger.attach("1.3"); watchNetwork(guest); } catch {}

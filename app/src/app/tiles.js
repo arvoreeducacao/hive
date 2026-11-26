@@ -1,7 +1,7 @@
 import { render } from "./arrange.js";
 import { activeItems, detachSeat, forgetSeat, giveSeatBack, saveBlocks, soloSeat } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
-import { $, esc, experienceNext, phrase, raycastOn, saveSidesShut, saveUnfolded, sidesShut, st, unfolded } from "./core.js";
+import { $, esc, phrase, raycastOn, saveSidesShut, saveUnfolded, sidesShut, st, unfolded } from "./core.js";
 import { askNewChat, hiveMark } from "./draft-seat.js";
 import { closeTile, pull, releaseKeyboard } from "./focus-navigation.js";
 import { disarmLeader, keyCaps, keyHint, keyParts, tiles } from "./leader-key.js";
@@ -56,7 +56,7 @@ function seatDrag(el, name) {
   const head = el.querySelector(".t-head");
   const holdByTheHead = () => { head.draggable = !st.planeOn; };
   holdByTheHead();
-  head.addEventListener("pointerdown", (ev) => { head.draggable = !st.planeOn && (experienceNext() ? !!ev.target.closest(".t-grip") && !el.classList.contains("open") : !ev.target.closest(".t-name")); });
+  head.addEventListener("pointerdown", (ev) => { head.draggable = !st.planeOn && !ev.target.closest(".t-name"); });
   head.addEventListener("pointerup", holdByTheHead);
   head.addEventListener("pointerleave", holdByTheHead);
   head.addEventListener("click", (ev) => { if (st.dragSeat) ev.stopPropagation(); });

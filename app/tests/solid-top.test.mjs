@@ -361,10 +361,11 @@ test("what the bar does besides handing the model over is still done", () => {
 
   st.holding = "seat";
   paintHold();
-  assert.equal(document.body.classList.contains("hold-seat"), true);
+  assert.equal(shown.get("mountHoldMarks").holdSeat, true, "holding the chat level asks the marks view to dim the tiles");
   st.holding = null;
   paintHold();
-  assert.equal(document.body.classList.contains("hold-seat"), false);
+  assert.equal(shown.get("mountHoldMarks").holdSeat, false);
+  assert.deepEqual(shown.get("mountHoldMarks").numbers, []);
 
   world({ limits: { accounts: [{ account: "default", limits: [{ kind: "session", percent: 30 }] }], tightest: "default" }, sessions: [seat("a", { account: "" })] });
   $("limpop").hidden = false;

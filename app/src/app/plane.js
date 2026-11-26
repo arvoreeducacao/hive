@@ -127,13 +127,13 @@ let planeSaidClock = null;
 
 st.fieldPaneWas = null;
 
+st.planeWrite = null;
+
+let planeWriteSeq = 0;
+
 const planeNodes = new Map();
 
 const planeGroupEls = new Map();
-
-const planeAreaEls = new Map();
-
-const planeNoteEls = new Map();
 
 const planeTook = new Map();
 
@@ -349,19 +349,18 @@ function bornPlaneArea(at) {
   };
   st.planeAreas.push(area);
   savePlaneAreas();
+  askToWrite(area.id, false);
   paintPlane();
-  const box = planeAreaEls.get(area.id);
-  const name = box?.querySelector(".pa-name");
-  if (name) { name.contentEditable = "plaintext-only"; name.focus(); }
   return area;
 }
 
 function armPlane(kind) {
   st.planeArming = kind || "";
-  $("plane").classList.toggle("drawing", !!st.planeArming);
-  $("plane-area").classList.toggle("armed", st.planeArming === "area");
-  $("plane-note").classList.toggle("armed", st.planeArming === "note");
+  paintPlaneThings();
+  paintPlaneHud();
 }
+
+const askToWrite = (id, selectAll) => { st.planeWrite = { id, selectAll, seq: ++planeWriteSeq }; };
 
 function bornPlaneNote(at) {
   rememberPlane();
@@ -376,9 +375,8 @@ function bornPlaneNote(at) {
   };
   st.planeNotes.push(note);
   savePlaneNotes();
+  askToWrite(note.id, false);
   paintPlane();
-  const body = planeNoteEls.get(note.id)?.querySelector(".pn-body");
-  if (body) { body.contentEditable = "plaintext-only"; body.focus(); }
   return note;
 }
 
@@ -393,12 +391,29 @@ function dropPlanePicked(ids) {
 }
 
 function writePlaneThing(id) {
-  const box = planeAreaEls.get(id) || planeNoteEls.get(id);
-  const field = box?.querySelector(".pa-name") || box?.querySelector(".pn-body");
-  if (!field) return;
-  field.contentEditable = "plaintext-only";
-  field.focus();
-  if (field.classList.contains("pa-name")) getSelection()?.selectAllChildren(field);
+  if (!planeThingOf(id)) return;
+  askToWrite(id, planeIsArea(id));
+  paintPlaneThings();
+}
+
+function nameArea(id, text) {
+  const one = st.planeAreas.find((a) => a.id === id);
+  const name = String(text || "").trim().slice(0, 60);
+  if (!one || one.name === name) return;
+  rememberPlane();
+  one.name = name;
+  savePlaneAreas();
+  paintPlaneThings();
+}
+
+function writeNote(id, text) {
+  const one = st.planeNotes.find((x) => x.id === id);
+  const said = String(text || "").slice(0, 2000);
+  if (!one || one.text === said) return;
+  rememberPlane();
+  one.text = said;
+  savePlaneNotes();
+  paintPlaneThings();
 }
 
 function planeThingRows(id) {
@@ -435,60 +450,52 @@ function stepPlaneBack(forward) {
   return true;
 }
 
+let planeSaid = { key: "plane-said", shown: false, text: "", undoable: false, undoSay: "" };
+
+let planeSaidSolid = null;
+
 function sayOnPlane(text, undoable) {
-  const said = $("plane-said");
-  if (!said) return;
+  if (!planeSaidSolid) return;
   clearTimeout(planeSaidClock);
-  said.innerHTML = `<b></b>${undoable ? "<button></button>" : ""}`;
-  said.querySelector("b").textContent = text;
-  const back = said.querySelector("button");
-  if (back) {
-    back.textContent = phrase("undo {n}", { n: planeBackKey() });
-    back.addEventListener("click", () => { hushPlane(); stepPlaneBack(false); });
-  }
-  said.hidden = false;
+  planeSaid = { key: "plane-said", shown: true, text, undoable: !!undoable, undoSay: phrase("undo {n}", { n: planeBackKey() }) };
+  planeSaidSolid.show(planeSaid);
   planeSaidClock = setTimeout(hushPlane, PLANE_SAID_MS);
 }
 
 function hushPlane() {
   clearTimeout(planeSaidClock);
-  const said = $("plane-said");
-  if (said) said.hidden = true;
+  planeSaid = { ...planeSaid, shown: false };
+  planeSaidSolid?.show(planeSaid);
 }
 
 function markPlanePicked() {
-  for (const [id, box] of planeAreaEls) box.classList.toggle("picked", st.planePicked.has(id));
-  for (const [id, box] of planeNoteEls) box.classList.toggle("picked", st.planePicked.has(id));
+  paintPlaneThings();
   paintPlaneBar();
 }
 
+let planeBarPaints = 0;
+
+const planeBarAt = (one) => ({ x: one.x * st.planeAt.k + st.planeAt.x, y: one.y * st.planeAt.k + st.planeAt.y, paint: ++planeBarPaints });
+
 function paintPlaneBar() {
-  const bar = $("plane-bar");
-  if (!bar) return;
+  if (!planeBarSolid) return;
   const id = st.planePicked.size === 1 ? [...st.planePicked][0] : "";
   const one = id ? planeThingOf(id) : null;
   if (!one) {
-    bar.hidden = true;
     st.planeBarFor = "";
     planeBarSolid.show(PLANE_BAR_SHUT);
     return;
   }
   st.planeBarFor = id;
-  if (raycastOn()) planeBarSolid.show(raycastPlaneBar(id, one));
-  else planeBarSolid.show(planeBarViewModel(id, one));
-  bar.hidden = false;
-  const host = $("plane");
-  const left = one.x * st.planeAt.k + st.planeAt.x;
-  const top = one.y * st.planeAt.k + st.planeAt.y - bar.offsetHeight - 8;
-  bar.style.left = `${Math.max(8, Math.min(left, (host?.clientWidth || 0) - bar.offsetWidth - 8))}px`;
-  bar.style.top = `${Math.max(8, top)}px`;
+  if (raycastOn()) planeBarSolid.show({ ...raycastPlaneBar(id, one), ...planeBarAt(one) });
+  else planeBarSolid.show({ ...planeBarViewModel(id, one), ...planeBarAt(one) });
 }
 
 let planeBarSolid = null;
 
 st.planeBarFor = "";
 
-const PLANE_BAR_SHUT = { on: false, area: false, tints: [], tintLabel: "", rename: "", duplicate: "", remove: "" };
+const PLANE_BAR_SHUT = { on: false, area: false, tints: [], tintLabel: "", rename: "", duplicate: "", remove: "", x: 0, y: 0, paint: 0 };
 
 function planeBarViewModel(id, one) {
   return {
@@ -525,50 +532,60 @@ function raycastPlaneBar(id, one) {
   };
 }
 
-function paintPlaneNotes() {
-  const world = $("plane-world");
-  for (const note of st.planeNotes) {
-    let box = planeNoteEls.get(note.id);
-    if (!box) {
-      box = document.createElement("div");
-      box.className = "pnote";
-      box.dataset.thing = note.id;
-      box.innerHTML = `<div class="pn-body" spellcheck="false" data-empty="${phrase("write it down here")}"></div>` +
-        `<span class="pa-grip" title="${phrase("pull to resize")}"></span>`;
-      const body = box.querySelector(".pn-body");
-      body.addEventListener("blur", () => {
-        const one = st.planeNotes.find((x) => x.id === note.id);
-        body.contentEditable = "false";
-        if (!one || one.text === body.innerText.slice(0, 2000)) return;
-        rememberPlane();
-        one.text = body.innerText.slice(0, 2000);
-        savePlaneNotes();
-      });
-      body.addEventListener("dblclick", (ev) => {
-        ev.stopPropagation();
-        body.contentEditable = "plaintext-only";
-        body.focus();
-      });
-      body.addEventListener("keydown", (ev) => {
-        ev.stopPropagation();
-        if (ev.key === "Escape") { ev.preventDefault(); body.blur(); }
-      });
-      planeNoteEls.set(note.id, box);
-      world.appendChild(box);
-    }
-    box.style.left = `${note.x}px`;
-    box.style.top = `${note.y}px`;
-    box.style.width = `${note.w}px`;
-    box.style.height = `${note.h}px`;
-    box.dataset.tint = note.tint || "";
-    const body = box.querySelector(".pn-body");
-    if (document.activeElement !== body && body.innerText !== note.text) body.innerText = note.text;
-  }
-  for (const [id, box] of planeNoteEls) {
-    if (st.planeNotes.some((one) => one.id === id)) continue;
-    box.remove();
-    planeNoteEls.delete(id);
-  }
+const thingBox = (one) => ({ x: one.x, y: one.y, w: one.w, h: one.h });
+
+function planeThingsModel() {
+  const write = st.planeWrite;
+  const holding = st.planeAreaDrag?.area?.id || "";
+  const asked = (id) => (write?.id === id ? write.seq : 0);
+  const gripSay = phrase("pull to resize");
+  return {
+    key: "plane-things",
+    armed: st.planeArming || "",
+    areas: [...st.planeAreas].reverse().map((area) => ({
+      key: area.id, id: area.id, name: area.name, ...thingBox(area),
+      picked: st.planePicked.has(area.id), holding: holding === area.id,
+      write: asked(area.id), selectAll: !!(write?.id === area.id && write.selectAll),
+      emptySay: phrase("name this area"),
+      nameTitle: phrase("double-click to write the name — drag the area to move it with what is inside"),
+      gripSay
+    })),
+    notes: st.planeNotes.map((note) => ({
+      key: note.id, id: note.id, text: note.text, tint: note.tint || "", ...thingBox(note),
+      picked: st.planePicked.has(note.id), holding: holding === note.id,
+      write: asked(note.id),
+      emptySay: phrase("write it down here"),
+      gripSay
+    })),
+    draw: st.planeDraw ? thingBox(st.planeDraw) : null
+  };
+}
+
+let planeThingsSolid = null;
+
+function paintPlaneThings() {
+  if (!planeThingsSolid) return;
+  planeThingsSolid.show(planeThingsModel());
+  st.planeWrite = null;
+}
+
+const planeHudModel = () => ({
+  key: "plane-hud",
+  k: `${Math.round(st.planeAt.k * 100)}%`,
+  fit: phrase("fit"),
+  tidy: phrase("tidy"),
+  area: phrase("+ area"),
+  note: phrase("+ note"),
+  undo: phrase("undo"),
+  undoKey: raycastOn() ? planeBackKey() : "",
+  armed: st.planeArming || "",
+  canUndo: canUndoPlane()
+});
+
+let planeHudSolid = null;
+
+function paintPlaneHud() {
+  planeHudSolid?.show(planeHudModel());
 }
 
 function paintPlaneMap() {
@@ -642,54 +659,6 @@ function newPlaneArea() {
 function newPlaneNote() {
   const seen = planeSeen();
   bornPlaneNote({ x: seen.x + (seen.w - NOTE_BORN_W) / 2, y: seen.y + (seen.h - NOTE_BORN_H) / 2, w: NOTE_BORN_W, h: NOTE_BORN_H });
-}
-
-function paintPlaneAreas() {
-  const world = $("plane-world");
-  for (const area of st.planeAreas) {
-    let box = planeAreaEls.get(area.id);
-    if (!box) {
-      box = document.createElement("div");
-      box.className = "parea";
-      box.dataset.thing = area.id;
-      box.innerHTML = `<div class="pa-name" spellcheck="false" data-empty="${phrase("name this area")}" title="${phrase("double-click to write the name — drag the area to move it with what is inside")}"></div>` +
-        `<span class="pa-grip" title="${phrase("pull to resize")}"></span>`;
-      const name = box.querySelector(".pa-name");
-      name.addEventListener("blur", () => {
-        const one = st.planeAreas.find((a) => a.id === area.id);
-        name.contentEditable = "false";
-        if (!one || one.name === name.textContent.trim().slice(0, 60)) return;
-        rememberPlane();
-        one.name = name.textContent.trim().slice(0, 60);
-        name.textContent = one.name;
-        savePlaneAreas();
-      });
-      name.addEventListener("dblclick", (ev) => {
-        ev.stopPropagation();
-        name.contentEditable = "plaintext-only";
-        name.focus();
-        getSelection()?.selectAllChildren(name);
-      });
-      name.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter") { ev.preventDefault(); name.blur(); }
-        if (ev.key === "Escape") { name.textContent = area.name; name.blur(); }
-        ev.stopPropagation();
-      });
-      planeAreaEls.set(area.id, box);
-      world.insertBefore(box, world.firstChild);
-    }
-    box.style.left = `${area.x}px`;
-    box.style.top = `${area.y}px`;
-    box.style.width = `${area.w}px`;
-    box.style.height = `${area.h}px`;
-    const name = box.querySelector(".pa-name");
-    if (document.activeElement !== name && name.textContent !== area.name) name.textContent = area.name;
-  }
-  for (const [id, box] of planeAreaEls) {
-    if (st.planeAreas.some((a) => a.id === id)) continue;
-    box.remove();
-    planeAreaEls.delete(id);
-  }
 }
 
 function readPlaneSpots() {
@@ -913,7 +882,7 @@ function applyPlane() {
   world.classList.toggle("dense-full", dense === "full");
   world.classList.toggle("dense-card", dense === "card");
   world.classList.toggle("dense-pill", dense === "pill");
-  $("plane-k").textContent = `${Math.round(st.planeAt.k * 100)}%`;
+  paintPlaneHud();
   paintPlaneBar();
 }
 
@@ -1203,67 +1172,81 @@ function paintPlane() {
     if (live) node.querySelector(".pcard")?.remove();
     else if (it) paintPlaneCard(node, it);
   }
-  paintPlaneAreas();
-  paintPlaneNotes();
-  markPlanePicked();
-  const back = $("plane-undo");
-  if (back) back.disabled = !canUndoPlane();
+  paintPlaneThings();
+  paintPlaneBar();
   paintPlaneGroups();
   paintPlaneWires();
   paintPlaneTook();
   applyPlane();
   paintPlaneMap();
   paintPlaneTop(alive.size);
-  const empty = $("plane-empty");
-  empty.hidden = alive.size > 0;
-  if (!empty.hidden && planeEmptyLook !== raycastOn()) empty.textContent = "";
-  if (!empty.hidden && !empty.childElementCount) {
-    planeEmptyLook = raycastOn();
-    if (planeEmptyLook) paintPlaneEmpty(empty);
-    else empty.innerHTML = `<b>${phrase("No worker alive")}</b><span>${phrase("{n} opens a new chat", { n: keyLabel(st.keys.new) })}</span>`;
+  paintPlaneEmpty(alive.size);
+}
+
+let planeEmptySaid = false;
+
+function planeEmptyModel(shown) {
+  planeEmptySaid ||= shown;
+  if (!raycastOn()) {
+    return { key: "plane-empty", shown, said: planeEmptySaid, raycast: false, title: phrase("No worker alive"), say: phrase("{n} opens a new chat", { n: keyLabel(st.keys.new) }), newSay: "", newKey: "", backSay: "" };
   }
+  return {
+    key: "plane-empty", shown, said: planeEmptySaid, raycast: true,
+    title: phrase("No seat on the field"),
+    say: phrase("Open a chat and it shows up here. Drag to arrange, or pull an area around several."),
+    newSay: phrase("New chat"),
+    newKey: keyLabel(st.keys.new),
+    backSay: phrase("Back to the wall")
+  };
 }
 
-let planeEmptyLook = false;
+let planeEmptySolid = null;
 
-function paintPlaneEmpty(empty) {
-  empty.innerHTML = `<span class="pe-icon"><svg aria-hidden="true"><use href="#i-grid"/></svg></span>`
-    + `<b>${phrase("No seat on the field")}</b>`
-    + `<span>${phrase("Open a chat and it shows up here. Drag to arrange, or pull an area around several.")}</span>`
-    + `<span class="pe-acts"><button type="button" class="pe-new">${phrase("New chat")}<span class="rc-key">${esc(keyLabel(st.keys.new))}</span></button>`
-    + `<button type="button" class="pe-back">${phrase("Back to the wall")}<span class="rc-key">esc</span></button></span>`;
-  empty.querySelector(".pe-new").addEventListener("click", (ev) => askNewChat({ here: ev.shiftKey }));
-  empty.querySelector(".pe-back").addEventListener("click", () => togglePlane());
+function paintPlaneEmpty(seats) {
+  planeEmptySolid?.show(planeEmptyModel(seats === 0));
 }
+
+function planeTopModel(seats) {
+  if (!raycastOn()) return { key: "plane-top", raycast: false, title: "", count: "", backSay: "", backKey: "" };
+  const areas = st.planeAreas.length;
+  return {
+    key: "plane-top",
+    raycast: true,
+    title: phrase("Plane"),
+    count: seats
+      ? (areas ? phrase("{n} seats in {m} areas", { n: seats, m: areas }) : phrase("{n} seats", { n: seats }))
+      : "",
+    backSay: phrase("back to the wall"),
+    backKey: keyLabel(st.keys.plane)
+  };
+}
+
+let planeTopSolid = null;
 
 function paintPlaneTop(seats) {
-  let top = $("plane-top");
-  const undo = $("plane-undo");
-  if (!raycastOn()) {
-    if (!top) return;
-    top.remove();
-    if (undo) undo.textContent = phrase("undo");
-    return;
-  }
-  if (!top) {
-    const host = $("plane");
-    if (!host) return;
-    host.querySelector("#plane-world")?.insertAdjacentHTML("afterend", `<div id="plane-top" data-no-t><span class="pt-name"><svg aria-hidden="true"><use href="#i-grid"/></svg><b id="plane-title"></b><span id="plane-count"></span></span><button id="plane-back" type="button"></button></div>`);
-    top = $("plane-top");
-    $("plane-back")?.addEventListener("click", () => togglePlane());
-  }
-  if (!top) return;
-  $("plane-title").textContent = phrase("Plane");
-  const areas = st.planeAreas.length;
-  $("plane-count").textContent = seats
-    ? (areas ? phrase("{n} seats in {m} areas", { n: seats, m: areas }) : phrase("{n} seats", { n: seats }))
-    : "";
-  const back = $("plane-back");
-  const html = `<span class="rc-key">esc</span>${phrase("back to the wall")}<span class="rc-key">${esc(keyLabel(st.keys.plane))}</span>`;
-  if (back.innerHTML !== html) back.innerHTML = html;
-  const undoHtml = `${phrase("undo")}<span class="rc-key">${esc(planeBackKey())}</span>`;
-  if (undo && undo.innerHTML !== undoHtml) undo.innerHTML = undoHtml;
+  planeTopSolid?.show(planeTopModel(seats));
 }
+
+solidMounts.push((hive) => {
+  const plane = $("plane");
+  const world = $("plane-world");
+  if (!plane || !world) return;
+  planeThingsSolid = hive.mountPlaneThings(plane, world, { nameArea, writeNote });
+  planeHudSolid = hive.mountPlaneHud($("plane-hud"), {
+    zoom: (by) => zoomPlaneBy(by),
+    fit: () => fitPlane(),
+    tidy: () => { tidyPlane(); render(); fitPlane(); },
+    arm: (kind) => armPlane(st.planeArming === kind ? "" : kind),
+    undo: () => stepPlaneBack(false)
+  });
+  planeEmptySolid = hive.mountPlaneEmpty($("plane-empty"), {
+    newChat: (ev) => askNewChat({ here: ev.shiftKey }),
+    back: () => togglePlane()
+  });
+  planeSaidSolid = hive.mountPlaneSaid($("plane-said"), { undo: () => { hushPlane(); stepPlaneBack(false); } });
+  planeTopSolid = hive.mountPlaneTop(plane, $("plane-empty"), { back: () => togglePlane() });
+  paintPlaneHud();
+});
 
 st.planeFrame = null;
 
@@ -1346,16 +1329,16 @@ function startAreaDrag(box, ev, sizing) {
   if (!thing) return;
   const carries = !sizing && st.planeAreas.includes(thing);
   st.planeAreaDrag = {
-    area: thing, box, sizing: !!sizing, moved: false, snap: planeSnap(),
+    area: thing, sizing: !!sizing, moved: false, snap: planeSnap(),
     from: planePoint(ev),
     was: { x: thing.x, y: thing.y, w: thing.w, h: thing.h },
     riders: carries ? seatsInArea(thing).map((key) => ({ key, was: { ...planeSpotOf(key) } })) : []
   };
-  box.classList.add("holding");
+  paintPlaneThings();
 }
 
 function moveAreaDrag(ev) {
-  const { area, box, was, sizing } = st.planeAreaDrag;
+  const { area, was, sizing } = st.planeAreaDrag;
   const now = planePoint(ev);
   const dx = Math.round(now.x - st.planeAreaDrag.from.x);
   const dy = Math.round(now.y - st.planeAreaDrag.from.y);
@@ -1364,13 +1347,9 @@ function moveAreaDrag(ev) {
     const wide = st.planeAreas.includes(area);
     area.w = Math.max(wide ? AREA_MIN_W : NOTE_MIN_W, was.w + dx);
     area.h = Math.max(wide ? AREA_MIN_H : NOTE_MIN_H, was.h + dy);
-    box.style.width = `${area.w}px`;
-    box.style.height = `${area.h}px`;
   } else {
     area.x = was.x + dx;
     area.y = was.y + dy;
-    box.style.left = `${area.x}px`;
-    box.style.top = `${area.y}px`;
     for (const rider of st.planeAreaDrag.riders) {
       st.planeSpots[rider.key] = { x: rider.was.x + dx, y: rider.was.y + dy };
       const node = planeNodes.get(rider.key);
@@ -1379,14 +1358,15 @@ function moveAreaDrag(ev) {
       node.style.top = `${st.planeSpots[rider.key].y}px`;
     }
   }
+  planeThingsSolid?.place(area.id, thingBox(area));
   paintPlaneGroups();
   paintPlaneWires();
 }
 
 function endAreaDrag() {
-  const { area, box, moved, riders, snap } = st.planeAreaDrag;
+  const { area, moved, riders, snap } = st.planeAreaDrag;
   st.planeAreaDrag = null;
-  box.classList.remove("holding");
+  paintPlaneThings();
   if (!moved) return;
   st.planeDragged = true;
   rememberPlaneWas(snap);
@@ -1396,35 +1376,21 @@ function endAreaDrag() {
 
 function startPlaneDraw(ev) {
   const at = planePoint(ev);
-  const el = document.createElement("div");
-  el.className = "pdraw";
-  el.style.left = `${at.x}px`;
-  el.style.top = `${at.y}px`;
-  el.style.width = "0px";
-  el.style.height = "0px";
-  $("plane-world").appendChild(el);
-  st.planeDraw = { from: at, el };
+  st.planeDraw = { from: at, x: at.x, y: at.y, w: 0, h: 0 };
+  paintPlaneThings();
 }
 
 function movePlaneDraw(ev) {
   const now = planePoint(ev);
-  const { from, el } = st.planeDraw;
-  el.style.left = `${Math.min(now.x, from.x)}px`;
-  el.style.top = `${Math.min(now.y, from.y)}px`;
-  el.style.width = `${Math.abs(now.x - from.x)}px`;
-  el.style.height = `${Math.abs(now.y - from.y)}px`;
+  const { from } = st.planeDraw;
+  st.planeDraw = { from, x: Math.min(now.x, from.x), y: Math.min(now.y, from.y), w: Math.abs(now.x - from.x), h: Math.abs(now.y - from.y) };
+  planeThingsSolid?.drawAt(thingBox(st.planeDraw));
 }
 
 function endPlaneDraw() {
-  const { el } = st.planeDraw;
-  const at = {
-    x: parseFloat(el.style.left) || 0,
-    y: parseFloat(el.style.top) || 0,
-    w: parseFloat(el.style.width) || 0,
-    h: parseFloat(el.style.height) || 0
-  };
-  el.remove();
+  const at = thingBox(st.planeDraw);
   st.planeDraw = null;
+  paintPlaneThings();
   const kind = st.planeArming;
   armPlane("");
   st.planeDragged = true;
@@ -1558,7 +1524,7 @@ function wirePlane() {
     hushPlane();
     st.planeFrame = null;
     const writing = document.activeElement;
-    const editable = writing?.classList?.contains("pa-name") || writing?.classList?.contains("pn-body");
+    const editable = !!writing?.matches?.(".pa-name, .pn-body");
     if (editable && !ev.target.closest(".pa-name, .pn-body")) writing.blur();
     const node = ev.target.closest(".pnode");
     if (st.planeArming && !node) {
@@ -1654,19 +1620,7 @@ function wirePlane() {
   host.addEventListener("pointercancel", letGo);
 
   host.addEventListener("dblclick", (ev) => { if (!ev.target.closest(".pnode")) fitPlane(); });
-  $("plane-fit").textContent = phrase("fit");
-  $("plane-tidy").textContent = phrase("tidy");
-  $("plane-area").textContent = phrase("+ area");
-  $("plane-note").textContent = phrase("+ note");
   $("plane-map").title = phrase("the whole field — click to look somewhere else");
-  $("plane-in").addEventListener("click", () => zoomPlaneBy(1.25));
-  $("plane-out").addEventListener("click", () => zoomPlaneBy(0.8));
-  $("plane-fit").addEventListener("click", () => fitPlane());
-  $("plane-tidy").addEventListener("click", () => { tidyPlane(); render(); fitPlane(); });
-  $("plane-undo").textContent = phrase("undo");
-  $("plane-undo").addEventListener("click", () => stepPlaneBack(false));
-  $("plane-area").addEventListener("click", () => armPlane(st.planeArming === "area" ? "" : "area"));
-  $("plane-note").addEventListener("click", () => armPlane(st.planeArming === "note" ? "" : "note"));
   $("plane-map").addEventListener("pointerdown", (ev) => { ev.stopPropagation(); lookFromMap(ev); });
   host.addEventListener("contextmenu", (ev) => {
     if (ev.target.closest(".pnode") || ev.target.closest("#plane-hud") || ev.target.closest("#plane-map")) return;
@@ -1696,7 +1650,7 @@ function wirePlane() {
     if (ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.key === "Escape") {
       if (pickPlane("")) return markPlanePicked();
-      if (!raycastOn() || planeMenu || st.open || st.fieldPane || $("confirm")?.classList.contains("on")) return;
+      if (!raycastOn() || planeMenu || st.open || st.fieldPane || $("confirm")?.matches(".on")) return;
       ev.preventDefault();
       ev.stopPropagation();
       return togglePlane();
@@ -1722,4 +1676,4 @@ function wirePlane() {
   }, true);
 }
 
-export { AREA_BORN_H, AREA_BORN_W, AREA_MIN_H, AREA_MIN_W, FIELD_PANE_H, FIELD_PANE_W, LINK_TAG, NODE_H, NODE_MIN_H, NODE_MIN_W, NODE_W, NOTE_BORN_H, NOTE_BORN_W, NOTE_MIN_H, NOTE_MIN_W, PLANE_AREAS_KEY, PLANE_AT_KEY, PLANE_BAR_SHUT, PLANE_COLS, PLANE_GAP, PLANE_GROUP_GAP, PLANE_LINKS_KEY, PLANE_LINK_TTL, PLANE_MAX, PLANE_MIN, PLANE_NOTES_KEY, PLANE_NUDGE, PLANE_PILL_AT, PLANE_SAID_MS, PLANE_SIZES_KEY, PLANE_SPOTS_KEY, PLANE_TINTS, PLANE_TOOK_MS, PLANE_UNDO_CAP, SVG_NS, applyPlane, armPlane, bootPlane, bornPlaneArea, bornPlaneNote, canUndoPlane, closeLinkMenu, copyPlaneThing, dropFieldPane, dropPlanePicked, dropPlaneThings, endAreaDrag, endNodeDrag, endNodeSize, endPlaneDraw, endWire, growFieldPane, hushPlane, lookFromMap, markPlanePicked, moveAreaDrag, moveNodeDrag, moveNodeSize, movePlaneDraw, moveWire, newPlaneArea, newPlaneNote, openLinkMenu, paintPlane, paintPlaneAreas, paintPlaneBar, paintPlaneCard, paintPlaneGroups, paintPlaneMap, paintPlaneMarks, paintPlaneNotes, paintPlaneTook, paintPlaneWires, paneOnField, paneShownFor, pickPlane, planeAreaEls, planeBackKey, planeBarSolid, planeBarViewModel, planeBounds, planeBoxOf, planeCamera, planeCardMount, planeCardSolids, planeCardViewModel, planeClashes, planeDensity, planeErrandOf, planeFieldRows, planeFlocks, planeFreeSpot, planeGroupEls, planeId, planeIsArea, planeKin, planeLink, planeMapSolid, planeMapViewModel, planeMarkEls, planeNodeAt, planeNodes, planeNoteEls, planePoint, planeSaidClock, planeSay, planeSeatKeys, planeSeen, planeSeq, planeShown, planeSizeOf, planeSlot, planeSnap, planeSpotOf, planeThingOf, planeThingRows, planeTint, planeTook, planeWireEls, planeWirePath, planeWriting, planeZoom, readPlaneAreas, readPlaneLinks, readPlaneNotes, readPlaneSizes, readPlaneSpots, redoPlane, rememberPlaneWas, savePlaneAreas, savePlaneLinks, savePlaneNotes, savePlaneSizes, savePlaneThing, sayOnPlane, seatsInArea, shortTask, startAreaDrag, startNodeDrag, startNodeSize, startPlaneDraw, startWire, stepPlaneBack, takeFieldPane, tidyPlane, tintPlaneNote, togglePlane, undoPlane, wearPlane, wireOn, wirePlane, writePlaneThing, zoomPlaneAt, zoomPlaneBy };
+export { AREA_BORN_H, AREA_BORN_W, AREA_MIN_H, AREA_MIN_W, FIELD_PANE_H, FIELD_PANE_W, LINK_TAG, NODE_H, NODE_MIN_H, NODE_MIN_W, NODE_W, NOTE_BORN_H, NOTE_BORN_W, NOTE_MIN_H, NOTE_MIN_W, PLANE_AREAS_KEY, PLANE_AT_KEY, PLANE_BAR_SHUT, PLANE_COLS, PLANE_GAP, PLANE_GROUP_GAP, PLANE_LINKS_KEY, PLANE_LINK_TTL, PLANE_MAX, PLANE_MIN, PLANE_NOTES_KEY, PLANE_NUDGE, PLANE_PILL_AT, PLANE_SAID_MS, PLANE_SIZES_KEY, PLANE_SPOTS_KEY, PLANE_TINTS, PLANE_TOOK_MS, PLANE_UNDO_CAP, SVG_NS, applyPlane, armPlane, bootPlane, bornPlaneArea, bornPlaneNote, canUndoPlane, closeLinkMenu, copyPlaneThing, dropFieldPane, dropPlanePicked, dropPlaneThings, endAreaDrag, endNodeDrag, endNodeSize, endPlaneDraw, endWire, growFieldPane, hushPlane, lookFromMap, markPlanePicked, moveAreaDrag, moveNodeDrag, moveNodeSize, movePlaneDraw, moveWire, nameArea, newPlaneArea, newPlaneNote, openLinkMenu, paintPlane, paintPlaneBar, paintPlaneCard, paintPlaneEmpty, paintPlaneGroups, paintPlaneHud, paintPlaneMap, paintPlaneMarks, paintPlaneThings, paintPlaneTook, paintPlaneTop, paintPlaneWires, paneOnField, paneShownFor, pickPlane, planeBackKey, planeBarSolid, planeBarViewModel, planeBounds, planeBoxOf, planeCamera, planeCardMount, planeCardSolids, planeCardViewModel, planeClashes, planeDensity, planeEmptyModel, planeErrandOf, planeFieldRows, planeFlocks, planeFreeSpot, planeGroupEls, planeHudModel, planeId, planeIsArea, planeKin, planeLink, planeMapSolid, planeMapViewModel, planeMarkEls, planeNodeAt, planeNodes, planePoint, planeSaidClock, planeSay, planeSeatKeys, planeSeen, planeSeq, planeShown, planeSizeOf, planeSlot, planeSnap, planeSpotOf, planeThingOf, planeThingRows, planeThingsModel, planeTint, planeTook, planeTopModel, planeWireEls, planeWirePath, planeWriting, planeZoom, readPlaneAreas, readPlaneLinks, readPlaneNotes, readPlaneSizes, readPlaneSpots, redoPlane, rememberPlaneWas, savePlaneAreas, savePlaneLinks, savePlaneNotes, savePlaneSizes, savePlaneThing, sayOnPlane, seatsInArea, shortTask, startAreaDrag, startNodeDrag, startNodeSize, startPlaneDraw, startWire, stepPlaneBack, takeFieldPane, tidyPlane, tintPlaneNote, togglePlane, undoPlane, wearPlane, wireOn, wirePlane, writeNote, writePlaneThing, zoomPlaneAt, zoomPlaneBy };

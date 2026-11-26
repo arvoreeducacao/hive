@@ -2,9 +2,7 @@ import { randomUUID } from "node:crypto";
 import { prKey, readPrRegistry, writePrRegistry, readPrNotes, writePrNotes, retirePrs, readPrLinks, writePrLinks, withLink, withoutLink, ownersWithLinks } from "../lib/prs.mjs";
 import { addNote, batchText, cleanNote, editNote, openNotes, removeNote } from "../assets/review-notes.mjs";
 import { attributeFiles, linesWrittenIn } from "../lib/attribution.mjs";
-import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { isPrPageSlug, prPageFailed, prPageRest, prPageSlug, prPageStart } from "../assets/pr-page.mjs";
 import { checksSummary, readJobLog } from "../lib/pr-checks.mjs";
 import { PR_TOOL_NEEDS, PR_TOOL_WRITES, createPrTools } from "../lib/pr-tools.mjs";
 import { allows } from "../../server/peer/ceilings.mjs";
@@ -161,8 +159,7 @@ export function createPrDomain({
   now = Date.now,
   transcriptOf = async () => ({ text: "", seat: "" }),
   fetchImpl = fetch,
-  placeExists = existsSync,
-  markdownCss = () => readFile(new URL("../assets/github-markdown-dark.css", import.meta.url), "utf8")
+  placeExists = existsSync
 }) {
   const prCache = new Map();
   const prFetching = new Map();
@@ -374,57 +371,6 @@ export function createPrDomain({
     const bytes = Buffer.from(await result.arrayBuffer());
     if (bytes.length > PICTURE_CAP) return { error: "that image is too heavy to open here", code: 413 };
     return { ok: true, kind, bytes };
-  }
-
-  const pageKeys = new Map();
-
-  async function keyOfPage(slug) {
-    if (pageKeys.has(slug)) return pageKeys.get(slug);
-    const registry = await readRegistry();
-    const keys = [...registry.map((pr) => pr.key), ...liveSessions().flatMap((session) => (session.prs || []).map(prKey))];
-    const key = keys.find((one) => one && prPageSlug(one) === slug);
-    if (key) pageKeys.set(slug, key);
-    return key || "";
-  }
-
-  async function pullPage(slug) {
-    if (!isPrPageSlug(slug)) return null;
-    const key = await keyOfPage(slug);
-    if (!key) return null;
-    const [repo, number] = key.split("#");
-    const where = { repo, number, url: `https://github.com/${repo}/pull/${number}` };
-    return { start: prPageStart(where), rest: () => restOfPage(key, where) };
-  }
-
-  async function restOfPage(key, where) {
-    try {
-      const [raw, files, css] = await Promise.all([
-        sh("gh", ["api", `repos/${where.repo}/pulls/${where.number}`, "-H", "Accept: application/vnd.github.full+json"], { timeout: 25000 }),
-        diffOf(key),
-        markdownCss()
-      ]);
-      const pull = extractJson(raw);
-      if (!pull?.number) return prPageFailed(where);
-      const state = pull.merged_at ? "merged" : pull.draft && pull.state === "open" ? "draft" : pull.state;
-      return prPageRest({
-        pr: {
-          key,
-          repo: where.repo,
-          number: pull.number,
-          title: pull.title || "",
-          author: pull.user?.login || "",
-          state,
-          url: pull.html_url || where.url,
-          head: pull.head?.ref || "",
-          base: pull.base?.ref || "",
-          bodyHtml: pull.body_html || ""
-        },
-        files: [...files.filter((file) => !file.noise), ...files.filter((file) => file.noise)],
-        markdownCss: css
-      });
-    } catch {
-      return prPageFailed(where);
-    }
   }
 
   const prTools = createPrTools({
@@ -742,7 +688,6 @@ export function createPrDomain({
     oneCommit,
     prPicture,
     pictureKind,
-    pullPage,
     prCache,
     paused: () => ghPausedUntil
   };

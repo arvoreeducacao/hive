@@ -57,13 +57,3 @@ test("the pane knows it is narrow, and only says so when it changes", () => {
   structPool.delete(e.name);
 });
 
-test("in the new hive the rows above the box keep the same room on both sides", () => {
-  const css = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
-  assert.match(css, /body\.experience-next \.sv \{ --sv-bar: 0px !important; \}/);
-});
-
-test("in the new hive the button back to the end sits at the bottom of the conversation row, not under the header", () => {
-  const css = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
-  assert.match(page, /^ {2}\.sv-scroll \{[^}]*position: absolute; inset: 0;/m);
-  assert.match(css, /body\.experience-next \.sv-jump-anchor \{ grid-row: 1; align-self: end; \}/);
-});

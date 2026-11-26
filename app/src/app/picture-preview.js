@@ -1,5 +1,4 @@
 import { $, phrase } from "./core.js";
-import { behaviorOn } from "./experience.js";
 import { releaseKeyboard } from "./focus-navigation.js";
 
 const peekCache = new Map();
@@ -48,67 +47,8 @@ function hidePeek() {
 
 let shotUrl = "";
 let shotSeq = 0;
-const ZOOM_MIN = 0.25;
-const ZOOM_MAX = 4;
-const ZOOM_STEP = 1.25;
-const ZOOM_CLOSE_UP = ZOOM_STEP ** 3;
-const ZOOM_WHEEL = 1.1;
-const ZOOM_GUTTER = 32;
-let zoom = 1;
-let fitting = true;
-
-const zoomButton = (kind) => $("shot-tools").querySelector(`[data-zoom="${kind}"]`);
-
-function shotZooms() { return $("shot-floor").classList.contains("zoomable"); }
-
-function fittedZoom() {
-  const floor = $("shot-floor");
-  const img = $("shot-img");
-  return Math.max(Number.EPSILON, Math.min(1, (floor.clientWidth - ZOOM_GUTTER) / img.naturalWidth, (floor.clientHeight - ZOOM_GUTTER) / img.naturalHeight));
-}
-
-function applyZoom(value) {
-  const img = $("shot-img");
-  const minimum = Math.min(ZOOM_MIN, fittedZoom());
-  zoom = Math.max(minimum, Math.min(ZOOM_MAX, value));
-  img.style.width = `${img.naturalWidth * zoom}px`;
-  img.style.height = `${img.naturalHeight * zoom}px`;
-  img.dataset.enlarged = String(zoom > 1);
-  $("shot-pct").textContent = `${Math.round(zoom * 100)}%`;
-  zoomButton("out").disabled = zoom <= minimum;
-  zoomButton("in").disabled = zoom >= ZOOM_MAX;
-}
-
-function fitShot() {
-  const floor = $("shot-floor");
-  const img = $("shot-img");
-  if (!img.naturalWidth) return;
-  fitting = true;
-  applyZoom(fittedZoom());
-  floor.scrollTo(0, 0);
-}
-
-function zoomShot(value, x, y) {
-  const floor = $("shot-floor");
-  const img = $("shot-img");
-  if (!img.naturalWidth) return;
-  const across = x ?? (floor.scrollLeft + floor.clientWidth / 2 - img.offsetLeft) / (img.offsetWidth || 1);
-  const down = y ?? (floor.scrollTop + floor.clientHeight / 2 - img.offsetTop) / (img.offsetHeight || 1);
-  fitting = false;
-  applyZoom(value);
-  floor.scrollTo(img.offsetLeft + across * img.offsetWidth - floor.clientWidth / 2, img.offsetTop + down * img.offsetHeight - floor.clientHeight / 2);
-}
-
-function toggleShotZoom(x = 0.5, y = 0.5) {
-  if (!shotZooms()) return $("shot-floor").classList.toggle("full");
-  if (zoom > 1) return fitShot();
-  return zoomShot(ZOOM_CLOSE_UP, x, y);
-}
-
-function stepShotZoom(direction) {
-  if (!shotZooms()) return false;
-  zoomShot(direction > 0 ? zoom * ZOOM_STEP : zoom / ZOOM_STEP);
-  return true;
+function toggleShotZoom() {
+  $("shot-floor").classList.toggle("full");
 }
 
 function shotOnScreen() { return $("shot").classList.contains("on"); }
@@ -138,8 +78,6 @@ function closeShot() {
   $("shot-img").onload = null;
   $("shot").classList.remove("on");
   $("shot-img").removeAttribute("src");
-  $("shot-img").style.removeProperty("width");
-  $("shot-img").style.removeProperty("height");
   if (shotUrl) URL.revokeObjectURL(shotUrl);
   shotUrl = "";
 }
@@ -152,9 +90,6 @@ function stageShot(name, say) {
   $("shot-name").textContent = name;
   $("shot-say").textContent = say;
   $("shot-floor").classList.remove("full");
-  $("shot-floor").classList.toggle("zoomable", behaviorOn("imageZoom"));
-  img.style.removeProperty("width");
-  img.style.removeProperty("height");
   img.onload = null;
   img.hidden = true;
   img.removeAttribute("src");
@@ -168,8 +103,7 @@ function landShot(tag, url, where) {
   shotUrl = url;
   img.onload = () => {
     if (tag !== shotSeq) return;
-    $("shot-say").textContent = [`${img.naturalWidth} × ${img.naturalHeight}`, where, phrase(shotZooms() ? "click the image to zoom in" : "click the image for actual size")].filter(Boolean).join(" · ");
-    if (shotZooms()) fitShot();
+    $("shot-say").textContent = [`${img.naturalWidth} × ${img.naturalHeight}`, where, phrase("click the image for actual size")].filter(Boolean).join(" · ");
   };
   img.src = url;
   img.hidden = false;
@@ -313,36 +247,10 @@ const onFloorScrollbar = (ev, floor) => ev.offsetX >= floor.clientWidth || ev.of
 $("shot").addEventListener("mousedown", (ev) => {
   const floor = $("shot-floor");
   if (ev.target === $("shot")) return closeShot();
-  if (ev.target !== floor || document.body.classList.contains("experience-next") || onFloorScrollbar(ev, floor)) return;
+  if (ev.target !== floor || onFloorScrollbar(ev, floor)) return;
   closeShot();
 });
 
-$("shot-img").addEventListener("click", (ev) => {
-  const box = ev.currentTarget.getBoundingClientRect();
-  toggleShotZoom((ev.clientX - box.left) / (box.width || 1), (ev.clientY - box.top) / (box.height || 1));
-});
+$("shot-img").addEventListener("click", toggleShotZoom);
 
-$("shot-tools").addEventListener("click", (ev) => {
-  const kind = ev.target.closest("[data-zoom]")?.dataset.zoom;
-  if (kind === "in" || kind === "out") stepShotZoom(kind === "in" ? 1 : -1);
-  if (kind === "actual") zoomShot(1);
-  if (kind === "fit") fitShot();
-});
-
-$("shot-floor").addEventListener("wheel", (ev) => {
-  if (!shotZooms() || !(ev.ctrlKey || ev.metaKey)) return;
-  ev.preventDefault();
-  const img = $("shot-img");
-  const box = img.getBoundingClientRect();
-  const floor = ev.currentTarget.getBoundingClientRect();
-  const across = (ev.clientX - box.left) / (box.width || 1);
-  const down = (ev.clientY - box.top) / (box.height || 1);
-  const before = { x: ev.clientX - floor.left, y: ev.clientY - floor.top };
-  fitting = false;
-  applyZoom(ev.deltaY < 0 ? zoom * ZOOM_WHEEL : zoom / ZOOM_WHEEL);
-  ev.currentTarget.scrollTo(img.offsetLeft + across * img.offsetWidth - before.x, img.offsetTop + down * img.offsetHeight - before.y);
-}, { passive: false });
-
-new ResizeObserver(() => { if (shotOnScreen() && shotZooms() && fitting) fitShot(); }).observe($("shot-floor"));
-
-export { arrowShot, closeShot, hidePeek, openDiagram, openShot, openShotFrom, picturesAround, stepShot, stepShotZoom, toggleShotZoom, peekCache, peekSeq, peekSrc, placePeek, shotOnScreen, shotUrl, showPeek, wireMdShots, wireShelfLinks };
+export { arrowShot, closeShot, hidePeek, openDiagram, openShot, openShotFrom, picturesAround, stepShot, toggleShotZoom, peekCache, peekSeq, peekSrc, placePeek, shotOnScreen, shotUrl, showPeek, wireMdShots, wireShelfLinks };

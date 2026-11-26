@@ -42,7 +42,8 @@ test("a screen opening tells the popovers, and each popover closes on the word",
 });
 
 test("the fold button is an icon like its neighbours, and the plus exists in the sprite", () => {
-  assert.match(src("app/core.js"), /b\.innerHTML = svgIcon\(on \? "i-plus" : "i-minus"\);/);
+  assert.match(src("app/core.js"), /const icon = on \? "i-plus" : "i-minus";/);
+  assert.match(src("app/core.js"), /b\.innerHTML = svgIcon\(icon\);/);
   assert.match(page, /<symbol id="i-plus" viewBox="0 0 16 16">/);
 });
 

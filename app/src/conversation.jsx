@@ -1,8 +1,9 @@
 import { For, Match, Show, Switch, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { phrase, spokenNow } from "/assets/i18n.mjs";
-import { nextHive, raycast } from "./raycast.js";
+import { raycast } from "./raycast.js";
 import { mountView } from "./view.jsx";
 import { ansiSpans, clockOf, fullTimeOf, liveFor, liveThoughtLine, workingSays } from "./app/timeline-rows.js";
+import { readlineKeys } from "./app/composer-editing.js";
 import { jsonSpans } from "./app/tool-inspector.js";
 
 function Raw(props) {
@@ -283,6 +284,7 @@ function EditBubble(props) {
           on:input={(ev) => fitEdit(ev.currentTarget)}
           on:keydown={(ev) => {
             ev.stopPropagation();
+            if (readlineKeys(ev, ev.currentTarget)) return;
             if (ev.key === "Escape") { ev.preventDefault(); cancel(); }
             else if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); save(); }
           }}

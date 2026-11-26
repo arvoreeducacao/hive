@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const HERE = fileURLToPath(new URL("..", import.meta.url));
 const stretches = readFileSync(join(HERE, "src", "app", "chat-stretches.js"), "utf8");
 const draftSeat = readFileSync(join(HERE, "src", "app", "draft-seat.js"), "utf8");
+const composerSheet = readFileSync(join(HERE, "assets", "composer.css"), "utf8");
 
 function cut(text, from, to, what) {
   const a = text.indexOf(from);
@@ -53,6 +54,12 @@ test("whatever else sits in flow above the composer takes from the room too", ()
   assert.equal(svRoom(host, textarea), 300 - 64 - 45 - 20 - 46);
 });
 
+test("the drawer shrinks to fit on its own, so it leaves the textarea its room", () => {
+  const drawer = box("sv-drawer", 220, { marginTop: "0px", marginBottom: "-17px" });
+  const { host, textarea } = seat({ tall: 300, extra: [drawer] });
+  assert.equal(svRoom(host, textarea), 300 - 64 - 45 - 20);
+});
+
 test("a seat that is not laid out yet does not cap anything", () => {
   const { host, textarea } = seat({ tall: 0 });
   assert.equal(svRoom(host, textarea), Infinity);
@@ -70,4 +77,15 @@ test("both composers grow through the room, and grow again when the seat resizes
     assert.match(autosize, /minHeight = room < COMPOSER_MIN \? `\$\{Math\.max\(SV_FLOOR, room\)\}px` : ""/, `${what} keeps the 66px floor even when the seat has no room for it`);
     assert.match(autosize, /new ResizeObserver\(\(\) => \{ if \(textarea\.value\) autosize\(\); \}\)\.observe\(host\)/, `${what} does not re-run autosize when the seat changes size`);
   }
+});
+
+test("a folded tile's empty composer grows to its whole hint instead of cutting it mid-word", () => {
+  assert.match(composerSheet, /body\.experience-raycast:not\(\.no-motion\) \.tile:not\(\.focused\):not\(\.open\) \.sv-composer:not\(\.ready\):not\(\.talking\) \.sv-box > \.sv-well textarea:placeholder-shown \{ height: auto !important; field-sizing: content; white-space: normal; \}/);
+});
+
+test("the question drawer gives way to the composer and scrolls its body inside the tile", () => {
+  assert.match(composerSheet, /\.sv > \.sv-drawer \{[^}]*min-height: 0;/);
+  assert.match(composerSheet, /\.sv \.cp-dcol \{[^}]*max-height: 100%;/);
+  assert.match(composerSheet, /\.sv :is\(\.cp-ask, \.cp-stash\) \{ display: flex; flex-direction: column; min-height: 0; \}/);
+  assert.match(composerSheet, /\.sv-composer\[data-cp-mode="question"\] \.sv-bar \{ flex-wrap: wrap;/);
 });

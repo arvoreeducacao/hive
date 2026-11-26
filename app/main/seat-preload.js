@@ -242,18 +242,7 @@ const FACE = "ui-monospace,SFMono-Regular,Menlo,monospace";
 
 let ask = null;
 let asking = null;
-let askLook = null;
 
-const NEXT_ASK = {
-  card: "background:#111111;border:1px solid #747b70;border-radius:0;box-shadow:none;color:#e2dac2",
-  head: "border-bottom:1px solid #414640",
-  at: "color:#ff812e",
-  field: "background:#080909;border:1px solid #414640;border-radius:0;color:#e2dac2",
-  lead: "background:#ff812e;color:#080909;border:1px solid #ff812e;border-radius:0;padding:5px 12px",
-  other: "background:transparent;color:#e2dac2;border:1px solid #747b70;border-radius:0;padding:4px 10px"
-};
-
-const onTheShelf = () => location.protocol === "shelf:";
 let pins = [];
 let pinLayer = null;
 let placingPins = 0;
@@ -303,30 +292,10 @@ function askCard() {
   ask.querySelector(".__hive_ask_chat").addEventListener("click", () => sendAsk("chat"));
   ask.querySelector("textarea").addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); return shutAsk(); }
-    if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); sendAsk(askLook && !onTheShelf() ? "chat" : "page"); }
+    if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); sendAsk("page"); }
   });
-  if (askLook) dressAsk(ask);
   document.documentElement.appendChild(ask);
   return ask;
-}
-
-function dressAsk(card) {
-  card.style.cssText += `;${NEXT_ASK.card}`;
-  card.querySelector(".__hive_ask_head").style.cssText += `;${NEXT_ASK.head}`;
-  card.querySelector(".__hive_ask_at").style.cssText += `;${NEXT_ASK.at}`;
-  card.querySelector("textarea").style.cssText += `;${NEXT_ASK.field}`;
-}
-
-function doorsOfAsk(card) {
-  if (!askLook) return;
-  const shelf = onTheShelf();
-  const page = card.querySelector(".__hive_ask_send");
-  const chat = card.querySelector(".__hive_ask_chat");
-  page.textContent = askLook.page;
-  chat.textContent = askLook.chat;
-  page.style.display = shelf ? "" : "none";
-  page.style.cssText += `;${NEXT_ASK.lead}`;
-  chat.style.cssText += `;${shelf ? NEXT_ASK.other : NEXT_ASK.lead}`;
 }
 
 function shutAsk() {
@@ -366,8 +335,7 @@ function openAsk(picked, said, re) {
   asking = { picked, re: re || "" };
   const card = askCard();
   card.querySelector(".__hive_ask_at").textContent = picked.elAt || picked.selector || picked.tag || "";
-  card.querySelector(".__hive_ask_hint").textContent = said.length ? (askLook?.reply || "responder") : (askLook?.keys || (/Mac/.test(navigator.platform) ? "⌘↵ envia" : "ctrl+↵ envia"));
-  doorsOfAsk(card);
+  card.querySelector(".__hive_ask_hint").textContent = said.length ? "responder" : (/Mac/.test(navigator.platform) ? "⌘↵ envia" : "ctrl+↵ envia");
   card.querySelector("textarea").value = "";
   paintThread(said);
   card.style.display = "block";
@@ -527,10 +495,6 @@ function offerQuote() {
 addEventListener("mouseup", () => setTimeout(offerQuote, 0), true);
 addEventListener("keyup", (e) => { if (e.shiftKey || e.key.startsWith("Arrow")) setTimeout(offerQuote, 0); }, true);
 addEventListener("scroll", dropQuote, true);
-ipcRenderer.on("hive-ask-look", (_e, look) => {
-  askLook = look && look.next ? { chat: String(look.chat || ""), page: String(look.page || ""), reply: String(look.reply || ""), keys: String(look.keys || "") } : null;
-  if (ask) { ask.remove(); ask = null; }
-});
 ipcRenderer.on("hive-quote-label", (_e, said) => {
   quoteSaid = String(said || "quote").slice(0, 24);
   if (quoteBtn) quoteBtn.textContent = quoteSaid;

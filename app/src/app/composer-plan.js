@@ -1,8 +1,13 @@
-import { wireLinks } from "./chat-and-panes.js";
+import { planCardView } from "../views.js";
+import { AGENT_NAMES, modelNamed, normalizeLooseModels, pillLabel, seatAgent, wireLinks } from "./chat-and-panes.js";
+import { svCmd } from "./chat-stretches.js";
 import { esc, phrase, renderMarkdown } from "./core.js";
 import { composerIcon } from "./composer-icons.js";
 import { composerLive, paintComposer } from "./composer-modes.js";
 import { openDraft } from "./draft-seat.js";
+import { enrichMarkdown } from "./markdown-rich.js";
+import { providerName, providerReady, readyAgents } from "./providers.js";
+import { svAppend } from "./structured-seats.js";
 import { toClipboard } from "./terminal-history.js";
 
 const PLAN_PROMPT = "PLEASE IMPLEMENT THIS PLAN:\n";
@@ -57,144 +62,261 @@ function planFileName(plan) {
 
 const planPrompt = (plan) => `${PLAN_PROMPT}${String(plan || "").trim()}`;
 
-function downloadPlan(name, contents) {
-  const url = URL.createObjectURL(new Blob([contents], { type: "text/markdown;charset=utf-8" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+const PLAN_FRONTS = /```frentes\s*\n([\s\S]*?)```/;
+
+const PLAN_HERE = { aqui: "local", local: "local", "this machine": "local", maquina: "local", servidor: "cloud", cloud: "cloud", pod: "cloud", server: "cloud" };
+
+const NO_MODEL = /^(padr[aã]o|default|-|—)$/i;
+
+function frontAgentAndModel(said) {
+  const raw = String(said || "").trim();
+  if (!raw || NO_MODEL.test(raw)) return { agent: "", model: "" };
+  const cut = raw.indexOf("/");
+  const agent = cut > 0 ? raw.slice(0, cut).trim().toLowerCase() : "";
+  const model = cut > 0 ? raw.slice(cut + 1).trim() : raw;
+  if (agent && !AGENT_NAMES[agent]) return { agent: "", model: raw };
+  return { agent, model: NO_MODEL.test(model) ? "" : model };
 }
 
-function closeOnOutside(holder, pop) {
-  document.addEventListener("pointerdown", (out) => { if (!holder.contains(out.target)) pop.hidden = true; }, { once: true, capture: true });
+function planFronts(plan) {
+  const block = PLAN_FRONTS.exec(String(plan || ""));
+  if (!block) return [];
+  return block[1].split("\n").map((line) => line.trim()).filter(Boolean).map((line) => {
+    const [name, said, where, repo, ...does] = line.split("·").map((piece) => piece.trim());
+    return {
+      name: String(name || "").toLowerCase(),
+      ...frontAgentAndModel(said),
+      where: PLAN_HERE[String(where || "").toLowerCase()] || "",
+      repo: repo || "",
+      does: does.join(" · "),
+    };
+  }).filter((one) => one.name);
 }
 
-function savePlanDialog(e, card, name, contents) {
-  card.querySelector(":scope > .cp-plan-save")?.remove();
-  const box = document.createElement("form");
-  box.className = "cp-plan-save";
-  box.setAttribute("role", "dialog");
-  box.setAttribute("aria-label", phrase("Save plan to workspace"));
-  box.innerHTML = `<b class="cp-plan-save-h">${esc(phrase("Save plan to workspace"))}</b>`
-    + `<label class="cp-plan-save-l"><span>${esc(phrase("File path"))}</span><input type="text" spellcheck="false" autocomplete="off"></label>`
-    + `<p class="cp-plan-save-err" hidden></p>`
-    + `<div class="cp-plan-save-acts"><button type="button" class="cp-btn" data-act="cancel">${esc(phrase("Cancel"))}</button><button type="submit" class="cp-btn cp-btn-pri">${esc(phrase("Save"))}</button></div>`;
-  const input = box.querySelector("input");
-  input.value = name;
-  const err = box.querySelector(".cp-plan-save-err");
-  const close = () => box.remove();
-  box.querySelector('[data-act="cancel"]').addEventListener("click", close);
-  input.addEventListener("keydown", (kev) => {
-    kev.stopPropagation();
-    if (kev.key === "Escape") { kev.preventDefault(); close(); }
-  });
-  box.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    const go = box.querySelector('button[type="submit"]');
-    go.disabled = true;
-    const r = await fetch("/api/seat/plan-file", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: e.name, where: e.where, path: input.value.trim(), text: contents })
-    }).then((x) => x.json()).catch((wrong) => ({ error: wrong.message }));
-    go.disabled = false;
-    if (!r?.ok) {
-      err.hidden = false;
-      err.textContent = r?.error || phrase("Could not save plan");
-      return;
+const planWithoutFronts = (plan) => String(plan || "").replace(PLAN_FRONTS, "").trim();
+
+const modelsOfAgent = new Map();
+
+function agentModels(agent) {
+  const id = AGENT_NAMES[agent] || "claude";
+  if (modelsOfAgent.has(id)) return Promise.resolve(modelsOfAgent.get(id));
+  return fetch(`/api/catalog?agent=${encodeURIComponent(id)}`)
+    .then((r) => r.json())
+    .then((answer) => {
+      const rows = answer?.error ? [] : normalizeLooseModels(answer?.models);
+      if (rows.length) modelsOfAgent.set(id, rows);
+      return rows;
+    })
+    .catch(() => []);
+}
+
+function fillModels(row, rows, wanted) {
+  const chosen = wanted || row.want || "";
+  const known = modelNamed(rows, chosen);
+  row.models = [
+    { key: "", value: "", label: phrase("the account default") },
+    ...rows.filter((m) => !m.isDefault).map((m) => ({ key: m.value, value: m.value, label: pillLabel(m.label) + (m.context ? ` · ${m.context}` : "") })),
+    ...(chosen && !known ? [{ key: chosen, value: chosen, label: chosen }] : [])
+  ];
+  row.model = known ? known.value : chosen;
+  row.want = row.model;
+}
+
+function pickAgent(row, wanted) {
+  const cloud = row.where === "cloud";
+  const ids = cloud ? Object.keys(AGENT_NAMES) : readyAgents(wanted);
+  row.agents = ids.map((id) => ({ key: id, value: id, label: providerName(id), disabled: !cloud && !providerReady(id) }));
+  row.agent = ids.includes(wanted) ? wanted : (ids.find((id) => cloud || providerReady(id)) || ids[0] || "claude");
+}
+
+const FRONT_SIDES = () => [{ key: "local", value: "local", label: phrase("here") }, { key: "cloud", value: "cloud", label: phrase("on the server") }];
+
+function frontRow(one, mine) {
+  const row = { key: one.name, name: one.name, about: [one.repo, one.does].filter(Boolean).join(" · "), where: one.where || mine.where, wheres: FRONT_SIDES(), agents: [], agent: "", models: [], model: "", want: one.model || "", locked: false };
+  pickAgent(row, AGENT_NAMES[one.agent] ? one.agent : mine.agent);
+  fillModels(row, [], one.model || "");
+  return row;
+}
+
+const chosenFront = (row) => ({ name: row.name, agent: row.agent, model: row.model, where: row.where });
+
+function wearFronts(card, chosen) {
+  for (const row of card.rows) {
+    const wish = (Array.isArray(chosen) ? chosen : []).find((one) => one?.name === row.name);
+    if (wish) {
+      if (wish.agent) row.agent = wish.agent;
+      if (wish.where) row.where = wish.where;
+      if (wish.model && !row.models.some((o) => o.value === wish.model)) row.models = [...row.models, { key: wish.model, value: wish.model, label: wish.model }];
+      row.model = wish.model || "";
     }
-    close();
-    e.box?.warn?.(phrase("Plan saved to workspace"), "sv-meta");
-  });
-  card.append(box);
-  input.focus();
-  input.setSelectionRange(0, Math.max(0, input.value.length - 3));
+    row.locked = true;
+  }
 }
 
-function dressPlanCard(e, card, plan, prose) {
-  const head = card.querySelector(".ph");
-  if (!head || head.querySelector(".cp-plan-title")) return;
-  const title = planTitle(prose) || phrase("Proposed plan");
-  const badge = document.createElement("span");
-  badge.className = "cp-plan-badge";
-  badge.textContent = phrase("Plan");
-  const name = document.createElement("h3");
-  name.className = "cp-plan-title";
-  name.textContent = title;
-  const menu = document.createElement("span");
-  menu.className = "cp-plan-menu";
-  menu.innerHTML = `<button type="button" class="cp-plan-dots" aria-label="${esc(phrase("Plan actions"))}" aria-haspopup="menu">${composerIcon("ellipsis")}</button>`
-    + `<span class="cp-plan-pop" role="menu" hidden><button type="button" role="menuitem" data-act="copy">${esc(phrase("Copy to clipboard"))}</button><button type="button" role="menuitem" data-act="download">${esc(phrase("Download as markdown"))}</button><button type="button" role="menuitem" data-act="save">${esc(phrase("Save to workspace"))}</button></span>`;
-  const pop = menu.querySelector(".cp-plan-pop");
-  const saved = `${String(plan || "").trimEnd()}\n`;
-  menu.querySelector(".cp-plan-dots").addEventListener("click", (ev) => {
-    ev.stopPropagation();
-    pop.hidden = !pop.hidden;
-    if (!pop.hidden) closeOnOutside(menu, pop);
-  });
-  pop.addEventListener("click", async (ev) => {
-    const button = ev.target.closest("[data-act]");
-    const act = button?.dataset.act;
-    if (act === "copy") {
-      if (await toClipboard(saved)) {
-        button.textContent = phrase("Copied!");
-        setTimeout(() => { button.textContent = phrase("Copy to clipboard"); pop.hidden = true; }, 900);
-      }
-      return;
-    }
-    pop.hidden = true;
-    if (act === "download") downloadPlan(planFileName(prose), saved);
-    if (act === "save") savePlanDialog(e, card, `plans/${planFileName(prose)}`, saved);
-  });
-  head.prepend(badge, name);
-  head.append(menu);
-  card.classList.add("cp-plan");
-  if (!planFolds(prose)) return;
-  const body = card.querySelector(".pb");
-  if (!body) return;
-  const preview = document.createElement("div");
-  preview.className = "cp-plan-preview md";
-  preview.innerHTML = renderMarkdown(planPreview(prose));
-  wireLinks(e.name, preview);
-  const more = document.createElement("div");
-  more.className = "cp-plan-more";
-  more.innerHTML = `<span class="cp-plan-fade" aria-hidden="true"></span><button type="button" class="cp-plan-toggle"></button>`;
-  const toggle = more.querySelector(".cp-plan-toggle");
-  const paint = () => {
-    const open = card.classList.contains("cp-plan-open");
-    toggle.textContent = open ? phrase("Collapse plan") : phrase("Expand plan");
-    toggle.setAttribute("aria-expanded", String(open));
+function planCardModel(card) {
+  const title = planTitle(card.prose) || phrase("Proposed plan");
+  return {
+    id: card.id,
+    badge: phrase("Plan"),
+    title,
+    tag: phrase("plan"),
+    say: phrase("this chat stopped, and it is waiting for you"),
+    count: card.rows.length ? phrase("{n} chats", { n: card.rows.length }) : "",
+    body: card.body,
+    folds: card.folds,
+    preview: card.preview,
+    expand: phrase("Expand plan"),
+    collapse: phrase("Collapse plan"),
+    held: card.held,
+    answered: card.answered,
+    busy: card.busy,
+    outcome: card.outcome,
+    go: card.rows.length ? phrase("Approve and open") : phrase("Approve"),
+    change: phrase("Change the plan"),
+    cost: card.rows.length ? phrase("{n} of {max} of the budget", { n: card.rows.length, max: 3 }) : "",
+    rows: structuredClone(card.rows),
+    pickers: { agent: phrase("which chat program runs this front"), model: phrase("the model this front runs on"), where: phrase("where this front runs") },
+    menu: {
+      label: phrase("Plan actions"), icon: composerIcon("ellipsis"),
+      copy: phrase("Copy to clipboard"), copied: phrase("Copied!"), download: phrase("Download as markdown"), save: phrase("Save to workspace"),
+      file: planFileName(card.prose), text: card.saved
+    },
+    saveAs: `plans/${planFileName(card.prose)}`,
+    saving: { title: phrase("Save plan to workspace"), path: phrase("File path"), cancel: phrase("Cancel"), save: phrase("Save"), failed: phrase("Could not save plan") }
   };
-  card.classList.add("cp-plan-folds");
-  toggle.addEventListener("click", () => { card.classList.toggle("cp-plan-open"); paint(); });
-  paint();
-  body.after(preview, more);
+}
+
+const showCard = (card) => card.view?.show(planCardModel(card));
+
+function loadModels(card, row) {
+  const asked = row.agent;
+  return agentModels(asked).then((rows) => {
+    if (row.agent !== asked) return;
+    fillModels(row, rows, row.want);
+    showCard(card);
+  });
+}
+
+function pickFront(card, at, field, value) {
+  const row = card.rows[at];
+  if (!row) return;
+  if (field === "agent") {
+    row.agent = value;
+    row.want = "";
+    void loadModels(card, row);
+  }
+  if (field === "model") {
+    row.model = value;
+    row.want = value;
+  }
+  if (field === "where") {
+    row.where = value;
+    pickAgent(row, row.agent);
+    void loadModels(card, row);
+  }
+  showCard(card);
+}
+
+function approvePlan(e, card) {
+  if (card.busy || card.outcome) return;
+  card.busy = true;
+  showCard(card);
+  const chosen = card.rows.map(chosenFront);
+  svCmd(e, { type: "answer", id: card.id, answers: { plan: "go", fronts: chosen } }).then((r) => {
+    if (r?.ok) {
+      e.asked.delete(card.id);
+      wearFronts(card, chosen);
+    } else card.busy = false;
+    showCard(card);
+  });
+}
+
+async function savePlanFile(e, card, path) {
+  const r = await fetch("/api/seat/plan-file", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: e.name, where: e.where, path, text: card.saved })
+  }).then((x) => x.json()).catch((wrong) => ({ error: wrong.message }));
+  if (r?.ok) e.box?.warn?.(phrase("Plan saved to workspace"), "sv-meta");
+  return r;
+}
+
+function planCardActions(e, card) {
+  return {
+    wireBody: (root) => {
+      wireLinks(e.name, root);
+      enrichMarkdown(root, { seat: e });
+    },
+    wirePreview: (root) => wireLinks(e.name, root),
+    pick: (at, field, value) => pickFront(card, at, field, value),
+    approve: () => approvePlan(e, card),
+    change: () => { e.host.querySelector(".sv-composer textarea")?.focus(); },
+    copy: () => toClipboard(card.saved),
+    save: (path) => savePlanFile(e, card, path)
+  };
+}
+
+const planCards = new WeakMap();
+
+function svPlanCard(e, ev) {
+  const prose = planWithoutFronts(ev.plan);
+  const mine = { agent: seatAgent(e), where: e?.where === "cloud" ? "cloud" : "local" };
+  const folds = planFolds(prose);
+  const card = {
+    id: ev.id, prose, saved: `${String(ev.plan || "").trimEnd()}\n`,
+    body: renderMarkdown(prose), folds, preview: folds ? renderMarkdown(planPreview(prose)) : "",
+    rows: planFronts(ev.plan).map((one) => frontRow(one, mine)),
+    held: false, answered: false, busy: false, outcome: "", view: null
+  };
+  card.view = planCardView(planCardModel(card), planCardActions(e, card));
+  for (const row of card.rows) void loadModels(card, row);
+  planCards.set(card.view.el, card);
+  e.asked.set(ev.id, card.view.el);
+  svAppend(e, card.view.el);
+  notePlan(e, ev, card);
+}
+
+function closePlanCard(e, ev) {
+  forgetPlan(e, ev.id);
+  const card = planCards.get(e.asked.get(ev.id));
+  e.asked.delete(ev.id);
+  if (!card) return;
+  card.answered = true;
+  wearFronts(card, ev.fronts);
+  card.outcome = ev.subtype === "plan_approved" ? phrase("approved") : phrase("dropped — you said it in the chat instead");
+  showCard(card);
 }
 
 function notePlan(e, ev, card) {
-  e.planAsk = { id: ev.id, plan: String(ev.plan || ""), card, sending: false };
-  if (composerLive(e)) card?.classList.add("cp-plan-held");
+  e.planAsk = { id: ev.id, plan: String(ev.plan || ""), card: card || null, sending: false };
+  if (card && composerLive(e)) {
+    card.held = true;
+    showCard(card);
+  }
   paintComposer(e);
 }
 
 function forgetPlan(e, id) {
   if (!e.planAsk || e.planAsk.id !== id) return;
-  e.planAsk.card?.classList.remove("cp-plan-held");
+  const card = e.planAsk.card;
+  if (card) {
+    card.held = false;
+    showCard(card);
+  }
   e.planAsk = null;
   paintComposer(e);
 }
 
 function implementPlan(e) {
   const held = e.planAsk;
-  const go = held?.card?.querySelector(".pf .btn.pri");
-  if (!go || go.disabled || held.sending) return;
+  const card = held?.card;
+  if (!card || card.outcome || card.busy || held.sending) return;
   held.sending = true;
   paintComposer(e);
-  go.click();
+  approvePlan(e, card);
   setTimeout(() => {
     if (e.planAsk !== held) return;
-    held.sending = !!go.disabled;
+    held.sending = !!card.busy;
     paintComposer(e);
   }, 1500);
 }
@@ -209,4 +331,4 @@ function planBanner(e) {
   return `<section class="cp-ban"><div class="cp-brow"><span class="cp-bi"></span><span class="cp-bc"><span class="cp-bstrong">${esc(phrase("Plan ready"))}</span>${title ? `<span class="cp-btitle">${esc(title)}</span>` : ""}</span></div></section>`;
 }
 
-export { PLAN_PROMPT, displayedPlan, dressPlanCard, forgetPlan, implementInNewChat, implementPlan, notePlan, planBanner, planFileName, planFolds, planPreview, planPrompt, planTitle };
+export { PLAN_PROMPT, closePlanCard, displayedPlan, forgetPlan, implementInNewChat, implementPlan, notePlan, planBanner, planFileName, planFolds, planPreview, planPrompt, planTitle, svPlanCard };

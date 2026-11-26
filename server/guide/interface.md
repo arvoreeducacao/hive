@@ -2,18 +2,11 @@
 
 Where things are on the Hive screen, every default key and how to rebind it, dictation, and every setting in the config file.
 
-## The two looks: default and New Hive
+## The look
 
-The Hive has two looks, set by the `experience` setting.
+The Hive has one look, the default look (`"experience": "raycast"`). It has the Settings window with a search field, seat notice cards, rail search with `/`, and the "Raycast" palette as the default theme. The retired values `current` and `experimental` read as `raycast`.
 
-- **Default look** (`"experience": "raycast"`, the default). It has the Settings window with a search field, seat notice cards, rail search with `/`, and the "Raycast" palette as the default theme.
-- **New Hive** (`"experience": "experimental"`). An experiment: charcoal surfaces, orange selection, square controls, sage message bubbles and pixel icons. It has its own rail (see "The rail"), and Esc closes an open chat. Its Settings window has no search field, and themes open in their own window.
-
-To switch, open Settings, go to the "Experiments" pane, and press "Try new Hive" or "Leave New Hive". The choice is saved for this installation and all its windows. It does not change anyone else's settings.
-
-If New Hive fails, open the Hive with `?experience=raycast` in its address, or remove `experience` from the config file. The pane also has the link "Open Hive without New Hive". Recovery does not close any chat.
-
-`experienceOff` turns off single behaviors: `resizeInfo` (the drag handles of an open chat), and in New Hive `imageZoom` (zoom tools in the picture preview) and `titleClick` (click a chat title to rename it). It has no UI.
+`experienceOff` turns off single behaviors: `resizeInfo` (the drag handles of an open chat). It has no UI. The retired names `imageZoom` and `titleClick` are ignored.
 
 ## The screen at a glance
 
@@ -23,7 +16,7 @@ If New Hive fails, open the Hive with `?experience=raycast` in its address, or r
 - **The strip**: the block number, the block label ("what this block is about", click to rewrite), the seats, "plane", and the full-screen button. In the default look the strip sits inside the top bar.
 - **The canvas**: the seats of the block you are on.
 - **The footer**: the plan-limits chip (see the "providers" topic).
-- **Settings**: open it with ⌘, (macOS) or Ctrl+, (Linux/Windows), or `⋯`, "shortcuts and settings". Its panes are "Keyboard", "Appearance" ("Look" in New Hive), "Performance", "Experiments", "Dictation", "Your character", "Notices", "The screen", "The conversation" and "Slack". In the default look, type in "Search a setting — theme, font, shortcut, sound…" to filter the panes, and ⌘K / Ctrl+K lists the pane's actions.
+- **Settings**: open it with ⌘, (macOS) or Ctrl+, (Linux/Windows), or `⋯`, "shortcuts and settings". Its panes are "Keyboard", "Appearance", "Performance", "Dictation", "Your character", "Notices", "The screen", "The conversation" and "Slack". In the default look, type in "Search a setting — theme, font, shortcut, sound…" to filter the panes, and ⌘K / Ctrl+K lists the pane's actions.
 
 The app menu has "View" (zoom, reload, dev tools, full screen) and "Hive": "Bring to front", "Open in the browser", "Config file" (opens the config file), "Data folder", and "Quit" on Linux and Windows.
 
@@ -32,8 +25,6 @@ The app menu has "View" (zoom, reload, dev tools, full screen) and "Hive": "Brin
 The rail on the left lists every session. In the default look it groups seats by block, shows the key that jumps to each block and what each seat is doing, has a local/cloud filter at the top, and `/` searches it (↑ ↓ move, Enter opens, Esc closes the search). The team sits below your seats (see the "team-and-cloud" topic).
 
 The rail button collapses and expands it ("collapse the sidebar" / "expand the sidebar"). The app window remembers this.
-
-In New Hive the rail shows "New chat", "Groups" (your blocks with a dot per seat), "Shortcuts" ("Tasks" with the open count, "Shelf"), "Team", the worktree count, the environment health and "Collapse". Hovering an item shows a card with details. On first use it starts collapsed.
 
 ## Blocks, seats and workspaces
 
@@ -45,6 +36,7 @@ Blocks live in workspaces. A workspace is a subject with its own colour and as m
 - To see every workspace and block at once, open the floors with the `arrange` key or the workspace name at the top left. In the floors: ← → move between seats, Shift+↑ ↓ change floor, Space picks a seat up and drops it, Enter goes to it, Esc closes.
 - The palette has "new workspace", "rename this workspace" and "close the workspace you are on".
 - Drag a seat by its title onto another seat to swap them.
+- Drag a chat in the rail onto the name of another block in the rail to move it there. When that block is full, a list of its chats opens: drop on the chat that should leave and the two trade places; dropping on the name trades with its last chat. Dropping it on another chat or on a composer still hands it over as context.
 - Hold the modifier of the seat, block or workspace keys for one second to see their numbers on screen (only when there are two or more).
 
 ## Layouts, focus mode and full screen
@@ -55,13 +47,13 @@ To change how seats sit, open Settings, "The screen", "how the seats sit" (`layo
 - "side by side, in one row" (`row`): the whole block in one row.
 - "every chat in one strip, scrolling sideways" (`strip`).
 
-On a narrow window, grid and row both settle into one column. Outside New Hive the status of a chat starts folded; the minus on the card brings it back.
+On a narrow window, grid and row both settle into one column. The status of a chat starts folded; the minus on the card brings it back.
 
 **Focus mode** keeps the chat in focus in the middle and the rest of the block beside it. Turn it on with the palette row "focus mode" (it then reads "leave focus mode") or the `focusMode` key, which has no default. The app window remembers it.
 
 **Open a chat full screen** with the `fullscreen` key (⌘Enter on macOS, Ctrl+Enter on Linux/Windows); Esc leaves. Inside a message box the same keys stop the turn and send instead, so press it with the box out of focus. The full-screen button in the strip ("full screen — the chat alone on the screen") takes the whole monitor; Esc or "leave" exits.
 
-**Resize an open chat**: drag the thin handle between its info side and the conversation (also the thread, pane and info height handles). Double-click restores the default. With the handle focused, the arrows move it 10 px and Shift+arrows 40 px. The sizes go to `infoWidth`, `threadWidth`, `paneWidth` and `infoHeight`.
+**Resize an open chat**: drag the thin handle between its info side and the conversation (also the thread and info height handles). Double-click restores the default. With the handle focused, the arrows move it 10 px and Shift+arrows 40 px. The sizes go to `infoWidth`, `threadWidth` and `infoHeight`.
 
 **A chat in its own window**: the `detach` key (no default; leader chord `o`). Drag it out of that window to put it back in the grid.
 
@@ -206,8 +198,7 @@ Files live in `~/.hive/stt/`. Dictation runs on macOS (Apple silicon and Intel),
 
 A theme paints the whole app and every terminal. The choice is `theme` (a name); your own palettes are `themes`.
 
-- **Default look**: open Settings, "Appearance". Pick a theme from the list and press "Wear" (Enter). "Share" (⌘⇧C / Ctrl+Shift+C) copies it as JSON, "Paste a theme" (⌘V / Ctrl+V) takes one in, "New theme from this one" (⌥N / Alt+N) opens the editor, and your own themes have "Edit" and "Delete". ⌘K / Ctrl+K lists the actions.
-- **New Hive**: open `⋯`, "themes". Click a theme to wear it; "share", "new theme from this one" and "paste a theme" are below.
+- Open Settings, "Appearance". Pick a theme from the list and press "Wear" (Enter). "Share" (⌘⇧C / Ctrl+Shift+C) copies it as JSON, "Paste a theme" (⌘V / Ctrl+V) takes one in, "New theme from this one" (⌥N / Alt+N) opens the editor, and your own themes have "Edit" and "Delete". ⌘K / Ctrl+K lists the actions.
 - The editor has "name", "The app" and "The terminal" colours; changes show live. "save theme" keeps it; "cancel (esc)" restores.
 
 There are nine built-in themes, among them Hive (default), Solarized Light, Tokyo Night, Gruvbox Dark, Nord, Dracula and Rosé Pine. The default look adds "Hive Classic" (the older Hive palette) and shows Hive as "Raycast". The `themes` key (no direct default; leader shift+t) opens them.
@@ -222,7 +213,7 @@ A shared theme is JSON: `{ "hive-theme": 1, "name": "…", "ui": { … }, "termi
 
 ## Fonts, language, performance and dim
 
-Settings, "Appearance" ("Look" in New Hive), holds `font`; leave a field empty for the default.
+Settings, "Appearance", holds `font`; leave a field empty for the default.
 
 - "interface font" (`font.sans`) and "monospace and terminal font" (`font.mono`): font stacks. The default look uses Inter and Geist Mono while these are at their defaults.
 - "terminal size" (`font.terminalSize`, 8–32, default 12).
@@ -276,8 +267,8 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 
 | Key | Values (default) | UI |
 | --- | --- | --- |
-| `experience` | `raycast`, `experimental` (`raycast`) | Experiments, "Try new Hive" |
-| `experienceOff` | list of `resizeInfo`, `imageZoom`, `titleClick` (`[]`) | none |
+| `experience` | `raycast` (`raycast`) | none |
+| `experienceOff` | list of `resizeInfo` (`[]`) | none |
 | `look` | `classic`, `dimension` (`classic`) | Appearance, "look" |
 | `layout` | `grid`, `row`, `strip` (`grid`) | The screen, "how the seats sit" |
 | `blockSize` | 2–6 (4) | The screen, "seats in a block" |
@@ -291,7 +282,6 @@ All settings live in `~/.hive/config.jsonc` (`$HIVE_HOME/config.jsonc` when `HIV
 | `infoWidth` | 240–1200 px (380) | drag the open chat's side handle |
 | `infoHeight` | `null` or 60–2000 px (`null`) | drag the height handle |
 | `threadWidth` | 240–1200 px (392) | drag the thread handle |
-| `paneWidth` | `null` or 320–2400 px (`null`) | drag the pane handle |
 | `splitsLearned` | true/false (false) | set after your first resize |
 
 ## Settings reference: notices, keys, character, dictation, updates
@@ -351,9 +341,7 @@ The Settings "Slack" pane connects this Hive to a Slack bot (see the "team-and-c
 - `app/src/app/preferences.js`
 - `app/src/app/palette.js`
 - `app/src/app/seat-layout.js`
-- `app/src/app/experience-controller.js`
 - `app/src/app/experience-behaviors.js`
-- `app/src/app/next-rail.js`
 - `app/src/app/plane.js`
 - `app/src/app/chimes-and-notices.js`
 - `app/src/app/hud.js`

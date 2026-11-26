@@ -1,16 +1,14 @@
 import { arrangeOn, openArrange, paintArrange, render } from "./arrange.js";
 import { lentFace } from "./avatars.js";
-import { blockNumber, blocksOf, canGiveBack, forgetSeat, giveSeatBack, hideSeat, itemOf, labelOf, moveSeatToBlock, moveToNewBlock, ofBlock, openSpace, seatsOf, shutSpace, soloSeat, spaceName, spaceOf } from "./blocks.js";
+import { blockNumber, blocksOf, canGiveBack, forgetSeat, giveSeatBack, hideSeat, itemOf, labelOf, moveSeatToBlock, moveToNewBlock, ofBlock, openSpace, seatsOf, shutSpace, soloSeat, spaceName, spaceOf, subchatOf } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
-import { fitChipRow } from "./chip-row.js";
 import { artifactTabOf, canopy, drivingNow, markArtRows, openBrowser, openCockpit, openKeptPage, pagesOfChat, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintFrontsOfChat, paintWebChipOfChat, paintWebOfChat, showingArtifact, startDevice, wireLinks } from "./chat-and-panes.js";
 import { paintName, retitle, retitlingNow, startRename } from "./chat-name.js";
 import { branchPlaceOf } from "./draft-place.js";
 import { openDraftOnBranchOf } from "./draft-seat.js";
 import { mountStructured } from "./chat-stretches.js";
-import { $, GLYPH, LABEL, PILL_LABEL, esc, experienceNext, markFinishSeen, paintFold, phrase, previewOf, raycastOn, renderMarkdown, saveUnfolded, sideShut, solidMounts, st, statusFolded, svgIcon, unfolded } from "./core.js";
-import { behaviorOn } from "./experience.js";
-import { closeTile, focusSeat, goToBlock, goToSpace, openTile, pull, takeKeyboard } from "./focus-navigation.js";
+import { $, GLYPH, LABEL, PILL_LABEL, esc, markFinishSeen, paintFold, phrase, previewOf, raycastOn, renderMarkdown, saveUnfolded, sideShut, solidMounts, st, statusFolded, svgIcon, unfolded } from "./core.js";
+import { closeTile, focusSeat, goTo, goToBlock, goToSpace, openTile, pull, takeKeyboard } from "./focus-navigation.js";
 import { keyHint, keyParts, keyTip, liveBadge, liveOf, liveTitle, pool, receiving, tiles } from "./leader-key.js";
 import { archiveSeatNow, cancelParking, parkWhen, wakeParkedNow } from "./mirror.js";
 import { paneOnField, planeShown } from "./plane.js";
@@ -20,7 +18,7 @@ import { appendLeftovers, leftoversOf, worktreesThatStayed, worktreesToDrop } fr
 import { WHERE_ICON, knock, shortBranch } from "./seat-layout.js";
 import { eraseRow, marksMenuRows } from "./seat-marks-menu.js";
 import { SHELF_TABS } from "./shelf.js";
-import { openPrInASeat } from "./page-in-a-seat.js";
+import { paintSubchatHead } from "./subchat-head.js";
 import { paintChatBarOfChat } from "./chat-bar.js";
 import { copyRowsOf } from "./chat-details.js";
 import { paintTileExtras } from "./tile-extras.js";
@@ -32,6 +30,7 @@ import { mount, observer, onWheel, paintWellKeys, reconnect, toClipboard } from 
 import { getTerminal } from "./terminal-pool.js";
 import { deleteBranch, exitReview, hidePr, mergePr, mergeState, movePrPanel, moveThreadPanel, openPrs, openThreadOf, paintPrs, prsOnScreen, pullPrs, rerunChecks, reviewInChat } from "./thread.js";
 import { canDetach, closeSeat, detachToWindow, seatDrag } from "./tiles.js";
+import { dropClass, putData, putText } from "./dom-writes.js";
 
 st.seatMenuFor = "";
 st.menuCap = "";
@@ -689,12 +688,10 @@ function createTile(s) {
     <div class="well" data-name="${esc(s.name)}"><span class="badge">${phrase("live terminal")}</span><div class="cover"><span>${phrase("click or {n} to type in this session", { n: keyLabel(st.keys.type) })}</span></div></div>
     <div class="x-split" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${phrase("width of the chat details")}" title="${phrase("drag or use the arrows to resize the chat details — double-click restores them")}"></div>
     <div class="x-split-thread" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${phrase("width of the slack thread")}" title="${phrase("drag or use the arrows to resize the thread — double-click restores it")}"></div>
-    <div class="x-split-pane" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${phrase("Width of the pane")}" title="${phrase("Drag or use the arrows to resize the pane — double-click restores it")}"></div>
     <div class="y-split" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="${phrase("height of the chat details")}" title="${phrase("drag or use the arrows to share the height between the details and the chat — double-click restores it")}"></div>`;
   el.addEventListener("pointerdown", () => { if (focusSeat(s.name)) render(); });
   const side = el.querySelector(".side");
   side.addEventListener("click", (ev) => {
-    if (experienceNext() && st.open !== s.name) return;
     for (const node of ev.composedPath()) {
       if (node === side) break;
       if (node.$$click || node.tagName === "BUTTON") return;
@@ -863,23 +860,22 @@ function updateOpening(el, it, pos) {
 }
 
 function update(el, s, pos) {
-  el.classList.remove("opening");
+  dropClass(el, "opening");
   const side = tileSides.get(el);
   const was = el.dataset.state;
   if (was && was !== "needs" && s.state === "needs") knock(el);
-  el.dataset.state = s.state;
+  putData(el, "state", s.state);
   el.classList.toggle("focused", pos === st.focus);
   el.classList.toggle("open", st.open === s.name);
   el.classList.toggle("fielded", paneOnField(s.name));
   el.classList.toggle("anon", !!s.anon);
-  el.classList.toggle("composer-ready", !!el.querySelector(".sv-composer.ready"));
   if (raycastOn()) side.show(tileViewModel(s, { pos }));
   else side.show(tileViewModel(s));
-  fitChipsOf(el);
   paintFold(s.name, el);
   el.classList.toggle("typing", st.typing === s.name);
   paintName(el, s);
-  nodeOf(el, ".badge").textContent = receiving.get(s.name) || (st.typing === s.name ? phrase("typing here") : (s.verb ? `${s.verb}… ${s.measure}` : phrase("live terminal")));
+  paintSubchatHead(el, s);
+  putText(nodeOf(el, ".badge"), receiving.get(s.name) || (st.typing === s.name ? phrase("typing here") : (s.verb ? `${s.verb}… ${s.measure}` : phrase("live terminal"))));
   paintWellKeys(el, s);
   paintCanopyOfChat(el, s);
   paintDeviceChipOfChat(el, s);
@@ -927,7 +923,7 @@ function tileChipsModel(s) {
   const out = st.lentHere.find((k) => k.seat === s.name);
   if (out) chips.push({
     key: "lent", take: s.name, title: phrase("take the keyboard back"),
-    html: lentFace(out.with) + phrase(experienceNext() ? "{n} · take back" : "{n} at the keyboard · take it back", { n: esc(out.with) })
+    html: lentFace(out.with) + phrase("{n} at the keyboard · take it back", { n: esc(out.with) })
   });
   const pr = prsOnCard(s.name).find((one) => !prIsGone(one));
   if (pr) {
@@ -1081,9 +1077,17 @@ function usingOf(s) {
   return null;
 }
 
+function openerCrumb(s) {
+  const by = subchatOf(s.name);
+  if (!by) return null;
+  const opener = st.data.sessions.find((one) => one.name === by);
+  return { title: opener?.title || by, hint: phrase("{who} opened this chat — click to go back to it", { who: opener?.title || by }) };
+}
+
 function tileViewModel(s, raycast = null) {
   const live = liveOf(s);
   return {
+    opener: openerCrumb(s),
     sub: {
       text: s.anon ? phrase("this computer · nothing kept") : s.errand ? `${s.errand} · ${s.name}` : `${s.name}${s.model ? " · " + s.model : ""}`,
       ofErrand: !!s.errand,
@@ -1136,11 +1140,6 @@ function tileViewModel(s, raycast = null) {
 function tileActions(s) {
   return {
     rename: () => startRename(s.name),
-    titleClick: (ev) => {
-      if (!behaviorOn("titleClick")) return;
-      ev.stopPropagation();
-      startRename(s.name);
-    },
     browser: () => openBrowser(s.name),
     phone: () => startDevice(s.name),
     fold: () => toggleFold(s.name),
@@ -1159,6 +1158,12 @@ function tileActions(s) {
     },
     openSeat: () => openTile(s.name),
     expand: () => (st.open === s.name ? closeTile() : openTile(s.name)),
+    goToOpener: () => {
+      const by = subchatOf(s.name);
+      if (!by) return;
+      if (st.open) closeTile();
+      goTo(by);
+    },
     openThread: (key) => openThreadOf(s.name, key),
     openPage: (key) => {
       const one = pagesOfChat(s.name).find((x) => x.key === key);
@@ -1183,45 +1188,11 @@ function tileActions(s) {
   };
 }
 
-const HEADER_HEIGHTS = { "t-head": "--t-head-h", "t-state": "--t-state-h", "t-chips": "--t-chips-h" };
-
-function measureHeader(side) {
-  const heights = new ResizeObserver((entries) => {
-    for (const { target } of entries) {
-      const part = Object.keys(HEADER_HEIGHTS).find((name) => target.classList.contains(name));
-      side.style.setProperty(HEADER_HEIGHTS[part], `${target.offsetHeight}px`);
-    }
-  });
-  for (const part of side.querySelectorAll(":scope > :is(.t-head, .t-state, .t-chips)")) heights.observe(part);
-}
-
-const chipsFit = (el) => experienceNext() && !el.classList.contains("open");
-
-function fitChipsOf(el) {
-  const row = nodeOf(el, ".t-chips");
-  if (row) fitChipRow(row, chipsFit(el));
-}
-
-let chipRows = null;
-
-function watchChipRow(row) {
-  chipRows ||= new ResizeObserver((entries) => {
-    for (const { target } of entries) {
-      const el = target.closest(".tile");
-      if (el) fitChipRow(target, chipsFit(el), { resized: true });
-    }
-  });
-  chipRows.observe(row);
-}
-
 function tileSideOf(el, s) {
   let side = tileSides.get(el);
   if (!side) {
     side = st.tileSide(el.querySelector(".side"), tileViewModel(s), tileActions(s));
     tileSides.set(el, side);
-    measureHeader(el.querySelector(".side"));
-    const row = el.querySelector(".side .t-chips");
-    if (row) watchChipRow(row);
     tileNodes.delete(el);
   }
   return side;
@@ -1530,7 +1501,6 @@ function goToPr(p) {
   if (prIsGone(p)) markLandedSeen([p.key]);
   closePrPop();
   if (finishOn()) closeFinish();
-  if (experienceNext()) return openPrInASeat(p);
   if (raycastOn() && !planeShown() && chatOfPr(p)) {
     if (st.open !== p.session) openTile(p.session, false);
     return openPrTab(p.session, p.key);

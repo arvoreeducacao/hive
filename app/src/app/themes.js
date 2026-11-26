@@ -24,7 +24,7 @@ import { capsOf, dressHost, followRaycast, leavePanel, registerPanel, undressHos
 import { togglePlane } from "./plane.js";
 import { ask } from "./pod.js";
 import { setLanguage, setPet } from "./preferences.js";
-import { paintAutocompactReach, paintContextUsage, setAutoUpdateAgents, setAutocompact, setCalm, setContextUsage, setDiaryDays, setKeepAwake, setPref, setQuietDays } from "./pure-helpers.js";
+import { paintAutocompactReach, paintContextUsage, setAutoUpdateAgents, setAutocompact, setCalm, setCodeMode, setContextUsage, setDiaryDays, setKeepAwake, setPref, setQuietDays } from "./pure-helpers.js";
 import { askNewChat, discardDraft, draftInFocus } from "./draft-seat.js";
 import { setBlockSize, setFocusMode, setLayout } from "./seat-layout.js";
 import { closePrPop, placePrPop, prOfChat, prPopOpen, togglePrPop } from "./seat-menu.js";
@@ -748,6 +748,8 @@ $("f-size").addEventListener("change", (e) => setBlockSize(e.target.value));
 $("f-compact").addEventListener("change", (e) => setAutocompact(e.target.value));
 
 $("t-context-usage").addEventListener("click", () => setContextUsage(!st.contextUsage));
+
+$("t-code-mode").addEventListener("click", () => setCodeMode(!st.codeMode));
 
 $("t-agent-updates").addEventListener("click", () => setAutoUpdateAgents(st.autoUpdateAgents === false));
 

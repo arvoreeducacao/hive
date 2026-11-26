@@ -92,7 +92,7 @@ test("closing a picker does not depend on a handle it may not hold", () => {
   closeSeatPicker({});
   assert.equal(document.querySelectorAll(".sv-menu").length, 0, "the sweep is what makes a picker that outlived its bookkeeping still close");
   assert.equal(document.querySelectorAll(".sv-pill.open").length, 0);
-  assert.doesNotMatch(slice("function closeSeatPicker(e, cancel = false)", "function clickLeavesPicker"), /removeEventListener/);
+  assert.doesNotMatch(slice("function closeSeatPicker(e)", "function clickLeavesPicker"), /removeEventListener/);
 });
 
 test("a seat view that goes away takes its picker with it", () => {
@@ -119,7 +119,7 @@ test("the sweep still asks the document, so a stray menu cannot survive it", () 
   assert.equal(document.querySelectorAll(".sv-menu").length, 0);
   assert.match(
     slice('document.addEventListener("mousedown"', "function pickerRow("),
-    /for \(const e of structPool\.values\(\)\) if \(e\.menu\) closeSeatPicker\(e, cancel\);/,
+    /for \(const e of structPool\.values\(\)\) if \(e\.menu\) closeSeatPicker\(e\);/,
     "the sweep leaves the seats holding a handle to a menu that is no longer on the screen"
   );
 });

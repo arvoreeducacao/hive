@@ -35,8 +35,7 @@
 .ctx-chip[data-kind=pr][data-state=closed] { --cc: var(--cc-pr-closed); }
 
 /* older looks style .said-img and bubble links themselves; the chip has to win. */
-:is(.sv-user, .sv-qitem) .ctx-chip.said-img, body.experience-next .sv-user .ctx-chip.said-img { padding: 0 .5em; font: inherit; font-size: .86em; font-weight: 500; color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); background: color-mix(in oklab, var(--cc) 11%, transparent); border-radius: .5em; }
-body.experience-next .sv-user a.ctx-chip { color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); text-decoration: none; }
+:is(.sv-user, .sv-qitem) .ctx-chip.said-img { padding: 0 .5em; font: inherit; font-size: .86em; font-weight: 500; color: color-mix(in oklab, var(--cc) 22%, var(--cc-base)); background: color-mix(in oklab, var(--cc) 11%, transparent); border-radius: .5em; }
 
 /* the box is a textarea with this layer drawn under it: padding or border here would shift the caret. */
 .sv-ink .ink-chip { --cc: var(--cc-path); color: color-mix(in oklab, var(--cc) 30%, var(--tx-fg, var(--txt))); background: color-mix(in oklab, var(--cc) 14%, transparent); border-radius: 4px; box-shadow: 0 0 0 1px color-mix(in oklab, var(--cc) 34%, transparent); }

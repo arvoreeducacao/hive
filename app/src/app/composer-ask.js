@@ -1,6 +1,7 @@
 import { esc, phrase, renderMarkdown } from "./core.js";
 import { composerIcon } from "./composer-icons.js";
 import { composerLive, onComposerMode, paintComposer } from "./composer-modes.js";
+import { answerQuestion, sumQuestion } from "./question-card.js";
 import { structPool } from "./structured-seats.js";
 
 const AUTO_ADVANCE_MS = 200;
@@ -143,10 +144,7 @@ function submitAsk(e) {
     if (e.ask !== ask) return;
     if (r?.ok) {
       ask.submitted = true;
-      if (r.card) {
-        r.card.classList.add("answered");
-        r.card.inert = true;
-      }
+      if (r.card) answerQuestion(r.card);
       return closeAsk(e, { id: ask.id, subtype: "question_answered", answers }, r.card);
     }
     ask.sending = false;
@@ -250,14 +248,7 @@ function closeAsk(e, ev, card) {
     if (Array.isArray(got)) return got.join(", ");
     return got ? String(got) : phrase("answered");
   };
-  let sum = card.querySelector(":scope > .qsum");
-  if (!sum) {
-    sum = document.createElement("div");
-    sum.className = "qsum";
-    card.appendChild(sum);
-  }
-  card.classList.add("summed");
-  sum.innerHTML = questions.map((q) => `<div class="qsum-row"><span class="qsum-q">${esc(q.question || q.header || "")}</span><span class="qsum-to" aria-hidden="true">→</span><span class="qsum-a">${esc(said(q))}</span></div>`).join("");
+  sumQuestion(card, questions.map((q) => ({ question: q.question || q.header || "", answer: said(q) })));
 }
 
 function answerDigit(ev) {

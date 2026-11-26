@@ -1,5 +1,5 @@
 import { isFaceKey, isRetiredWear, parseWear, wearKey } from "../assets/avatar/avatar.mjs";
-import { AUTOCOMPACT_AUTO, AUTOCOMPACT_FLOOR_K, AUTOCOMPACT_CEILING_K, PROMPT_SUGGESTIONS_ENV, autocompactThousands } from "../../server/engine/agents.mjs";
+import { AUTOCOMPACT_AUTO, AUTOCOMPACT_FLOOR_K, AUTOCOMPACT_CEILING_K, PROMPT_SUGGESTIONS_ENV, CODE_MODE_ENV, autocompactThousands } from "../../server/engine/agents.mjs";
 import { STT_DEFAULT_MODEL, STT_MODELS } from "./stt-download.mjs";
 import { cleanQuietDays } from "./quiet-seats.mjs";
 import { cleanDiaryDays } from "./diary-prune.mjs";
@@ -171,15 +171,15 @@ export const GAZE_DEFAULT = "screen";
 export const LOOK_CHOICES = ["classic", "dimension"];
 export const LOOK_DEFAULT = "classic";
 export const EXPERIENCE_DEFAULT = "raycast";
-export const EXPERIENCE_CHOICES = ["raycast", "experimental"];
-const EXPERIENCES_RETIRED = ["current"];
-export const EXPERIENCE_BEHAVIORS = ["resizeInfo", "imageZoom", "titleClick"];
+export const EXPERIENCE_CHOICES = ["raycast"];
+const EXPERIENCES_RETIRED = ["current", "experimental"];
+export const EXPERIENCE_BEHAVIORS = ["resizeInfo"];
+const BEHAVIORS_RETIRED = ["imageZoom", "titleClick"];
 export const INFO_WIDTH_RANGE = [240, 1200];
 export const INFO_WIDTH_DEFAULT = 380;
 export const INFO_HEIGHT_RANGE = [60, 2000];
 export const THREAD_WIDTH_RANGE = [240, 1200];
 export const THREAD_WIDTH_DEFAULT = 392;
-export const PANE_WIDTH_RANGE = [320, 2400];
 export const TOOL_CALLS_CHOICES = ["all", "failed", "none", "zen"];
 export const TOOL_CALLS_DEFAULT = "all";
 export const TIME_FORMAT_CHOICES = ["system", "12h", "24h"];
@@ -199,12 +199,16 @@ export function contextUsageEnv(config) {
 
 export const LIMITS_FOOT_DEFAULT = false;
 
-export { PROMPT_SUGGESTIONS_ENV };
+export { PROMPT_SUGGESTIONS_ENV, CODE_MODE_ENV };
 
-export const SEAT_TUNING_ENVS = [CONTEXT_USAGE_ENV, PROMPT_SUGGESTIONS_ENV];
+export const SEAT_TUNING_ENVS = [CONTEXT_USAGE_ENV, PROMPT_SUGGESTIONS_ENV, CODE_MODE_ENV];
 
 export function seatTuningEnv(config) {
-  return { ...contextUsageEnv(config), ...(config?.promptSuggestions ? { [PROMPT_SUGGESTIONS_ENV]: "1" } : {}) };
+  return {
+    ...contextUsageEnv(config),
+    ...(config?.promptSuggestions ? { [PROMPT_SUGGESTIONS_ENV]: "1" } : {}),
+    ...(config?.codeMode ? { [CODE_MODE_ENV]: "1" } : {})
+  };
 }
 
 export function cleanFlag(raw, name, where, problems, fallback = true) {
@@ -344,7 +348,7 @@ export function cleanExperience(raw, where, problems) {
 
 export function cleanExperienceOff(raw, where, problems) {
   if (raw === undefined) return [];
-  if (Array.isArray(raw) && raw.every((one) => EXPERIENCE_BEHAVIORS.includes(one))) return [...new Set(raw)];
+  if (Array.isArray(raw) && raw.every((one) => EXPERIENCE_BEHAVIORS.includes(one) || BEHAVIORS_RETIRED.includes(one))) return [...new Set(raw.filter((one) => EXPERIENCE_BEHAVIORS.includes(one)))];
   problems.push(`${where}: experienceOff should list only ${EXPERIENCE_BEHAVIORS.join(", ")}`);
   return [];
 }
@@ -362,14 +366,6 @@ export function cleanInfoHeight(raw, where, problems) {
   const [low, high] = INFO_HEIGHT_RANGE;
   if (Number.isInteger(raw) && raw >= low && raw <= high) return raw;
   problems.push(`${where}: infoHeight should be null, for the natural height, or a whole number of pixels from ${low} to ${high}`);
-  return null;
-}
-
-export function cleanPaneWidth(raw, where, problems) {
-  if (raw === undefined || raw === null) return null;
-  const [low, high] = PANE_WIDTH_RANGE;
-  if (Number.isInteger(raw) && raw >= low && raw <= high) return raw;
-  problems.push(`${where}: paneWidth should be null, for the natural width, or a whole number of pixels from ${low} to ${high}`);
   return null;
 }
 
@@ -712,7 +708,6 @@ export function cleanPatch(patch) {
   if (patch.infoWidth !== undefined) clean.infoWidth = cleanInfoWidth(patch.infoWidth, "patch", problems);
   if (patch.infoHeight !== undefined) clean.infoHeight = cleanInfoHeight(patch.infoHeight, "patch", problems);
   if (patch.threadWidth !== undefined) clean.threadWidth = cleanThreadWidth(patch.threadWidth, "patch", problems);
-  if (patch.paneWidth !== undefined) clean.paneWidth = cleanPaneWidth(patch.paneWidth, "patch", problems);
   if (patch.splitsLearned !== undefined) clean.splitsLearned = cleanFlag(patch.splitsLearned, "splitsLearned", "patch", problems, false);
   if (patch.look !== undefined) clean.look = cleanLook(patch.look, "patch", problems);
   if (patch.theme !== undefined) clean.theme = cleanThemeName(patch.theme, "patch", problems);
@@ -735,6 +730,7 @@ export function cleanPatch(patch) {
   if (patch.screenReaderAnnouncements !== undefined) clean.screenReaderAnnouncements = cleanScreenReader(patch.screenReaderAnnouncements, "patch", problems);
   if (patch.screenReaderWindowTitle !== undefined) clean.screenReaderWindowTitle = cleanFlag(patch.screenReaderWindowTitle, "screenReaderWindowTitle", "patch", problems, false);
   if (patch.promptSuggestions !== undefined) clean.promptSuggestions = cleanFlag(patch.promptSuggestions, "promptSuggestions", "patch", problems, false);
+  if (patch.codeMode !== undefined) clean.codeMode = cleanFlag(patch.codeMode, "codeMode", "patch", problems, false);
   if (patch.autoUpdateAgents !== undefined) clean.autoUpdateAgents = cleanFlag(patch.autoUpdateAgents, "autoUpdateAgents", "patch", problems, true);
   if (patch.keepAwakeWhileAgentsWork !== undefined) clean.keepAwakeWhileAgentsWork = cleanFlag(patch.keepAwakeWhileAgentsWork, "keepAwakeWhileAgentsWork", "patch", problems, true);
   if (patch.closeQuietAfterDays !== undefined) clean.closeQuietAfterDays = cleanQuietDays(patch.closeQuietAfterDays, "patch", problems);

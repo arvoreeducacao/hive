@@ -26,7 +26,6 @@ function tile(world = {}) {
     const esc = (t) => String(t);
     const LABEL = { idle: "idle", needs: "needs you", working: "working" };
     const PILL_LABEL = { idle: "idle", needs: "needs input", working: "working" };
-    const experienceNext = () => !!world.next;
     const drivingNow = (name) => (world.driving || []).includes(name);
     const GLYPH = { idle: "g-idle", needs: "g-needs", working: "g-working" };
     const WHERE_ICON = { local: "#i-local", cloud: "#i-cloud" };
@@ -59,12 +58,21 @@ function tile(world = {}) {
       typing: world.typing || null,
       threadChat: world.threadChat || null,
       reviewChat: world.reviewChat || null,
-      openPr: world.openPr || ""
+      openPr: world.openPr || "",
+      data: { sessions: world.sessions || [] }
     };
+    const subchatOf = (name) => (world.openers || {})[name] || "";
     ${slice("function tileChipsModel(s) {", "function tileActions(s) {")}
     return tileViewModel(seat);
   `)(world, { name: "ana", where: "local", state: "idle", when: "2m", ...(world.seat || {}) });
 }
+
+test("a subchat's head starts with the chat that opened it, and a chat nobody opened has no such crumb", () => {
+  const kid = tile({ openers: { ana: "bucket" }, sessions: [{ name: "bucket", title: "Migração de Bucket" }] });
+  assert.equal(kid.opener.title, "Migração de Bucket");
+  assert.equal(kid.opener.hint, "Migração de Bucket opened this chat — click to go back to it");
+  assert.equal(tile({}).opener, null);
+});
 
 test("the head says the seat and its model, and an errand says what it is part of", () => {
   const plain = tile({ seat: { model: "opus" } });
@@ -359,10 +367,9 @@ test("the browser or phone sign shows only while the seat is using it, and the b
   assert.equal(tile({ driving: ["ana"], seat: { device: { busy: true } } }).using.kind, "browser");
 });
 
-test("in the new hive the lent keyboard says who has it in two words, the old one keeps the long line", () => {
-  const lent = (next) => tile({ next, lentHere: [{ seat: "ana", with: "jonas" }] }).chips.find((c) => c.key === "lent").html;
-  assert.match(lent(true), /jonas · take back$/);
-  assert.match(lent(false), /jonas at the keyboard · take it back$/);
+test("the lent keyboard says who has it and how to take it back", () => {
+  const lent = tile({ lentHere: [{ seat: "ana", with: "jonas" }] }).chips.find((c) => c.key === "lent").html;
+  assert.match(lent, /jonas at the keyboard · take it back$/);
 });
 
 test("the grip opens the chat from the grid and takes it back to the grid from full screen", () => {

@@ -10,23 +10,20 @@ const CHAT_MIN_HEIGHT = 160;
 const HEAD_FALLBACK = 96;
 const GAP = 12;
 const SAVE_AFTER = 400;
-const NARROW = 860;
 
 const PANED = ["arting", "reviewing", "threading"];
 
 export function createExperienceBehaviors({ document, save }) {
   let off = new Set();
   let learned = false;
-  const size = { infoWidth: INFO_DEFAULT, threadWidth: THREAD_DEFAULT, infoHeight: null, paneWidth: null };
+  const size = { infoWidth: INFO_DEFAULT, threadWidth: THREAD_DEFAULT, infoHeight: null };
   let saving = 0;
   let pending = {};
   let drag = null;
 
   const body = () => document.body;
-  const behaviorOn = (name) => body().classList.contains("experience-next") && !off.has(name);
   const resizeOn = () => !off.has("resizeInfo");
   const paned = (tile) => PANED.some((mode) => tile.classList.contains(mode));
-  const chatBesidePane = (tile) => tile.classList.contains("arting") && body().classList.contains("experience-next") && (document.defaultView?.innerWidth ?? 0) > NARROW;
   const width = (tile) => tile?.clientWidth || 0;
   const height = (tile) => tile?.clientHeight || 0;
 
@@ -50,7 +47,7 @@ export function createExperienceBehaviors({ document, save }) {
       fallback: INFO_DEFAULT,
       limits(tile) {
         if (!paned(tile)) return { low: INFO_MIN, high: Math.max(INFO_MIN, width(tile) - WELL_MIN) };
-        const rest = tile.classList.contains("threading") ? GAP + Math.max(THREAD_MIN, size.threadWidth) + GAP + CHAT_MIN : chatBesidePane(tile) ? GAP + CHAT_MIN + GAP + Math.max(PANE_MIN, size.paneWidth ?? PANE_MIN) : GAP + PANE_MIN;
+        const rest = tile.classList.contains("threading") ? GAP + Math.max(THREAD_MIN, size.threadWidth) + GAP + CHAT_MIN : GAP + PANE_MIN;
         return { low: INFO_MIN_BESIDE_PANE, high: Math.max(INFO_MIN_BESIDE_PANE, width(tile) - 2 * GAP - rest) };
       },
     },
@@ -62,19 +59,6 @@ export function createExperienceBehaviors({ document, save }) {
       limits(tile) {
         const high = width(tile) - 2 * GAP - Math.max(INFO_MIN_BESIDE_PANE, size.infoWidth) - 2 * GAP - CHAT_MIN;
         return { low: THREAD_MIN, high: Math.max(THREAD_MIN, high) };
-      },
-    },
-    paneWidth: {
-      selector: ".x-split-pane",
-      axis: "x",
-      prop: "--x-pane-width",
-      fallback: null,
-      reverse: true,
-      natural: (tile) => tile?.querySelector(":scope > .art")?.offsetWidth,
-      limits(tile) {
-        const info = tile?.classList.contains("draft") ? 0 : Math.max(INFO_MIN_BESIDE_PANE, size.infoWidth);
-        const high = width(tile) - info - CHAT_MIN;
-        return { low: PANE_MIN, high: Math.max(PANE_MIN, high) };
       },
     },
     infoHeight: {
@@ -137,20 +121,17 @@ export function createExperienceBehaviors({ document, save }) {
     if (!config) return;
     off = new Set(Array.isArray(config.experienceOff) ? config.experienceOff : []);
     body().dataset.experienceOff = [...off].join(" ");
-    const defaultSans = result.defaults?.font?.sans;
-    if (defaultSans && config.font) body().dataset.fontDefault = String(config.font.sans === defaultSans);
     learned = config.splitsLearned === true;
     body().classList.toggle("x-splits-learned", learned);
     if (drag) return;
     size.infoWidth = Number.isInteger(config.infoWidth) ? config.infoWidth : INFO_DEFAULT;
     size.threadWidth = Number.isInteger(config.threadWidth) ? config.threadWidth : THREAD_DEFAULT;
     size.infoHeight = Number.isInteger(config.infoHeight) ? config.infoHeight : null;
-    size.paneWidth = Number.isInteger(config.paneWidth) ? config.paneWidth : null;
     Object.keys(SPLITS).forEach(paintSize);
   }
 
   function splitOf(target) {
-    const handle = target?.closest?.(".x-split, .x-split-thread, .x-split-pane, .y-split");
+    const handle = target?.closest?.(".x-split, .x-split-thread, .y-split");
     const tile = handle?.parentElement;
     if (!handle || !tile?.classList.contains("open") || !resizeOn()) return null;
     const key = Object.keys(SPLITS).find((name) => handle.matches(SPLITS[name].selector));
@@ -176,7 +157,7 @@ export function createExperienceBehaviors({ document, save }) {
     drag.moved = true;
     const along = SPLITS[drag.key].axis === "x" ? ev.clientX : ev.clientY;
     const moved = (along - drag.along) / drag.scale;
-    setSize(drag.key, drag.from + (SPLITS[drag.key].reverse ? -moved : moved), drag.tile, false);
+    setSize(drag.key, drag.from + moved, drag.tile, false);
   });
 
   const stop = () => {
@@ -204,9 +185,8 @@ export function createExperienceBehaviors({ document, save }) {
     const step = ev.shiftKey ? 40 : 10;
     const { low, high } = SPLITS[hit.key].limits(hit.tile);
     const now = shown(hit.key, hit.tile);
-    const grows = SPLITS[hit.key].reverse ? -step : step;
     const moves = SPLITS[hit.key].axis === "x"
-      ? { ArrowLeft: now - grows, ArrowRight: now + grows, Home: low, End: high }
+      ? { ArrowLeft: now - step, ArrowRight: now + step, Home: low, End: high }
       : { ArrowUp: now - step, ArrowDown: now + step, Home: low, End: high };
     const next = moves[ev.key];
     if (next === undefined) return;
@@ -220,5 +200,5 @@ export function createExperienceBehaviors({ document, save }) {
     if (hit) paintSplit(hit.key, hit.handle, hit.tile);
   });
 
-  return { adopt, behaviorOn, infoWidth: () => size.infoWidth, size: (key) => size[key] };
+  return { adopt, infoWidth: () => size.infoWidth, size: (key) => size[key] };
 }

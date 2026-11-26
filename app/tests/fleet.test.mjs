@@ -314,6 +314,17 @@ test("a structured seat in the plan runs its driver under node with the cwd spel
   assert.deepEqual(oc.args, [join("/tmp/drv", "opencode-driver.mjs"), "--agent", "opencode", "--name", "estruturado", "--cwd", "/tmp/w", "--resume-id", seat.id, "--model", "sonnet", "--autocompact", "80"]);
 });
 
+test("a claude chat the boot found resting comes back with its driver asleep, and no other seat takes the flag", () => {
+  const seat = { name: "quieto", where: "local", kind: "structured", id: "abcd1234-0000-0000-0000-000000000000", cwd: "/tmp/w", asleep: true };
+  assert.match(localRestoreScript([seat], { hub: "/tmp/hub", hiveHome: "/tmp/hive", engineDir: "/tmp/drv" }), /--resume-id abcd1234-0000-0000-0000-000000000000 --asleep"/);
+  assert.doesNotMatch(localRestoreScript([{ ...seat, asleep: false }], { hub: "/tmp/hub", hiveHome: "/tmp/hive", engineDir: "/tmp/drv" }), /--asleep/);
+  assert.doesNotMatch(localRestoreScript([{ ...seat, agent: "codex" }], { hub: "/tmp/hub", hiveHome: "/tmp/hive", engineDir: "/tmp/drv" }), /--asleep/);
+  const [one] = localRestorePlan([seat], { hub: "/tmp/hub", hiveHome: "/tmp/hive", engineDir: "/tmp/drv" });
+  assert.equal(one.args.at(-1), "--asleep");
+  const [oc] = localRestorePlan([{ ...seat, agent: "opencode" }], { hub: "/tmp/hub", hiveHome: "/tmp/hive", engineDir: "/tmp/drv" });
+  assert.ok(!oc.args.includes("--asleep"), "only the claude driver knows how to be born asleep");
+});
+
 test("a terminal on another agent comes back through that agent's own continue, with its login and the seat's name", () => {
   const seat = { name: "cx", where: "local", kind: "chat", agent: "codex", id: "session_abcdef12", cwd: "/tmp/w", account: "work", model: "o3" };
   assert.ok(seatIsRestorable(seat));

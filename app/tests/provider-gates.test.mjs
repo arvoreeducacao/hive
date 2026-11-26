@@ -48,7 +48,35 @@ test("the screen is a section of the page, opened by the key the accounts modal 
   assert.doesNotMatch(page, /id="accounts"/, "the old modal is gone");
   assert.match(page, /id="btn-accounts">providers and accounts <kbd id="k-accounts">/);
   assert.match(source("themes"), /case "accounts": return providersOnScreen\(\) \? closeProviders\(\) : openProviders\(\);/);
-  assert.match(source("hold-numbers"), /if \(providersOnScreen\(\) && !\$\("confirm"\)\.classList\.contains\("on"\)\) \{\s*const m = whichAction\(e\);\s*if \(e\.key === "Escape" \|\| m\?\.action === "accounts"\)/);
+});
+
+test("escape on the providers screen answers an open confirm first, and only then closes the screen", async () => {
+  const { $, DEFAULT_KEYS } = await app("core");
+  await app("hold-numbers");
+  const { openProviders, providersOnScreen } = await app("providers");
+  const was = globalThis.fetch;
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ providers: [] }) });
+  Object.assign(st, { keys: { ...DEFAULT_KEYS }, chords: {}, pending: false, capturing: null, typing: null, tourAt: -1, providerLogin: null });
+  const press = (init) => document.dispatchEvent(new window.KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }));
+  const settle = () => new Promise((done) => setTimeout(done, 0));
+  try {
+    openProviders();
+    $("confirm").classList.add("on");
+    press({ key: "Escape" });
+    assert.equal($("confirm").classList.contains("on"), false, "the confirm takes the escape");
+    assert.equal(providersOnScreen(), true, "the screen under the confirm stays open");
+    press({ key: "Escape" });
+    await settle();
+    assert.equal(providersOnScreen(), false);
+    openProviders();
+    const bound = st.keys.accounts;
+    press({ key: "a", code: bound.code, altKey: !!bound.alt, ctrlKey: !!bound.ctrl, shiftKey: !!bound.shift, metaKey: !!bound.meta });
+    await settle();
+    assert.equal(providersOnScreen(), false, "the accounts key closes the screen it opened");
+  } finally {
+    globalThis.fetch = was;
+    $("confirm").classList.remove("on");
+  }
 });
 
 test("the tab's form is painted once solid has swapped the tab in, not before — and the menu button has one handler", () => {

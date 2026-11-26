@@ -338,7 +338,7 @@ test("the plan card folds a long plan to a preview, with copy and download in it
 test("implement approves the plan with the fronts on the card; words in the box refine it instead", async () => {
   const { e, sent, box } = seat({ busy: true });
   svEvent(e, { type: "driver", subtype: "plan", id: "p2", plan: "Plano curto\n\n```frentes\nloja · claude/opus · aqui · acme · a loja\n```\n" });
-  assert.ok(e.planAsk.card.classList.contains("cp-plan-held"), "the card hides its own buttons while the box offers implement and refine");
+  assert.ok((svConvFlushAll(), e.scroll).querySelector(".sv-plan").classList.contains("cp-plan-held"), "the card hides its own buttons while the box offers implement and refine");
   form(e).querySelector(".cp-impl-go").click();
   await rest();
   const answer = sent.find((one) => one.type === "answer");
@@ -353,7 +353,7 @@ test("implement approves the plan with the fronts on the card; words in the box 
   await rest();
   assert.deepEqual(second.sent.map((one) => one.type), ["say"], "refining is saying it: the driver drops the plan with these words");
   assert.equal(second.sent[0].text, "troca o passo 2");
-  const card = second.e.planAsk.card;
+  const card = (svConvFlushAll(), second.e.scroll).querySelector(".sv-plan");
   svEvent(second.e, { type: "driver", subtype: "plan_dismissed", id: "p3" });
   assert.equal(second.e.planAsk, null);
   assert.ok(!card.classList.contains("cp-plan-held"), "a plan the box let go shows its card as it was");

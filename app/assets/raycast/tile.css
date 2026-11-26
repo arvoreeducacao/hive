@@ -314,3 +314,36 @@ body:where(.experience-raycast).look-dimension .sv-composer:not(:focus-within):n
 body:where(.experience-raycast).look-dimension .t-tags > button { border-color: currentColor; }
 body:where(.experience-raycast).look-dimension .tile.open .side { border-top-color: currentColor; }
 body:where(.experience-raycast).look-dimension .sv-btns .sv-stop { border-color: currentColor; }
+:where(body.experience-raycast) .t-head .t-opener { display: inline-flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; max-width: 45%; padding: 2px 4px; margin: 0 -4px 0 -2px; border: 0; border-radius: var(--r1); background: none; color: var(--txt-2); font: 500 14px var(--sans); cursor: pointer; }
+:where(body.experience-raycast) .t-head .t-opener:hover { background: var(--rail-hover); color: var(--txt); }
+:where(body.experience-raycast) .t-head .t-opener svg { flex: none; width: 13px; height: 13px; color: var(--txt-3); }
+:where(body.experience-raycast) .t-head .t-opener-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(body.experience-raycast) .t-head .t-crumb-sep { flex: none; margin-left: 4px; color: var(--txt-3); font-weight: 400; }
+:where(body.experience-raycast) .tile > .sub-head { display: none; }
+:where(body.experience-raycast) .tile.open.subchat-alone:not(.reviewing, .threading, .arting, .fronting, .diffing) { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+:where(body.experience-raycast) .tile.open.subchat-alone:not(.reviewing, .threading, .arting, .fronting, .diffing) > :is(.side, .x-split, .y-split, .x-split-thread) { display: none !important; }
+:where(body.experience-raycast) .tile.open.subchat-alone:not(.reviewing, .threading, .arting, .fronting, .diffing) > .sub-head:not([hidden]) { display: flex; grid-column: 1 / -1; grid-row: 1; }
+:where(body.experience-raycast) .tile.open.subchat-alone:not(.reviewing, .threading, .arting, .fronting, .diffing) > .well { grid-column: 1 / -1; grid-row: 2; }
+:where(body.experience-raycast) .tile.open.subchat-alone .well .sv { width: 100%; max-width: 880px; margin: 0 auto; }
+:where(body.experience-raycast) .sub-head { align-items: center; flex-wrap: nowrap; gap: 12px; min-width: 0; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+:where(body.experience-raycast) .sub-head .sh-crumb { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; font-size: 14.5px; }
+:where(body.experience-raycast) .sub-head .sh-fork { flex: none; width: 14px; height: 14px; color: var(--txt-3); }
+:where(body.experience-raycast) .sub-head .sh-opener { flex: 0 1 auto; min-width: 0; max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 -6px; padding: 2px 6px; border: 0; border-radius: var(--r1); background: none; color: var(--txt-2); font: 500 14.5px var(--sans); cursor: pointer; }
+:where(body.experience-raycast) .sub-head .sh-opener:hover { background: var(--rail-hover); color: var(--txt); }
+:where(body.experience-raycast) .sub-head .sh-sep { flex: none; color: var(--txt-3); font-weight: 300; font-size: 16px; }
+:where(body.experience-raycast) .sub-head .sh-me { flex: 0 1 auto; min-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--txt); }
+:where(body.experience-raycast) .sub-head .sh-chip { flex: none; padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; font: 500 10.5px var(--mono); color: var(--txt-2); }
+:where(body.experience-raycast) .sub-head .sh-sibs { display: flex; flex: 0 1 auto; flex-wrap: nowrap; gap: 4px; margin-left: auto; min-width: 0; overflow: hidden; }
+:where(body.experience-raycast) .sub-head .sh-sib { display: inline-flex; flex: 0 1 auto; min-width: 0; align-items: center; gap: 7px; max-width: 22ch; padding: 4px 9px; border: 0; border-radius: var(--r1); background: none; color: var(--txt-2); font: 500 12px var(--sans); cursor: pointer; }
+:where(body.experience-raycast) .sub-head .sh-sib span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(body.experience-raycast) .sub-head .sh-sib:hover { background: var(--rail-hover); color: var(--txt); }
+:where(body.experience-raycast) .sub-head .sh-sib.on { background: var(--rail-pick); color: var(--txt); }
+:where(body.experience-raycast) .sub-head .sh-sib .rc-dot { width: 6px; height: 6px; box-shadow: none; }
+:where(body.experience-raycast) .sub-head .sh-back { display: inline-flex; align-items: center; gap: 6px; flex: none; padding: 4px 9px; border: 1px solid var(--line); border-radius: var(--r1); background: none; color: var(--txt-2); font: 500 12px var(--sans); cursor: pointer; }
+:where(body.experience-raycast) .sub-head .sh-back:hover { color: var(--txt); border-color: var(--txt-3); }
+:where(body.experience-raycast) .sub-head .sh-back span::first-letter { text-transform: uppercase; }
+:where(body.experience-raycast) .sub-head .sh-back-ic { width: 12px; height: 12px; transform: rotate(90deg); }
+:where(body.experience-raycast) .sv > .sub-note { display: none; }
+:where(body.experience-raycast) .tile.open.subchat-alone .sv > .sub-note { display: flex; align-items: center; gap: 6px; margin: 8px 12px 10px; padding: 0 8px; color: var(--txt-3); font-size: 12px; line-height: 1.4; }
+:where(body.experience-raycast) .sv > .sub-note svg { flex: none; width: 12px; height: 12px; }
+:where(body.experience-raycast) .tile.subchat-alone .sv-user.from-opener::before { content: var(--opener-said); display: block; margin-bottom: 4px; font-size: 11.5px; font-weight: 500; color: var(--txt-3); }

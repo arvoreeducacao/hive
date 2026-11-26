@@ -124,9 +124,14 @@ function Side(props) {
           onClick={(ev) => { ev.stopPropagation(); props.actions.expand(); }}
           onKeyDown={(ev) => { if (ev.key !== "Enter" && ev.key !== " ") return; ev.preventDefault(); ev.stopPropagation(); props.actions.expand(); }}><i /></div>
         <Show when={props.model.raycast}><StateDot dot={props.model.dot} say={props.model.say} /></Show>
+        <Show when={props.model.opener}>{(opener) => (
+          <button type="button" class="t-opener" title={opener().hint} aria-label={opener().hint} onClick={(ev) => { ev.stopPropagation(); props.actions.goToOpener(); }}>
+            <svg aria-hidden="true"><use href="#i-fork" /></svg><span class="t-opener-name">{opener().title}</span><span class="t-crumb-sep" aria-hidden="true">/</span>
+          </button>
+        )}</Show>
         <div class="t-ident">
           <span class={`t-place ${props.model.place.cls}`} title={props.model.place.title}><svg aria-hidden="true"><use href={props.model.place.icon} /></svg></span>
-          <div class="t-name" on:click={(ev) => props.actions.titleClick?.(ev)} onDblClick={(ev) => { ev.stopPropagation(); props.actions.rename(); }} />
+          <div class="t-name" onDblClick={(ev) => { ev.stopPropagation(); props.actions.rename(); }} />
           <Show when={!props.model.raycast}>
             <StateGlyph glyph={props.model.glyph} label={props.model.label} />
             <button type="button" class="t-term" hidden><svg aria-hidden="true"><use href="#i-term" /></svg></button>

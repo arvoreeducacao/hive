@@ -1,6 +1,7 @@
 import { IS_MAC, esc, phrase } from "./core.js";
 import { composerIcon } from "./composer-icons.js";
 import { structPool } from "./seat-pool.js";
+import { putAttr, putDisabled, putHidden } from "./dom-writes.js";
 
 const STOP_PENDING_MAX_MS = 10_000;
 
@@ -226,9 +227,9 @@ function paintSend(e, form, mode) {
   const { label, tip } = sendLabels(e, mode);
   if (send.title !== tip) send.title = tip;
   if (send.getAttribute("aria-label") !== label) send.setAttribute("aria-label", label);
-  send.setAttribute("aria-busy", e.sending ? "true" : "false");
-  send.disabled = !!e.sending || ((mode === "idle" || mode === "steer" || mode === "queue" || mode === "edit") && !boxHasContent(e));
-  send.hidden = mode === "question" || mode === "plan" || stopShown(e, mode);
+  putAttr(send, "aria-busy", e.sending ? "true" : "false");
+  putDisabled(send, !!e.sending || ((mode === "idle" || mode === "steer" || mode === "queue" || mode === "edit") && !boxHasContent(e)));
+  putHidden(send, mode === "question" || mode === "plan" || stopShown(e, mode));
 }
 
 function paintStop(e, form, mode) {
@@ -239,8 +240,8 @@ function paintStop(e, form, mode) {
     stop.dataset.icon = "stop";
     stop.innerHTML = STOP_SQUARE;
   }
-  stop.hidden = !stopShown(e, mode);
-  stop.disabled = pending;
+  putHidden(stop, !stopShown(e, mode));
+  putDisabled(stop, pending);
   const label = pending ? phrase("Stopping") : phrase("Stop generation");
   if (stop.getAttribute("aria-label") !== label) stop.setAttribute("aria-label", label);
   const tip = pending ? phrase("Stopping…") : phrase("Interrupt");

@@ -158,25 +158,7 @@ const listenUntilStopped = async (button) => {
   return stop;
 };
 
-test("in the new Hive a folded chat opens while it listens, as it does with words in it", async () => {
-  dom.document.body.classList.add("experience-next");
-  try {
-    const { composer, button } = inComposer();
-    const other = inComposer();
-    wireTalkButton(button, textBox);
-    wireTalkButton(other.button, textBox);
-    answer({ enabled: true, engine: "ready", model: { state: "ready" } });
-    await pullDictation();
-    const stop = await listenUntilStopped(button);
-    assert.equal(composer.classList.contains("talking"), true);
-    assert.equal(other.composer.classList.contains("talking"), false, "only the composer that is listening opens");
-    stop();
-  } finally {
-    dom.document.body.classList.remove("experience-next");
-  }
-});
-
-test("in the current Hive the composer never takes the talking mark", async () => {
+test("the composer never takes the talking mark", async () => {
   const { composer, button } = inComposer();
   wireTalkButton(button, textBox);
   answer({ enabled: true, engine: "ready", model: { state: "ready" } });
@@ -185,14 +167,6 @@ test("in the current Hive the composer never takes the talking mark", async () =
   assert.equal(button.classList.contains("hot"), true);
   assert.equal(composer.classList.contains("talking"), false);
   stop();
-});
-
-test("a folded chat hides the microphone like the send button and stays open while dictation runs", () => {
-  const css = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
-  const page = readFileSync(join(HERE, "app.html"), "utf8");
-  assert.match(css, /body\.experience-next:not\(\.no-motion\) \.tile:not\(\.focused\):not\(\.open\) \.sv-composer:not\(\.ready\):not\(\.talking\) \.sv-btns \.sv-talk \{[^}]*visibility: hidden;/);
-  assert.match(css, /body\.experience-next:not\(\.no-motion\) \.tile:not\(\.focused\):not\(\.open\) \.sv-composer:not\(\.ready\):not\(\.talking\) \.sv-btns \{ gap: 0; \}/, "the hidden buttons leave no gap, so the context gauge keeps the corner");
-  assert.doesNotMatch(page, /\.sv-composer:not\(\.ready\)(?!:not\(\.talking\))/, "every folded rule lets a listening composer stay open");
 });
 
 test("a new take keeps its button lit when the last one finishes settling behind it", async () => {

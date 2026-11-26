@@ -1,48 +1,51 @@
-import { esc, phrase } from "./core.js";
+import { toastStackView } from "../views.js";
+import { phrase } from "./core.js";
 import { attachmentIcon } from "./attachment-icons.js";
 
 const TOAST_STAYS_MS = 6000;
 
 const TOASTS_SHOWN = 4;
 
-function toastStack() {
-  let stack = document.getElementById("cp-toasts");
-  if (stack) return stack;
-  stack = document.createElement("div");
-  stack.id = "cp-toasts";
-  stack.className = "cp-toasts";
-  stack.setAttribute("role", "region");
-  stack.setAttribute("aria-live", "polite");
-  document.body.appendChild(stack);
-  return stack;
+const shown = [];
+
+let stack = null;
+
+let made = 0;
+
+const stackModel = () => ({
+  dismiss: phrase("Dismiss"),
+  icon: attachmentIcon("x"),
+  toasts: shown.map(({ key, tone, role, title, description }) => ({ key, tone, role, title, description }))
+});
+
+function paint() {
+  stack ||= toastStackView(stackModel(), { close: (key) => shown.find((one) => one.key === key)?.close() });
+  stack.show(stackModel());
 }
 
 function toast({ title, description = "", tone = "error", stays = TOAST_STAYS_MS } = {}) {
-  const stack = toastStack();
-  const card = document.createElement("div");
-  card.className = `cp-toast ${tone}`;
-  card.setAttribute("role", tone === "error" ? "alert" : "status");
-  card.innerHTML = `<div class="cp-toast-text"><b>${esc(title || "")}</b>${description ? `<span>${esc(description)}</span>` : ""}</div>`
-    + `<button type="button" class="cp-toast-x" aria-label="${esc(phrase("Dismiss"))}">${attachmentIcon("x")}</button>`;
-  let timer = 0;
-  const close = () => {
-    clearTimeout(timer);
-    card.remove();
+  made += 1;
+  const one = { key: `t${made}`, tone, role: tone === "error" ? "alert" : "status", title: title || "", description: description || "", timer: 0 };
+  one.close = () => {
+    clearTimeout(one.timer);
+    const at = shown.indexOf(one);
+    if (at < 0) return;
+    shown.splice(at, 1);
+    paint();
   };
   const update = (next = {}) => {
-    if (next.tone) card.className = `cp-toast ${next.tone}`;
-    if (next.title !== undefined) card.querySelector("b").textContent = next.title;
-    const text = card.querySelector(".cp-toast-text");
-    text.querySelector("span")?.remove();
-    if (next.description) text.insertAdjacentHTML("beforeend", `<span>${esc(next.description)}</span>`);
-    clearTimeout(timer);
-    if (next.stays !== 0) timer = setTimeout(close, next.stays || TOAST_STAYS_MS);
+    if (next.tone) one.tone = next.tone;
+    if (next.title !== undefined) one.title = next.title;
+    one.description = next.description || "";
+    clearTimeout(one.timer);
+    if (next.stays !== 0) one.timer = setTimeout(one.close, next.stays || TOAST_STAYS_MS);
+    if (shown.includes(one)) paint();
   };
-  card.querySelector(".cp-toast-x").addEventListener("click", close);
-  stack.appendChild(card);
-  while (stack.children.length > TOASTS_SHOWN) stack.firstElementChild.remove();
-  if (stays) timer = setTimeout(close, stays);
-  return { close, update, el: card };
+  shown.push(one);
+  while (shown.length > TOASTS_SHOWN) shown.shift();
+  paint();
+  if (stays) one.timer = setTimeout(one.close, stays);
+  return { close: one.close, update, get el() { return stack.cardOf(one.key); } };
 }
 
 export { toast };

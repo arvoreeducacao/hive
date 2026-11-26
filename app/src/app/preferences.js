@@ -1,4 +1,3 @@
-import { paintExperience } from "./experience.js";
 import { render } from "./arrange.js";
 import { mugFace } from "./avatars.js";
 import { saveConfig } from "./brand-face.js";
@@ -249,7 +248,6 @@ function bootLanguage() {
 }
 
 function repaintEverything() {
-  paintExperience();
   paintStatic(document);
   paintKeys();
   paintFonts();

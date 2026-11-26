@@ -81,7 +81,7 @@ function hive({ seats = ["atendimento-leitura"], shelf = SHELF } = {}) {
   st.shelf = shelf;
   st.published = [];
   st.shelfOpen = null;
-  document.getElementById("shelf").hidden = true;
+  st.shelfShown = false;
   st.webChat = null;
   st.cockChat = null;
   st.deviceChat = null;
@@ -180,16 +180,36 @@ test("clicking the same page again goes back to where it already is, never to a 
 
 test("open in a seat leaves the shelf screen behind, whichever chat the page lands in", async () => {
   hive({ seats: ["atendimento-leitura", "guarda-roupa"], shelf: withSeat("guarda-roupa") });
-  document.getElementById("shelf").hidden = false;
+  st.shelfShown = true;
+  assert.equal(document.getElementById("shelf").hidden, false);
   await openPageInASeat({ slug: "guarda-roupa-do-avatar-do-hive", tab: "documento", version: 0 });
   assert.equal(st.webChat, "guarda-roupa");
   assert.equal(document.getElementById("shelf").hidden, true, "the page opened in its seat, but the shelf screen stayed on top of it");
 
   hive();
-  document.getElementById("shelf").hidden = false;
+  st.shelfShown = true;
+  assert.equal(document.getElementById("shelf").hidden, false);
   await openPageInASeat({ slug: "guarda-roupa-do-avatar-do-hive", tab: "documento", version: 0 });
   assert.ok(String(st.webChat).startsWith("draft:"));
   assert.equal(document.getElementById("shelf").hidden, true, "the empty chat opened behind the shelf screen");
+});
+
+test("the open in a seat button on a page of the shelf opens that page, on the tab and version on screen, in its seat", async () => {
+  const { paintShelf } = await app("shelf");
+  hive({ seats: ["atendimento-leitura", "guarda-roupa"], shelf: withSeat("guarda-roupa") });
+  st.shelfShown = true;
+  st.shelfOpen = "guarda-roupa-do-avatar-do-hive";
+  st.shelfTab = "telas";
+  st.shelfVersion = 1;
+  paintShelf();
+  document.getElementById("sh-seat").click();
+  for (let i = 0; i < 4; i++) await new Promise((r) => setImmediate(r));
+  assert.equal(st.webChat, "guarda-roupa", "the button did not open the page in the seat that made it");
+  const tab = artifactTabOf("guarda-roupa");
+  assert.equal(tab.slug, "guarda-roupa-do-avatar-do-hive");
+  assert.equal(tab.tab, "telas");
+  assert.equal(tab.version, 1);
+  assert.equal(document.getElementById("shelf").hidden, true, "the shelf screen stayed on top of the page");
 });
 
 test("a page the shelf does not have falls back to the shelf screen", async () => {

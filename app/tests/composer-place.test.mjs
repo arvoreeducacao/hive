@@ -1,6 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { app, views } from "./dom.mjs";
+
+const sheet = readFileSync(join(fileURLToPath(new URL("..", import.meta.url)), "assets", "composer.css"), "utf8");
 
 await views();
 const { placeOfSeat } = await app("composer-place");
@@ -22,4 +27,9 @@ test("a chat on the repo's own checkout says local checkout and its branch", () 
 test("a chat with no repo under it shows no strip", () => {
   assert.equal(placeOfSeat({ where: "local", trees: [] }), null);
   assert.equal(placeOfSeat(undefined), null);
+});
+
+test("a long folder or branch stays on one line and ends in an ellipsis, with the icons kept whole", () => {
+  assert.match(sheet, /\.sv \.cp-place :is\(\.cp-place-where, \.cp-place-branch\) > span \{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; \}/);
+  assert.match(sheet, /\.sv \.cp-i \{[^}]*flex: none;/);
 });

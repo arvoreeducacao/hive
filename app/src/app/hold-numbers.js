@@ -5,7 +5,8 @@ import { codeOf, hasMod, isLeader, keyLabel, modsMatch, silenced, whichAction } 
 import { closeBrowser, closeCockpit, closeDevice, closeEveryPicker, structuredCtrlC } from "./chat-and-panes.js";
 import { attachFilesToSeat, seatReceiving } from "./chat-stretches.js";
 import { ROOM_KEYS } from "./composer-head.js";
-import { $, CHAT_SCROLLS, DIGIT_ACTIONS, FOCUS_MOVES, IS_MAC, MOVE_DIRS, experienceNext, isImageName, phrase, raycastOn, solidMounts, st } from "./core.js";
+import { readlineChord } from "./composer-readline.js";
+import { $, CHAT_SCROLLS, DIGIT_ACTIONS, FOCUS_MOVES, IS_MAC, MOVE_DIRS, isImageName, phrase, raycastOn, solidMounts, st } from "./core.js";
 import { closeDay, dayOnScreen } from "./day.js";
 import { draftFrom, draftInFocus } from "./draft-seat.js";
 import { takeAttachments } from "./composer-attachments.js";
@@ -21,7 +22,7 @@ import { closeProviders, providersOnScreen } from "./providers.js";
 import { closeExtensions, extensionsOnScreen } from "./extensions.js";
 import { palKeys, palOn } from "./palette.js";
 import { panelKeys } from "./panel-window.js";
-import { arrowShot, closeShot, openShot, shotOnScreen, stepShotZoom, toggleShotZoom } from "./picture-preview.js";
+import { arrowShot, closeShot, openShot, shotOnScreen, toggleShotZoom } from "./picture-preview.js";
 import { closeConfirm, closePortaria, closeWorkspace, portariaOnScreen, wsOnScreen } from "./pod.js";
 import { roomTakesKey } from "./pure-helpers.js";
 import { answerWithDigit, stepQuestionCard } from "./seat-layout.js";
@@ -58,22 +59,25 @@ const keyCapsAsked = (e) => e.altKey || (IS_MAC ? e.metaKey : e.ctrlKey);
 
 let keyCapsTimer = null;
 
-const keyCapsShown = () => document.body.classList.contains("key-caps");
+let keyCapsUp = false;
 
 function showKeyCaps() {
   keyCapsTimer = null;
-  document.body.classList.add("key-caps");
+  keyCapsUp = true;
+  paintHoldMarks();
 }
 
 function hideKeyCaps() {
   clearTimeout(keyCapsTimer);
   keyCapsTimer = null;
-  document.body.classList.remove("key-caps");
+  if (!keyCapsUp) return;
+  keyCapsUp = false;
+  paintHoldMarks();
 }
 
 function trackKeyCaps(e) {
   if (!keyCapsAsked(e)) return hideKeyCaps();
-  if (keyCapsShown() || keyCapsTimer) return;
+  if (keyCapsUp || keyCapsTimer) return;
   keyCapsTimer = setTimeout(showKeyCaps, KEY_CAPS_WAIT);
 }
 
@@ -90,37 +94,31 @@ function heldLevel(e) {
 
 const holdSpan = (a) => (a === "seat" ? activeItems().length : a === "block" ? blocksOf(st.space).length : st.spaces.length);
 
-const aMessageBoxKeepsEnter = (e) => codeOf(e) === "Enter" && !!e.target?.closest?.(".sv-composer, .sv-edit");
+const aMessageBoxKeepsKey = (e) => (codeOf(e) === "Enter" || !!readlineChord(e)) && !!e.target?.closest?.(".sv-composer, .sv-edit");
 
-function paintSeatNumbers() {
-  if (st.holding !== "seat") {
-    for (const el of tiles.values()) el.querySelector(".t-num")?.remove();
-    return;
-  }
-  activeItems().forEach((it, i) => {
-    const well = tiles.get(it.key)?.querySelector(".well");
-    if (!well) return;
-    let n = well.querySelector(".t-num");
-    if (!n) {
-      n = document.createElement("div");
-      n.className = "t-num";
-      n.setAttribute("aria-hidden", "true");
-      well.appendChild(n);
-    }
-    n.textContent = String(i + 1);
-    n.hidden = i >= 9;
-  });
+function seatNumbersModel() {
+  if (st.holding !== "seat") return [];
+  return activeItems()
+    .map((it, i) => ({ key: it.key, well: tiles.get(it.key)?.querySelector(".well") || null, n: String(i + 1), hidden: i >= 9 }))
+    .filter((mark) => mark.well);
+}
+
+const holdMarksModel = () => ({ key: "hold-marks", caps: keyCapsUp, holdSeat: st.holding === "seat", numbers: seatNumbersModel() });
+
+function paintHoldMarks() {
+  holdMarksSolid?.show(holdMarksModel());
 }
 
 function paintHold() {
-  document.body.classList.toggle("hold-seat", st.holding === "seat");
-  paintSeatNumbers();
+  paintHoldMarks();
   paintBlocks();
   if (st.pending) return;
   holdSolid.show(holdViewModel());
 }
 
 let holdSolid = null;
+
+let holdMarksSolid = null;
 
 function holdViewModel() {
   if (!st.holding) return { key: "mode", holding: false, txt: "" };
@@ -129,6 +127,8 @@ function holdViewModel() {
 
 solidMounts.push((hive) => {
   holdSolid = hive.mountHold($("mode"));
+  holdMarksSolid = hive.mountHoldMarks();
+  tuiTrayMount = hive.mountTuiTray;
 });
 
 function trackHold(e) {
@@ -196,6 +196,8 @@ window.addEventListener("blur", dropHold);
 
 document.addEventListener("visibilitychange", () => { if (document.hidden) dropHold(); });
 
+const overlayOn = (id) => $(id).matches(".on");
+
 const AREA_STEPS = { nextArea: 1, prevArea: -1 };
 
 const FUNCTION_KEY = /^F([1-9]|1[0-9]|2[0-4])$/;
@@ -247,11 +249,11 @@ document.addEventListener("keydown", (e) => {
     return copySelection();
   }
 
-  if ($("more").classList.contains("on") && e.key === "Escape") {
+  if (overlayOn("more") && e.key === "Escape") {
     e.preventDefault();
     return closeMore();
   }
-  if (themesOn() && !$("confirm").classList.contains("on")) {
+  if (themesOn() && !overlayOn("confirm")) {
     if (whichAction(e)?.action === "themes") { e.preventDefault(); return closeThemes(); }
     if (e.key === "Escape") {
       e.preventDefault();
@@ -261,7 +263,7 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if ($("help").classList.contains("on")) {
+  if (overlayOn("help")) {
     const area = AREA_STEPS[whichAction(e)?.action];
     if (area) { e.preventDefault(); return void stepArea(area); }
     if (raycastOn() && panelKeys(e, "help")) return;
@@ -278,17 +280,17 @@ document.addEventListener("keydown", (e) => {
     }
     return;
   }
-  if ($("revive-how").classList.contains("on")) {
+  if (overlayOn("revive-how")) {
     if (e.key === "Escape") { e.preventDefault(); closeReviveHow(); }
     if (e.key === "Enter") { e.preventDefault(); reviveAs(true); }
     return;
   }
-  if ($("hist-preview").classList.contains("on")) {
+  if (overlayOn("hist-preview")) {
     if (e.key === "Escape") { e.preventDefault(); closePreview(); }
     if (e.key === "Enter") { e.preventDefault(); $("hp-revive").click(); }
     return;
   }
-  if ($("history").classList.contains("on")) {
+  if (overlayOn("history")) {
     if (e.key === "Escape") { e.preventDefault(); closeHistory(); }
     return;
   }
@@ -296,7 +298,7 @@ document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") { e.preventDefault(); closeArchived(); }
     return;
   }
-  if ($("confirm").classList.contains("on")) {
+  if (overlayOn("confirm")) {
     if (e.key === "Escape") { e.preventDefault(); closeConfirm(false); }
     if (e.key === "Enter") { e.preventDefault(); closeConfirm(true); }
     return;
@@ -305,7 +307,6 @@ document.addEventListener("keydown", (e) => {
   if (shotOnScreen()) {
     if (e.key === "Escape") { e.preventDefault(); return closeShot(); }
     if (e.key === " " || e.key === "Enter") { e.preventDefault(); return toggleShotZoom(); }
-    if ((e.key === "+" || e.key === "=" || e.key === "-") && stepShotZoom(e.key === "-" ? -1 : 1)) { e.preventDefault(); return; }
     if (!(e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) && arrowShot(e.key)) { e.preventDefault(); return; }
     return;
   }
@@ -346,7 +347,7 @@ document.addEventListener("keydown", (e) => {
     if (!(e.altKey || e.ctrlKey || e.metaKey)) return;
   }
 
-  if (providersOnScreen() && !$("confirm").classList.contains("on")) {
+  if (providersOnScreen() && !overlayOn("confirm")) {
     const m = whichAction(e);
     if (e.key === "Escape" || m?.action === "accounts") { e.preventDefault(); return closeProviders(); }
     if (!(e.altKey || e.ctrlKey || e.metaKey)) return;
@@ -393,12 +394,7 @@ document.addEventListener("keydown", (e) => {
 
   if (e.key === "Escape" && document.querySelector(".sv-menu")) {
     e.preventDefault();
-    return closeEveryPicker(true);
-  }
-
-  if (e.key === "Escape" && experienceNext() && st.open && !inField && !st.typing && !aloneOn() && !prsOnScreen() && !lookingBack()) {
-    e.preventDefault();
-    return closeTile();
+    return closeEveryPicker();
   }
 
   if (st.cockChat && !inField) {
@@ -470,7 +466,7 @@ document.addEventListener("keydown", (e) => {
   }
 
   if (terminalKeepsKey(e, whichAction(e)?.action || "")) return;
-  const m = aMessageBoxKeepsEnter(e) ? null : whichAction(e);
+  const m = aMessageBoxKeepsKey(e) ? null : whichAction(e);
 
   if (st.typing) {
     if (m && AREA_STEPS[m.action]) { e.preventDefault(); e.stopPropagation(); return run(m.action); }
@@ -585,31 +581,45 @@ async function sendFiles(target, files, marked) {
   pull();
 }
 
+let tuiTrayMount = null;
+
+let tuiShotSeq = 0;
+
+const TUI_TRAY_MAX = 8;
+
+const tuiShotModel = (e, shot) => {
+  const short = shot.path.split("/").pop();
+  return {
+    key: shot.key,
+    src: `/api/image?path=${encodeURIComponent(shot.path)}&where=${e.where}&name=${encodeURIComponent(e.name)}`,
+    alt: short,
+    title: phrase("{short} — click to see it big", { short: short }),
+    dropSay: phrase("put the strip away — the image stays in the chat")
+  };
+};
+
+const tuiTrayModel = (e) => {
+  const shots = e.tuiShots || [];
+  return { key: "tui-tray", on: shots.length > 0, shots: shots.map((shot) => tuiShotModel(e, shot)) };
+};
+
 function tuiTrayPaint(e) {
-  const on = !!e.tuiTray?.querySelector(".att");
-  e.tuiTray?.classList.toggle("on", on);
-  e.host.style.bottom = on ? "60px" : "";
+  e.tuiTray ||= tuiTrayMount(e.host, {
+    open: (key) => {
+      const shot = (e.tuiShots || []).find((one) => one.key === key);
+      if (shot) openShot(shot.path, e.where, e.name);
+    },
+    drop: (key) => {
+      e.tuiShots = (e.tuiShots || []).filter((one) => one.key !== key);
+      tuiTrayPaint(e);
+    }
+  });
+  e.tuiTray.show(tuiTrayModel(e));
   requestAnimationFrame(() => refit(e));
 }
 
 function tuiAttachImage(e, path) {
-  if (!e.tuiTray) {
-    e.tuiTray = document.createElement("div");
-    e.tuiTray.className = "tui-attach";
-    e.host.appendChild(e.tuiTray);
-  }
-  const chip = document.createElement("div");
-  chip.className = "att";
-  const short = path.split("/").pop();
-  chip.innerHTML = `<img alt=""><button type="button" class="ax" title="${phrase("put the strip away — the image stays in the chat")}">×</button>`;
-  const img = chip.querySelector("img");
-  img.src = `/api/image?path=${encodeURIComponent(path)}&where=${e.where}&name=${encodeURIComponent(e.name)}`;
-  img.alt = short;
-  img.title = phrase("{short} — click to see it big", { short: short });
-  img.addEventListener("click", () => openShot(path, e.where, e.name));
-  chip.querySelector(".ax").addEventListener("click", () => { chip.remove(); tuiTrayPaint(e); });
-  e.tuiTray.appendChild(chip);
-  while (e.tuiTray.children.length > 8) e.tuiTray.firstChild.remove();
+  e.tuiShots = [...(e.tuiShots || []), { key: `shot-${++tuiShotSeq}`, path }].slice(-TUI_TRAY_MAX);
   tuiTrayPaint(e);
 }
 
@@ -646,4 +656,4 @@ document.addEventListener("paste", async (e) => {
   return sendFiles(target, shots);
 });
 
-export { HOLD_WAIT, HOLD_WORD, KEY_CAPS_WAIT, MOD_KEYS, SHOT_EDGE, dropHold, heldLevel, holdAllowed, holdSolid, holdSpan, holdViewModel, paintHold, paintSeatNumbers, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayPaint };
+export { HOLD_WAIT, HOLD_WORD, KEY_CAPS_WAIT, MOD_KEYS, SHOT_EDGE, TUI_TRAY_MAX, dropHold, heldLevel, holdAllowed, holdMarksModel, holdMarksSolid, holdSolid, holdSpan, holdViewModel, paintHold, paintHoldMarks, readFile, sendFiles, shrinkShot, talkKeyLetGo, trackHold, tuiAttachImage, tuiTrayModel, tuiTrayPaint };

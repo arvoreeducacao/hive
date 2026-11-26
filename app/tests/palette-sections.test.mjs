@@ -52,7 +52,7 @@ const under = (rows, sec) => {
 };
 
 for (const raycast of [false, true]) {
-  const look = raycast ? "the default look" : "the experimental look";
+  const look = raycast ? "the default look" : "the old look";
 
   test(`with nothing typed the palette shows the actions and the recent chats, the current one left out (${look})`, () => {
     turn(raycast);

@@ -693,8 +693,7 @@ function createDraftTile(it) {
         <span class="t-tags"><button class="t-close" title="${phrase("discard this chat")}" aria-label="${phrase("discard this chat")}"><svg aria-hidden="true"><use href="#i-close"/></svg></button></span>
       </div>
     </div>
-    <div class="well structured"></div>
-    <div class="x-split-pane" role="separator" aria-orientation="vertical" tabindex="0" aria-label="${phrase("Width of the pane")}" title="${phrase("Drag or use the arrows to resize the pane — double-click restores it")}"></div>`;
+    <div class="well structured"></div>`;
   el.addEventListener("pointerdown", () => { if (focusSeat(it.key)) render(); });
   el.querySelector(".t-close").addEventListener("click", (ev) => { ev.stopPropagation(); discardDraft(d); });
   el.querySelector(".well").appendChild(d.e.host);

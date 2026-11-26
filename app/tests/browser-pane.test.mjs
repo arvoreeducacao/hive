@@ -132,9 +132,10 @@ test("the pane registry remembers a browser pane across tile close and reopen", 
   assert.equal(st.webChat, "oi", "reopening the seat brings its browser back");
 });
 
-test("the seat browser session denies permission prompts and gets the debugger attached", () => {
+test("the seat browser session denies every permission prompt but the clipboard write, opens the edit menu and gets the debugger attached", () => {
   const wired = cut(main, 'session.fromPartition("persist:seat-browser")', 'window_.on("resize"', "main.js");
-  assert.match(wired, /setPermissionRequestHandler\(\(_wc, _permission, grant\) => grant\(false\)\)/);
+  assert.match(wired, /setPermissionRequestHandler\(\(_wc, permission, grant\) => grant\(permission === "clipboard-sanitized-write"\)\)/);
+  assert.match(wired, /guest\.on\("context-menu", \(_event, params\) => popEditMenu\(guest, params\)\)/);
   assert.match(wired, /guest\.debugger\.attach\("1\.3"\)/);
   assert.match(wired, /guest\.session === seatBrowser/);
 });

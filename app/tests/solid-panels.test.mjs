@@ -365,6 +365,22 @@ test("a shelf with no repo explains how to point it at one, in html so the code 
   assert.deepEqual(model.bands, []);
 });
 
+test("the shelf paints through its solid view: the screen, the filters and the gallery", async () => {
+  const { closeShelf, paintShelf } = await app("shelf");
+  shelfWorld();
+  st.shelfShown = true;
+  paintShelf();
+  try {
+    assert.equal($("shelf-screen").dataset.view, "solid");
+    assert.equal($("shelf").hidden, false);
+    assert.ok($("sh-filters").querySelectorAll(".sh-f").length > 0, "the filters were not drawn");
+    assert.equal($("sh-gal").querySelectorAll(".sh-card").length, 1, "the gallery was not drawn");
+  } finally {
+    closeShelf();
+  }
+  assert.equal($("shelf").hidden, true);
+});
+
 test("filters that match nothing are told apart from a shelf nobody has published to", () => {
   const filtered = gallery({ shelfState: "decided" });
   assert.match(filtered.blank.say, /Nothing here with those filters/);
@@ -727,7 +743,7 @@ test("a door nobody has ever come through says so, and the box keeps the link th
 const history = (over = {}) => {
   st.histLoading = !!over.histLoading;
   st.histSessions = over.histSessions || [];
-  $("hist-search").value = over.query || "";
+  st.histQuery = over.query || "";
   return historyViewModel();
 };
 
@@ -769,6 +785,24 @@ test("each row wears its own sync dot, and none when sync says nothing", () => {
   assert.equal(model.rows[0].sync.glyph, "g-working");
   assert.equal(model.rows[1].sync.tone, "behind");
   assert.equal(model.rows[2].sync, null);
+});
+
+test("the archives paint through their solid view: the list, the count, the sync strip and a trouble", async () => {
+  const { renderHistory, renderSyncStrip, sayArchivesTrouble } = await app("history");
+  st.histLoading = false;
+  st.histQuery = "";
+  st.histSessions = [kept({ id: "p1", title: "Painted row" })];
+  renderHistory();
+  assert.equal($("history-screens").dataset.view, "solid");
+  assert.match($("hist-list").textContent, /Painted row/);
+  assert.equal($("hist-count").textContent, "1 sessions");
+  renderSyncStrip({ engine: "git", local: { repo: "https://github.com/me/x.git", lastSync: 0 }, cloud: null });
+  assert.match($("hist-sync").textContent, /me\/x/);
+  sayArchivesTrouble("could not read the archives");
+  assert.equal($("hist-list").textContent, "could not read the archives");
+  assert.equal($("hist-count").textContent, "1 sessions", "the trouble wiped the count it had");
+  renderSyncStrip(null);
+  assert.equal($("hist-sync").childNodes.length, 0, "an empty strip is not :empty, so the css cannot hide it");
 });
 
 const strip = (over = {}) => {
@@ -1050,8 +1084,6 @@ test("every line is numbered from where the file was read, and the line asked fo
 
 const HOOKS = [
   ["day", "paintDay(force = false) {", "daySolid.show("],
-  ["shelf", "paintShelf() {", "shelfGallerySolid.show("],
-  ["shelf", "paintShelf() {", "shelfFiltersSolid.show("],
   ["thread", "paintPrList() {", "prListSolid.show("],
   ["thread", "paintPrMid() {", "prMidSolid.show("],
   ["worktrees", "paintWorktrees() {", "worktreesSolid.show("],
@@ -1059,8 +1091,6 @@ const HOOKS = [
   ["usage", "paintUsage(raw) {", "usageSolid.show("],
   ["providers", "paintProviders() {", "providersSolid.show("],
   ["pod", "paintPortaria() {", "portariaSolid.show("],
-  ["history", "renderHistory() {", "historySolid.show("],
-  ["history", "renderSyncStrip(data) {", "syncStripSolid.show("],
   ["palette", "paintPalPreview() {", "palPreviewSolid.show("]
 ];
 
@@ -1080,10 +1110,10 @@ test("every panel is painted by its solid view, and by nothing else", () => {
 });
 
 const MOUNTS = [
-  ["day", "mountDay", "day-body"], ["shelf", "mountShelfFilters", "sh-filters"], ["shelf", "mountShelfGallery", "sh-gal"],
+  ["day", "mountDay", "day-body"],
   ["thread", "mountPrList", "pr-items"], ["thread", "mountPrMid", "pr-mid"], ["worktrees", "mountWorktrees", "worktrees"],
   ["pod", "mountWorkspace", "ws-scroll"], ["usage", "mountUsage", "usage"], ["providers", "mountProviders", "providers"],
-  ["pod", "mountPortaria", "pt-body"], ["history", "mountHistory", "hist-list"], ["history", "mountSyncStrip", "hist-sync"],
+  ["pod", "mountPortaria", "pt-body"],
   ["palette", "mountPalPreview", "pal-prev"]
 ];
 
@@ -1106,6 +1136,7 @@ const KEPT_BY_SOLID = {
   usage: "usage",
   providers: "providers",
   "pt-body": "pod",
+  "history-screens": "history",
   "hist-list": "history",
   "hist-sync": "history",
   "pal-prev": "palette"
@@ -1120,7 +1151,7 @@ test("nothing writes straight into a host solid owns — solid would lose the pa
       assert.ok(!source(module).includes(`$("${host}").replaceChildren`), `${module}.js replaces the children of ${host}, a host solid owns`);
     }
   }
-  for (const [module, say, mount] of [["usage", "sayUsageTrouble(", "usageSolid"], ["worktrees", "sayWorktreeTrouble(", "worktreesSolid"], ["history", "sayArchivesTrouble(", "historySolid"]]) {
+  for (const [module, say, mount] of [["usage", "sayUsageTrouble(", "usageSolid"], ["worktrees", "sayWorktreeTrouble(", "worktreesSolid"]]) {
     assert.match(body(module, say), new RegExp(`${mount}\\.show`), `${say}) must go through solid`);
   }
 });

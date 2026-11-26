@@ -244,3 +244,9 @@ test("Codex thinking reaches native and terminal sessions on POSIX and Windows",
   assert.ok(seatCommand(terminal).includes('model_reasoning_effort="max"'));
   assert.ok(seatArgv(terminal).args.includes('model_reasoning_effort="max"'));
 });
+
+test("a resumed claude chat can be born asleep, and no other seat takes the flag", () => {
+  assert.match(seatCommand({ ...seat, structured: true, driver: "/d.mjs", resumeId: "abc", asleep: true }), /--resume-id abc[^\n]* --asleep$/);
+  assert.doesNotMatch(seatCommand({ ...seat, structured: true, driver: "/d.mjs", asleep: true }), /--asleep/, "a chat with nothing to resume cannot be born asleep");
+  assert.doesNotMatch(seatCommand({ ...seat, agent: "codex", structured: true, driver: "/d.mjs", resumeId: "abc", asleep: true }), /--asleep/);
+});

@@ -40,10 +40,3 @@ test("a panoramic screenshot on the tray is cropped to a chip, not stretched acr
   assert.match(tui, /object-fit: cover/);
 });
 
-test("in the new hive the close icon of a chip sits in the middle of its hover square", () => {
-  const next = readFileSync(join(HERE, "assets", "experience.css"), "utf8");
-  const line = (selector) => next.split("\n").find((one) => one.startsWith(`${selector} {`)) || "";
-  assert.match(line("body.experience-next .sv-attach .att button.ax"), /position: relative/);
-  const icon = line("body.experience-next .sv-attach .att button.ax::before");
-  assert.match(icon, /position: absolute; inset: 0; margin: auto;/, "the hidden × still takes a grid row and pushed the icon 2px above the hover square's middle");
-});

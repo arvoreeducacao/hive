@@ -367,7 +367,6 @@ function keysWorld(over = {}) {
     DEFAULT_LEADER: { code: "KeyB", ctrl: true },
     IS_MAC: false,
     THEME_RESCUE_KEY: { ctrl: true, alt: true, shift: true, code: "KeyT" },
-    experienceNext: () => over.next === true,
     silenced: (a) => a === "new" && over.silenced === true,
     digitSpan: () => 4,
     keyLabel: (b) => (b ? b.code : "—"),
@@ -555,87 +554,6 @@ test("a step already answered thanks you instead of asking again", () => {
   assert.equal(run(tourWorld(0, "no"), tour, "tourViewModel")().thanks, "noted — this one gets rewritten");
 });
 
-/* ── the plane ── */
-
-const planeBar = slice("plane", "let planeBarSolid = null;");
-
-test("the bar over a note offers its colours, and the one over an area offers a rename instead", () => {
-  const world = {
-    planeIsArea: (id) => id === "a1",
-    keyLabel: () => "⌫",
-    PLANE_TINTS: ["", "amber", "blue"],
-    st: {}
-  };
-  const note = run(world, planeBar, "planeBarViewModel")("n1", { tint: "amber" });
-  assert.equal(note.area, false);
-  assert.deepEqual(note.tints.map((one) => one.cls), ["plain", "amber", "blue"]);
-  assert.deepEqual(note.tints.map((one) => one.on), [false, true, false]);
-  assert.equal(note.remove, "remove ⌫");
-  const area = run(world, planeBar, "planeBarViewModel")("a1", {});
-  assert.equal(area.area, true);
-  assert.equal(area.rename, "rename");
-});
-
-const planeMap = slice("plane", "let planeMapSolid = null;");
-
-test("the little map puts a dot on every thing on the field and marks the ones waiting on you", () => {
-  const model = run({
-    planeBounds: () => ({ x: 0, y: 0, w: 100, h: 100 }),
-    planeSeen: () => ({ x: 0, y: 0, w: 50, h: 50 }),
-    st: {
-      planeAreas: [{ id: "a1", x: 0, y: 0, w: 10, h: 10 }],
-      planeNotes: [{ id: "n1", x: 10, y: 10, w: 10, h: 10 }],
-      blocks: [{ keys: ["s2"] }],
-      block: 0
-    },
-    planeNodes: new Map([["s1", {}], ["s2", {}]]),
-    itemOf: (key) => ({ state: key === "s1" ? "needs" : "idle" }),
-    planeBoxOf: () => ({ x: 0, y: 0, w: 10, h: 10 })
-  }, planeMap, "planeMapViewModel")({ clientWidth: 100, clientHeight: 100 });
-  assert.deepEqual(model.dots.map((one) => one.key), ["area:a1", "note:n1", "seat:s1", "seat:s2"]);
-  assert.deepEqual(model.dots.map((one) => one.cls), ["area", "note", "needs", "live"]);
-  assert.equal(model.field.k, 1);
-  assert.equal(model.dots[1].at.left, "10px");
-  assert.equal(model.seen.width, "50px");
-});
-
-test("a dot is never smaller than two pixels, however far out the field is", () => {
-  const model = run({
-    planeBounds: () => ({ x: 0, y: 0, w: 1000, h: 1000 }),
-    planeSeen: () => ({ x: 0, y: 0, w: 1000, h: 1000 }),
-    st: { planeAreas: [], planeNotes: [{ id: "n1", x: 0, y: 0, w: 1, h: 1 }], blocks: [], block: 0 },
-    planeNodes: new Map(), itemOf: () => null, planeBoxOf: () => ({ x: 0, y: 0, w: 1, h: 1 })
-  }, planeMap, "planeMapViewModel")({ clientWidth: 100, clientHeight: 100 });
-  assert.equal(model.dots[0].at.width, "2px");
-});
-
-const planeCard = slice("plane", "let planeCardMount = null;");
-
-test("a card on the field says what the seat is about, where it runs and what it carries", () => {
-  const world = {
-    GLYPH: { needs: "g-needs" }, LABEL: { needs: "needs you" },
-    prsOfChat: (name) => (name === "b2" ? [{ number: 12 }] : []),
-    prIsGone: () => false
-  };
-  const model = run(world, planeCard, "planeCardViewModel")({ key: "b2", name: "b2", title: "Persist PRs", state: "needs", when: "20:00", where: "cloud", model: "opus" });
-  assert.equal(model.glyph, "g-needs");
-  assert.equal(model.name, "Persist PRs");
-  assert.equal(model.said, "needs you");
-  assert.equal(model.of, "on the server");
-  assert.deepEqual(model.chips.map((one) => one.text), ["#12", "opus"]);
-  assert.equal(model.sum, "", "a seat with no status says nothing");
-});
-
-test("a seat on an errand is named by the errand, and a local one names no server", () => {
-  const model = run({
-    GLYPH: {}, LABEL: {}, prsOfChat: () => [], prIsGone: () => false
-  }, planeCard, "planeCardViewModel")({ key: "b2", name: "b2", errand: "the mirror", where: "local", summary: "half done" });
-  assert.equal(model.of, "the mirror · b2");
-  assert.equal(model.sum, "half done");
-  assert.equal(model.glyph, "g-idle");
-  assert.deepEqual(model.chips, []);
-});
-
 /* ── the hooks themselves ── */
 
 test("every painter in this region paints through its solid view", () => {
@@ -649,10 +567,7 @@ test("every painter in this region paints through its solid view", () => {
     ["face-door", "function paintFaceSheet() {", /faceSheetSolid\.show\(faceSheetViewModel\(\)\);/],
     ["leader-key", "function paintKeys() {", /keysGridSolid\.show\(said\.grid\);/],
     ["tour", "function paintRelnotes() {", /relnotesSolid\.show\(/],
-    ["tour", "function paintTour() {", /tourSolid\.show\(tourViewModel\(\)\);/],
-    ["plane", "function paintPlaneBar() {", /planeBarSolid\.show\(planeBarViewModel\(id, one\)\)/],
-    ["plane", "function paintPlaneMap() {", /planeMapSolid\.show\(/],
-    ["plane", "function paintPlaneCard(node, it) {", /planeCardMount\(/]
+    ["tour", "function paintTour() {", /tourSolid\.show\(tourViewModel\(\)\);/]
   ];
   for (const [module, head, guard] of guards) {
     const text = source(module);
@@ -675,20 +590,17 @@ test("each view of this region is mounted on the element the painter writes into
     ["leader-key", /hive\.mountKeysLeader\(lead\)/],
     ["tour", /hive\.mountRelnotes\(list\)/],
     ["tour", /hive\.mountTourPop\(pop\)/],
-    ["plane", /hive\.mountPlaneBar\(bar, \{/],
-    ["plane", /hive\.mountPlaneMap\(in_\)/],
-    ["plane", /planeCardMount = hive\.mountPlaneCard;/],
     ["preferences", /\[which, hive\.mountOptions\(host\)\]/]
   ];
   for (const [module, shape] of mounts) assert.match(source(module), shape, `no mount for ${shape}`);
 });
 
-test("the plane keeps its drag, its wires and its writing surfaces imperative", () => {
+test("the plane keeps its drag and its wires imperative", () => {
   const layer = source("plane");
-  for (const still of ["function paintPlaneWires()", "function paintPlaneMarks(alive)", "function paintPlaneGroups()", "function paintPlaneNotes()", "function paintPlaneAreas()", "function applyPlane()"]) {
+  for (const still of ["function paintPlaneWires()", "function paintPlaneMarks(alive)", "function paintPlaneGroups()", "function applyPlane()"]) {
     assert.ok(layer.includes(still), `${still} left the plane`);
   }
-  assert.ok(!/mountPlaneNotes|mountPlaneAreas|mountPlaneWires/.test(layer), "a surface the pointer writes on was handed to the reconciler");
+  assert.ok(!/mountPlaneWires/.test(layer), "the wires were handed to the reconciler");
 });
 
 const canBuild = existsSync(join(HERE, "node_modules/esbuild")) && existsSync(join(HERE, "node_modules/solid-js"));

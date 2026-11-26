@@ -29,7 +29,6 @@ export function registerArtifactRoutes(on, context) {
     shelfPull,
     shelfIndex,
     getDev,
-    pullPage = async () => null,
     readShelfComments = () => ({ comments: [] }),
     commentOnShelf = async () => ({ error: "comments are not wired on this hive" }),
     settleShelfComment = async () => ({ error: "comments are not wired on this hive" }),
@@ -139,12 +138,6 @@ export function registerArtifactRoutes(on, context) {
   on(null, "/api/shelf/page", async (req, res, url, json) => {
     const slug = String(url.searchParams.get("slug") || "");
     if (!SHELF_SLUG.test(slug)) return json({ error: "that is not a page on the shelf" }, 400);
-    const pull = await pullPage(slug).catch(() => null);
-    if (pull) {
-      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "x-content-type-options": "nosniff", "cache-control": "no-store" });
-      res.write(pull.start);
-      return res.end(await pull.rest());
-    }
     const asked = String(url.searchParams.get("tab") || "");
     const tab = TABS.includes(asked) ? asked : TABS[0];
     const page = readShelfPage(SHELF_HOME, slug, tab, Number(url.searchParams.get("v")) || 0);

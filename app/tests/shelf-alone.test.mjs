@@ -33,7 +33,7 @@ function shelf({ open = PAGE.slug, wide = false, full = false } = {}) {
   asked.length = 0;
   toldItIsReading.length = 0;
   theScreen().toggle("fullscreen", full);
-  document.getElementById("shelf").hidden = false;
+  st.shelfShown = true;
   st.shelf = { repo: "https://github.com/acme/artifacts", me: "jonas", pages: [PAGE, OTHER] };
   st.shelfQuery = "";
   st.shelfWho = "team";

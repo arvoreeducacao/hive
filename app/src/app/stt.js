@@ -2,7 +2,7 @@ import { apiBinary, apiGet } from "/assets/api.mjs";
 import { STT_SAMPLE_RATE, joinSound, loudnessOf, wasAnythingSaid, whereTheWordsGo } from "/assets/stt-sound.mjs";
 import { activeItems } from "./blocks.js";
 import { showNotice } from "./chimes-and-notices.js";
-import { experienceNext, phrase, st } from "./core.js";
+import { phrase, st } from "./core.js";
 import { drafts } from "./draft-seat.js";
 import { structPool } from "./structured-seats.js";
 import { openMacPermissions } from "./mac-permissions.js";
@@ -256,7 +256,6 @@ export function wireTalkButton(button, into) {
     button.classList.toggle("hot", mine && sound.state === "hearing");
     button.classList.toggle("think", mine && sound.state === "writing");
     button.classList.toggle("dead", !sound.ready || !mine);
-    button.closest(".sv-composer")?.classList.toggle("talking", experienceNext() && busy && sound.owner === button);
     button.disabled = !mine || sound.state === "writing";
     button.title = talkSaid(sound, mine);
     button.setAttribute("aria-pressed", mine && sound.state === "hearing" ? "true" : "false");

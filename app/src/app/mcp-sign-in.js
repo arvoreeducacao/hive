@@ -47,33 +47,79 @@ async function lookAtMcpServers(e, session, tries) {
   if (servers.some((server) => server.status === "pending")) lookAgain(e, session, tries);
 }
 
+const LOCK = `<span class="tl-ico"><svg aria-hidden="true"><use href="#i-lock"/></svg></span>`;
+
+const rowsOf = (group) => [...group.notice.querySelectorAll(".mcp-list > .mcp-row")];
+
+function signInGroup(e, session) {
+  const groups = (e.mcpSignInGroups ||= new Map());
+  const kept = groups.get(session);
+  if (kept && e.conv?.blocks.includes(kept.block)) return kept;
+  const notice = document.createElement("div");
+  notice.className = "sv-mcp-signin";
+  notice.setAttribute("role", "group");
+  notice.innerHTML = `<button type="button" class="mcp-fold" aria-expanded="false" hidden>${LOCK}<span class="sum"></span><span class="who"></span><svg class="chev" aria-hidden="true"><use href="#i-chev"/></svg></button><div class="mcp-list"></div>`;
+  const group = { notice, open: false, block: null };
+  notice.querySelector(".mcp-fold").addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    group.open = !group.open;
+    showGroup(group);
+  });
+  group.block = svConvAppend(e, notice);
+  groups.set(session, group);
+  return group;
+}
+
+function showGroup(group) {
+  const rows = rowsOf(group);
+  const names = rows.map((row) => row.dataset.server);
+  const many = rows.length > 1;
+  const open = many && group.open;
+  const title = many ? phrase("{n} MCP servers need a sign-in", { n: rows.length }) : phrase("MCP server {name} needs a sign-in", { name: names[0] || "" });
+  const fold = group.notice.querySelector(".mcp-fold");
+  group.notice.classList.toggle("many", many);
+  group.notice.classList.toggle("open", open);
+  group.notice.setAttribute("aria-label", title);
+  fold.hidden = !many;
+  fold.setAttribute("aria-expanded", String(open));
+  fold.querySelector(".sum").textContent = title;
+  fold.querySelector(".who").textContent = names.join(", ");
+  fold.querySelector(".who").hidden = open;
+  group.notice.querySelector(".mcp-list").hidden = many && !open;
+  for (const row of rows) row.querySelector(".nm").textContent = many ? row.dataset.server : title;
+}
+
 function paintMcpSignIn(e, session, name) {
   const key = announcedKey(e, session, name);
   if (announced.has(key)) return null;
   announced.add(key);
-  const title = phrase("MCP server {name} needs a sign-in", { name });
-  const notice = document.createElement("div");
-  notice.className = "sv-mcp-signin";
-  notice.dataset.server = name;
-  notice.setAttribute("role", "group");
-  notice.setAttribute("aria-label", title);
-  notice.innerHTML = `<div class="mcp-row"><span class="tl-ico"><svg aria-hidden="true"><use href="#i-lock"/></svg></span><span class="mt"><span class="nm"></span><span class="er" role="alert"></span></span><button type="button" class="auth"></button></div>`;
-  notice.querySelector(".nm").textContent = title;
-  const button = notice.querySelector(".auth");
+  const group = signInGroup(e, session);
+  const row = document.createElement("div");
+  row.className = "mcp-row";
+  row.dataset.server = name;
+  row.innerHTML = `${LOCK}<span class="mt"><span class="nm"></span><span class="er" role="alert"></span></span><button type="button" class="auth"></button>`;
+  const button = row.querySelector(".auth");
   button.textContent = phrase("Sign in");
-  const block = svConvAppend(e, notice);
   button.addEventListener("click", (ev) => {
     ev.stopPropagation();
-    mcpAuthenticate(e, name, notice.querySelector(".mcp-row"), (cls, text) => noticeBecomesLine(e, block, cls, text));
+    mcpAuthenticate(e, name, row, (cls, text) => rowBecomesLine(e, group, row, cls, text));
   });
-  return block;
+  group.notice.querySelector(".mcp-list").appendChild(row);
+  showGroup(group);
+  svConvShow(e);
+  return group.block;
 }
 
-function noticeBecomesLine(e, block, cls, text) {
+function rowBecomesLine(e, group, row, cls, text) {
+  row.remove();
   const blocks = e.conv?.blocks || [];
-  const at = blocks.indexOf(block);
+  const at = blocks.indexOf(group.block);
   if (at < 0) return void svLine(e, cls, text);
-  blocks.splice(at, 1, { key: svConvKey(e), kind: "meta", cls, text });
+  const line = { key: svConvKey(e), kind: "meta", cls, text };
+  if (rowsOf(group).length) {
+    blocks.splice(at, 0, line);
+    showGroup(group);
+  } else blocks.splice(at, 1, line);
   svConvShow(e);
 }
 

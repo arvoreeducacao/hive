@@ -10,7 +10,7 @@ import { adoptBrandFace, adoptGaze, adoptLanguage, adoptLook, adoptPet, adoptScr
 import { adoptComposerPrefs } from "./composer-prefs.js";
 import { adoptQuitShortcut } from "./quit-hint.js";
 import { adoptBehavior } from "./behavior-settings.js";
-import { adoptAutoUpdateAgents, adoptAutocompact, adoptKeepAwake, adoptCalm, adoptContextUsage, adoptDiaryDays, adoptPrefs, adoptQuietDays } from "./pure-helpers.js";
+import { adoptAutoUpdateAgents, adoptAutocompact, adoptKeepAwake, adoptCalm, adoptCodeMode, adoptContextUsage, adoptDiaryDays, adoptPrefs, adoptQuietDays } from "./pure-helpers.js";
 import { adoptPromptSuggestions } from "./composer-next-prompt.js";
 import { adoptBlockSize, adoptLayout } from "./seat-layout.js";
 import { adoptTerminalEngine } from "./terminal-pool.js";
@@ -162,6 +162,7 @@ async function reloadConfig() {
     adoptCalm(r);
     adoptAutocompact(r);
     adoptContextUsage(r);
+    adoptCodeMode(r);
     adoptLimitsFoot(r);
     adoptToolCalls(r);
     adoptTitleInstructions(r);

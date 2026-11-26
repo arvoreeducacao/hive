@@ -15,6 +15,7 @@ const { keyLabel } = await app("brand-face");
 const { sawWorking } = await app("leader-key");
 const mirror = await app("mirror");
 const worktrees = await app("worktrees");
+const { adoptSeatMarks } = await app("seat-marks");
 const { ARCH_SHOWN, archKey, spanOf } = mirror;
 
 const flag = (on) => {
@@ -312,7 +313,7 @@ test("every chat with no place on the grid sits under off screen, each saying wh
   hidden.clear();
   mirror.setHiddenOpen(true);
   world({
-    data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana" }), seat("ends", { state: "working" }), seat("works"), seat("kid", { by: "a" }), seat("away")], archived: [] },
+    data: { pod: { up: false, name: "" }, sessions: [seat("a", { title: "Ana" }), seat("ends", { state: "working" }), seat("works"), seat("kid", { by: "gone" }), seat("away")], archived: [] },
     blocks: [{ id: "b1", ws: "w0", keys: ["a", "ends", "works"] }],
     detached: ["away"]
   });
@@ -324,11 +325,118 @@ test("every chat with no place on the grid sits under off screen, each saying wh
   assert.deepEqual(off.items.map((it) => [it.key, it.why]), [
     ["ends", "back when it finishes"],
     ["works", "back when it works"],
-    ["kid", "opened by Ana"],
+    ["kid", "opened by gone"],
     ["away", "in a window of its own"]
   ]);
   assert.equal(model.snoozed, null, "the hidden chats are not listed twice");
   hidden.clear();
+});
+
+test("a chat another chat opened sits under its opener, and the caret folds its subchats", () => {
+  flag(true);
+  hidden.clear();
+  st.subchatsShut.clear();
+  const data = {
+    pod: { up: false, name: "" }, archived: [],
+    sessions: [
+      seat("bucket", { title: "Migração de Bucket" }),
+      seat("files", { title: "Migrar fileslivros", by: "bucket", state: "working" }),
+      seat("capas", { title: "Migrar capas", by: "bucket", state: "needs" }),
+      seat("deep", { by: "files" }),
+      seat("other")
+    ]
+  };
+  let model = world({ data, blocks: [{ id: "b1", ws: "w0", keys: ["bucket", "other"] }] });
+  assert.deepEqual(rows(model), ["bucket", "other"], "a subchat is no row of a block of its own");
+  assert.ok(!model.groups.some((g) => g.key === "loose"), "a subchat whose opener is on the rail is not off screen");
+  const opener = model.groups[0].items[0];
+  assert.deepEqual(opener.kids.items.map((it) => it.key), ["files", "capas"]);
+  assert.deepEqual(opener.kids.dots, ["working", "needs"]);
+  assert.equal(opener.kids.open, true);
+  assert.equal(opener.kids.sumSaid, "2 subchats open");
+  assert.deepEqual(opener.kids.items[0].kids.items.map((it) => it.key), ["deep"], "a subchat of a subchat nests one step further");
+  mirror.paintRail();
+  assert.deepEqual(mirror.railKeys(), ["bucket", "files", "deep", "capas", "other"], "the keyboard walks the subchats in the order they are drawn");
+
+  mirror.toggleSubchats("bucket");
+  model = mirror.railViewModel();
+  assert.equal(model.groups[0].items[0].kids.open, false, "the caret folds them");
+  assert.equal(model.groups[0].items[0].kids.toggleSay, "Show its subchats");
+
+  model = world({ data, blocks: [{ id: "b1", ws: "w0", keys: ["bucket", "other"] }], open: "capas" });
+  const unfolded = model.groups[0].items[0];
+  assert.equal(unfolded.kids.open, true, "the open subchat unfolds its opener");
+  assert.equal(unfolded.kids.items.find((it) => it.key === "capas").sel, true);
+  st.subchatsShut.clear();
+});
+
+test("a settled subchat folds into its opener as a count, not into the settled shelf", () => {
+  flag(true);
+  hidden.clear();
+  st.subchatsShut.clear();
+  st.subchatsDoneOpen.clear();
+  const at = Date.now() + 1000;
+  const data = {
+    pod: { up: false, name: "" }, archived: [],
+    sessions: [seat("desk", { title: "Produção de texto" }), seat("review", { title: "Review do papel", by: "desk" }), seat("alone")],
+    marks: { review: { settledAt: at, at }, alone: { settledAt: at, at } }
+  };
+  world({ data, blocks: [{ id: "b1", ws: "w0", keys: ["desk"] }] });
+  adoptSeatMarks();
+  let model = mirror.railViewModel();
+  const desk = model.groups.find((g) => g.key === "b1").items[0];
+  assert.deepEqual(desk.kids.items, [], "a settled subchat is no open subchat");
+  assert.deepEqual(desk.kids.dots, []);
+  assert.equal(desk.kids.settled.say, "1 settled");
+  assert.equal(desk.kids.settled.open, false);
+  assert.equal(desk.kids.sumSaid, "1 subchat, settled");
+  const shelf = model.groups.find((g) => g.shelf === "settled");
+  assert.deepEqual(shelf.items.map((it) => it.key), ["alone"], "the settled shelf keeps only the chats with no opener on the rail");
+  mirror.paintRail();
+  $("rail-sessions").querySelector('[data-kids-done="desk"]').dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  model = mirror.railViewModel();
+  const unfolded = model.groups.find((g) => g.key === "b1").items[0].kids.settled;
+  assert.deepEqual(unfolded.items.map((it) => it.key), ["review"]);
+  assert.equal(unfolded.items[0].act.act, "unsettle", "a settled subchat can be reopened from its opener");
+  st.subchatsDoneOpen.clear();
+});
+
+test("folding the opener of the open subchat goes back to the opener", () => {
+  flag(true);
+  hidden.clear();
+  st.subchatsShut.clear();
+  world({
+    data: { pod: { up: false, name: "" }, archived: [], sessions: [seat("bucket", { title: "Migração de Bucket" }), seat("files", { title: "Migrar fileslivros", by: "bucket" }), seat("deep", { by: "files" }), seat("other")] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["other", "bucket"] }],
+    open: "deep"
+  });
+  mirror.toggleSubchats("bucket");
+  assert.ok(st.subchatsShut.has("bucket"), "the fold closed");
+  assert.equal(st.open, null, "the subchat left the screen");
+  assert.equal(st.focus, 1, "the opener took the focus in its block");
+  assert.equal(mirror.railViewModel().groups[0].items.find((it) => it.key === "bucket").kids.open, false);
+  mirror.toggleSubchats("bucket");
+  assert.ok(!st.subchatsShut.has("bucket"), "with no subchat open the caret only unfolds");
+  st.subchatsShut.clear();
+});
+
+test("the rail draws the subchats under their opener, and the caret click folds them", () => {
+  flag(true);
+  hidden.clear();
+  st.subchatsShut.clear();
+  world({
+    data: { pod: { up: false, name: "" }, archived: [], sessions: [seat("bucket", { title: "Migração de Bucket" }), seat("files", { title: "Migrar fileslivros", by: "bucket" })] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["bucket"] }]
+  });
+  mirror.paintRail();
+  const host = $("rail-sessions");
+  assert.deepEqual([...host.querySelectorAll(".rail-kids .item")].map((el) => el.dataset.name), ["files"]);
+  const caret = host.querySelector('[data-kids-toggle="bucket"]');
+  assert.ok(caret, "the opener row has a caret");
+  caret.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  assert.ok(st.subchatsShut.has("bucket"));
+  assert.equal(host.querySelector(".rail-kids"), null, "folded, the subchats leave the rail");
+  st.subchatsShut.clear();
 });
 
 test("off screen folds to a count, and a search opens it again", () => {
@@ -418,4 +526,119 @@ test("the rail headers read in sentence case sans, the rows breathe, and the blo
   assert.doesNotMatch(sheet, /\.rail-blk\.cur \{/, "the block on screen got its box back");
   assert.doesNotMatch(sheet, /\.rail-seg button b/);
   assert.match(rule(".item .meta"), /font: 400 12px var\(--sans\); font-variant-numeric: tabular-nums;/);
+});
+
+const railDrag = (kind, on) => {
+  const ev = new window.Event(kind, { bubbles: true, cancelable: true });
+  ev.dataTransfer = { setData() {}, effectAllowed: "", dropEffect: "" };
+  on.dispatchEvent(ev);
+  return ev;
+};
+
+test("a block group knows its block even in another workspace, and the other groups know none", () => {
+  flag(true);
+  const model = world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b"), seat("loose")], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a"] }, { id: "b2", ws: "w1", keys: ["b"] }]
+  });
+  const group = (key) => model.groups.find((g) => g.key === key);
+  assert.equal(group("b1").to, 0);
+  assert.equal(group("b2").to, 1);
+  assert.equal(group("loose").to, undefined);
+  flag(false);
+});
+
+test("a chat dragged on the rail onto a block's name moves there, and a full block opens the trade list", async () => {
+  if (!mirror.railSolid) (await app("shared")).bootSolid();
+  flag(true);
+  const limit = st.LIMIT;
+  st.LIMIT = 2;
+  const paint = (blocks) => {
+    const sessions = blocks.flatMap((b) => b.keys).map((name) => seat(name, { title: name.toUpperCase() }));
+    world({ data: { pod: { up: false, name: "" }, sessions, archived: [] }, blocks });
+    mirror.paintRail();
+  };
+  const host = $("rail-sessions");
+  const row = (name) => host.querySelector(`.item[data-name='${name}']`);
+  const title = (i) => host.querySelector(`.rail-blk[data-to='${i}'] > .group-title`);
+  const kept = () => st.blocks.map((b) => [...b.keys]);
+
+  paint([{ id: "b1", ws: "w0", keys: ["a", "b"] }, { id: "b2", ws: "w0", keys: ["c"] }]);
+  let carried = row("a");
+  railDrag("dragstart", carried);
+  assert.equal(st.dragSeat, "a");
+  assert.ok(carried.classList.contains("lifting"));
+  assert.equal(railDrag("dragover", title(0)).defaultPrevented, false, "its own block is no place to drop");
+  assert.equal(railDrag("dragover", row("c")).defaultPrevented, false, "a chat row stays the context drop");
+  assert.equal(railDrag("dragover", title(1)).defaultPrevented, true);
+  assert.ok(title(1).classList.contains("drop"));
+  assert.equal(document.getElementById("btrade"), null, "a block with room takes it without a trade");
+  railDrag("drop", title(1));
+  railDrag("dragend", carried);
+  assert.deepEqual(kept(), [["b"], ["c", "a"]]);
+  assert.equal(st.dragSeat, null);
+  assert.equal(host.querySelector(".lifting, .drop"), null);
+  assert.equal(document.body.classList.contains("seat-dragging"), false);
+
+  paint([{ id: "b1", ws: "w0", keys: ["a", "b"] }, { id: "b2", ws: "w0", keys: ["c", "d"] }]);
+  carried = row("a");
+  railDrag("dragstart", carried);
+  railDrag("dragover", title(1));
+  const box = document.getElementById("btrade");
+  assert.deepEqual([...box.querySelectorAll(".row")].map((one) => one.dataset.key), ["c", "d"]);
+  assert.equal(box.querySelector(".foot").textContent, "dropping on the block's name, and not on a chat, trades with the last.");
+  railDrag("drop", box.querySelector(".row[data-key='c']"));
+  mirror.paintRail();
+  assert.notEqual(row("a"), carried, "the rail draws the moved chat anew in its new block");
+  railDrag("dragend", carried);
+  assert.deepEqual(kept(), [["c", "b"], ["a", "d"]]);
+  assert.equal(document.getElementById("btrade"), null);
+  assert.equal(st.dragSeat, null, "the drag ends even when its row left the rail");
+  assert.equal(document.body.classList.contains("seat-dragging"), false);
+
+  paint([{ id: "b1", ws: "w0", keys: ["a", "b"] }, { id: "b2", ws: "w0", keys: ["c", "d"] }]);
+  carried = row("a");
+  railDrag("dragstart", carried);
+  railDrag("dragover", title(1));
+  railDrag("drop", title(1));
+  railDrag("dragend", carried);
+  assert.deepEqual(kept(), [["d", "b"], ["c", "a"]], "the block's name trades with its last chat");
+
+  st.LIMIT = limit;
+  flag(false);
+});
+
+test("a chat with no place in a block, or in a mate's hive, is carried only as context", async () => {
+  if (!mirror.railSolid) (await app("shared")).bootSolid();
+  flag(true);
+  st.dragSeat = null;
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b"), seat("loose")], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a"] }, { id: "b2", ws: "w0", keys: ["b"] }]
+  });
+  mirror.paintRail();
+  const host = $("rail-sessions");
+  const loose = document.createElement("div");
+  loose.className = "item";
+  loose.dataset.name = "loose";
+  host.appendChild(loose);
+  railDrag("dragstart", loose);
+  assert.equal(st.dragSeat, null);
+  loose.remove();
+  st.mirrorDev = "mate";
+  railDrag("dragstart", host.querySelector(".item[data-name='a']"));
+  assert.equal(st.dragSeat, null);
+  st.mirrorDev = "";
+  flag(false);
+});
+
+test("the block name a chat is dragged over lights up without growing, and the carried row fades", () => {
+  const rule = (selector) => {
+    const at = sheet.indexOf(`:where(body.experience-raycast) ${selector} {`);
+    assert.ok(at >= 0, `no rule for ${selector}`);
+    return sheet.slice(at, sheet.indexOf("}", at));
+  };
+  assert.match(rule("#rail-sessions .group-title.drop"), /box-shadow: inset 0 0 0 1px var\(--accent\)/);
+  assert.doesNotMatch(rule("#rail-sessions .group-title.drop"), /padding|margin|height|border:/);
+  assert.match(rule("#rail-sessions .item.lifting"), /opacity/);
 });

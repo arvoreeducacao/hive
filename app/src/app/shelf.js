@@ -1,8 +1,8 @@
-import { $, esc, fullThemeDef, phrase, raycastOn, screenOpens, solidMounts, st, svgIcon, themeDef, wornThemeName } from "./core.js";
+import { $, fullThemeDef, phrase, raycastOn, screenOpens, st, themeDef, wornThemeName } from "./core.js";
 import { closeDay, dayOnScreen, openDay } from "./day.js";
 import { releaseKeyboard } from "./focus-navigation.js";
 import { closeMore } from "./new-chat.js";
-import { copyWithWord, dressHost, followRaycast, footModel, leavePanel, openActions, panelOf, registerPanel, runAction, undressHost } from "./panel-window.js";
+import { copyWithWord, followRaycast, footModel, leavePanel, openActions, panelOf, registerPanel, runAction } from "./panel-window.js";
 import { giveTheScreenBack, takeTheScreen, whenTheScreenGoesBack } from "./screen-alone.js";
 import { bytes, closePortaria, portariaOnScreen } from "./pod.js";
 import { artClock } from "./subagents-dock.js";
@@ -10,6 +10,7 @@ import { toClipboard } from "./terminal-history.js";
 import { closePrs, prsOnScreen } from "./thread.js";
 import { closeUsage, usageOnScreen } from "./usage.js";
 import { closeWorktrees, worktreesOnScreen } from "./worktrees.js";
+import { SHELF_THUMB_W, mountPageChrome, mountShelf, shelfViewClosed } from "../panels/shelf.jsx";
 
 const SHELF_STATES = ["draft", "in-review", "decided", "delivered", "closed"];
 
@@ -41,11 +42,11 @@ const SHELF_BANDS = [
   { key: "done", say: "already done", states: ["delivered", "closed"], shut: true }
 ];
 
-const SHELF_THUMB_W = 1280;
-
 const GITHUB_SHELF_URL = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+?)(?:\.git)?$/;
 
 st.shelf = null;
+
+st.shelfShown = false;
 
 st.shelfWho = "team";
 
@@ -71,9 +72,9 @@ st.shelfShut = new Set(SHELF_BANDS.filter((band) => band.shut).map((band) => ban
 
 const TALK_CHANNEL = "hive-shelf";
 
-st.shelfTalk = { slug: "", v: 0, comments: [], me: "", open: false, pinning: false, draftPin: null, draftRe: "", frames: [], focus: "", note: "", busy: false };
+st.shelfTalk = { slug: "", v: 0, comments: [], me: "", open: false, pinning: false, draftPin: null, draftRe: "", frames: [], focus: "", note: "", busy: false, cleared: 0 };
 
-const shelfOnScreen = () => !$("shelf").hidden;
+const shelfOnScreen = () => !!st.shelfShown;
 
 const shelfWideOn = () => shelfOnScreen() && !!st.shelfOpen && st.shelfWide;
 
@@ -117,49 +118,44 @@ function shelfBandOf(page) {
   return SHELF_BANDS.find((band) => band.states.includes(state)) || SHELF_BANDS[0];
 }
 
-function paintPageChrome(host, { page, tab, version, onTab, onVersion }) {
+function pageChromeModel(page, tab, version) {
   const tabs = shelfTabsOf(page);
   const here = tabs.includes(tab) ? tab : (tabs[0] || SHELF_TABS[0]);
   const versions = shelfVersionsOf(page, here);
   const now = versions.find((v) => v.n === version) || versions[versions.length - 1];
-  host.textContent = "";
-  for (const name of tabs) {
-    const b = document.createElement("button");
-    b.className = "sh-tab";
-    b.setAttribute("aria-selected", name === here ? "true" : "false");
-    b.textContent = name;
-    const n = document.createElement("i");
-    n.textContent = shelfTabSay(page, name);
-    b.appendChild(n);
-    b.addEventListener("click", (ev) => { ev.stopPropagation(); onTab(name); });
-    host.appendChild(b);
-  }
-  const rail = document.createElement("div");
-  rail.className = "sh-vers";
   const proposals = shelfLinkTab(page, here) ? shelfProposalsOf(page) : [];
   const picked = shelfPickedProposal(page, version);
-  if (proposals.length > 1) {
-    proposals.map((one, at) => ({ one, n: at + 1 })).reverse().forEach(({ one, n }) => {
-      const b = document.createElement("button");
-      b.className = "sh-ver";
-      b.setAttribute("aria-pressed", one === picked ? "true" : "false");
-      b.title = [one.url, one.at ? artClock(one.at) : ""].filter(Boolean).join(" · ");
-      b.textContent = `${one.product}/${one.id}`;
-      b.addEventListener("click", (ev) => { ev.stopPropagation(); onVersion(n); });
-      rail.appendChild(b);
-    });
+  return {
+    tab: here, now,
+    model: {
+      tabs: tabs.map((name) => ({ key: name, name, on: name === here, say: shelfTabSay(page, name) })),
+      proposals: proposals.length > 1
+        ? proposals.map((one, at) => ({ one, n: at + 1 })).reverse().map(({ one, n }) => ({
+          key: `p:${n}`, n, on: one === picked, say: `${one.product}/${one.id}`,
+          hint: [one.url, one.at ? artClock(one.at) : ""].filter(Boolean).join(" · ")
+        }))
+        : [],
+      versions: [...versions].reverse().map((v) => ({
+        key: `v:${v.n}`, n: v.n, on: v.n === now?.n, say: `v${v.n}`,
+        hint: [v.label, artClock(v.at)].filter(Boolean).join(" · ")
+      }))
+    }
+  };
+}
+
+const chromeViews = new WeakMap();
+
+function paintPageChrome(host, { page, tab, version, onTab, onVersion }) {
+  const drawn = pageChromeModel(page, tab, version);
+  let held = chromeViews.get(host);
+  if (!held) {
+    const asked = {};
+    held = { asked, view: mountPageChrome(host, { actions: { tab: (name) => asked.onTab(name), version: (n) => asked.onVersion(n) } }) };
+    chromeViews.set(host, held);
   }
-  for (const v of [...versions].reverse()) {
-    const b = document.createElement("button");
-    b.className = "sh-ver";
-    b.setAttribute("aria-pressed", v.n === now?.n ? "true" : "false");
-    b.title = [v.label, artClock(v.at)].filter(Boolean).join(" · ");
-    b.textContent = `v${v.n}`;
-    b.addEventListener("click", (ev) => { ev.stopPropagation(); onVersion(v.n); });
-    rail.appendChild(b);
-  }
-  host.appendChild(rail);
-  return { tab: here, now };
+  Object.assign(held.asked, { onTab, onVersion });
+  held.view.show(drawn.model);
+  return { tab: drawn.tab, now: drawn.now };
 }
 
 function openShelf() {
@@ -169,31 +165,20 @@ function openShelf() {
   if (usageOnScreen()) closeUsage();
   if (worktreesOnScreen()) closeWorktrees();
   if (portariaOnScreen()) closePortaria();
-  $("shelf").hidden = false;
+  st.shelfShown = true;
   paintShelf();
   if (raycastOn()) $("sh-search").focus();
   pullShelf(!st.shelfAsked);
   st.shelfAsked = true;
 }
 
-function forgetShelfFrame() {
-  const frame = $("sh-frame");
-  if (!frame.dataset.here) return;
-  delete frame.dataset.here;
-  frame.src = "about:blank";
-}
-
 function closeShelf() {
   if (raycastOn()) leavePanel($("shelf"));
   giveTheScreenBack("shelf");
-  $("shelf").hidden = true;
-  $("shelf").dataset.wide = "no";
+  st.shelfShown = false;
   st.shelfOpen = null;
   st.shelfWide = false;
-  $("shelf").dataset.on = "gallery";
-  forgetShelfFrame();
-  shelfGallerySolid?.dispose();
-  if (raycastOn()) shelfPreviewSolid?.dispose();
+  paintShelf();
 }
 
 function shelfBack() {
@@ -201,7 +186,6 @@ function shelfBack() {
   st.shelfOpen = null;
   st.shelfAt = "";
   st.shelfWide = false;
-  forgetShelfFrame();
   paintShelf();
 }
 
@@ -251,108 +235,63 @@ function shelfCardChips(page) {
   return [{ state, label, say: state ? phrase(state) : (label || phrase("no label yet")) }];
 }
 
-function fitShelfThumbs() {
-  if (raycastOn()) {
-    for (const shot of $("shelf").querySelectorAll(".sh-shot")) {
-      const frame = shot.querySelector("iframe");
-      if (frame) frame.style.transform = `scale(${shot.clientWidth / SHELF_THUMB_W})`;
+let shelfSolid = null;
+
+let paintSeq = 0;
+
+let frameUsed = false;
+
+let proposalAt = "";
+
+let wordsSaid = { language: null, words: null };
+
+function shelfWords() {
+  if (wordsSaid.language === st.language && wordsSaid.words) return wordsSaid.words;
+  wordsSaid = {
+    language: st.language,
+    words: {
+      shelf: phrase("Shelf"), search: phrase("search"), label: phrase("The pages this team published"),
+      find: phrase("Search by title, author or slug"), close: phrase("close"), list: phrase("pages on the shelf"),
+      web: phrase("the screenbook proposal of this page")
     }
-    return;
-  }
-  for (const th of $("sh-gal").querySelectorAll(".sh-th")) {
-    const frame = th.querySelector("iframe");
-    if (!frame) continue;
-    const scale = th.clientWidth / SHELF_THUMB_W;
-    frame.style.transform = `scale(${scale})`;
-  }
+  };
+  return wordsSaid.words;
 }
 
-function dressShelf() {
-  const say = (text) => esc(phrase(text));
-  dressHost($("shelf"), `
-    <header class="pw-head" data-no-t>
-      <span class="pw-ico">${svgIcon("i-book")}</span>
-      <h2 class="pw-title">${say("Shelf")}</h2>
-      <span data-pw-keep="sh-count" class="pw-count"></span>
-      <span class="pw-vsep"></span>
-      <label class="pw-search">${svgIcon("i-mag")}<input data-pw-keep="sh-search" placeholder="${say("Search by title, author or slug")}" aria-label="${say("Search by title, author or slug")}"></label>
-      <div data-pw-keep="sh-filters" class="pw-drop"></div>
-      <span class="pw-vsep"></span>
-      <button type="button" class="pw-esc" id="sh-close" aria-label="${say("close")}" title="${say("close")}">esc</button>
-    </header>
-    <div class="pw-body">
-      <div data-pw-keep="sh-gal" class="pw-list" role="listbox" aria-label="${say("pages on the shelf")}"></div>
-      <div class="pw-detail sh-prev" id="sh-prev" data-no-t></div>
-      <div data-pw-keep="sh-view"></div>
-    </div>
-    <footer class="pw-foot" id="sh-foot" data-no-t></footer>`, {
-    on: (host) => host.querySelector("#sh-close").addEventListener("click", () => closeShelf())
-  });
-  if (!shelfHive) return;
-  shelfPreviewSolid ||= shelfHive.mountShelfPreview($("sh-prev"), {
-    actions: {
-      fit: () => requestAnimationFrame(fitShelfThumbs),
-      tab: (name) => { st.shelfTab = name; st.shelfTabFor = st.shelfPick; paintShelf(); },
-      copy: (button, text) => copyWithWord(button, text)
-    }
-  });
-  shelfFootSolid ||= shelfHive.mountFoot($("sh-foot"), {
-    actions: { act: (key) => runAction(panelOf("shelf"), key), more: () => openActions(panelOf("shelf")) }
-  });
+function shelfCountSay(pages) {
+  if (raycastOn()) return pages.length === 1 ? phrase("1 page") : phrase("{n} pages", { n: pages.length });
+  return st.shelf?.repo ? `${pages.length} ${phrase("pages")} · ${st.shelf.repo.replace(/^https:\/\/github\.com\//, "")}` : "";
 }
 
-function undressShelf() {
-  shelfPreviewSolid?.dispose();
-  shelfPreviewSolid = null;
-  shelfFootSolid?.dispose();
-  shelfFootSolid = null;
-  undressHost($("shelf"));
-}
+const openedPage = () => (st.shelf?.pages || []).find((p) => p.slug === st.shelfOpen) || null;
 
-function paintShelfWindow() {
-  dressShelf();
+function shelfScreenModel() {
+  const raycast = raycastOn();
   const pages = st.shelf?.pages || [];
-  $("shelf").dataset.on = st.shelfOpen ? "view" : "gallery";
-  $("sh-view").hidden = !st.shelfOpen;
-  $("sh-count").textContent = pages.length === 1 ? phrase("1 page") : phrase("{n} pages", { n: pages.length });
-  shelfFiltersSolid.show(shelfFiltersWindowModel(pages));
-  shelfGallerySolid.show(shelfGalleryWindowModel());
-  if (st.shelfOpen) paintShelfView();
-  else {
-    shelfPreviewSolid?.show(shelfPreviewModel());
-    requestAnimationFrame(fitShelfThumbs);
-  }
-  paintShelfFoot();
+  const gallery = raycast ? shelfGalleryWindowModel() : shelfGalleryViewModel();
+  return {
+    open: shelfOnScreen(), raycast,
+    on: st.shelfOpen ? "view" : "gallery",
+    wide: st.shelfOpen && st.shelfWide ? "yes" : "no",
+    count: shelfCountSay(pages),
+    query: st.shelfQuery,
+    fit: ++paintSeq,
+    words: shelfWords(),
+    filters: raycast ? shelfFiltersWindowModel(pages) : shelfFiltersViewModel(pages),
+    gallery,
+    preview: raycast ? shelfPreviewModel() : { page: null, empty: null },
+    foot: raycast ? footModel(panelOf("shelf"), { icon: "i-book", title: phrase("Shelf"), trail: [shelfPicked()?.slug || ""] }) : { icon: "i-book", title: "", trail: [], acts: [] },
+    view: shelfViewModel()
+  };
 }
 
 function paintShelf() {
-  if (raycastOn()) return paintShelfWindow();
-  const pages = st.shelf?.pages || [];
-  $("shelf").dataset.on = st.shelfOpen ? "view" : "gallery";
-  $("sh-view").hidden = !st.shelfOpen;
-  if (st.shelfOpen) {
-    shelfGallerySolid?.show(shelfGalleryViewModel());
-    return paintShelfView();
-  }
-
-  $("sh-count").textContent = st.shelf?.repo
-    ? `${pages.length} ${phrase("pages")} · ${st.shelf.repo.replace(/^https:\/\/github\.com\//, "")}`
-    : "";
-  shelfFiltersSolid.show(shelfFiltersViewModel(pages));
-  const gallery = shelfGalleryViewModel();
-  shelfGallerySolid.show(gallery);
-  if (gallery.bands.length) requestAnimationFrame(fitShelfThumbs);
+  if (st.shelfOpen && !openedPage()) st.shelfOpen = null;
+  const page = openedPage();
+  if (page) settleOpenPage(page);
+  shelfSolid?.show(shelfScreenModel());
+  if (page && talk().open) $("sh-side")?.querySelector('[data-hot="yes"]')?.scrollIntoView?.({ block: "nearest" });
 }
-
-let shelfFiltersSolid = null;
-
-let shelfGallerySolid = null;
-
-let shelfPreviewSolid = null;
-
-let shelfFootSolid = null;
-
-let shelfHive = null;
 
 function shelfFiltersViewModel(pages) {
   const mine = pages.filter((p) => p.owner && st.shelf?.me && p.owner === st.shelf.me).length;
@@ -623,40 +562,11 @@ registerPanel("shelf", {
   subject: () => shelfPicked()?.title || phrase("Shelf")
 });
 
-function paintShelfFoot() {
-  const page = shelfPicked();
-  shelfFootSolid?.show(footModel(panelOf("shelf"), { icon: "i-book", title: phrase("Shelf"), trail: [page?.slug || ""] }));
-}
-
 function shelfFoldBand(key) {
   if (st.shelfShut.has(key)) st.shelfShut.delete(key);
   else st.shelfShut.add(key);
   paintShelf();
 }
-
-solidMounts.push((hive) => {
-  shelfHive = hive;
-  shelfFiltersSolid = hive.mountShelfFilters($("sh-filters"), {
-    actions: {
-      pick: (key) => {
-        if (!raycastOn()) return shelfPickFilter(key);
-        shelfPickWindowFilter(key);
-        $("sh-search").focus();
-      }
-    }
-  });
-  shelfGallerySolid = hive.mountShelfGallery($("sh-gal"), {
-    actions: {
-      fold: shelfFoldBand,
-      fit: () => requestAnimationFrame(fitShelfThumbs),
-      pick: (slug) => { pickShelf(slug); $("sh-search").focus(); },
-      open: (slug, tab) => {
-        const page = (st.shelf?.pages || []).find((p) => p.slug === slug);
-        if (page) openShelfPage(page, tab);
-      }
-    }
-  });
-});
 
 function openShelfPage(page, tab) {
   giveTheScreenBack("shelf");
@@ -675,114 +585,86 @@ function shelfGithubUrl(page, tab, n) {
   return `https://github.com/${m[1]}/${m[2]}/blob/HEAD/a/${page.slug}/${tab}.v${n}.html`;
 }
 
-let shelfProposalWeb = null;
-
-function shelfProposalFrame() {
-  if (shelfProposalWeb?.isConnected) return shelfProposalWeb;
-  shelfProposalWeb = document.createElement("webview");
-  shelfProposalWeb.className = "sh-web";
-  shelfProposalWeb.setAttribute("partition", "persist:seat-browser");
-  shelfProposalWeb.setAttribute("title", phrase("the screenbook proposal of this page"));
-  $("sh-frame").after(shelfProposalWeb);
-  return shelfProposalWeb;
-}
-
-function paintProposalStage(proposal) {
-  $("sh-frame").style.display = proposal ? "none" : "";
-  if (!proposal) {
-    if (shelfProposalWeb) shelfProposalWeb.style.display = "none";
-    return;
-  }
-  const web = shelfProposalFrame();
-  web.style.display = "";
-  if (web.dataset.here !== proposal.url) { web.dataset.here = proposal.url; web.src = proposal.url; }
-}
-
-function paintShelfView() {
-  const page = (st.shelf?.pages || []).find((p) => p.slug === st.shelfOpen);
-  if (!page) { st.shelfOpen = null; return paintShelf(); }
+function settleOpenPage(page) {
   const tabs = shelfTabsOf(page);
   if (!tabs.includes(st.shelfTab)) st.shelfTab = tabs[0] || SHELF_TABS[0];
   const versions = shelfVersionsOf(page, st.shelfTab);
   const now = versions.find((v) => v.n === st.shelfVersion) || versions[versions.length - 1];
+  const mine = talk();
+  if (mine.slug !== page.slug) {
+    Object.assign(mine, { slug: page.slug, comments: [], pinning: false, draftPin: null, draftRe: "", frames: [], focus: "", note: "", busy: false });
+    pullComments(page.slug, false);
+  }
+  mine.v = now?.n || 0;
+}
 
-  $("sh-vtitle").textContent = page.title || page.slug;
-  const lab = $("sh-vlab");
-  const state = shelfLabelState(page.label);
-  lab.dataset.state = state;
-  lab.textContent = state ? phrase(state) : (page.label || "");
-  lab.title = page.label || "";
-  $("sh-vwho").textContent = [page.owner, page.at ? artClock(page.at) : ""].filter(Boolean).join(" · ");
-
-  paintPageChrome($("sh-tabs"), {
-    page,
-    tab: st.shelfTab,
-    version: st.shelfVersion,
-    onTab: (name) => { st.shelfTab = name; st.shelfVersion = 0; paintShelf(); },
-    onVersion: (n) => { st.shelfVersion = n; paintShelf(); }
-  });
-
-  const frame = $("sh-frame");
+function shelfViewModel() {
+  const page = openedPage();
+  const words = shelfWords();
+  if (!page) {
+    return {
+      ...shelfViewClosed(),
+      frame: { src: frameUsed ? "about:blank" : undefined, here: undefined, away: false },
+      web: { made: !!proposalAt, url: proposalAt, on: false, title: words.web },
+      talk: talkModel()
+    };
+  }
+  const versions = shelfVersionsOf(page, st.shelfTab);
+  const now = versions.find((v) => v.n === st.shelfVersion) || versions[versions.length - 1];
   const linked = shelfLinkTab(page, st.shelfTab);
   const proposal = linked ? shelfPickedProposal(page, st.shelfVersion) : null;
-  paintProposalStage(proposal);
+  if (proposal) proposalAt = proposal.url;
   const src = linked
     ? "about:blank"
     : now
     ? `/api/shelf/page?slug=${encodeURIComponent(page.slug)}&tab=${st.shelfTab}&v=${now.n}${shelfFrameHints(st.shelfTab)}${st.shelfAt ? `#${encodeURIComponent(st.shelfAt)}` : ""}`
     : "about:blank";
-  if (frame.dataset.here !== src) { frame.dataset.here = src; frame.src = src; }
-  paintTalkChrome(page, now);
-
-  $("sh-wide").setAttribute("aria-pressed", st.shelfWide ? "true" : "false");
-  $("shelf").dataset.wide = st.shelfWide ? "yes" : "no";
-  $("sh-narrow").hidden = !st.shelfWide;
-
-  $("sh-vf").textContent = linked ? (proposal?.url || "") : [
-    `a/${page.slug}/${st.shelfTab}.v${now?.n || 0}.html`,
-    now?.label || "",
-    now?.bytes ? bytes(now.bytes) : ""
-  ].filter(Boolean).join("  ·  ");
-  const githubShown = !linked && !!shelfGithubUrl(page, st.shelfTab, now?.n || 0);
-  $("sh-gh").hidden = !githubShown;
-  $("sh-gh").style.display = githubShown ? "" : "none";
+  frameUsed = true;
+  const state = shelfLabelState(page.label);
+  return {
+    shown: true,
+    title: page.title || page.slug,
+    lab: { state, say: state ? phrase(state) : (page.label || ""), title: page.label || "" },
+    who: [page.owner, page.at ? artClock(page.at) : ""].filter(Boolean).join(" · "),
+    chrome: pageChromeModel(page, st.shelfTab, st.shelfVersion).model,
+    frame: { src, here: src, away: !!proposal },
+    web: { made: !!proposalAt, url: proposalAt, on: !!proposal, title: words.web },
+    wide: !!st.shelfWide,
+    github: !linked && !!shelfGithubUrl(page, st.shelfTab, now?.n || 0),
+    file: linked ? (proposal?.url || "") : [
+      `a/${page.slug}/${st.shelfTab}.v${now?.n || 0}.html`,
+      now?.label || "",
+      now?.bytes ? bytes(now.bytes) : ""
+    ].filter(Boolean).join("  ·  "),
+    talk: talkModel()
+  };
 }
 
-$("sh-back").addEventListener("click", shelfBack);
+const paintShelfView = () => paintShelf();
 
-$("sh-wide").addEventListener("click", toggleShelfWide);
-
-$("sh-narrow").addEventListener("click", () => setShelfWide(false));
-
-$("sh-search").addEventListener("input", (e) => {
-  st.shelfQuery = e.target.value;
-  if (raycastOn() && st.shelfOpen) shelfBack();
-  else paintShelf();
-});
-
-followRaycast((on) => {
-  if (!on) undressShelf();
-  if (shelfFiltersSolid && shelfOnScreen()) paintShelf();
-});
-
-$("btn-shelf").addEventListener("click", () => { closeMore(); shelfOnScreen() ? closeShelf() : openShelf(); });
-
-$("btn-day").addEventListener("click", () => { closeMore(); dayOnScreen() ? closeDay() : openDay(); });
-
-$("sh-copy").addEventListener("click", () => {
-  const page = (st.shelf?.pages || []).find((p) => p.slug === st.shelfOpen);
+function copyOpenLink() {
+  const page = openedPage();
   if (page) toClipboard(shelfDeepLink(page, st.shelfTab, st.shelfVersion));
-});
+}
 
-$("sh-gh").addEventListener("click", () => {
-  const page = (st.shelf?.pages || []).find((p) => p.slug === st.shelfOpen);
+function openOnGithub() {
+  const page = openedPage();
   const versions = shelfVersionsOf(page, st.shelfTab);
   const now = versions.find((v) => v.n === st.shelfVersion) || versions[versions.length - 1];
   const href = page && shelfGithubUrl(page, st.shelfTab, now?.n || 0);
   if (href) window.open(href, "_blank", "noreferrer");
-});
+}
 
-window.addEventListener("resize", () => { if (shelfOnScreen() && !st.shelfOpen) fitShelfThumbs(); });
+function searchTyped(text) {
+  st.shelfQuery = text;
+  if (raycastOn() && st.shelfOpen) shelfBack();
+  else paintShelf();
+}
+
+function toggleTalk() {
+  talk().open = !talk().open;
+  paintShelf();
+}
 
 const talk = () => st.shelfTalk;
 
@@ -816,177 +698,102 @@ async function pullComments(slug, fresh) {
   if (Array.isArray(said.comments)) talk().comments = said.comments;
   talk().me = said.me || talk().me;
   talk().note = said.error || "";
-  paintTalkButton();
   paintTalk();
   postPins();
 }
 
-function paintTalkButton() {
-  const count = commentsHere().length;
-  const button = $("sh-talk");
-  button.textContent = count ? `${phrase("comments")} · ${count}` : phrase("comments");
-  button.setAttribute("aria-pressed", talk().open ? "true" : "false");
+function commentModel(one, n) {
+  return {
+    key: one.id, id: one.id, done: !!one.done, reply: !!one.re, hot: talk().focus === one.id, n,
+    goSay: phrase("go to the pin"),
+    who: one.who || phrase("someone"),
+    when: [artClock(one.at), one.v ? `v${one.v}` : "", one.pin?.name || ""].filter(Boolean).join(" · "),
+    text: one.text,
+    replySay: phrase("reply"),
+    settleSay: one.done ? phrase("reopen") : phrase("settled"),
+    by: one.done && one.doneBy ? phrase("settled by {who}", { who: one.doneBy }) : ""
+  };
 }
 
-function paintTalkChrome(page, now) {
+function talkItems() {
+  const here = commentsHere();
+  const tops = here.filter((one) => !one.re);
+  return [
+    ...tops.flatMap((top) => [commentModel(top, pinNumberOf(top.id)), ...here.filter((one) => one.re === top.id).map((reply) => commentModel(reply, 0))]),
+    ...here.filter((one) => one.re && !tops.some((top) => top.id === one.re)).map((loose) => commentModel(loose, 0))
+  ];
+}
+
+function talkModel() {
   const mine = talk();
-  if (mine.slug !== page.slug) {
-    Object.assign(mine, { slug: page.slug, comments: [], pinning: false, draftPin: null, draftRe: "", frames: [], focus: "", note: "", busy: false });
-    pullComments(page.slug, false);
-  }
-  mine.v = now?.n || 0;
-  paintTalkButton();
-  $("sh-side").hidden = !mine.open;
+  const count = commentsHere().length;
+  const replyingTo = mine.draftRe ? (mine.comments.find((one) => one.id === mine.draftRe)?.who || phrase("someone")) : "";
+  return {
+    open: !!mine.open,
+    buttonSay: count ? `${phrase("comments")} · ${count}` : phrase("comments"),
+    title: phrase("comments"),
+    count: count ? String(count) : "",
+    pinning: !!mine.pinning,
+    pinSay: mine.pinning ? phrase("stop marking") : phrase("mark on the page"),
+    againSay: phrase("read again"),
+    hint: phrase("click on the page where you want to comment"),
+    items: talkItems(),
+    blank: phrase("nothing said about this page yet — mark a spot on the drawing, or write below"),
+    ctx: mine.draftPin
+      ? (mine.draftPin.name ? phrase("pinned to {name}", { name: mine.draftPin.name }) : phrase("pinned to the page"))
+      : (replyingTo ? phrase("replying to {who}", { who: replyingTo }) : ""),
+    dropSay: mine.draftPin ? phrase("remove the pin") : phrase("cancel"),
+    placeholder: phrase("write the comment"),
+    note: mine.note || "",
+    sendSay: phrase("send"),
+    busy: !!mine.busy,
+    cleared: mine.cleared || 0
+  };
+}
+
+const paintTalk = () => paintShelf();
+
+function talkParts() {
+  const side = $("sh-side");
+  const one = (selector) => side?.querySelector(selector) || null;
+  return {
+    side,
+    title: one(".sh-th b"),
+    count: one(".sh-tn"),
+    pin: one(".sh-tpin"),
+    again: one(".sh-tagain"),
+    hint: one(".sh-thint"),
+    list: one(".sh-tlist"),
+    form: one(".sh-tform"),
+    ctx: one(".sh-tctx"),
+    ctxSay: one(".sh-tctx span"),
+    drop: one(".sh-tdrop"),
+    box: one("textarea"),
+    note: one(".sh-tnote"),
+    send: one(".sh-tsend button")
+  };
+}
+
+function replyTo(id) {
+  Object.assign(talk(), { draftRe: id, draftPin: null });
+  paintTalk();
+  talkParts().box?.focus();
+}
+
+function goToPin(id) {
+  talk().focus = id;
+  tellPage({ type: "goto", id });
   paintTalk();
 }
 
-let talkDom = null;
-
-function talkParts() {
-  if (talkDom) return talkDom;
-  const side = $("sh-side");
-  side.innerHTML = `
-    <div class="sh-th"><b></b><span class="sh-tn"></span><span class="grow"></span>
-      <button type="button" class="btn sh-tpin" aria-pressed="false"></button>
-      <button type="button" class="btn sh-tagain"></button></div>
-    <p class="sh-thint" hidden></p>
-    <div class="sh-tlist"></div>
-    <form class="sh-tform">
-      <div class="sh-tctx" hidden><span></span><button type="button" class="sh-tdrop"></button></div>
-      <textarea rows="3"></textarea>
-      <div class="sh-tsend"><span class="sh-tnote" hidden></span><button type="submit" class="btn"></button></div>
-    </form>`;
-  talkDom = {
-    side,
-    title: side.querySelector(".sh-th b"),
-    count: side.querySelector(".sh-tn"),
-    pin: side.querySelector(".sh-tpin"),
-    again: side.querySelector(".sh-tagain"),
-    hint: side.querySelector(".sh-thint"),
-    list: side.querySelector(".sh-tlist"),
-    form: side.querySelector(".sh-tform"),
-    ctx: side.querySelector(".sh-tctx"),
-    ctxSay: side.querySelector(".sh-tctx span"),
-    drop: side.querySelector(".sh-tdrop"),
-    box: side.querySelector("textarea"),
-    note: side.querySelector(".sh-tnote"),
-    send: side.querySelector(".sh-tsend button")
-  };
-  talkDom.pin.addEventListener("click", () => setPinning(!talk().pinning));
-  talkDom.again.addEventListener("click", () => pullComments(talk().slug, true));
-  talkDom.drop.addEventListener("click", () => { Object.assign(talk(), { draftPin: null, draftRe: "" }); paintTalk(); });
-  talkDom.form.addEventListener("submit", (ev) => { ev.preventDefault(); sendComment(); });
-  talkDom.box.addEventListener("keydown", (ev) => {
-    if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); sendComment(); }
-  });
-  return talkDom;
-}
-
-function paintTalk() {
-  const parts = talkParts();
-  const mine = talk();
-  parts.title.textContent = phrase("comments");
-  parts.count.textContent = commentsHere().length ? String(commentsHere().length) : "";
-  parts.pin.textContent = mine.pinning ? phrase("stop marking") : phrase("mark on the page");
-  parts.pin.setAttribute("aria-pressed", mine.pinning ? "true" : "false");
-  parts.again.textContent = phrase("read again");
-  parts.hint.hidden = !mine.pinning;
-  parts.hint.textContent = phrase("click on the page where you want to comment");
-  paintTalkList(parts.list);
-  const replyingTo = mine.draftRe ? (mine.comments.find((one) => one.id === mine.draftRe)?.who || phrase("someone")) : "";
-  const ctx = mine.draftPin
-    ? (mine.draftPin.name ? phrase("pinned to {name}", { name: mine.draftPin.name }) : phrase("pinned to the page"))
-    : (replyingTo ? phrase("replying to {who}", { who: replyingTo }) : "");
-  parts.ctx.hidden = !ctx;
-  parts.ctxSay.textContent = ctx;
-  parts.drop.textContent = mine.draftPin ? phrase("remove the pin") : phrase("cancel");
-  parts.box.placeholder = phrase("write the comment");
-  parts.note.textContent = mine.note || "";
-  parts.note.hidden = !mine.note;
-  parts.send.textContent = phrase("send");
-  parts.send.disabled = !!mine.busy;
-}
-
-function commentItem(one, n) {
-  const item = document.createElement("article");
-  item.className = "sh-c";
-  item.dataset.id = one.id;
-  item.dataset.done = one.done ? "yes" : "no";
-  if (one.re) item.dataset.reply = "yes";
-  if (talk().focus === one.id) item.dataset.hot = "yes";
-
-  const head = document.createElement("div");
-  head.className = "sh-ch";
-  if (n) {
-    const badge = document.createElement("button");
-    badge.type = "button";
-    badge.className = "sh-cn";
-    badge.textContent = String(n);
-    badge.title = phrase("go to the pin");
-    badge.addEventListener("click", () => { talk().focus = one.id; tellPage({ type: "goto", id: one.id }); paintTalk(); });
-    head.appendChild(badge);
-  }
-  const who = document.createElement("b");
-  who.textContent = one.who || phrase("someone");
-  const when = document.createElement("span");
-  when.textContent = [artClock(one.at), one.v ? `v${one.v}` : "", one.pin?.name || ""].filter(Boolean).join(" · ");
-  head.append(who, when);
-
-  const text = document.createElement("p");
-  text.textContent = one.text;
-
-  const acts = document.createElement("div");
-  acts.className = "sh-ca";
-  if (!one.re) {
-    const reply = document.createElement("button");
-    reply.type = "button";
-    reply.textContent = phrase("reply");
-    reply.addEventListener("click", () => {
-      Object.assign(talk(), { draftRe: one.id, draftPin: null });
-      paintTalk();
-      talkParts().box.focus();
-    });
-    acts.appendChild(reply);
-    const settle = document.createElement("button");
-    settle.type = "button";
-    settle.textContent = one.done ? phrase("reopen") : phrase("settled");
-    settle.addEventListener("click", () => settleComment(one.id, !one.done));
-    acts.appendChild(settle);
-  }
-  if (one.done && one.doneBy) {
-    const by = document.createElement("span");
-    by.className = "sh-cby";
-    by.textContent = phrase("settled by {who}", { who: one.doneBy });
-    acts.appendChild(by);
-  }
-  item.append(head, text, acts);
-  return item;
-}
-
-function paintTalkList(host) {
-  host.textContent = "";
-  const here = commentsHere();
-  if (!here.length) {
-    const blank = document.createElement("p");
-    blank.className = "sh-tblank";
-    blank.textContent = phrase("nothing said about this page yet — mark a spot on the drawing, or write below");
-    host.appendChild(blank);
-    return;
-  }
-  const tops = here.filter((one) => !one.re);
-  for (const top of tops) {
-    host.appendChild(commentItem(top, pinNumberOf(top.id)));
-    for (const reply of here.filter((one) => one.re === top.id)) host.appendChild(commentItem(reply, 0));
-  }
-  for (const loose of here.filter((one) => one.re && !tops.some((top) => top.id === one.re))) host.appendChild(commentItem(loose, 0));
-  const hot = host.querySelector('[data-hot="yes"]');
-  if (hot && hot.scrollIntoView) hot.scrollIntoView({ block: "nearest" });
+function dropDraft() {
+  Object.assign(talk(), { draftPin: null, draftRe: "" });
+  paintTalk();
 }
 
 async function sendComment() {
-  const parts = talkParts();
   const mine = talk();
-  const text = parts.box.value.trim();
+  const text = String(talkParts().box?.value || "").trim();
   if (!text || mine.busy) return;
   mine.busy = true;
   mine.note = "";
@@ -1009,7 +816,7 @@ async function sendComment() {
   if (Array.isArray(said.comments)) mine.comments = said.comments;
   Object.assign(mine, { draftPin: null, draftRe: "", focus: said.comment.id });
   mine.note = said.pushed ? "" : phrase("kept on this machine, but the push to the team's repo failed: {why}", { why: said.error || "" });
-  parts.box.value = "";
+  mine.cleared = (mine.cleared || 0) + 1;
   paintShelfView();
   postPins();
 }
@@ -1052,7 +859,7 @@ function heardFromPage(said) {
       open: true
     });
     paintShelfView();
-    talkParts().box.focus();
+    talkParts().box?.focus();
     return;
   }
   if (said.type === "open") {
@@ -1061,6 +868,62 @@ function heardFromPage(said) {
   }
 }
 
+shelfSolid = mountShelf($("shelf-screen"), {
+  actions: {
+    search: searchTyped,
+    close: () => closeShelf(),
+    filters: {
+      pick: (key) => {
+        if (!raycastOn()) return shelfPickFilter(key);
+        shelfPickWindowFilter(key);
+        $("sh-search").focus();
+      }
+    },
+    gallery: {
+      fold: shelfFoldBand,
+      pick: (slug) => { pickShelf(slug); $("sh-search").focus(); },
+      open: (slug, tab) => {
+        const page = (st.shelf?.pages || []).find((p) => p.slug === slug);
+        if (page) openShelfPage(page, tab);
+      }
+    },
+    preview: {
+      tab: (name) => { st.shelfTab = name; st.shelfTabFor = st.shelfPick; paintShelf(); },
+      copy: (button, text) => copyWithWord(button, text)
+    },
+    foot: { act: (key) => runAction(panelOf("shelf"), key), more: () => openActions(panelOf("shelf")) },
+    view: {
+      back: shelfBack,
+      talk: toggleTalk,
+      seat: shelfInASeat,
+      copy: copyOpenLink,
+      github: openOnGithub,
+      wide: toggleShelfWide,
+      narrow: () => setShelfWide(false),
+      loaded: () => postPins(),
+      chrome: {
+        tab: (name) => { st.shelfTab = name; st.shelfVersion = 0; paintShelf(); },
+        version: (n) => { st.shelfVersion = n; paintShelf(); }
+      },
+      comments: {
+        pinning: setPinning,
+        again: () => pullComments(talk().slug, true),
+        goto: goToPin,
+        reply: replyTo,
+        settle: settleComment,
+        drop: dropDraft,
+        send: () => sendComment()
+      }
+    }
+  }
+});
+
+followRaycast(() => paintShelf());
+
+$("btn-shelf").addEventListener("click", () => { closeMore(); shelfOnScreen() ? closeShelf() : openShelf(); });
+
+$("btn-day").addEventListener("click", () => { closeMore(); dayOnScreen() ? closeDay() : openDay(); });
+
 window.addEventListener("message", (ev) => {
   const said = ev.data;
   if (!said || said.hive !== TALK_CHANNEL) return;
@@ -1068,11 +931,4 @@ window.addEventListener("message", (ev) => {
   heardFromPage(said);
 });
 
-$("sh-frame").addEventListener("load", () => postPins());
-
-$("sh-talk").addEventListener("click", () => {
-  talk().open = !talk().open;
-  paintShelfView();
-});
-
-export { shelfLinkTab, shelfMainTab, shelfNewestProposal, shelfPickedProposal, shelfProposalsOf, shelfThumbModel, pickShelf, shelfActions, shelfFiltersWindowModel, shelfGalleryWindowModel, shelfPreviewModel, shelfRowModel, shelfShownRows, stepShelf, commentsHere, heardFromPage, paintTalk, pinsHere, postPins, pullComments, sendComment, settleComment, talkParts, GITHUB_SHELF_URL, SHELF_BANDS, SHELF_STATES, SHELF_STATE_WAS, SHELF_TABS, SHELF_THUMB_W, closeShelf, fitShelfThumbs, openShelf, openShelfPage, setShelfWide, shelfWideOn, toggleShelfWide, paintPageChrome, paintShelf, paintShelfView, pullShelf, shelfBack, shelfBandOf, shelfBandShut, shelfCardChips, shelfCardModel, shelfDeepLink, shelfFiltersSolid, shelfFiltersViewModel, shelfFoldBand, shelfGallerySolid, shelfGalleryViewModel, shelfGithubUrl, shelfLabelState, shelfOnScreen, shelfPickFilter, shelfRows, shelfStatesOf, shelfTabLabel, shelfTabState, shelfTabsOf, shelfTopVersion, shelfVersionsOf };
+export { shelfLinkTab, shelfMainTab, shelfNewestProposal, shelfPickedProposal, shelfProposalsOf, shelfThumbModel, pickShelf, shelfActions, shelfFiltersWindowModel, shelfGalleryWindowModel, shelfPreviewModel, shelfRowModel, shelfShownRows, stepShelf, commentsHere, heardFromPage, paintTalk, pinsHere, postPins, pullComments, sendComment, settleComment, talkParts, GITHUB_SHELF_URL, SHELF_BANDS, SHELF_STATES, SHELF_STATE_WAS, SHELF_TABS, SHELF_THUMB_W, closeShelf, openShelf, openShelfPage, setShelfWide, shelfWideOn, toggleShelfWide, paintPageChrome, paintShelf, paintShelfView, pullShelf, shelfBack, shelfBandOf, shelfBandShut, shelfCardChips, shelfCardModel, shelfDeepLink, shelfFiltersViewModel, shelfFoldBand, shelfGalleryViewModel, shelfGithubUrl, shelfLabelState, shelfOnScreen, shelfPickFilter, shelfRows, shelfStatesOf, shelfTabLabel, shelfTabState, shelfTabsOf, shelfTopVersion, shelfVersionsOf };

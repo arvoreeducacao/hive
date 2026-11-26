@@ -36,7 +36,7 @@
 .sv .tl-work.bad .tl-ico { color: var(--tl-error); }
 .sv .tl-group { display: flex; flex-direction: column; flex-shrink: 0; max-height: min(18rem, 50dvh); overflow-y: auto; scrollbar-width: thin; }
 .sv .tl-group:has(.sv-tool[open]) { max-height: none; }
-.sv .tl-group > .sv-tool > summary { height: 24px; padding: 0 2px; }
+.sv .tl-group > .sv-tool > summary { height: 24px; margin: 0; padding: 0 2px; }
 .sv .tl-live-btn { all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: stretch; width: 100%; min-width: 0; border-radius: 6px; cursor: pointer; }
 .sv div.tl-live-btn { cursor: default; }
 .sv .tl-thought { align-items: flex-start; }
@@ -225,6 +225,17 @@ dialog.bgw::backdrop { background: rgb(0 0 0 / .35); }
 .sv .sv-peer-fold .pf-body[hidden] { display: none; }
 .sv .sv-mcp-signin { display: grid; gap: 4px; padding: 2px; font-family: var(--tl-font); font-size: 1em; line-height: 1.625; color: var(--tl-muted-fg); }
 .sv .sv-mcp-signin .mcp-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; min-width: 0; }
+.sv .sv-mcp-signin .mcp-fold { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 6px; min-width: 0; min-height: 24px; border-radius: 6px; cursor: pointer; }
+.sv .sv-mcp-signin .mcp-fold[hidden], .sv .sv-mcp-signin .mcp-list[hidden], .sv .sv-mcp-signin .who[hidden] { display: none; }
+.sv .sv-mcp-signin .mcp-fold:focus-visible { outline: 2px solid color-mix(in srgb, var(--tl-primary) 70%, transparent); outline-offset: 1px; }
+.sv .sv-mcp-signin .mcp-fold .sum { flex: none; color: var(--tl-fg); }
+.sv .sv-mcp-signin .mcp-fold:hover .sum { text-decoration: underline; text-underline-offset: 3px; }
+.sv .sv-mcp-signin .mcp-fold .who { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .7; }
+.sv .sv-mcp-signin .mcp-fold .chev { flex: none; width: 12px; height: 12px; opacity: .7; transform: rotate(-90deg); transition: transform .2s; }
+.sv .sv-mcp-signin.open .mcp-fold .chev { transform: none; }
+.sv .sv-mcp-signin .mcp-list { display: grid; gap: 4px; }
+.sv .sv-mcp-signin.many .mcp-list { padding-left: 20px; }
+.sv .sv-mcp-signin.many .mcp-list .tl-ico { display: none; }
 .sv .sv-mcp-signin .tl-ico { color: var(--yellow); }
 .sv .sv-mcp-signin .tl-ico svg { width: 14px; height: 14px; }
 .sv .sv-mcp-signin .mt { flex: 1 1 0; min-width: 200px; display: grid; padding-top: 1px; }

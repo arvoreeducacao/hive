@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { basename, join, sep } from "node:path";
 import { liveServerRoot, shippedServerRoot } from "./engine/peer-module.mjs";
 
@@ -59,6 +59,32 @@ function millisOr(raw, fallback) {
 export function sleepAfterMs(env = process.env, { watched = true } = {}) {
   if (watched) return millisOr(env.HIVE_SLEEP_AFTER_MS, SLEEP_AFTER_MS);
   return millisOr(env.HIVE_SLEEP_UNWATCHED_MS, millisOr(env.HIVE_SLEEP_AFTER_MS, SLEEP_UNWATCHED_MS));
+}
+
+export function restingState({ metaFile, diary }) {
+  let meta = {};
+  try { meta = JSON.parse(readFileSync(metaFile, "utf8")) || {}; } catch {}
+  let lastActivity = 0;
+  try { lastActivity = statSync(diary).mtimeMs; } catch {}
+  return { asleep: meta.asleep === true, queued: Array.isArray(meta.queue) ? meta.queue.length : 0, lastActivity };
+}
+
+export function comesBackAsleep(seat, { stateDir, env = process.env, now = Date.now() }) {
+  const name = String(seat?.name || "");
+  if (!name) return false;
+  return bootsAsleep({
+    structured: seat.kind === "structured",
+    agent: seat.agent || "claude",
+    ...restingState({ metaFile: join(stateDir, "sessions", `${name}.json`), diary: join(stateDir, "events", `${name}.ndjson`) }),
+    now,
+    afterMs: sleepAfterMs(env, { watched: false })
+  });
+}
+
+export function bootsAsleep({ structured = false, agent = "claude", asleep = false, queued = 0, lastActivity = 0, now, afterMs }) {
+  if (!structured || agent !== "claude" || !afterMs || queued > 0) return false;
+  if (asleep) return true;
+  return lastActivity > 0 && now - lastActivity >= afterMs;
 }
 
 export function sleepVerdict({

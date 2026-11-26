@@ -42,7 +42,7 @@ import { freeNameAmong, nameFromMission, namerCommand, namesThatLived, pastHandl
 import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titleFallback, titleFromAnswer, titleMessagesOf } from "./lib/titling.mjs";
 import { projectOfChat, titleInstructionsFor } from "./assets/title-instructions.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
-import { cleanAutocompact, cleanAvatar, cleanBlockSize, cleanBrandFace, cleanExperience, cleanExperienceOff, cleanExtensions, cleanFlag, cleanFont, cleanGaze, cleanInfoHeight, cleanInfoWidth, cleanKeys, cleanLanguage, cleanLayout, cleanLook, cleanMachine, cleanPaneWidth, cleanPatch, cleanPet, cleanProviders, cleanQuietDays, cleanQuitShortcut, cleanScreenReader, cleanShelf, cleanSound, cleanSounds, cleanSttLanguage, cleanSttModel, cleanTerminal, cleanTerminalShell, cleanThemeName, cleanThemes, cleanThreadWidth, cleanTimeFormat, cleanTitleInstructions, cleanToolCalls, cleanVisual, cleanVolume, cleanWear, CONTEXT_USAGE_ENV, contextUsageEnv, FONT_DEFAULTS, GITHUB_REPO_URL, isPlainObject, sameGithubRepo, cleanPrViews, cleanAppearance, cleanThemeLight, cleanContrast, cleanGlass, cleanPanelMotion, cleanChatWidth, seatTuningEnv, SEAT_TUNING_ENVS, cleanSendShortcut, cleanFollowUp } from "./lib/config.mjs";
+import { cleanAutocompact, cleanAvatar, cleanBlockSize, cleanBrandFace, cleanExperience, cleanExperienceOff, cleanExtensions, cleanFlag, cleanFont, cleanGaze, cleanInfoHeight, cleanInfoWidth, cleanKeys, cleanLanguage, cleanLayout, cleanLook, cleanMachine, cleanPatch, cleanPet, cleanProviders, cleanQuietDays, cleanQuitShortcut, cleanScreenReader, cleanShelf, cleanSound, cleanSounds, cleanSttLanguage, cleanSttModel, cleanTerminal, cleanTerminalShell, cleanThemeName, cleanThemes, cleanThreadWidth, cleanTimeFormat, cleanTitleInstructions, cleanToolCalls, cleanVisual, cleanVolume, cleanWear, CONTEXT_USAGE_ENV, contextUsageEnv, FONT_DEFAULTS, GITHUB_REPO_URL, isPlainObject, sameGithubRepo, cleanPrViews, cleanAppearance, cleanThemeLight, cleanContrast, cleanGlass, cleanPanelMotion, cleanChatWidth, seatTuningEnv, SEAT_TUNING_ENVS, cleanSendShortcut, cleanFollowUp } from "./lib/config.mjs";
 import { buildNextPromptAsk, nextPromptFromAnswer, nextPromptSkip } from "./lib/next-prompt.mjs";
 import { seatsGoneQuiet, quietReason, QUIET_SWEEP_EVERY_MS } from "./lib/quiet-seats.mjs";
 import { cleanDiaryDays, diariesToPrune, pruneDiary, readDiaries, readSeatMeta, syncedSessionIds } from "./lib/diary-prune.mjs";
@@ -145,6 +145,7 @@ import { createSlackBridge } from "./lib/slack-bridge.mjs";
 import { relayOf, slackKeys } from "./lib/slack-hive.mjs";
 import { createSlackLinker } from "./lib/slack-link.mjs";
 import { createSessions, driverFileFor } from "../server/sessions.mjs";
+import { comesBackAsleep } from "../server/sleep.mjs";
 import { OWN_SESSION_ID, hiveEventMessages, parseHiveSessions } from "./lib/own-history.mjs";
 import { oneRowPerSession, readSeatRecords, scanTranscriptsApart } from "./lib/archive-scan.mjs";
 import { holdsEvery, wordsOf } from "./assets/archive-search.mjs";
@@ -357,6 +358,7 @@ async function readConfig() {
     screenReaderAnnouncements: cleanScreenReader(raw.screenReaderAnnouncements, tilde(CONFIG_FILE), problems),
     screenReaderWindowTitle: cleanFlag(raw.screenReaderWindowTitle, "screenReaderWindowTitle", tilde(CONFIG_FILE), problems, false),
     promptSuggestions: cleanFlag(raw.promptSuggestions, "promptSuggestions", tilde(CONFIG_FILE), problems, false),
+    codeMode: cleanFlag(raw.codeMode, "codeMode", tilde(CONFIG_FILE), problems, false),
     autoUpdateAgents: cleanFlag(raw.autoUpdateAgents, "autoUpdateAgents", tilde(CONFIG_FILE), problems, true),
     keepAwakeWhileAgentsWork: cleanFlag(raw.keepAwakeWhileAgentsWork, "keepAwakeWhileAgentsWork", tilde(CONFIG_FILE), problems, true),
     closeQuietAfterDays: cleanQuietDays(raw.closeQuietAfterDays, tilde(CONFIG_FILE), problems),
@@ -375,7 +377,6 @@ async function readConfig() {
     infoWidth: cleanInfoWidth(raw.infoWidth, tilde(CONFIG_FILE), problems),
     infoHeight: cleanInfoHeight(raw.infoHeight, tilde(CONFIG_FILE), problems),
     threadWidth: cleanThreadWidth(raw.threadWidth, tilde(CONFIG_FILE), problems),
-    paneWidth: cleanPaneWidth(raw.paneWidth, tilde(CONFIG_FILE), problems),
     splitsLearned: cleanFlag(raw.splitsLearned, "splitsLearned", tilde(CONFIG_FILE), problems, false),
     look: cleanLook(raw.look, tilde(CONFIG_FILE), problems),
     theme: cleanThemeName(raw.theme, tilde(CONFIG_FILE), problems),
@@ -407,7 +408,7 @@ async function readConfig() {
     ...cleanBehavior(raw, tilde(CONFIG_FILE), problems)
   };
   if (!config.avatar) config.avatar = avatarKey(avatarFor(DEV || ""));
-  const has = { terminal: raw.terminal !== undefined, terminalShell: raw.terminalShell !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, paneWidth: raw.paneWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, toolCalls: raw.toolCalls !== undefined, titleInstructions: raw.titleInstructions !== undefined, quitShortcut: raw.quitShortcut !== undefined, autoUpdateAgents: raw.autoUpdateAgents !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, threads: raw.threads !== undefined, keys: raw.keys !== undefined || fromLegacy, screenReaderAnnouncements: raw.screenReaderAnnouncements !== undefined, screenReaderWindowTitle: raw.screenReaderWindowTitle !== undefined, keepAwakeWhileAgentsWork: raw.keepAwakeWhileAgentsWork !== undefined, prViews: raw.prViews !== undefined, appearance: raw.appearance !== undefined, themeLight: raw.themeLight !== undefined, contrast: raw.contrast !== undefined, glass: raw.glass !== undefined, panelMotion: raw.panelMotion !== undefined, chatWidth: raw.chatWidth !== undefined, ...behaviorHas(raw), promptSuggestions: raw.promptSuggestions !== undefined, sendShortcut: raw.sendShortcut !== undefined, followUp: raw.followUp !== undefined };
+  const has = { terminal: raw.terminal !== undefined, terminalShell: raw.terminalShell !== undefined, experience: raw.experience !== undefined, experienceOff: raw.experienceOff !== undefined, infoWidth: raw.infoWidth !== undefined, infoHeight: raw.infoHeight !== undefined, threadWidth: raw.threadWidth !== undefined, splitsLearned: raw.splitsLearned !== undefined, font: raw.font !== undefined, sound: raw.sound !== undefined, answered: raw.answered !== undefined, sounds: raw.sounds !== undefined, volume: raw.volume !== undefined, look: raw.look !== undefined, layout: raw.layout !== undefined, blockSize: raw.blockSize !== undefined, theme: raw.theme !== undefined, themes: raw.themes !== undefined, dim: raw.dim !== undefined, visual: raw.visual !== undefined, share: raw.share !== undefined, knocks: raw.knocks !== undefined, phone: raw.phone !== undefined, stt: raw.stt !== undefined, sttLanguage: raw.sttLanguage !== undefined, sttModel: raw.sttModel !== undefined, meetings: raw.meetings !== undefined, machines: raw.machines !== undefined, machine: raw.machine !== undefined, shelf: raw.shelf !== undefined, avatar: raw.avatar !== undefined, wear: raw.wear !== undefined, providers: raw.providers !== undefined, extensions: raw.extensions !== undefined, brandFace: raw.brandFace !== undefined, gaze: raw.gaze !== undefined, autocompact: raw.autocompact !== undefined, contextUsage: raw.contextUsage !== undefined, toolCalls: raw.toolCalls !== undefined, titleInstructions: raw.titleInstructions !== undefined, quitShortcut: raw.quitShortcut !== undefined, autoUpdateAgents: raw.autoUpdateAgents !== undefined, closeQuietAfterDays: raw.closeQuietAfterDays !== undefined, pruneDiariesAfterDays: raw.pruneDiariesAfterDays !== undefined, threads: raw.threads !== undefined, keys: raw.keys !== undefined || fromLegacy, screenReaderAnnouncements: raw.screenReaderAnnouncements !== undefined, screenReaderWindowTitle: raw.screenReaderWindowTitle !== undefined, keepAwakeWhileAgentsWork: raw.keepAwakeWhileAgentsWork !== undefined, prViews: raw.prViews !== undefined, appearance: raw.appearance !== undefined, themeLight: raw.themeLight !== undefined, contrast: raw.contrast !== undefined, glass: raw.glass !== undefined, panelMotion: raw.panelMotion !== undefined, chatWidth: raw.chatWidth !== undefined, ...behaviorHas(raw), promptSuggestions: raw.promptSuggestions !== undefined, codeMode: raw.codeMode !== undefined, sendShortcut: raw.sendShortcut !== undefined, followUp: raw.followUp !== undefined };
   shareAgentTools(HIVE_HOME, config);
   return { config, defaults: { font: FONT_DEFAULTS, terminalShell: loginShell() }, file: tilde(CONFIG_FILE), has, fromLegacy, error: unreadable.join(" · "), ignored: problems.join(" · ") };
 }
@@ -5857,6 +5858,10 @@ function clearRevived(where, liveNames) {
   if (touched) saveFleet();
 }
 
+function withRestingSleep(seat) {
+  return { ...seat, asleep: comesBackAsleep(seat, { stateDir: HIVE_HOME }) };
+}
+
 async function restoreNatively(seats, autocompact) {
   const held = nativeRoom();
   const shared = await hubSeatEnv();
@@ -5893,7 +5898,7 @@ async function reconcileNativeFleet(seats, { boot = false } = {}) {
   const autocompact = await autocompactNow();
   const due = restore.filter(stillDue);
   if (!due.length) return;
-  const brought = await restoreNatively(due, autocompact);
+  const brought = await restoreNatively(due.map(withRestingSleep), autocompact);
   const back = await settleRestored(due.filter((seat) => brought.find((one) => one.name === seat.name)?.ok));
   for (const one of brought) if (one.error) console.log(`fleet: leaving ${one.name} behind — ${one.error}`);
   if (!back.length) return;
@@ -5958,7 +5963,7 @@ async function reconcileLocalFleet() {
   const autocompact = await autocompactNow();
   const due = restore.filter(stillDue);
   if (!due.length) return;
-  const script = localRestoreScript(due, {
+  const script = localRestoreScript(due.map(withRestingSleep), {
     engineDir: ENGINE_DIR,
     hub: HUB,
     hiveHome: HIVE_HOME,
@@ -7155,7 +7160,6 @@ const LAZY_PREFIX = "/assets/dist/lazy/";
 const MONACO_TYPES = { js: "text/javascript", mjs: "text/javascript", css: "text/css", json: "application/json", ttf: "font/ttf", woff: "font/woff", woff2: "font/woff2", svg: "image/svg+xml", map: "application/json" };
 
 const STATIC = {
-  "/assets/experience.css": ["assets/experience.css", "text/css"],
   "/assets/secret-asks.css": ["assets/secret-asks.css", "text/css"],
   "/assets/context-chips.css": ["assets/context-chips.css", "text/css"],
   "/assets/chat-as-context.css": ["assets/chat-as-context.css", "text/css"],
@@ -7181,7 +7185,6 @@ const STATIC = {
   "/assets/raycast/browser.css": ["assets/raycast/browser.css", "text/css"],
   "/assets/raycast/micro.css": ["assets/raycast/micro.css", "text/css"],
   "/assets/html-pages.css": ["assets/html-pages.css", "text/css"],
-  "/assets/pixel-icons.mjs": ["assets/pixel-icons.mjs", "text/javascript"],
   "/assets/slack-text.mjs": ["assets/slack-text.mjs", "text/javascript"],
   "/assets/markdown.mjs": ["assets/markdown.mjs", "text/javascript"],
   "/assets/page-shield.mjs": ["assets/page-shield.mjs", "text/javascript"],
@@ -7221,7 +7224,6 @@ const STATIC = {
   "/assets/meeting-chunks.mjs": ["assets/meeting-chunks.mjs", "text/javascript"],
   "/assets/perf.mjs": ["assets/perf.mjs", "text/javascript"],
   "/assets/review-notes.mjs": ["assets/review-notes.mjs", "text/javascript"],
-  "/assets/pr-page.mjs": ["assets/pr-page.mjs", "text/javascript"],
   "/assets/archive-search.mjs": ["assets/archive-search.mjs", "text/javascript"],
   "/assets/thread-rules.mjs": ["assets/thread-rules.mjs", "text/javascript"],
   "/assets/seat-marks.css": ["assets/seat-marks.css", "text/css"],
@@ -7235,7 +7237,6 @@ const STATIC = {
   "/assets/fonts/hack-bold.woff2": ["assets/fonts/hack-bold.woff2", "font/woff2"],
   "/assets/fonts/hack-italic.woff2": ["assets/fonts/hack-italic.woff2", "font/woff2"],
   "/assets/fonts/hack-bolditalic.woff2": ["assets/fonts/hack-bolditalic.woff2", "font/woff2"],
-  "/assets/fonts/tektur.woff2": ["assets/fonts/tektur.woff2", "font/woff2"],
   "/assets/fonts/dmsans-normal-latin.woff2": ["assets/fonts/dmsans-normal-latin.woff2", "font/woff2"],
   "/assets/fonts/dmsans-normal-latin-ext.woff2": ["assets/fonts/dmsans-normal-latin-ext.woff2", "font/woff2"],
   "/assets/fonts/dmsans-italic-latin.woff2": ["assets/fonts/dmsans-italic-latin.woff2", "font/woff2"],
@@ -7245,11 +7246,7 @@ const STATIC = {
   "/assets/fonts/inter-normal-latin.woff2": ["assets/fonts/inter-normal-latin.woff2", "font/woff2"],
   "/assets/fonts/inter-normal-latin-ext.woff2": ["assets/fonts/inter-normal-latin-ext.woff2", "font/woff2"],
   "/assets/fonts/geistmono-normal-latin.woff2": ["assets/fonts/geistmono-normal-latin.woff2", "font/woff2"],
-  "/assets/fonts/geistmono-normal-latin-ext.woff2": ["assets/fonts/geistmono-normal-latin-ext.woff2", "font/woff2"],
-  "/assets/fonts/ibmplexsans-normal-latin.woff2": ["assets/fonts/ibmplexsans-normal-latin.woff2", "font/woff2"],
-  "/assets/fonts/ibmplexsans-normal-latin-ext.woff2": ["assets/fonts/ibmplexsans-normal-latin-ext.woff2", "font/woff2"],
-  "/assets/fonts/ibmplexsans-italic-latin.woff2": ["assets/fonts/ibmplexsans-italic-latin.woff2", "font/woff2"],
-  "/assets/fonts/ibmplexsans-italic-latin-ext.woff2": ["assets/fonts/ibmplexsans-italic-latin-ext.woff2", "font/woff2"]
+  "/assets/fonts/geistmono-normal-latin-ext.woff2": ["assets/fonts/geistmono-normal-latin-ext.woff2", "font/woff2"]
 };
 
 /* ── the machine that owns the fleet, served from its own pod ──────────────────────────────
@@ -7381,7 +7378,7 @@ registerMemoryRoutes(on, {
 registerHistoryRoutes(on, { isSeatName, paneHistory, readImage });
 registerAttachmentRoutes(on, { isSeatName, shotsDirOf, assetsDir: join(HUB, ".hive/assets"), cloudReach, slug, readAttachment });
 registerPrSearchRoutes(on, { sh, shr, liveSessions: () => cache.data?.sessions || [], hub: HUB });
-registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), pullPage: (slug) => prDomain.pullPage(slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
+registerArtifactRoutes(on, { thumbSource: (id) => shelfThumbs.picture(id), mirrorProposal, labelError, TELAS_TAKE_PROPOSALS, readProposalThumb: (slug) => readProposalThumb(SHELF_HOME, slug), bodyOf: body, isSeatName, keepArtifact, askedTab, mirrorToShelf, artifactIndex, artifactKey, keptArtifacts, ARTIFACT_HOME, readFileSync, join, canonicalLabel, SHELF_SLUG, TABS, readShelfPage, SHELF_HOME, shelfRepoUrl, shelfPull, shelfIndex, getDev: () => DEV, readShelfComments, commentOnShelf, settleShelfComment, withPinShim, seatIsOnAPage, whoIsOnThePage, publishPanel, keepPrintToShelf, readShelfFile, keepThumbOnShelf, readShelfThumb: (slug, tab, v) => readThumb(SHELF_HOME, slug, tab, v) });
 registerErrandRoutes(on, { bodyOf: body, renameErrand, markSeen, HIVE_HOME, invalidateCollectionCache: () => { cache.at = 0; }, readErrands, liveSessions: () => cache.data?.sessions || [], archiveSeat });
 registerTaskRoutes(on, {
   bodyOf: body,

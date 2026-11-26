@@ -73,9 +73,12 @@ test("every front is a control: which program, which model, and which side it ru
 test("approving sends what the person chose on the card, not what the plan wrote", async () => {
   const { card, sent } = await planCard("plan-card-answer");
   const rows = [...card.querySelectorAll(".prow")];
-  rows[0].querySelector("select.rw").value = "cloud";
-  const model = rows[0].querySelector("select.rm");
-  model.value = "";
+  const choose = (box, value) => {
+    box.value = value;
+    box.dispatchEvent(new window.Event("change"));
+  };
+  choose(rows[0].querySelector("select.rw"), "cloud");
+  choose(rows[0].querySelector("select.rm"), "");
   card.querySelector(".pf .btn.pri").dispatchEvent(new window.Event("click"));
   const answer = sent.find((one) => one.type === "answer");
   assert.ok(answer, "the approval never left the card");
@@ -105,6 +108,73 @@ test("once it is answered the card is a record: it says what opened and nothing 
   assert.equal(row.querySelector("select.rw").value, "cloud");
   assert.equal(row.querySelector("select.rm").value, "gpt-5");
   assert.ok([...card.querySelectorAll("select")].every((box) => box.disabled), "the pickers of an answered card can still be moved");
+});
+
+test("the card keeps its parts in order: badge, title and menu in the head, then prose, fronts and foot", async () => {
+  const { card } = await planCard("plan-card-order");
+  assert.deepEqual([...card.children].map((one) => one.className), ["ph", "pb", "prows", "pf"]);
+  assert.deepEqual([...card.querySelector(".ph").children].map((one) => one.className), ["cp-plan-badge", "cp-plan-title", "tag", "say", "phn", "cp-plan-menu"]);
+  assert.equal(card.querySelector(".cp-plan-title").tagName, "H3");
+  assert.equal(card.querySelector(".cp-plan-title").textContent, "O que muda", "the first heading of the plan names the card");
+  assert.equal(card.querySelector(".ph .phn").textContent, "2 chats");
+  assert.equal(card.querySelector(".pf .cost").textContent, "2 of 3 of the budget");
+});
+
+test("the dots open the plan menu, and save opens a dialog that names the file and says why a save failed", async () => {
+  const { card } = await planCard("plan-card-save");
+  const pop = card.querySelector(".cp-plan-pop");
+  assert.equal(pop.hidden, true);
+  card.querySelector(".cp-plan-dots").click();
+  assert.equal(pop.hidden, false, "the dots did not open the menu");
+  const kept = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (path, options = {}) => {
+    asked.push({ path: String(path), body: JSON.parse(options.body || "{}") });
+    return { json: async () => ({ error: "no such folder" }) };
+  };
+  try {
+    pop.querySelector('[data-act="save"]').click();
+    assert.equal(pop.hidden, true, "choosing save left the menu open");
+    const dialog = card.lastElementChild;
+    assert.equal(dialog.className, "cp-plan-save", "the save dialog is not the last part of the card");
+    assert.equal(dialog.getAttribute("role"), "dialog");
+    assert.equal(dialog.querySelector("input").value, "plans/o-que-muda.md");
+    assert.equal(dialog.querySelector(".cp-plan-save-err").hidden, true);
+    dialog.dispatchEvent(new window.Event("submit"));
+    await new Promise((done) => setTimeout(done, 10));
+    assert.equal(asked[0].path, "/api/seat/plan-file");
+    assert.equal(asked[0].body.path, "plans/o-que-muda.md");
+    assert.equal(asked[0].body.text, `${PLAN.trimEnd()}\n`);
+    assert.equal(dialog.querySelector(".cp-plan-save-err").hidden, false, "a failed save said nothing");
+    assert.equal(dialog.querySelector(".cp-plan-save-err").textContent, "no such folder");
+    dialog.querySelector("input").dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape" }));
+    assert.equal(card.querySelector(".cp-plan-save"), null, "escape did not close the dialog");
+  } finally {
+    globalThis.fetch = kept;
+  }
+});
+
+test("copy puts the whole plan on the clipboard, says so, and then closes the menu", async () => {
+  const { card } = await planCard("plan-card-copy");
+  const pop = card.querySelector(".cp-plan-pop");
+  const copy = pop.querySelector('[data-act="copy"]');
+  const kept = Object.getOwnPropertyDescriptor(window.navigator, "clipboard");
+  const written = [];
+  Object.defineProperty(window.navigator, "clipboard", { configurable: true, value: { writeText: async (text) => { written.push(text); } } });
+  try {
+    card.querySelector(".cp-plan-dots").click();
+    copy.click();
+    await new Promise((done) => setTimeout(done, 10));
+    assert.deepEqual(written, [`${PLAN.trimEnd()}\n`], "the clipboard did not get the plan as written");
+    assert.equal(copy.textContent, "Copied!");
+    assert.equal(pop.hidden, false, "the menu closed before it said the plan was copied");
+    await new Promise((done) => setTimeout(done, 950));
+    assert.equal(copy.textContent, "Copy to clipboard");
+    assert.equal(pop.hidden, true, "the menu stayed open after the copy");
+  } finally {
+    if (kept) Object.defineProperty(window.navigator, "clipboard", kept);
+    else delete window.navigator.clipboard;
+  }
 });
 
 test("the card never shrinks inside the chat, so what it clips is nothing", () => {
