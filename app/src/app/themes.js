@@ -481,9 +481,9 @@ function paintShotsUsage() {
 
 let helpPane = "keyboard";
 
-const PANE_TITLES = { keyboard: "Keyboard", look: "Appearance", performance: "Performance", experimental: "Experiments", dictation: "Dictation", meetings: "Meetings", character: "Your character", notices: "Notices", screen: "The screen", conversation: "The conversation", threads: "Settle and snooze", slack: "Slack", machines: "Machines", devices: "Devices" };
+const PANE_TITLES = { keyboard: "Keyboard", look: "Appearance", performance: "Performance", dictation: "Dictation", meetings: "Meetings", character: "Your character", notices: "Notices", screen: "The screen", conversation: "The conversation", threads: "Settle and snooze", slack: "Slack", machines: "Machines", devices: "Devices" };
 
-const PANE_ICONS = { keyboard: "i-keys", look: "i-image", performance: "i-bolt", experimental: "i-flow", dictation: "i-mic", meetings: "i-quote", character: "i-user", notices: "i-sound", screen: "i-grid", conversation: "i-quote", threads: "i-check", slack: "i-hash", machines: "i-local", devices: "i-phone" };
+const PANE_ICONS = { keyboard: "i-keys", look: "i-image", performance: "i-bolt", dictation: "i-mic", meetings: "i-quote", character: "i-user", notices: "i-sound", screen: "i-grid", conversation: "i-quote", threads: "i-check", slack: "i-hash", machines: "i-local", devices: "i-phone" };
 
 function helpActions() {
   if (helpPane !== "look") {

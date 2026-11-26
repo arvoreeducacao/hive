@@ -34,4 +34,5 @@ test('the boot wears raycast before the first paint, whatever this machine remem
 
 test('settings have no Experiments pane and no way to turn the New Hive on', () => {
   assert.doesNotMatch(html, /data-pane="experimental"|experience-toggle|Try new Hive|New Hive/);
+  assert.doesNotMatch(readFileSync(new URL('../src/app/themes.js', import.meta.url), 'utf8'), /experimental:|"Experiments"/);
 });

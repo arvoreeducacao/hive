@@ -161,7 +161,6 @@ export const PT_BR = {
   "git did not answer": "o git não respondeu",
   "{n} more lines are not shown": "Mais {n} linhas não aparecem",
   "{n} more lines of this file are not shown": "Mais {n} linhas deste arquivo não aparecem",
-  "Experiments": "Experimental",
   "Saving…": "Salvando…",
   "Classic": "Clássico",
   "Working": "Trabalhando",
