@@ -126,7 +126,14 @@ function save() {
 
 const seatOf = (chat) => (st.data?.sessions || []).find((one) => one.name === chat) || null;
 
-const ownsTerminal = (s) => !!s?.name && !!s.structured && s.where !== "cloud" && !s.of && s.kind !== "shell";
+const ownsTerminal = (s) => !!s?.name && !!s.structured && (s.where !== "cloud" || !!s.host) && !s.of && s.kind !== "shell";
+
+function sideOf(chat) {
+  const seat = seatOf(chat);
+  return seat?.where === "cloud" ? { where: "cloud", host: seat.host || "" } : { where: "local", host: "" };
+}
+
+const onSide = (side) => (one) => (side.where === "cloud" ? one.where === "cloud" && (one.host || "") === side.host : one.where !== "cloud");
 
 function homeOf(chat) {
   const seat = seatOf(chat);
@@ -189,7 +196,7 @@ function settleStrays(chat, s, local, now) {
       continue;
     }
     strayTried.set(one.name, now);
-    killShell(one.name).then((gone) => { if (!gone) recheckLater(STRAY_RETRY); });
+    killShell(one.name, chat).then((gone) => { if (!gone) recheckLater(STRAY_RETRY); });
   }
   return changed;
 }
@@ -219,7 +226,7 @@ function endedTerminal(one, listed, now) {
 function reconcileChat(chat) {
   const s = stateOf(chat);
   if (!s) return "";
-  const local = (st.data?.sessions || []).filter((one) => one.where !== "cloud");
+  const local = (st.data?.sessions || []).filter(onSide(sideOf(chat)));
   const listed = new Set(local.map((one) => one.name));
   const now = Date.now();
   let changed = settleStrays(chat, s, local, now);
@@ -238,9 +245,10 @@ function reconcileChat(chat) {
   return ended;
 }
 
-async function killShell(name) {
+async function killShell(name, chat) {
+  const side = sideOf(chat);
   try {
-    const res = await fetch("/api/kill", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, where: "local" }) });
+    const res = await fetch("/api/kill", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, where: side.where, ...(side.host ? { host: side.host } : {}) }) });
     const said = await res.json().catch(() => ({}));
     return res.ok !== false && !said?.error;
   } catch {
@@ -260,9 +268,10 @@ function startShell(chat, s, mode = "new", dir = SIDE_BY_SIDE) {
 
 async function openShellFor(chat, s, entry) {
   const asked = entry.name;
+  const side = sideOf(chat);
   let answer = null;
   try {
-    const res = await fetch("/api/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ where: "local", name: asked, of: chat, cwd: homeOf(chat) }) });
+    const res = await fetch("/api/shell", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ where: side.where, name: asked, of: chat, cwd: homeOf(chat), ...(side.host ? { host: side.host } : {}) }) });
     answer = await res.json();
   } catch {
     answer = { error: "the terminal could not be opened" };
@@ -271,7 +280,7 @@ async function openShellFor(chat, s, entry) {
   if (terminalNamed(s, asked) !== entry) {
     if (answer?.name && !terminalNamed(s, answer.name)) {
       dropName(s, answer.name);
-      if (!(await killShell(answer.name))) recheckLater(STRAY_RETRY);
+      if (!(await killShell(answer.name, chat))) recheckLater(STRAY_RETRY);
     }
     return;
   }
@@ -313,7 +322,7 @@ function focusShell(chat) {
   const pane = paneNamed(node, one.name);
   pane?.focus({ preventScroll: true });
   if (one.pending) return;
-  const e = getTerminal({ name: one.name, where: "local" });
+  const e = getTerminal({ name: one.name, where: sideOf(chat).where });
   const go = () => requestAnimationFrame(() => {
     if (!pane || document.activeElement === pane || nothingFocused()) e.term.focus();
   });
@@ -383,7 +392,7 @@ function paintPanes(node, chat, s) {
       continue;
     }
     say.hidden = true;
-    const e = getTerminal({ name, where: "local" });
+    const e = getTerminal({ name, where: sideOf(chat).where });
     if (well.dataset.name !== name) {
       if (well.dataset.name) observer.unobserve(well);
       well.dataset.name = name;
@@ -668,11 +677,11 @@ async function closeTerminal(chat, wanted, at = null) {
   if (one.pending) {
     removeTerminal(s, name);
     dropName(s, name);
-    killShell(name);
+    killShell(name, chat);
   } else {
     one.killing = true;
     render();
-    const gone = await killShell(name);
+    const gone = await killShell(name, chat);
     one.killing = false;
     if (!gone) {
       s.error = "the terminal would not close";
@@ -832,7 +841,7 @@ function toggleHtml(chat) {
   const on = able && !!stateOf(chat)?.open;
   const said = phrase("Toggle terminal");
   const keys = st.keys?.terminal ? keyLabel(st.keys.terminal) : "";
-  const title = !able ? phrase("Only chats on this machine have a terminal") : keys ? `${said} (${keys})` : said;
+  const title = !able ? phrase("Only chats on this machine or on an ssh host have a terminal") : keys ? `${said} (${keys})` : said;
   return `<button type="button" class="cb-btn${on ? " on" : ""}" data-act="chat-terminal" aria-pressed="${on}" aria-label="${esc(said)}" title="${esc(title)}"${able ? "" : " disabled"}>${lucide("panelBottom")}</button>`;
 }
 

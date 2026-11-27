@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, createEffect, createRenderEffect, on } from "solid-js";
 import { mountView } from "./view.jsx";
 
 function RaycastMenu(props) {
@@ -58,7 +58,20 @@ function RaycastMenu(props) {
   );
 }
 
+function driveHost(props) {
+  const host = props.host;
+  createRenderEffect(() => host.classList.toggle("on", !!props.model.open));
+  createRenderEffect(on(() => [props.model.label, props.model.painted], ([label]) => { if (label) host.setAttribute("aria-label", label); }));
+  createEffect(on(() => props.model.placed, (placed) => {
+    if (!placed) return;
+    const box = host.getBoundingClientRect();
+    host.style.left = `${Math.max(6, Math.min(props.model.x, innerWidth - box.width - 6))}px`;
+    host.style.top = `${Math.max(6, Math.min(props.model.y, innerHeight - box.height - 6))}px`;
+  }));
+}
+
 function Menu(props) {
+  if (props.host) driveHost(props);
   return (
     <Show when={props.model.on}>
       <Show when={!props.model.raycast} fallback={<RaycastMenu model={props.model} actions={props.actions} />}>
@@ -91,6 +104,6 @@ function Menu(props) {
   );
 }
 
-export function mountMenu(host, actions) {
-  return mountView(host, Menu, { on: false, cap: "", rows: [] }, { actions });
+export function mountMenu(host, actions, { ownHost = false } = {}) {
+  return mountView(host, Menu, { on: false, cap: "", rows: [] }, ownHost ? { actions, host } : { actions });
 }

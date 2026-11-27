@@ -403,6 +403,30 @@ function moveToNewBlock(key, ws) {
   moveSeatToBlock(key, st.blocks.indexOf(b));
 }
 
+function blockMoveTo(from, onto, after) {
+  const moving = st.blocks[from];
+  const target = st.blocks[onto];
+  if (!moving || !target || moving === target || moving.ws !== target.ws) return -1;
+  const at = (onto > from ? onto - 1 : onto) + (after ? 1 : 0);
+  return at === from ? -1 : at;
+}
+
+function moveBlock(from, onto, after) {
+  const at = blockMoveTo(from, onto, after);
+  if (at < 0) return false;
+  const shown = st.blocks[st.block];
+  const [moving] = st.blocks.splice(from, 1);
+  const slidIn = st.blocks[from];
+  st.blocks.splice(at, 0, moving);
+  moving.manual = true;
+  if (slidIn && slidIn.ws === moving.ws) slidIn.manual = true;
+  if (shown) st.block = st.blocks.indexOf(shown);
+  saveBlocks();
+  saveBlockAt(st.block);
+  render();
+  return true;
+}
+
 function seatsToTradeOn(i, key) {
   const b = st.blocks[i];
   if (!b || b.keys.includes(key) || b.keys.length < st.LIMIT) return [];
@@ -567,4 +591,4 @@ function blockTitle(b, items) {
     : phrase("{name} and {n} more seats: {names}", { name: head, n: rest.length, names: rest.join(", ") });
 }
 
-export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, subchatOf, subchatOpen, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, bringShelvedIn, hideSeat, hidden, hiddenUntil, isHidden, shelvedAway, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };
+export { SPACE_TINTS, activeItems, stripItems, attachSeat, bringSeatIn, subchatOf, subchatOpen, blockMoveTo, blockNumber, blockTitle, blockWithRoom, blocksOf, blocksSaved, canGiveBack, detachSeat, detached, forgetSeat, giveSeatBack, bringShelvedIn, hideSeat, hidden, hiddenUntil, isHidden, shelvedAway, itemOf, labelOf, landOnBlock, mergeWholeBlocks, moveBlock, moveSeatToBlock, moveToNewBlock, nameSpace, newId, ofBlock, openBlock, openSpace, readBlocks, readDetached, readSpaces, saveBlockAt, saveBlocks, saveDetached, saveSpaceAt, saveSpaces, seatGrace, seatsOf, seatsToTradeOn, seq, settleSpaces, shutSpace, soloSeat, spaceAt, spaceName, spaceOf, tidy, unhideSeat, wakeHidden };

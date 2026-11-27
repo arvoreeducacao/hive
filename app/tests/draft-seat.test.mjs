@@ -19,7 +19,9 @@ function slice(src, from, to) {
 
 const PHRASE = `const phrase = (t, v) => Object.entries(v || {}).reduce((s, [k, x]) => s.split("{" + k + "}").join(x), String(t));`;
 
-const helpers = new Function(`
+const world = { data: null };
+
+const helpers = new Function("st", `
   ${PHRASE}
   ${slice(panes, "const AGENT_NAMES", "function seatAgent(")}
   ${slice(panes, "const DRAFT_EFFORT_KINDS", "function pillLabel(")}
@@ -29,7 +31,7 @@ const helpers = new Function(`
   const svgIcon = (n) => "<svg>" + n + "</svg>";
   ${slice(draftSeat, "const DRAFT_KINDS", "function draftHost(d) {")}
   return { draftChoices, spawnPayloadOf, hexPoints, hiveMark, pickerCommandOf, DRAFT_KINDS, DRAFT_WHERES };
-`)();
+`)(world);
 
 test("a fresh draft starts on claude, local, native chat when nothing was kept", () => {
   assert.deepEqual(helpers.draftChoices(null), { agent: "claude", model: "", where: "local", kind: "structured" });
@@ -70,8 +72,32 @@ test("the first message travels with every choice the draft holds", () => {
 test("a cloud draft carries repo and branch and leaves the local account behind", () => {
   const d = { where: "cloud", kind: "terminal", repo: " api ", branch: "main", e: { agent: "claude", model: "", account: "work" } };
   assert.deepEqual(helpers.spawnPayloadOf(d, "x"), {
-    name: "", prompt: "x", images: [], where: "cloud", model: "", agent: "claude", structured: false, account: "", repo: "api", branch: "main"
+    name: "", prompt: "x", images: [], where: "cloud", model: "", agent: "claude", structured: false, account: "", repo: "api", branch: "main", host: ""
   });
+});
+
+test("a cloud draft names the machine it picked, and a local one names none", () => {
+  const cloud = { where: "cloud", kind: "structured", host: "ada@devbox", repo: "", branch: "", e: { agent: "claude", model: "" } };
+  assert.equal(helpers.spawnPayloadOf(cloud, "x").host, "ada@devbox");
+  const local = { where: "local", kind: "structured", host: "ada@devbox", repo: "", branch: "", e: { agent: "claude", model: "" } };
+  assert.equal("host" in helpers.spawnPayloadOf(local, "x"), false, "a chat on this machine was sent to a remote host");
+});
+
+test("a chat on an ssh host opens in the folder kept for that host, and the one picked in the draft wins", () => {
+  world.data = { hosts: [{ id: "ada@devbox", label: "devbox", folder: "/home/ada/hub" }, { id: "ada@other", label: "other", folder: "" }] };
+  try {
+    const d = { where: "cloud", kind: "structured", host: "ada@devbox", repo: "api", branch: "main", e: { agent: "claude", model: "" } };
+    const kept = helpers.spawnPayloadOf(d, "x");
+    assert.equal(kept.folder, "/home/ada/hub");
+    assert.equal(kept.repo, "", "the repo typed for the team's server went along to a host that opens a folder");
+    assert.equal(kept.branch, "");
+    assert.equal(helpers.spawnPayloadOf({ ...d, folders: { "ada@devbox": "/srv/app" } }, "x").folder, "/srv/app");
+    assert.equal("folder" in helpers.spawnPayloadOf({ ...d, host: "ada@other", folders: { "ada@devbox": "/srv/app" } }, "x"), false, "a folder picked on one host went to another");
+    assert.equal("folder" in helpers.spawnPayloadOf({ ...d, where: "local" }, "x"), false);
+    assert.equal("folder" in helpers.spawnPayloadOf({ ...d, host: "" }, "x"), false, "the team's server clones a repo, it takes no folder");
+  } finally {
+    world.data = null;
+  }
 });
 
 test("a first message with a picture keeps the mark in the words and carries the file beside them", () => {
@@ -145,7 +171,7 @@ test("the seat is named from the mission at once and the title comes later, off 
 });
 
 test("an image that does not reach the pod keeps its slot, so no mark points at the wrong picture", async () => {
-  const push = new Function("existsSync", "readFile", "cloudReach", "join", "HUB", `
+  const push = new Function("existsSync", "readFile", "cloudReach", "join", "HUB", "onTheHost", `
     ${slice(server, "async function pushMissionAsset(local) {", "async function seedStatus")}
     return pushMissionAssets;
   `)(
@@ -153,7 +179,8 @@ test("an image that does not reach the pod keeps its slot, so no mark points at 
     async () => Buffer.from("x"),
     { putFile: async () => ({ ok: true }) },
     (...parts) => parts.join("/"),
-    "/hub"
+    "/hub",
+    (text) => text
   );
   const pushed = await push("olha [Image #1] e [Image #2]", ["/hub/.hive/assets/one.png", "/hub/.hive/assets/two.png"]);
   assert.equal(pushed.images.length, 2, "a falha encolheu a lista e deslocou as marcas");

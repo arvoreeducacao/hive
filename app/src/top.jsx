@@ -1,4 +1,4 @@
-import { For, Show, createEffect, createRoot } from "solid-js";
+import { For, Show, createEffect, createRenderEffect, createRoot, on } from "solid-js";
 import { insert } from "solid-js/web";
 import { createStore, reconcile } from "solid-js/store";
 import { mountView } from "./view.jsx";
@@ -186,6 +186,11 @@ export function mountLimPop(host, extras = {}) {
 }
 
 function PrButton(props) {
+  const host = props.host;
+  createRenderEffect(() => { host.hidden = !props.model.shown; });
+  createRenderEffect(on(() => [props.model.title, props.model.painted], ([title]) => { if (title) host.title = title; }));
+  createRenderEffect(() => { if (props.model.hot !== undefined) host.classList.toggle("hot", props.model.hot); });
+  createRenderEffect(() => host.setAttribute("aria-expanded", props.model.expanded ? "true" : "false"));
   return (
     <Show
       when={props.model.rc}
@@ -202,7 +207,7 @@ function PrButton(props) {
 }
 
 export function mountPrButton(host) {
-  return mountView(host, PrButton, { key: "prbtn", lead: "", word: "", count: "" });
+  return mountView(host, PrButton, { key: "prbtn", shown: !host.hidden, expanded: false, lead: "", word: "", count: "" }, { host });
 }
 
 function PrRow(props) {
@@ -258,7 +263,7 @@ function PrRows(props) {
 }
 
 export function mountPrPop(host, extras = {}) {
-  const [model, setModel] = createStore({ key: "prpop", rows: [], empty: true, count: "", bad: false });
+  const [model, setModel] = createStore({ key: "prpop", open: false, placed: 0, rows: [], empty: true, count: "", bad: false });
   const list = host.querySelector(".pp-list");
   const tally = host.querySelector(".pp-count");
   list.textContent = "";
@@ -267,6 +272,17 @@ export function mountPrPop(host, extras = {}) {
     insert(list, () => <PrRows model={model} actions={extras.actions} />);
     createEffect(() => { tally.textContent = model.count; });
     createEffect(() => { if (!model.empty) tally.classList.toggle("bad", model.bad); });
+    createRenderEffect(() => {
+      host.hidden = !model.open;
+      if (!model.open) host.style.right = "";
+    });
+    createEffect(on(() => [model.open, model.placed], ([open]) => {
+      const frame = host.offsetParent;
+      if (!open || !frame) return;
+      const seat = extras.button.getBoundingClientRect();
+      const edge = Math.min(innerWidth - 6, Math.max(seat.right, host.offsetWidth + 6));
+      host.style.right = `${Math.round(frame.getBoundingClientRect().right - edge)}px`;
+    }));
     return dispose;
   });
   return {

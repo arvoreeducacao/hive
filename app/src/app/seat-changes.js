@@ -177,7 +177,7 @@ async function openInMachineEditor(name, path, line = 1) {
   if (s.where === "cloud") {
     const repo = String(data?.top || "").replace(/^\/workspace\/repos\/?/, "");
     if (repo && repo !== data?.top) return void openInEditor({ repo, path, where: "cloud", line });
-    editorTrouble = { path, why: phrase("a cloud seat's files are only reachable from the seat itself") };
+    editorTrouble = { path, why: phrase("a remote seat's files are only reachable from the seat itself") };
     return render();
   }
   let said = null;

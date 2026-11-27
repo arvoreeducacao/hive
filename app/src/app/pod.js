@@ -681,7 +681,7 @@ function ptDeviceLine(one) {
     if (one.fromFile) return phrase("a key the trust file vouches for — no machine ever came in with it");
     return phrase("another machine of yours · {when}", { when: ptAgo(one.lastSeen) });
   }
-  if (one.kind === "pod") return phrase("in the cloud · {when}", { when: ptAgo(one.lastSeen) });
+  if (one.kind === "pod") return phrase("remote · {when}", { when: ptAgo(one.lastSeen) });
   if (one.kind === "service") return phrase("a service · only opens new chats · paired {when}", { when: ptAgo(one.pairedAt) });
   return phrase("paired {when}", { when: ptAgo(one.pairedAt) });
 }
@@ -697,7 +697,7 @@ let portariaSolid = null;
 
 function ptPillModel(one) {
   if (one.kind === "phone") return one.online ? { cls: "pt-pill ok", say: phrase("reading") } : { cls: "pt-pill wait", say: phrase("paired") };
-  if (one.kind === "pod") return { cls: "pt-pill cloud", say: phrase("cloud") };
+  if (one.kind === "pod") return { cls: "pt-pill cloud", say: phrase("remote") };
   if (one.kind === "service") return { cls: "pt-pill ok", say: phrase("service") };
   return { cls: "pt-pill ok", say: phrase("inside") };
 }

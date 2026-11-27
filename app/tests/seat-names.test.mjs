@@ -30,7 +30,8 @@ test("a listing that came back is trusted even when the exit code did not", () =
 
 test("the refusal says what would have happened, not just that it failed", () => {
   const wrong = blindNamingError("cloud", "pod does not exist");
-  assert.match(wrong.message, /cloud/);
+  assert.match(wrong.message, /^pod does not exist\. Nothing was started/, "the reason has to come first — the rest is what would have gone wrong");
+  assert.match(wrong.message, /remote side/);
   assert.match(wrong.message, /reaches the older one/);
   assert.match(wrong.message, /Nothing was started/);
   assert.match(wrong.message, /pod does not exist/);

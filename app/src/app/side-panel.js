@@ -377,14 +377,20 @@ function paintScrim(el, on, name) {
 
 function paintPrPane(pane, key, name) {
   if (prSideKey() !== key) openPrSide(key);
-  const { main, compose } = prSideHtml(lucide, () => render());
+  const { main, compose, bar } = prSideHtml(lucide, () => render());
   let mainHost = pane.querySelector(":scope > .tp > .tp-main");
   let composeHost = pane.querySelector(":scope > .tp > .tp-composehost");
+  let barHost = pane.querySelector(":scope > .tp > .tp-barhost");
   if (!mainHost) {
-    pane.innerHTML = '<div class="tp"><div class="tp-main"></div><div class="tp-composehost"></div></div>';
+    pane.innerHTML = '<div class="tp"><div class="tp-main"></div><div class="tp-barhost"></div><div class="tp-composehost"></div></div>';
     mainHost = pane.querySelector(".tp-main");
+    barHost = pane.querySelector(".tp-barhost");
     composeHost = pane.querySelector(".tp-composehost");
     pane.addEventListener("input", (event) => prSideTyped(event.target));
+  }
+  if (barHost.dataset.h !== bar) {
+    barHost.innerHTML = bar;
+    barHost.dataset.h = bar;
   }
   const kept = mainHost.querySelector(".tp-body")?.scrollTop || 0;
   if (mainHost.dataset.h !== main) {

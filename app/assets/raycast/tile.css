@@ -171,7 +171,7 @@ body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .
 body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) textarea:placeholder-shown { white-space: nowrap; overflow: hidden; }
 body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns .sv-send { width: 24px; opacity: 1; transform: none; visibility: visible; }
 body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-foot { animation: none; }
-body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns button { width: 24px; height: 24px; }
+body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns button:where(:not(.cp-compact)) { width: 24px; height: 24px; }
 :where(body.experience-raycast) .t-tags { display: none; flex: none; gap: normal; }
 :where(body.experience-raycast) .tile.spawning .t-state, :where(body.experience-raycast) .tile.spawning .t-chips { display: flex; }
 :where(body.experience-raycast) .tile.draft { --rc-edge: var(--accent-d); --rc-shadow: var(--e1); }
@@ -183,7 +183,7 @@ body:where(.experience-raycast):not(.no-motion) .tile:not(.focused):not(.open) .
 :where(body.experience-raycast) .tile.gone, :where(body.experience-raycast) .tile.gone[data-state="needs"] { --rc-motion: kout 210ms var(--ease) forwards; animation: var(--rc-motion); }
 :where(body.experience-raycast) .tile[data-state="answered"] { border-color: var(--rc-edge); box-shadow: var(--rc-shadow); }
 :where(body.experience-raycast) .tile .t-head .t-tags > :is(.t-web, .t-phone, .t-edit, .t-fold) { display: none; }
-:where(body.experience-raycast) .tile:hover .t-tags, :where(body.experience-raycast) .t-head:focus-within .t-tags, :where(body.experience-raycast) .tile.open .t-tags { display: flex; }
+:where(body.experience-raycast) .tile:hover .t-tags, :where(body.experience-raycast) .t-head:focus-within .t-tags, :where(body.experience-raycast) .tile.open .t-tags, :where(body.experience-raycast) .tile.opening.bad .t-tags { display: flex; }
 :where(body.experience-raycast) .tile:hover .t-key, :where(body.experience-raycast) .t-head:focus-within .t-key, :where(body.experience-raycast) .tile.open .t-key { display: none; }
 @media (hover: none) {
   :where(body.experience-raycast) .t-tags { display: flex; }
@@ -290,7 +290,7 @@ body:where(.experience-raycast).look-dimension .sv-ctx .bar { width: 24px; heigh
 body:where(.experience-raycast).look-dimension .sv-ctx .bar i { background: var(--txt-2); }
 body:where(.experience-raycast).look-dimension .sv-ctx.warm .bar i, body:where(.experience-raycast).look-dimension .sv-ctx.hot .bar i { background: var(--yellow); }
 body:where(.experience-raycast).look-dimension .sv-btns { gap: 6px; }
-body:where(.experience-raycast).look-dimension .sv-btns button { width: 24px; height: 24px; }
+body:where(.experience-raycast).look-dimension .sv-btns button:where(:not(.cp-compact)) { width: 24px; height: 24px; }
 body:where(.experience-raycast).look-dimension .sv-btns svg { width: 14px; height: 14px; }
 body:where(.experience-raycast).look-dimension .sv-send { background: none; color: inherit; }
 body:where(.experience-raycast).look-dimension .sv-composer.ready .sv-send { background: var(--accent); color: var(--bg); }

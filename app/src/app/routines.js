@@ -64,7 +64,7 @@ function routineRowModel(r, now) {
   return {
     key: r.id, id: r.id, name: r.name, on: !!r.enabled, editing: st.routineEdit?.id === r.id,
     state: r.enabled ? phrase("on") : phrase("off"),
-    where: r.where === "cloud" ? phrase("cloud") : "",
+    where: r.where === "cloud" ? phrase("remote") : "",
     schedule: (TRIGGER_SAY[r.trigger] || (() => ""))(r),
     next: r.enabled && r.nextAt ? phrase("next {when}", { when: inSay(r.nextAt - now) }) : "",
     precheck: r.precheck || "", precheckHint: phrase("runs first — a non-zero exit skips the round"),
@@ -172,9 +172,9 @@ function routineFormHtml(edit) {
       ${FIELD("rt-time", phrase("time"), `<input id="rt-time" value="${esc(r.time)}" placeholder="09:00" ${r.trigger === "hourly" || r.trigger === "cron" || r.trigger === "webhook" ? "disabled" : ""}>`)}
       ${FIELD("rt-weekday", phrase("day of the week"), `<select id="rt-weekday" ${r.trigger === "weekly" ? "" : "disabled"}>${WEEKDAYS.map((d, i) => option(String(i), weekdaySay(i), Number(r.weekday) === i)).join("")}</select>`)}
       ${FIELD("rt-cron", phrase("cron line"), `<input id="rt-cron" value="${esc(r.cron)}" placeholder="0 18 * * 1-5" ${r.trigger === "cron" ? "" : "disabled"}>`)}
-      ${FIELD("rt-where", phrase("where it runs"), `<select id="rt-where">${option("local", phrase("local · your machine"), r.where !== "cloud")}${option("cloud", phrase("cloud · server"), r.where === "cloud")}</select>`)}
+      ${FIELD("rt-where", phrase("where it runs"), `<select id="rt-where">${option("local", phrase("local · your machine"), r.where !== "cloud")}${option("cloud", phrase("remote · server"), r.where === "cloud")}</select>`)}
       ${FIELD("rt-agent", phrase("agent"), `<select id="rt-agent">${ROUTINE_AGENTS.filter((a) => readyAgents(r.agent).includes(a)).map((a) => option(a, providerName(a), r.agent === a)).join("")}</select>`)}
-      ${FIELD("rt-repo", phrase("repo (cloud)"), `<input id="rt-repo" value="${esc(r.repo)}" placeholder="${phrase("the repo the cloud chat clones")}" ${r.where === "cloud" ? "" : "disabled"}>`)}
+      ${FIELD("rt-repo", phrase("repo (remote)"), `<input id="rt-repo" value="${esc(r.repo)}" placeholder="${phrase("the repo the remote chat clones")}" ${r.where === "cloud" ? "" : "disabled"}>`)}
     </div>
     ${FIELD("rt-prompt", phrase("the mission, the same every time"), `<textarea id="rt-prompt" rows="4" spellcheck="false" placeholder="${phrase("what it solves, with a definition of done and the status protocol")}">${esc(r.prompt)}</textarea>`)}
     ${FIELD("rt-precheck", phrase("precheck — a shell line; exit non-zero and the round is skipped"), `<input id="rt-precheck" value="${esc(r.precheck)}" placeholder="gh pr list --search 'review-requested:@me' --json number -q '.[0].number'" spellcheck="false">`)}

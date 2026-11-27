@@ -6,6 +6,7 @@ export { mountTileSide, mountJobSide, mountFileSide, mountBlank } from "./tile.j
 export { mountDiffWindow, mountInfoColumn } from "./changes.jsx";
 export { mountMenu } from "./menu.jsx";
 export { contextMenuView } from "./context-menu.jsx";
+export { mountFinishPop } from "./finish-pop.jsx";
 export { mountMirror } from "./mirror.jsx";
 export { questionCardView } from "./question-card.jsx";
 export { mountPlaneBar, mountPlaneMap, mountPlaneCard } from "./plane-hud.jsx";
@@ -31,6 +32,7 @@ export { mountUsage } from "./panels/usage.jsx";
 export { mountRoutines } from "./panels/routines.jsx";
 export { mountMeetings } from "./panels/meetings.jsx";
 export { mountMemories } from "./panels/memories.jsx";
+export { commandCardView } from "./command-card.jsx";
 export { mountProviders } from "./panels/providers.jsx";
 export { mountExtensions } from "./panels/extensions.jsx";
 export { mountPortaria } from "./panels/portaria.jsx";

@@ -174,7 +174,7 @@ A routine is a chat that opens itself on a schedule, with the same mission every
 
 - "name — also the name of the chat": up to 60 characters. Each run's chat is named after it plus the clock, like `weekday-triage-0900`, and carries the routine name as its errand, so the day view groups the runs.
 - "when": `hourly` (on the hour), `daily`, `weekdays`, `weekly` (with "day of the week"), `cron` (five fields: minute hour day month weekday) or `webhook`. "time" is HH:MM, default 09:00.
-- "where it runs": "local · your machine" or "cloud · server"; a cloud routine takes "repo (cloud)", the repo the cloud chat clones.
+- "where it runs": "local · your machine" or "remote · server"; a remote routine takes "repo (remote)", the repo the remote chat clones.
 - "agent": any agent the person has ready (claude, codex, kimi, kiro, cursor, gemini, antigravity, opencode).
 - "the mission, the same every time": up to 8000 characters.
 - "precheck": a shell line of up to 600 characters. It runs first, in a login bash in the hub folder, for up to 60 seconds. A non-zero exit skips the round, and no chat opens.

@@ -3,6 +3,7 @@ import { render } from "./arrange.js";
 import { blockWithRoom, itemOf, openBlock, saveBlockAt, saveBlocks } from "./blocks.js";
 import { closeBrowser, closeCockpit, closeDevice, wireLinks } from "./chat-and-panes.js";
 import { $, IS_MAC, LABEL, apiGet, emojiOf, esc, every, messageHtml, phrase, previewOf, raycastOn, solidMounts, st, svgIcon } from "./core.js";
+import { dismissHud, hud } from "./hud.js";
 import { sendToSeat } from "./seat-layout.js";
 import { goTo, openTile, pull, releaseKeyboard, takeKeyboard } from "./focus-navigation.js";
 import { pool } from "./leader-key.js";
@@ -1688,17 +1689,23 @@ $("btn-term").addEventListener("click", () => openShell("local"));
 
 $("btn-term-pod").addEventListener("click", () => openShell("cloud"));
 
-async function openShell(where) {
+async function openShell(where, host = "") {
   closeMore();
   releaseKeyboard();
+  const label = host ? (st.data?.hosts || []).find((one) => one.id === host)?.label || host : "";
+  if (host) hud({ busy: true, text: phrase("opening a terminal on {host}", { host: label }) });
   try {
     const r = await fetch("/api/shell", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ where })
+      body: JSON.stringify(host ? { where, host } : { where })
     });
     const d = await r.json();
-    if (d.error) return;
+    if (host) dismissHud();
+    if (d.error) {
+      if (host) hud({ icon: "i-warn", tone: "bad", text: phrase("the terminal on {host} did not open", { host: label }), mono: d.error, stays: 8000 });
+      return;
+    }
     const target = blockWithRoom() || openBlock();
     st.block = st.blocks.indexOf(target);
     saveBlockAt(st.block);
@@ -1706,7 +1713,9 @@ async function openShell(where) {
     await pull();
     goTo(d.name);
     takeKeyboard(d.name);
-  } catch {}
+  } catch {
+    if (host) dismissHud();
+  }
 }
 
 $("pr-refresh").addEventListener("click", () => { diffs.delete(st.openPr); pullPrs(); });

@@ -807,6 +807,8 @@
 
   .tile.spawning { border-style: dashed; box-shadow: var(--e1); grid-template-rows: minmax(0, auto) 1fr; border-color: #26404F; }
   .tile.spawning .well { display: grid; place-content: center; }
+  .tile.spawning.bad .well { place-content: start center; overflow-y: auto; }
+  .tile.spawning.bad .spawn .notice { overflow-wrap: anywhere; }
   .tile.opening { border-style: dashed; border-color: #26404F; }
   .tile.opening .well { display: grid; place-content: center; }
   .tile.opening .well .cover { display: none; }
@@ -1896,7 +1898,7 @@
   body:not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) textarea { min-height: 24px; height: 24px !important; padding: 2px 3px; font-size: 13px; white-space: nowrap; overflow: hidden; }
   body:not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns .sv-send { width: 0; opacity: 0; transform: scale(.5); visibility: hidden; }
   body:not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-foot { animation: foot-slim 220ms var(--ease); }
-  body:not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns button { width: 22px; height: 22px; }
+  body:not(.no-motion) .tile:not(.focused):not(.open) .sv-composer:not(.ready):not(.talking) .sv-btns button:where(:not(.cp-compact)) { width: 22px; height: 22px; }
   @keyframes foot-open { from { height: 0; opacity: 0; } to { height: auto; opacity: 1; } }
   @keyframes foot-slim { from { opacity: 0; } to { opacity: 1; } }
   @keyframes cmp-slim { from { padding-bottom: 37px; } to { padding-bottom: 3px; } }
@@ -3894,8 +3896,27 @@
   #rail .item.anon .name { color: var(--violet); font-style: italic; }
   #rail .item.anon > svg { color: var(--violet) !important; }
   .sv-seg button:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
-  .sv-cloud { display: flex; gap: 6px; justify-content: center; }
+  .sv-cloud { display: flex; flex-direction: column; align-items: center; gap: 8px; max-width: 100%; }
   .sv-cloud[hidden] { display: none; }
+  .sv-cloud-row { display: flex; gap: 6px; justify-content: center; }
+  .sv-cloud-row[hidden] { display: none; }
+  .sv-hosts { flex-wrap: wrap; justify-content: center; max-width: 100%; }
+  .sv-hosts button { white-space: nowrap; }
+  .sv-host-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--txt-3); flex: none; }
+  .sv-hosts button.phase-up .sv-host-dot { background: var(--green); }
+  .sv-hosts button.phase-down .sv-host-dot { background: var(--red); }
+  .sv-hosts button.phase-busy .sv-host-dot { background: var(--yellow); }
+  .sv-cloud .sv-host-target { width: 26ch; }
+  .sv-host-connect { all: unset; cursor: pointer; font-size: 11px; padding: 3px 10px; border-radius: 5px; border: 1px solid var(--line-2); color: var(--txt-2); background: var(--panel-3); }
+  .sv-host-connect:hover:not(:disabled) { color: var(--txt); border-color: var(--accent); }
+  .sv-host-connect:disabled { opacity: .4; cursor: default; }
+  .sv-host-connect:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .sv-empty .sv-host-said { min-height: 17px; font-size: 11px; overflow-wrap: anywhere; }
+  .sv-empty .sv-host-said[hidden] { display: block; visibility: hidden; }
+  .sv-host-said .bad { color: var(--accent); font-family: var(--mono); }
+  .sv-host-said button { all: unset; cursor: pointer; color: var(--txt-2); text-decoration: underline; text-underline-offset: 2px; margin-left: 4px; }
+  .sv-host-said button:hover { color: var(--txt); }
+  .sv-host-said button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
   .sv-cloud input { font-family: var(--mono); font-size: 10.5px; width: 14ch; color: var(--txt-2); background: var(--panel-3); border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 7px; outline: none; }
   .sv-cloud input:focus-visible { border-color: var(--accent); color: var(--txt); }
   .sv-draft .sv-sent { display: flex; flex-direction: column; gap: 10px; padding: 0 0 8px; }
@@ -4568,7 +4589,7 @@
   body.look-dimension .sv-ctx .bar { width: 30px; height: 2px; border-radius: 2px; background: var(--ln-2); }
   body.look-dimension .sv-ctx .bar i { background: var(--txt-2); border-radius: 2px; }
   body.look-dimension .sv-btns { gap: 4px; }
-  body.look-dimension .sv-btns button { width: 22px; height: 22px; }
+  body.look-dimension .sv-btns button:where(:not(.cp-compact)) { width: 22px; height: 22px; }
   body.look-dimension .sv-btns svg { width: 11px; height: 11px; }
   body.look-dimension .sv-send, body.look-dimension .sv-composer.ready .sv-send { background: var(--txt); color: var(--bg); box-shadow: none; }
   body.look-dimension .sv-btns .sv-stop { color: var(--txt-2); border-color: var(--ln-2); }
@@ -5338,7 +5359,7 @@ try {
       <div class="set-card">
         <div class="set-row info"><div class="set-text"><span class="set-title">The PR panel</span><p class="hint">Inside the PR panel, <code>↑↓</code> changes file, <code>v</code> marks it seen and moves on, <code>shift v</code> goes back and unmarks the last one, and <code>[ ]</code> changes PR. A path to an image printed in a tile is clickable: it opens the picture over the screen — on your machine or on the server, <code>esc</code> closes.</p></div></div>
         <div class="set-row info"><div class="set-text"><span class="set-title">Pictures and shots</span><p class="hint">A picture a chat names in its answer shows as a thumbnail under it. Its shots stay in <code>~/.hive/shots/&lt;chat&gt;/</code> until the chat closes, seven days at most. <span id="f-shots">measuring the shots…</span></p></div></div>
-        <div class="set-row info"><div class="set-text"><span class="set-title">The cluster screen</span><p class="hint">The <b>pod</b> screen shows the state of the machine the hive lives on — memory, disk, Claude's login, environment variables — with a root terminal at the bottom. Sleeping, restarting and pushing the <code>.env</code> ask for confirmation because they kill the cloud sessions.</p></div></div>
+        <div class="set-row info"><div class="set-text"><span class="set-title">The cluster screen</span><p class="hint">The <b>pod</b> screen shows the state of the machine the hive lives on — memory, disk, Claude's login, environment variables — with a root terminal at the bottom. Sleeping, restarting and pushing the <code>.env</code> ask for confirmation because they kill the remote sessions.</p></div></div>
       </div>
     </div>
     </section>

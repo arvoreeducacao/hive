@@ -36,10 +36,21 @@ st.seatMenuFor = "";
 st.menuCap = "";
 st.menuTrail = [];
 
-const seatMenuOn = () => $("seatmenu").classList.contains("on");
+let seatHost = { open: false, label: "", x: 0, y: 0, placed: 0, painted: 0 };
+
+let seatMenuModel = { on: false, cap: "", rows: [] };
+
+const seatMenuOn = () => seatHost.open;
+
+function paintSeatMenu(model = seatMenuModel) {
+  seatMenuModel = model;
+  seatHost = { ...seatHost, painted: seatHost.painted + 1 };
+  menuSolid?.show({ ...model, ...seatHost });
+}
 
 function closeSeatMenu() {
-  $("seatmenu").classList.remove("on");
+  seatHost = { ...seatHost, open: false };
+  menuSolid?.show({ ...seatMenuModel, ...seatHost });
   st.seatMenuFor = "";
   st.menuTrail = [];
   menuStop("seatmenu");
@@ -199,25 +210,24 @@ function seatSpot(s) {
   return `b${blockNumber(bi)} · ${st.blocks[bi].keys.indexOf(s.name) + 1}/${st.blocks[bi].keys.length}`;
 }
 
+function placeSeatMenu(cap, x, y) {
+  seatHost = { ...seatHost, open: true, label: menuLabel(cap), x, y, placed: seatHost.placed + 1 };
+}
+
 function paintMenu(cap, rows, x, y) {
   if (raycastOn()) return paintMenuRaycast(cap, rows, x, y);
-  const el = $("seatmenu");
   st.menuShown = rows;
   st.menuCap = cap;
   st.menuTrail = [];
-  nameMenu(cap);
-  menuSolid.show(menuViewModel(cap, rows));
-  el.classList.add("on");
-  const box = el.getBoundingClientRect();
-  el.style.left = `${Math.max(6, Math.min(x, innerWidth - box.width - 6))}px`;
-  el.style.top = `${Math.max(6, Math.min(y, innerHeight - box.height - 6))}px`;
+  placeSeatMenu(cap, x, y);
+  paintSeatMenu(menuViewModel(cap, rows));
 }
 
 function showMenuLevel(cap, rows) {
   st.menuCap = cap;
   st.menuShown = rows;
-  nameMenu(cap);
-  menuSolid.show(menuViewModel(cap, rows, { back: st.menuTrail.length > 0 }));
+  seatHost = { ...seatHost, label: menuLabel(cap) };
+  paintSeatMenu(menuViewModel(cap, rows, { back: st.menuTrail.length > 0 }));
 }
 
 function enterSubMenu(row) {
@@ -239,20 +249,13 @@ function openMenuRows(cap, rows, x, y) {
 }
 
 function paintMenuRaycast(cap, rows, x, y, at = "") {
-  const el = $("seatmenu");
+  placeSeatMenu(cap, x, y);
   menuShow("seatmenu", cap, rows, { at, pick: (row, rect) => { closeSeatMenu(); row?.go?.(rect); }, close: closeSeatMenu });
-  el.classList.add("on");
-  const box = el.getBoundingClientRect();
-  el.style.left = `${Math.max(6, Math.min(x, innerWidth - box.width - 6))}px`;
-  el.style.top = `${Math.max(6, Math.min(y, innerHeight - box.height - 6))}px`;
-  el.querySelector(".mi-q")?.focus({ preventScroll: true });
 }
 
 let menuSolid = null;
 
-function nameMenu(cap) {
-  $("seatmenu").setAttribute("aria-label", String(cap ?? "") || phrase("what to do with this chat or block"));
-}
+const menuLabel = (cap) => String(cap ?? "") || phrase("what to do with this chat or block");
 
 let palActsSolid = null;
 
@@ -285,7 +288,7 @@ solidMounts.push((hive) => {
     find: (q) => menuFind("seatmenu", q),
     key: (ev) => menuKeys("seatmenu", ev),
     back: () => seatMenuBack()
-  });
+  }, { ownHost: true });
 });
 
 const menus = new Map();
@@ -353,9 +356,10 @@ function menuPaint(m) {
   m.shown = menuList(m);
   if (m.id === "seatmenu") st.menuShown = m.shown;
   const chat = m.id === "seatmenu";
-  const solid = chat ? menuSolid : palActsView();
-  if (chat) nameMenu(top ? top.cap : m.cap);
-  solid?.show(menuRaycastModel(top ? top.cap : m.cap, m.shown, { at: top ? "" : m.at, back: !!top, find: true, q: m.q, sel: m.sel, bare: chat }));
+  const model = menuRaycastModel(top ? top.cap : m.cap, m.shown, { at: top ? "" : m.at, back: !!top, find: true, q: m.q, sel: m.sel, bare: chat });
+  if (!chat) return palActsView()?.show(model);
+  seatHost = { ...seatHost, label: menuLabel(top ? top.cap : m.cap) };
+  paintSeatMenu(model);
 }
 
 function menuShow(id, cap, rows, { at = "", pick = null, close = null } = {}) {
@@ -598,9 +602,17 @@ async function closeBlock(i, at) {
 
 document.addEventListener("pointerdown", (e) => { if (seatMenuOn() && !e.target.closest("#seatmenu")) closeSeatMenu(); }, true);
 
-const finishOn = () => $("finish").classList.contains("on");
+let finishSolid = null;
 
-const closeFinish = () => $("finish").classList.remove("on");
+let finishModel = null;
+
+const finishOn = () => !!finishModel?.open;
+
+function closeFinish() {
+  if (!finishModel) return;
+  finishModel = { ...finishModel, open: false };
+  finishSolid?.show(finishModel);
+}
 
 function finishMeta(f) {
   const said = [];
@@ -619,29 +631,45 @@ function finishWarnings(f) {
   ].filter(Boolean);
 }
 
+function finishViewModel(s, at) {
+  const f = s.finish;
+  return {
+    key: "finish",
+    open: true,
+    shown: (finishModel?.shown || 0) + 1,
+    name: s.name,
+    anchor: at ? { left: at.left, bottom: at.bottom } : null,
+    title: s.title || s.name,
+    capSay: phrase("— what it left for you"),
+    meta: finishMeta(f),
+    warnings: finishWarnings(f),
+    said: !!f.text,
+    html: f.text ? renderMarkdown(f.text) : "",
+    emptySay: phrase("It stopped without a closing word — the seat itself is the only place left to look."),
+    clipped: !!f.clipped,
+    clipSay: phrase("the rest of it is in the seat"),
+    prs: prsOfChat(s.name).map((pr) => ({ key: pr.key, url: pr.url || "#", where: `${pr.repo.split("/").pop()}#${pr.number}`, title: pr.title || pr.error || "" })),
+    openSay: phrase("open the chat"),
+    shutSay: phrase("close")
+  };
+}
+
 function openFinish(name, at) {
   const s = st.data.sessions.find((x) => x.name === name);
   if (!s?.finish) return;
-  const f = s.finish;
-  const el = $("finish");
-  const prs = prsOfChat(name);
-  el.innerHTML = `
-    <div class="cap">${esc(s.title || s.name)} ${phrase("— what it left for you")}</div>
-    <div class="fin-meta">${finishMeta(f).map((b) => `<span>${esc(b)}</span>`).join("")}${finishWarnings(f).map((w) => `<span class="bad">${esc(w)}</span>`).join("")}</div>
-    <div class="fin-say sv-msg md">${f.text ? renderMarkdown(f.text) : `<p>${phrase("It stopped without a closing word — the seat itself is the only place left to look.")}</p>`}${f.clipped ? `<span class="fin-clip">${phrase("the rest of it is in the seat")}</span>` : ""}</div>
-    ${prs.map((pr) => `<a class="fin-pr" href="${esc(pr.url || "#")}" target="_blank" rel="noreferrer"><b>${esc(pr.repo.split("/").pop())}#${pr.number}</b><span>${esc(pr.title || pr.error || "")}</span></a>`).join("")}
-    <div class="fin-go"><button class="ghost b-open">${phrase("open the chat")}</button><button class="ghost b-shut">${phrase("close")}</button></div>`;
-  wireLinks(name, el);
-  el.querySelector(".b-open").addEventListener("click", () => { closeFinish(); openTile(name); });
-  el.querySelector(".b-shut").addEventListener("click", closeFinish);
-  el.classList.add("on");
-  el.scrollTop = 0;
-  const box = el.getBoundingClientRect();
-  const anchor = at || { left: innerWidth / 2 - box.width / 2, bottom: 80 };
-  el.style.left = `${Math.max(6, Math.min(anchor.left, innerWidth - box.width - 6))}px`;
-  el.style.top = `${Math.max(6, Math.min(anchor.bottom + 6, innerHeight - box.height - 6))}px`;
+  finishModel = finishViewModel(s, at);
+  finishSolid?.show(finishModel);
   if (markFinishSeen(name)) render();
 }
+
+solidMounts.push((hive) => {
+  finishSolid = hive.mountFinishPop($("finish"), {
+    wire: (root, name) => wireLinks(name, root),
+    open: (name) => { closeFinish(); openTile(name); },
+    shut: () => closeFinish()
+  });
+  if (finishModel) finishSolid.show(finishModel);
+});
 
 function openFinishOf(name) {
   const tile = document.querySelector(`.tile[data-name="${CSS.escape(name)}"]`);
@@ -750,8 +778,8 @@ function createJobTile(it) {
       <div class="step"><span class="blink"></span><span class="step-txt"></span></div>
       <div class="bar"><i></i></div>
       <p class="wait">${phrase("the card fills in as soon as it answers")}</p>
-      <p class="notice"></p>
       <button class="btn b-forget" style="display:none">${phrase("take off the screen")}</button>
+      <p class="notice"></p>
     </div></div>`;
   el.querySelector(".b-forget").addEventListener("click", async (ev) => {
     ev.stopPropagation();
@@ -782,6 +810,7 @@ function jobViewModel(it) {
     name: it.naming ? "" : it.name || phrase("naming the mission…"),
     sub: it.error ? phrase("did not start") : phrase("opening the chat"),
     where: it.where,
+    whereSaid: it.where === "cloud" ? it.hostLabel || phrase("remote") : it.where,
     whereIcon: it.where === "local" ? "#i-local" : "#i-cloud",
     glyph: it.error ? "#g-needs" : "#g-flight",
     label: it.error ? phrase("failed to start") : phrase("starting"),
@@ -789,7 +818,7 @@ function jobViewModel(it) {
     summary: { text: it.mission || phrase("no mission written"), empty: !it.mission },
     chips: [
       it.model ? { key: "model", cls: "model", title: it.model, text: it.model } : null,
-      { key: "where", cls: it.where, title: it.where, icon: it.where === "local" ? "#i-local" : "#i-cloud", text: it.where },
+      { key: "where", cls: it.where, title: it.host || it.where, icon: it.where === "local" ? "#i-local" : "#i-cloud", text: it.where === "cloud" ? it.hostLabel || phrase("remote") : it.where },
       it.repo ? { key: "repo", cls: "", title: it.repo, text: it.repo } : null
     ].filter(Boolean)
   };
@@ -952,7 +981,7 @@ function tileHeadChips(s) {
     text: middleOf(tree.main ? tree.repo : shortBranch(tree.branch) || tree.repo),
     copy: tree.branch || ""
   });
-  if (s.where !== "local") heads.push({ key: s.where, cls: s.where, title: s.where, icon: WHERE_ICON[s.where] || "#i-cloud", text: s.where });
+  if (s.where !== "local") heads.push({ key: s.where, cls: s.where, title: s.host || (s.where === "cloud" ? phrase("remote") : s.where), icon: WHERE_ICON[s.where] || "#i-cloud", text: s.hostLabel || (s.where === "cloud" ? phrase("remote") : s.where) });
   const pr = prsOnCard(s.name).find((one) => !prIsGone(one));
   if (pr) heads.push({ key: "pr", cls: pr.ci === "failed" ? "pr bad" : "pr", title: `${pr.repo.split("/").pop()} #${pr.number}`, icon: "#i-pr", text: `#${pr.number}` });
   return heads;
@@ -1096,15 +1125,16 @@ function tileViewModel(s, raycast = null) {
     account: s.account || "",
     accountHint: s.account ? phrase('signed in as the account "{account}"', { account: s.account }) : "",
     where: s.where,
+    whereSaid: s.where === "cloud" ? s.hostLabel || phrase("remote") : s.where,
     whereIcon: s.where === "local" ? "#i-local" : "#i-cloud",
-    place: { cls: s.where === "local" ? "local" : "cloud", icon: s.where === "local" ? "#i-local" : WHERE_ICON[s.where] || "#i-cloud", title: s.where },
+    place: { cls: s.where === "local" ? "local" : "cloud", icon: s.where === "local" ? "#i-local" : WHERE_ICON[s.where] || "#i-cloud", title: s.where === "cloud" ? phrase("remote") : s.where },
     glyph: st.typing === s.name ? "#g-typing" : "#" + GLYPH[s.state],
     label: st.typing === s.name ? phrase("you're typing") : phrase(PILL_LABEL[s.state]),
     using: usingOf(s),
     live: { on: !!live.length, badge: liveBadge(s), title: liveTitle(s) },
     when: s.when,
     whereChip: s.where === "local" ? null
-      : { key: s.where, cls: s.where, title: s.where, icon: WHERE_ICON[s.where] || "#i-cloud", text: s.where },
+      : { key: s.where, cls: s.where, title: s.host || (s.where === "cloud" ? phrase("remote") : s.where), icon: WHERE_ICON[s.where] || "#i-cloud", text: s.hostLabel || (s.where === "cloud" ? phrase("remote") : s.where) },
     chips: tileChipsModel(s),
     summary: {
       text: s.anon ? phrase("No memories, hub rules, skills, phone or summary. Closing it erases it.") : s.summary || s.description || "",
@@ -1350,16 +1380,22 @@ function prsWorthShowing() {
 }
 
 function paintPrButton() {
-  const btn = $("btn-prs");
-  if (!btn) return;
-  const live = st.prs.filter((p) => p.state === "open" || p.state === "draft");
-  btn.hidden = st.prs.length === 0;
-  if (raycastOn()) btn.title = `${phrase("the pull requests the hive is watching")} · ${keyHint("prs")}`;
-  else btn.classList.toggle("hot", live.filter((p) => p.ci === "failed").length > 0);
-  prButtonSolid.show(prButtonViewModel());
+  if (!$("btn-prs")) return;
+  prButtonPaints += 1;
+  prButtonSolid?.show({ ...prButtonViewModel(), ...prButtonHost() });
 }
 
 let prButtonSolid = null;
+
+let prButtonPaints = 0;
+
+function prButtonHost() {
+  const shown = st.prs.length > 0;
+  const expanded = prPopHost.open;
+  if (raycastOn()) return { shown, expanded, painted: prButtonPaints, title: `${phrase("the pull requests the hive is watching")} · ${keyHint("prs")}` };
+  const live = st.prs.filter((p) => p.state === "open" || p.state === "draft");
+  return { shown, expanded, painted: prButtonPaints, hot: live.filter((p) => p.ci === "failed").length > 0 };
+}
 
 function raycastPrButton() {
   const live = st.prs.filter((p) => p.state === "open" || p.state === "draft");
@@ -1389,33 +1425,31 @@ solidMounts.push((hive) => {
   prButtonSolid = hive.mountPrButton($("btn-prs"));
 });
 
+let prPopHost = { open: false, placed: 0 };
+
 function prPopOpen() {
-  return !$("prpop").hidden;
+  return prPopHost.open;
 }
 
 function placePrPop() {
-  const pop = $("prpop");
-  const host = pop.offsetParent;
-  if (!host) return;
-  const seat = $("btn-prs").getBoundingClientRect();
-  const edge = Math.min(innerWidth - 6, Math.max(seat.right, pop.offsetWidth + 6));
-  pop.style.right = `${Math.round(host.getBoundingClientRect().right - edge)}px`;
+  prPopHost = { ...prPopHost, placed: prPopHost.placed + 1 };
+  paintPrPop();
 }
 
 function openPrPop() {
+  prPopHost = { open: true, placed: prPopHost.placed + 1 };
   paintPrPop();
-  $("prpop").hidden = false;
-  placePrPop();
-  $("btn-prs").setAttribute("aria-expanded", "true");
+  paintPrButton();
   pullPrs();
 }
 
 document.addEventListener("hive:screen", () => closePrPop());
 
 function closePrPop() {
-  $("prpop").hidden = true;
-  $("prpop").style.right = "";
-  $("btn-prs").setAttribute("aria-expanded", "false");
+  if (!prPopHost.open) return;
+  prPopHost = { ...prPopHost, open: false };
+  paintPrPop();
+  paintPrButton();
 }
 
 function togglePrPop() {
@@ -1424,7 +1458,7 @@ function togglePrPop() {
 }
 
 function paintPrPop() {
-  prPopSolid.show(prPopViewModel());
+  prPopSolid?.show({ ...prPopViewModel(), ...prPopHost });
 }
 
 let prPopSolid = null;
@@ -1476,6 +1510,7 @@ function prPopViewModel() {
 
 solidMounts.push((hive) => {
   prPopSolid = hive.mountPrPop($("prpop"), {
+    button: $("btn-prs"),
     actions: {
       open: (key) => {
         const p = st.prs.find((y) => y.key === key);

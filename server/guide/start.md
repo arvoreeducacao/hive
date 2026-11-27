@@ -74,7 +74,7 @@ On the first run the app opens the welcome. It has up to seven steps. The top sh
 1. **hello**: type "your name in the hive" (2 to 30 characters: lowercase letters, digits and hyphens, starting with a letter) and "where your workspace lives on this machine" (a folder that must exist; see the "hub" topic). You can also pick your face here. Button: "Continue".
 2. **your machine**: checks tmux, gh and claude, the GitHub login and the Claude login (and kubectl, aws and the cluster only when your server is on a cluster). Each red line has a "copy" button with the install command. The screen checks again every few seconds; "Check again" forces it. "continue anyway — the next steps will wait" skips ahead. The step passes with Claude signed in, or with any other agent CLI installed.
 3. **your key**: "Create my key" runs the setup script. It makes an ed25519 key at `~/.hive/key-<name>` and writes `~/.hive/config` with `HIVE_DEV`, `HIVE_HUB` and `HIVE_REPO`. When git, gh or (on macOS and Linux) tmux is missing, it stops and shows the install command.
-4. **your server**, 5. **key on it**, 6. **claude on it**: only when a server is wanted (`HIVE_SERVER_URL` or `HIVE_WANTS_SERVER=1` in `~/.hive/config`). Otherwise these steps are hidden and "Seats run on this machine." is shown. See the "team-and-cloud" topic.
+4. **your server**, 5. **key on it**, 6. **claude on it**: only when a server is wanted (`HIVE_SERVER_URL`, `HIVE_SERVER_SSH` or `HIVE_WANTS_SERVER=1` in `~/.hive/config`). Otherwise these steps are hidden and "Seats run on this machine." is shown. See the "team-and-cloud" topic.
 7. **first flight**: "Open the first chat" opens a local chat named `first-flight` with a fixed mission. It introduces itself, writes its status file and asks you a question. It always runs on Claude. The model choice is the account default, Haiku, Sonnet or Opus. "skip — take me to the hive" ends the welcome without it. "Show me around" starts the tour.
 
 Finishing writes `~/.hive/onboarded`, and the welcome does not open again. "skip for now" (top right) closes the welcome without that file, so it opens again on the next start. If every essential step is already done at start, the app marks the welcome finished by itself. To open it again: "shortcuts and settings" (⌘, on macOS, Ctrl+, elsewhere), then "setup and tour" at the bottom.
@@ -82,7 +82,7 @@ Finishing writes `~/.hive/onboarded`, and the welcome does not open again. "skip
 ## Local only or with a server
 
 - With nothing set, every chat runs on this machine and the app needs no server.
-- To use a server, put `HIVE_SERVER_URL=https://…` in `~/.hive/config`, then follow the server steps of the welcome. Start, trust, pairing and the phone are in the "team-and-cloud" topic.
+- To use a server, put `HIVE_SERVER_URL=https://…` in `~/.hive/config`, then follow the server steps of the welcome. For a machine you reach with ssh, no config is needed: open a new chat, pick **remote · server**, click **ssh host** and type `user@host`. The app installs the server there. Start, trust, pairing and the phone are in the "team-and-cloud" topic.
 
 ## Where the state lives
 

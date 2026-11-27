@@ -562,8 +562,8 @@ function getStructured(s) {
         </span>
         <button type="button" class="sv-ctx" title="${phrase("context window used — click for the breakdown and to compact")}"><i class="bar"><i></i></i><span class="pct"><span class="full"></span><span class="short"></span></span></button>
         <span class="sv-btns">
-          <button type="button" class="sv-stop" title="${phrase("interrupt the turn (ctrl+c)")}"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.6" y="4.6" width="6.8" height="6.8" rx="1.4" fill="currentColor"/></svg></button>
           <button type="button" class="sv-talk" hidden aria-pressed="false" aria-label="${phrase("talk instead of typing")}"><svg viewBox="0 0 16 16" aria-hidden="true"><use href="#i-mic"/></svg></button>
+          <button type="button" class="sv-stop" title="${phrase("interrupt the turn (ctrl+c)")}"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="4.6" y="4.6" width="6.8" height="6.8" rx="1.4" fill="currentColor"/></svg></button>
           <button type="submit" class="sv-send" title="${phrase("send (enter)")}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 12.6V3.8M4.4 7.2 8 3.6l3.6 3.6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </span>
       </div>

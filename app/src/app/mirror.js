@@ -1,6 +1,6 @@
 import { arrangeOn, canArrange, closeArrange, openArrange, paintArrange, render } from "./arrange.js";
 import { runningTerminalSay } from "./running-terminals.js";
-import { activeItems, blockNumber, blockTitle, blocksOf, detached, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, ofBlock, seatsToTradeOn, shelvedAway, soloSeat, spaceName, spaceOf } from "./blocks.js";
+import { activeItems, blockMoveTo, blockNumber, blockTitle, blocksOf, detached, hiddenUntil, isHidden, itemOf, labelOf, landOnBlock, moveBlock, ofBlock, seatsToTradeOn, shelvedAway, soloSeat, spaceName, spaceOf } from "./blocks.js";
 import { keyLabel } from "./brand-face.js";
 import { svEvent } from "./chat-and-panes.js";
 import { svReset } from "./chat-stretches.js";
@@ -305,7 +305,7 @@ let railShown = null;
 
 const RAIL_SHOWS_KEY = "hive.railShows";
 
-const RAIL_SHOWS = { all: "All", local: "Local", cloud: "Cloud" };
+const RAIL_SHOWS = { all: "All", local: "Local", cloud: "Remote" };
 
 st.railShows = "all";
 
@@ -593,7 +593,7 @@ function blockGroups(rows, picked) {
     const n = blockNumber(i);
     const block = phrase("block {n}", { n });
     groups.push({
-      key: b.id || `b${i}`, i: mine ? i : -1, to: i, here, items,
+      key: b.id || `b${i}`, i: mine ? i : -1, to: i, here, items, lifting: !!st.dragBlock && b.id === st.dragBlock,
       label: mine ? block : `${spaceName(spaceOf(b.ws))} · ${block}`,
       keys: mine && n <= 9 && st.keys.block ? keyLabel(st.keys.block, n) : ""
     });
@@ -661,7 +661,7 @@ function railGroups(rows, picked) {
 function railEmpty(q) {
   if (q) return { icon: "i-mag", said: phrase("nothing with “{q}”", { q: st.railQuery.trim() }), act: phrase("palette"), key: keyLabel(st.keys.palette) };
   const cloud = st.railShows === "cloud";
-  return { icon: cloud ? "i-cloud" : "i-local", said: phrase(cloud ? "no sessions in the cloud" : "no sessions here"), act: "", key: keyLabel(st.keys.new) };
+  return { icon: cloud ? "i-cloud" : "i-local", said: phrase(cloud ? "no remote sessions" : "no sessions here"), act: "", key: keyLabel(st.keys.new) };
 }
 
 function parkedRailModel(q, now) {
@@ -861,7 +861,7 @@ function railViewModel() {
   if (raycastOn()) return raycastRailViewModel();
   const groups = [];
   for (const g of [
-    { key: "cloud", label: `cloud · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
+    { key: "cloud", label: `${phrase("remote")} · ${st.data.pod.name || phrase("server")}`, icon: "i-cloud" },
     { key: "local", label: phrase("local · your machine"), icon: "i-local" }
   ]) {
     const ofGroup = st.data.sessions.filter((s) => s.where === g.key && !isHidden(s.name) && !shelvedAway(s.name) && !s.of);
@@ -1031,6 +1031,85 @@ $("rail-sessions").addEventListener("drop", (ev) => {
 });
 
 document.addEventListener("dragend", () => clearRailDrop(), true);
+
+const BLOCK_MIME = "application/x-hive-block";
+
+st.dragBlock = null;
+
+const BLOCK_GAP = 12;
+
+const railBlockHead = (ev) => ev.target.closest?.(".rail-blk[data-to] > .group-title[data-i]");
+
+function clearBlockDrop() {
+  for (const one of $("rail-sessions").querySelectorAll(".rail-blk.drop-above, .rail-blk.drop-below")) one.classList.remove("drop-above", "drop-below");
+}
+
+function railBlockNear(ev) {
+  const inside = ev.target.closest?.(".rail-blk");
+  if (inside) return inside;
+  for (const box of $("rail-sessions").querySelectorAll(".rail-blk")) {
+    const rect = box.getBoundingClientRect();
+    if (ev.clientY >= rect.top - BLOCK_GAP && ev.clientY <= rect.bottom + BLOCK_GAP) return box;
+  }
+  return null;
+}
+
+function blockSpotAt(ev) {
+  const box = railBlockNear(ev);
+  if (!box) return null;
+  const target = box.dataset.to === undefined ? null : st.blocks[Number(box.dataset.to)];
+  if (!target) return null;
+  const rect = box.getBoundingClientRect();
+  const after = ev.clientY > rect.top + rect.height / 2;
+  const from = st.blocks.findIndex((b) => b.id === st.dragBlock);
+  return blockMoveTo(from, st.blocks.indexOf(target), after) < 0 ? null : { box, onto: target.id, after };
+}
+
+function endBlockDrag(box) {
+  box.classList.remove("lifting");
+  st.dragBlock = null;
+  document.body.classList.remove("block-dragging");
+  clearBlockDrop();
+  for (const one of $("rail-sessions").querySelectorAll(".rail-blk.lifting")) one.classList.remove("lifting");
+}
+
+$("rail-sessions").addEventListener("dragstart", (ev) => {
+  const head = railBlockHead(ev);
+  if (!head) return;
+  const b = st.blocks[Number(head.dataset.i)];
+  if (!b || !raycastOn() || soloSeat || st.mirrorDev) return void ev.preventDefault();
+  st.dragBlock = b.id;
+  ev.dataTransfer.effectAllowed = "move";
+  ev.dataTransfer.setData(BLOCK_MIME, b.id);
+  const box = head.parentElement;
+  box.classList.add("lifting");
+  document.body.classList.add("block-dragging");
+  head.addEventListener("dragend", () => endBlockDrag(box), { once: true });
+});
+
+$("rail-sessions").addEventListener("dragover", (ev) => {
+  if (!st.dragBlock) return;
+  const spot = blockSpotAt(ev);
+  if (!spot) return clearBlockDrop();
+  ev.preventDefault();
+  ev.dataTransfer.dropEffect = "move";
+  const side = spot.after ? "drop-below" : "drop-above";
+  if (spot.box.classList.contains(side)) return;
+  clearBlockDrop();
+  spot.box.classList.add(side);
+});
+
+$("rail-sessions").addEventListener("drop", (ev) => {
+  if (!st.dragBlock) return;
+  const spot = blockSpotAt(ev);
+  clearBlockDrop();
+  if (!spot) return;
+  ev.preventDefault();
+  const from = st.blocks.findIndex((b) => b.id === st.dragBlock);
+  const onto = st.blocks.findIndex((b) => b.id === spot.onto);
+  st.dragBlock = null;
+  if (moveBlock(from, onto, spot.after)) paintRail();
+});
 
 document.addEventListener("hive:marks", () => {
   render();

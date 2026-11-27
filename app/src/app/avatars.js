@@ -415,6 +415,7 @@ function pageServer() {
       <h2>${phrase("Seats run on this machine.")}</h2>
       <p class="lead">${phrase("Nothing here needs a server: every chat opens in a window on your own computer.")}</p>
       <p class="sub">${phrase("To use one anyway — yours, or your team's — put its address in {file}.", { file: "<code>~/.hive/config</code>" })} <code>HIVE_SERVER_URL=https://…</code></p>
+      <p class="sub">${phrase("A machine you already reach over SSH needs no address here: add it from a new chat, under remote · server. To connect one at every start, name it in the config:")} <code>HIVE_SERVER_SSH=user@host</code></p>
     </div>`;
   }
   if (!server.answers) {
@@ -422,7 +423,7 @@ function pageServer() {
       ${icon("pod")}
       <div class="w-kicker"><span class="live"></span> ${phrase("retrying")}</div>
       <h2>${phrase("No answer from your server yet.")}</h2>
-      <p class="lead"><code>${esc(server.url || phrase("no address"))}</code></p>
+      <p class="lead"><code>${esc(server.ssh ? `ssh ${server.ssh.target || server.ssh.label}` : server.url || phrase("no address"))}</code></p>
       <p class="sub">${esc(server.error || phrase("it did not answer"))} ${phrase("This screen retries on its own. A server that was never started has to be started first: {guide} walks you through it.", { guide: guideLink() })}</p>
       <div class="w-actions"><button class="later" data-w="next">${phrase("continue anyway — the next steps wait for it")}</button></div>
     </div>`;
@@ -430,7 +431,7 @@ function pageServer() {
   return `<div class="w-page">
     ${icon("pod")}
     <h2>${phrase("Your server is answering.")}</h2>
-    <p class="lead"><code>${esc(server.url)}</code></p>
+    <p class="lead"><code>${esc(server.ssh ? `ssh ${server.ssh.target}` : server.url)}</code></p>
     <p class="sub">${phrase("It named this key, and your client pins it from now on:")} <code>${esc(server.key)}</code></p>
   </div>`;
 }
@@ -482,7 +483,7 @@ function pageLogin() {
   return `<div class="w-page">
     ${icon("login")}
     <h2>${phrase("Last door: sign an agent in on the server.")}</h2>
-    <p class="lead">${phrase("For Claude, the app opens")} <code>claude auth login</code> ${phrase("inside the server, hands you the authorization link, and takes the code back. It also pre-accepts the trust and bypass dialogs and starts Remote Control, so cloud chats never stall on a prompt nobody sees.")}</p>
+    <p class="lead">${phrase("For Claude, the app opens")} <code>claude auth login</code> ${phrase("inside the server, hands you the authorization link, and takes the code back. It also pre-accepts the trust and bypass dialogs and starts Remote Control, so remote chats never stall on a prompt nobody sees.")}</p>
     <p class="sub">${phrase("About 15 seconds to get the link.")}</p>
     <p class="sub">${others.length ? phrase("This server also has {list}. Those sign in with their own login command in the server's terminal; then this step is not needed.", { list: others.map((one) => `<code>${esc(one)}</code>`).join(", ") }) : phrase("Using Codex, Kimi, Kiro, Cursor or OpenCode instead? Install it on the server and sign in with its own login command in the server's terminal; then this step is not needed.")}</p>
     <div class="w-actions"><button class="later" data-w="next">${phrase("skip — my agent is not Claude")}</button></div>

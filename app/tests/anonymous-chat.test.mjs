@@ -71,6 +71,9 @@ function jobs() {
     const CLOUD = false;
     const podCache = { at: 0, up: false };
     const cache = { at: 0 };
+    const currentHost = () => "";
+    const activateHost = () => {};
+    const hostBook = { touch() {} };
     const nameFromMission = (text) => slug(String(text || "").split(" ").slice(0, 3).join("-"));
     const firstLine = (text) => String(text || "").split("\\n")[0];
     const freeNameNow = (name) => name;

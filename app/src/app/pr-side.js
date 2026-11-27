@@ -2,6 +2,7 @@ import { esc, phrase, renderMarkdown, st } from "./core.js";
 import { ago } from "./pod.js";
 import { applyPrView, commits, deleteBranch, diffs, hidePr, mergePr, mergeState, openPrs, prFilterSay, pullCommits, pullDiff, pullPrs, pullTalk, talks } from "./thread.js";
 import { closePrViews, prViewsTriggerHtml, togglePrViews } from "./pr-views.js";
+import { MERGE_ARMED_LONG, MERGE_BUSY, mergeTrouble, merging } from "./seat-menu.js";
 import { toClipboard } from "./terminal-history.js";
 
 const TABS = [
@@ -16,7 +17,7 @@ const VERDICT_SAID = { approved: "approved", changes: "requested changes", comme
 
 const side = {
   key: "", tab: "summary", fold: { description: true, checks: false, comments: true },
-  newest: true, files: new Set(), composing: false, draft: "", sending: false, trouble: "", menu: false
+  newest: true, files: new Set(), composing: false, draft: "", sending: false, trouble: "", menu: false, mergeMenu: false
 };
 
 const prOf = (key) => (st.prs || []).find((p) => p.key === key) || null;
@@ -24,7 +25,7 @@ const prOf = (key) => (st.prs || []).find((p) => p.key === key) || null;
 const prSideKey = () => side.key;
 
 function openPrSide(key) {
-  if (side.key !== key) Object.assign(side, { key, tab: "summary", files: new Set(), composing: false, draft: "", trouble: "", menu: false });
+  if (side.key !== key) Object.assign(side, { key, tab: "summary", files: new Set(), composing: false, draft: "", trouble: "", menu: false, mergeMenu: false });
   return side;
 }
 
@@ -32,6 +33,7 @@ function closePrSide() {
   closePrViews(false);
   side.key = "";
   side.menu = false;
+  side.mergeMenu = false;
 }
 
 const sidePrViews = (repaint) => ({
@@ -108,10 +110,8 @@ function headHtml(p, icon) {
 }
 
 function menuHtml(p) {
-  const m = mergeState(p);
   const item = (act, label) => `<button type="button" data-act="${act}">${esc(phrase(label))}</button>`;
   return `<div class="tp-menu">
-      ${m && !m.locked && !m.armed ? item("pr-merge", m.label) : ""}
       ${p.branchLeft ? item("pr-branch", "delete branch") : ""}
       ${item("pr-github", "open on GitHub")}
       ${item("pr-forget", "take off the list")}
@@ -210,8 +210,47 @@ function codeHtml(p, icon) {
   }).join("")}</div>`;
 }
 
-function composeHtml(icon) {
-  if (!side.composing) return `<button type="button" class="tp-fab" data-act="pr-compose" title="${esc(phrase("Comment"))}">${icon("message")}</button>`;
+function mergeActionsHtml(p, icon) {
+  const busy = merging.get(p.key);
+  if (busy) return `<button type="button" class="tp-mb" disabled aria-busy="true">${icon("working", "tp-spin")}${esc(phrase(MERGE_BUSY[busy].says))}</button>`;
+  const m = mergeState(p);
+  if (!m || m.locked) return "";
+  if (m.armed) return m.force ? `<button type="button" class="tp-mb warn" data-act="pr-force">${esc(phrase("force merge"))}</button>` : "";
+  const look = m.ready ? " go" : m.confirm ? " bad" : "";
+  const merge = `<button type="button" class="tp-mb${look}" data-act="pr-merge">${icon("merge")}${esc(m.label)}</button>`;
+  if (!m.force) return merge;
+  const more = `<button type="button" class="tp-mb more" data-act="pr-merge-more" aria-haspopup="menu" aria-expanded="${side.mergeMenu}" aria-label="${esc(phrase("more ways to merge"))}">${icon("down")}</button>`;
+  const menu = side.mergeMenu ? `<div class="tp-menu up" role="menu"><button type="button" role="menuitem" data-act="pr-force">${esc(phrase("force merge"))}</button></div>` : "";
+  return `<span class="tp-split">${merge}${more}${menu}</span>`;
+}
+
+function barStateHtml(p, icon) {
+  const say = (look, glyph, html) => `<span class="tp-say ${look}">${icon(glyph)}<span>${html}</span></span>`;
+  const trouble = mergeTrouble.get(p.key);
+  if (trouble) return say("bad", "circleX", esc(trouble));
+  if (p.state === "merged") return say("merged", "merge", `${esc(phrase("merged into"))} <code>${esc(p.base || "main")}</code>`);
+  if (merging.has(p.key)) return "";
+  const m = mergeState(p);
+  if (m?.locked) return say("warn", "failed", esc(m.label));
+  if (m?.armed) return say("armed", "clock", esc(phrase(MERGE_ARMED_LONG)));
+  return "";
+}
+
+function barHtml(p, icon) {
+  const comment = `<button type="button" class="tp-mb quiet" data-act="pr-compose" aria-pressed="${side.composing}">${icon("message")}${esc(phrase("Comment"))}</button>`;
+  const branch = p.state !== "open" && p.state !== "draft" && p.branchLeft
+    ? `<button type="button" class="tp-mb quiet" data-act="pr-branch">${icon("trash")}${esc(phrase("delete branch"))}</button>`
+    : "";
+  const state = barStateHtml(p, icon);
+  const actions = mergeActionsHtml(p, icon);
+  const statusFirst = p.state === "merged" || (mergeState(p)?.armed && !merging.has(p.key) && !mergeTrouble.has(p.key));
+  const left = statusFirst ? state : comment;
+  const right = statusFirst ? `${comment}${actions}${branch}` : `${state}${actions}${branch}`;
+  return `<div class="tp-bar">${left}<span class="tp-bar-end">${right}</span></div>`;
+}
+
+function composeHtml() {
+  if (!side.composing) return "";
   return `<form class="tp-compose" data-act="pr-noop">
       <textarea class="tp-text" rows="3" placeholder="${esc(phrase("what you have to say about this PR"))}"></textarea>
       ${side.trouble ? `<p class="tp-trouble">${esc(side.trouble)}</p>` : ""}
@@ -221,14 +260,14 @@ function composeHtml(icon) {
 
 /* the comment box is painted apart: the panel repaints often and a rebuilt textarea loses the caret. */
 function prSideHtml(icon, repaint) {
-  if (!side.key) return { main: "", compose: "" };
+  if (!side.key) return { main: "", compose: "", bar: "" };
   const p = prOf(side.key);
   const strip = (label) => `<div class="tp-strip">${label ? `<span class="tp-tab">${icon("pr")}<span>${esc(label)}</span></span>` : ""}<span class="tp-fill"></span><button type="button" class="tp-ib" data-act="pr-close">${icon("x")}</button></div>`;
-  if (!p) return { main: `${strip("")}<p class="tp-none tp-pad">${esc(phrase("reading the PR…"))}</p>`, compose: "" };
-  if (p.error) return { main: `${strip(p.key)}<p class="tp-none tp-pad">${esc(p.error)}</p>`, compose: "" };
+  if (!p) return { main: `${strip("")}<p class="tp-none tp-pad">${esc(phrase("reading the PR…"))}</p>`, compose: "", bar: "" };
+  if (p.error) return { main: `${strip(p.key)}<p class="tp-none tp-pad">${esc(p.error)}</p>`, compose: "", bar: "" };
   askForTab(p, repaint);
   const body = side.tab === "timeline" ? timelineHtml(p, icon) : side.tab === "code" ? codeHtml(p, icon) : summaryHtml(p, icon);
-  return { main: `${headHtml(p, icon)}<div class="tp-body">${body}</div>`, compose: composeHtml(icon) };
+  return { main: `${headHtml(p, icon)}<div class="tp-body">${body}</div>`, compose: composeHtml(), bar: barHtml(p, icon) };
 }
 
 const prSideDraft = () => side.draft;
@@ -257,6 +296,7 @@ async function sendComment(repaint) {
 function prSideAct(hit, repaint) {
   const act = hit.dataset.act;
   const p = prOf(side.key);
+  if (act !== "pr-merge-more") side.mergeMenu = false;
   if (act === "pr-close") closePrSide();
   else if (act === "pr-tab") { side.tab = hit.dataset.tab; side.menu = false; }
   else if (act === "pr-fold") side.fold[hit.dataset.fold] = !side.fold[hit.dataset.fold];
@@ -273,6 +313,8 @@ function prSideAct(hit, repaint) {
   else if (!p) return;
   else if (act === "pr-github") { side.menu = false; window.open(p.url, "_blank", "noopener,noreferrer"); }
   else if (act === "pr-merge") { side.menu = false; mergePr(p, hit); }
+  else if (act === "pr-merge-more") side.mergeMenu = !side.mergeMenu;
+  else if (act === "pr-force") mergePr(p, hit, true);
   else if (act === "pr-branch") { side.menu = false; deleteBranch(p, hit); }
   else if (act === "pr-forget") { closePrSide(); hidePr(p); }
   else return;

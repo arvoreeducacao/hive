@@ -13,8 +13,9 @@ export function namesRead({ ok, out, error }) {
 }
 
 export function blindNamingError(where, why) {
+  const side = where === "cloud" ? "remote" : where;
   return new Error(
-    `this hive could not read which seats already run on the ${where} side, and a new one would risk taking a name that is already live — ` +
-    `two seats with one name share a mailbox, and what you type reaches the older one. Nothing was started: ${why}`
+    `${why}. Nothing was started: this hive could not read which seats already run on the ${side} side, and a new one would risk taking a name that is already live — ` +
+    `two seats with one name share a mailbox, and what you type reaches the older one.`
   );
 }

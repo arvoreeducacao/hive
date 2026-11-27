@@ -65,7 +65,7 @@ for (const raycast of [false, true]) {
       const recent = under(rows, phrase("recent chats"));
       assert.deepEqual(recent.map((r) => r.id), ["seat:retry", "seat:orq"]);
       assert.equal(recent[0].ctx, "lead-engine · 812-retry-cadencia · #2648");
-      assert.match(recent[1].ctx, new RegExp(phrase("cloud")));
+      assert.match(recent[1].ctx, new RegExp(phrase("remote")));
     } finally { turn(false); }
   });
 
@@ -84,6 +84,19 @@ for (const raycast of [false, true]) {
       assert.ok(under(palModel("bloco 1"), phrase("blocks")).length || under(palModel("block 1"), phrase("blocks")).length, "the blocks are still searchable");
       assert.ok(under(palModel("workspace"), phrase("workspaces")).length, "so are the workspaces");
       assert.ok(under(palModel("fix retry"), phrase("pull requests")).length, "and the pull requests");
+    } finally { turn(false); }
+  });
+
+  test(`every host the hive keeps has its own terminal among the actions (${look})`, () => {
+    turn(raycast);
+    hive();
+    st.data.hosts = [{ id: "rita@devbox", label: "devbox", phase: "up" }, { id: "ana@mac", label: "mac", phase: "idle" }];
+    try {
+      const names = under(palModel("> terminal"), phrase("actions")).map((r) => r.name);
+      assert.ok(names.includes(phrase("new terminal on {host}", { host: "devbox" })), names.join(" | "));
+      assert.ok(names.includes(phrase("new terminal on {host}", { host: "mac" })));
+      st.data.hosts = [];
+      assert.ok(!under(palModel("> terminal"), phrase("actions")).some((r) => /devbox/.test(r.name)));
     } finally { turn(false); }
   });
 

@@ -33,7 +33,7 @@
 .sv-place-menu .list .sep { height: 1px; margin: 4px 6px; background: var(--line); }
 .sv-place-menu .list .none { padding: 10px; font-size: 12px; color: var(--txt-3); }
 :where(body.experience-raycast) .rail-head:has(.rail-new) { flex-wrap: wrap; row-gap: 6px; }
-:where(body.experience-raycast) .rail-new { order: 3; flex: 1 0 100%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 30px; margin-right: -32px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r2); background: none; font-size: 12.5px; color: var(--txt-2); cursor: pointer; }
+:where(body.experience-raycast) .rail-new { order: 3; flex: 1 0 100%; box-sizing: border-box; display: flex; align-items: center; gap: 8px; height: 30px; margin-right: calc(-1 * var(--rail-toggle-room, 0px)); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r2); background: none; font-size: 12.5px; color: var(--txt-2); cursor: pointer; }
 :where(body.experience-raycast) .rail-new:hover { background: var(--rail-hover); color: var(--txt); }
 :where(body.experience-raycast) .rail-new:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 :where(body.experience-raycast) .rail-new svg { flex: none; width: 13px; height: 13px; }
@@ -46,3 +46,22 @@
   :where(body.experience-raycast) .rail-new :is(.lb, kbd) { display: none; }
 }
 .sv-draft .sv-empty:has(.sv-place:not([hidden])) { max-width: min(100%, 76ch); }
+
+.sv-folder { position: relative; max-width: 100%; }
+.sv-folder-pick { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; max-width: min(48ch, 100%); height: 26px; padding: 0 8px 0 9px; border: 1px solid var(--line-2); border-radius: 7px; background: var(--panel-2); color: var(--txt); font-family: var(--mono); font-size: 11.5px; font-weight: 500; transition: border-color 120ms, box-shadow 120ms; }
+.sv-folder-pick .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sv-folder-pick svg { flex: none; width: 12px; height: 12px; color: var(--txt-3); }
+.sv-folder-pick svg:last-child { width: 10px; height: 10px; }
+.sv-folder-pick:hover:not(:disabled) { border-color: var(--line-3, var(--txt-3)); }
+.sv-folder-pick.open { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent); }
+.sv-folder-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sv-folder-pick.none .v { color: var(--txt-2); }
+.sv-folder-pick:disabled { cursor: default; opacity: .55; }
+.sv-folder-pick:disabled svg:last-child { display: none; }
+.sv-folder-menu { top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: min(380px, 86vw); max-height: 300px; }
+.sv-folder-menu.up { top: auto; bottom: calc(100% + 6px); }
+.sv-folder-menu.busy .q svg { opacity: .45; }
+.sv-folder-menu .list button.use { font-weight: 600; }
+.sv-folder-menu .list button.use svg { color: var(--accent); }
+.sv-folder-menu .list button small { margin-left: auto; min-width: 0; max-width: 62%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.sv-folder-menu .list .none.bad { color: var(--accent); overflow-wrap: anywhere; }

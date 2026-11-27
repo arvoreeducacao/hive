@@ -141,3 +141,31 @@ test("a chat opened outside this screen and first seen already alive is its live
   assert.equal(live().querySelector(".t-name").textContent, "environment: 3 findings");
   assert.ok(live().querySelector(".t-close"));
 });
+
+test("the close of a chat that failed to open takes the tile away: the job is forgotten, with no confirm and no kill of a seat that never lived", async () => {
+  const { closeSeat } = await app("tiles");
+  const asked = [];
+  const realFetch = globalThis.fetch;
+  const empty = { sessions: [], spawning: [], archived: [], pod: { up: false, name: "" } };
+  globalThis.fetch = (path, options) => {
+    asked.push({ path: String(path), body: options?.body ? JSON.parse(options.body) : null });
+    return Promise.resolve({ ok: true, status: 200, json: async () => empty, text: async () => JSON.stringify(empty) });
+  };
+  try {
+    hive({ sessions: [], spawning: [{ ...job, id: "n13", name: "asleep", where: "cloud", step: "failed", error: "no server answers over ssh" }], keys: ["job:n13"] });
+    render();
+    assert.ok(onCanvas()[0].classList.contains("bad"));
+    await closeSeat({ name: "asleep", where: "cloud" });
+    assert.deepEqual(asked.find((one) => one.path === "/api/spawning/forget")?.body, { id: "n13" });
+    assert.ok(!asked.some((one) => one.path === "/api/kill"), "there is no seat to kill");
+    assert.ok(!document.getElementById("confirm")?.classList.contains("on"), "nothing runs there, so nothing to confirm");
+
+    asked.length = 0;
+    hive({ sessions: [seat("asleep")], spawning: [{ ...job, id: "n14", name: "asleep", step: "failed", error: "an older try" }], keys: ["asleep"] });
+    render();
+    closeSeat(seat("asleep"));
+    assert.ok(!asked.some((one) => one.path === "/api/spawning/forget"), "a live seat with that name closes the usual way");
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

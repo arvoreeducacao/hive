@@ -4,15 +4,13 @@ import { composerLive, onComposerMode, paintComposer } from "./composer-modes.js
 import { answerQuestion, sumQuestion } from "./question-card.js";
 import { structPool } from "./structured-seats.js";
 
-const AUTO_ADVANCE_MS = 200;
-
 const TYPING_SETTLES_MS = 1500;
 
 const asksOfCards = new WeakMap();
 
 function newAsk(ev) {
   const questions = Array.isArray(ev.questions) ? ev.questions : [];
-  return { id: ev.id, questions, at: 0, chosen: questions.map(() => []), typed: questions.map(() => ""), files: questions.map(() => []), folded: false, sending: false, submitted: false, error: "", saved: null, start: null, timer: 0, waiting: false };
+  return { id: ev.id, questions, at: 0, chosen: questions.map(() => []), typed: questions.map(() => ""), files: questions.map(() => []), folded: false, sending: false, submitted: false, error: "", saved: null, start: null, waiting: false };
 }
 
 function typingNow(e) {
@@ -76,6 +74,21 @@ function answerWithAttachments(answer, records) {
 
 const askComplete = (ask) => ask.questions.every((_, at) => answerOf(ask, at).length > 0);
 
+const hasReview = (ask) => ask.questions.length > 1;
+
+const reviewing = (ask) => !!ask && hasReview(ask) && ask.at >= ask.questions.length;
+
+const lastStep = (ask) => (hasReview(ask) ? ask.questions.length : ask.questions.length - 1);
+
+function nextStop(ask) {
+  const total = ask.questions.length;
+  for (let step = 1; step < total; step++) {
+    const at = (ask.at + step) % total;
+    if (!answerOf(ask, at).length) return at;
+  }
+  return hasReview(ask) ? total : ask.at;
+}
+
 function takeBox(e, ask) {
   if (!e.box || ask.saved) return;
   e.holding = true;
@@ -94,17 +107,17 @@ function giveBox(e, ask) {
 
 function readTyped(e) {
   const ask = e.ask;
-  if (!ask?.saved || !e.box) return;
+  if (!ask?.saved || !e.box || reviewing(ask)) return;
   ask.typed[ask.at] = e.box.textarea.value;
 }
 
 function showQuestion(e, at) {
   const ask = e.ask;
   readTyped(e);
-  ask.at = Math.max(0, Math.min(ask.questions.length - 1, at));
+  ask.at = Math.max(0, Math.min(lastStep(ask), at));
   if (ask.saved && e.box) {
     e.holding = true;
-    e.box.restore({ text: ask.typed[ask.at] || "" });
+    e.box.restore({ text: reviewing(ask) ? "" : ask.typed[ask.at] || "" });
     e.holding = false;
   }
   ask.error = "";
@@ -112,19 +125,29 @@ function showQuestion(e, at) {
 }
 
 function stepAsk(e, d) {
+  askSettles(e);
   if (!askActive(e) || e.ask.sending) return;
   showQuestion(e, e.ask.at + d);
+}
+
+function goToStep(e, at) {
+  askSettles(e);
+  if (!askActive(e) || e.ask.sending || !Number.isInteger(at)) return;
+  showQuestion(e, at);
+}
+
+function confirmAsk(e) {
+  askSettles(e);
+  if (askActive(e)) advanceAsk(e);
 }
 
 function advanceAsk(e) {
   const ask = e.ask;
   if (!ask || ask.sending) return;
   readTyped(e);
-  if (ask.at < ask.questions.length - 1) {
-    if (!answerOf(ask, ask.at).length) return;
-    return showQuestion(e, ask.at + 1);
-  }
-  submitAsk(e);
+  if (reviewing(ask) || !hasReview(ask)) return submitAsk(e);
+  if (!answerOf(ask, ask.at).length) return;
+  showQuestion(e, nextStop(ask));
 }
 
 function submitAsk(e) {
@@ -177,11 +200,6 @@ function pickOption(e, i) {
   }
   ask.chosen[ask.at] = [option.label];
   paintComposer(e);
-  clearTimeout(ask.timer);
-  const at = ask.at;
-  ask.timer = setTimeout(() => {
-    if (e.ask === ask && ask.at === at && !ask.sending) advanceAsk(e);
-  }, AUTO_ADVANCE_MS);
 }
 
 function foldAsk(e) {
@@ -203,7 +221,6 @@ function returnAskFiles(e, ask) {
 function dropAsk(e) {
   const ask = e.ask;
   if (!ask) return;
-  clearTimeout(ask.timer);
   clearTimeout(ask.settle);
   e.ask = null;
   giveBox(e, ask);
@@ -211,14 +228,63 @@ function dropAsk(e) {
   paintComposer(e);
 }
 
+function answerSaid(ask, at) {
+  const said = answerOf(ask, at).filter(Boolean).join(", ");
+  const files = readyFiles(ask, at).length;
+  return [said, files ? phrase("attachments: {count}", { count: files }) : ""].filter(Boolean).join(" · ");
+}
+
+function askNav(ask) {
+  if (!hasReview(ask)) return "";
+  const review = reviewing(ask);
+  const page = review ? `<span class="cp-ask-page" role="img" aria-label="${esc(phrase("Review"))}">${composerIcon("check")}</span>`
+    : `<span class="cp-ask-page">${ask.at + 1}/${ask.questions.length}</span>`;
+  return `<span class="cp-ask-nav" role="group" aria-label="${esc(phrase("Questions"))}">`
+    + `<button type="button" class="cp-ask-arrow" data-act="ask-step" data-d="-1" aria-label="${esc(phrase("Previous question"))}"${ask.at === 0 || ask.sending ? " disabled" : ""}>${composerIcon("chevronDown")}</button>`
+    + page
+    + `<button type="button" class="cp-ask-arrow next" data-act="ask-step" data-d="1" aria-label="${esc(phrase("Next question"))}"${review || ask.sending ? " disabled" : ""}>${composerIcon("chevronDown")}</button>`
+    + `</span>`;
+}
+
+function askTop(ask, head, line) {
+  const fold = ask.folded;
+  const title = fold ? phrase("Show the question and its options") : phrase("Hide the question and its options");
+  return `<div class="cp-ask-top"><button type="button" class="cp-brow cp-ask-head" data-act="ask-fold" title="${esc(title)}" aria-expanded="${!fold}">`
+    + `<span class="cp-bc"><span class="cp-ask-h">${esc(head)}</span><span class="cp-bfold${fold ? "" : " open"}">${composerIcon("chevronDown")}</span>`
+    + `${fold ? `<span class="cp-ask-line">${esc(line)}</span>` : ""}</span></button>${askNav(ask)}</div>`;
+}
+
+function askFoot(e) {
+  const said = askPrimary(e);
+  return `<div class="cp-ask-foot"><button type="button" class="cp-ask-go" data-act="ask-confirm"${said.disabled ? " disabled" : ""}>${esc(said.label)}</button></div>`;
+}
+
+function askSection(e, kind, head, line, body) {
+  const fold = e.ask.folded;
+  return `<section class="cp-ban cp-ask${kind}" data-fold="${fold ? "collapsed" : "expanded"}">`
+    + askTop(e.ask, head, line)
+    + (fold ? "" : `<div class="cp-ask-body">${body}${e.ask.error ? `<div class="cp-ask-err">${esc(e.ask.error)}</div>` : ""}</div>${askFoot(e)}`)
+    + `</section>`;
+}
+
+function reviewBanner(e) {
+  const ask = e.ask;
+  const rows = ask.questions.map((q, at) => {
+    const said = answerSaid(ask, at);
+    return `<button type="button" class="cp-ask-sum" data-act="ask-to" data-at="${at}" title="${esc(phrase("Change this answer"))}"${ask.sending ? " disabled" : ""}>`
+      + `<span class="cp-ask-sum-q">${esc(q.header || q.question || "")}</span>`
+      + `<span class="cp-ask-sum-a${said ? "" : " missing"}">${esc(said || phrase("No answer yet"))}</span></button>`;
+  }).join("");
+  const line = ask.questions.map((q, at) => `${q.header || q.question || ""}: ${answerSaid(ask, at) || "—"}`).join(" · ");
+  return askSection(e, " cp-ask-review", phrase("Review"), line, `<div class="cp-ask-sums">${rows}</div>`);
+}
+
 function askBanner(e) {
   const ask = e.ask;
+  if (reviewing(ask)) return reviewBanner(e);
   const q = ask.questions[ask.at] || {};
-  const head = q.header || phrase("Question");
-  const total = ask.questions.length;
   const typed = String(ask.typed[ask.at] || "").trim();
   const chosen = ask.chosen[ask.at] || [];
-  const fold = ask.folded;
   const options = (q.options || []).map((o, i) => {
     const on = !typed && chosen.includes(o.label);
     const desc = o.description && o.description !== o.label ? `<span class="cp-opt-d">${esc(o.description)}</span>` : "";
@@ -227,14 +293,8 @@ function askBanner(e) {
       + `<span class="cp-opt-mark"><span class="${q.multiSelect ? "cp-check" : "cp-radio"}">${q.multiSelect && on ? composerIcon("check") : ""}</span></span>`
       + `<span class="cp-opt-body"><span class="cp-opt-l">${esc(o.label)}</span>${desc}</span></button>`;
   }).join("");
-  const title = fold ? phrase("Show the question and its options") : phrase("Hide the question and its options");
-  return `<section class="cp-ban cp-ask" data-fold="${fold ? "collapsed" : "expanded"}">`
-    + `<button type="button" class="cp-brow cp-ask-head" data-act="ask-fold" title="${esc(title)}" aria-expanded="${!fold}">`
-    + `<span class="cp-bc"><span class="cp-ask-h">${esc(head)}</span>${fold ? `<span class="cp-bsep">·</span><span class="cp-ask-line">${esc(q.question || "")}</span>` : ""}</span>`
-    + `<span class="cp-ba">${total > 1 ? `<span class="cp-bcount">${ask.at + 1}/${total}</span>` : ""}<span class="cp-bfold${fold ? "" : " open"}">${composerIcon("chevronDown")}</span></span></button>`
-    + (fold ? "" : `<div class="cp-ask-body"><div class="cp-ask-q md">${renderMarkdown(String(q.question || ""))}</div><div class="cp-ask-opts">${options}</div>`
-      + `${ask.error ? `<div class="cp-ask-err">${esc(ask.error)}</div>` : ""}</div>`)
-    + `</section>`;
+  const body = `<div class="cp-ask-q md">${renderMarkdown(String(q.question || ""))}</div><div class="cp-ask-opts">${options}</div>`;
+  return askSection(e, "", q.header || phrase("Question"), q.question || "", body);
 }
 
 function closeAsk(e, ev, card) {
@@ -267,16 +327,21 @@ function answerDigit(ev) {
 }
 
 function askPlaceholder(e) {
+  if (reviewing(e.ask)) return phrase("Press Enter to send the answers, or pick a question to change it");
   const q = e.ask.questions[e.ask.at];
   return q?.options?.length ? phrase("Type your own answer, or leave this blank to use the selected option") : phrase("Type your answer");
 }
 
 function askPrimary(e) {
   const ask = e.ask;
-  const last = ask.at >= ask.questions.length - 1;
-  const label = ask.sending ? phrase("Submitting...") : !last ? phrase("Next question") : ask.at > 0 ? phrase("Submit answers") : phrase("Submit answer");
-  const disabled = ask.sending || filesWaiting(ask, ask.at) || (last ? !askComplete(ask) : !answerOf(ask, ask.at).length);
-  return { label, disabled, previous: ask.at > 0, previousDisabled: ask.sending };
+  const total = ask.questions.length;
+  if (reviewing(ask) || !hasReview(ask)) {
+    const label = ask.sending ? phrase("Submitting...") : total > 1 ? phrase("Submit answers") : phrase("Submit answer");
+    const disabled = ask.sending || ask.questions.some((_, at) => filesWaiting(ask, at)) || !askComplete(ask);
+    return { label, disabled };
+  }
+  const label = nextStop(ask) === total ? phrase("Review answers") : phrase("Next question");
+  return { label, disabled: ask.sending || filesWaiting(ask, ask.at) || !answerOf(ask, ask.at).length };
 }
 
 onComposerMode({
@@ -288,9 +353,15 @@ onComposerMode({
     }
     if (e.ask.saved && mode !== "question") giveBox(e, e.ask);
     if (mode === "question") readTyped(e);
+  },
+  paint(e, form, mode) {
+    const box = e.box?.textarea;
+    if (!box) return;
+    const locked = mode === "question" && reviewing(e.ask);
+    if (box.readOnly !== locked) box.readOnly = locked;
   }
 });
 
 if (typeof window !== "undefined") window.addEventListener("keydown", answerDigit, true);
 
-export { TYPING_SETTLES_MS, advanceAsk, answerOf, answerWithAttachments, attachmentLine, askActive, askBanner, askComplete, askPlaceholder, askPrimary, askSettles, closeAsk, dropAsk, foldAsk, noteAsk, pickOption, stepAsk };
+export { TYPING_SETTLES_MS, advanceAsk, confirmAsk, goToStep, reviewing, answerOf, answerWithAttachments, attachmentLine, askActive, askBanner, askComplete, askPlaceholder, askPrimary, askSettles, closeAsk, dropAsk, foldAsk, noteAsk, pickOption, stepAsk };

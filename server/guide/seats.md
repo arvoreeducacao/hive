@@ -17,7 +17,7 @@ On macOS and Linux, local chats run in the tmux session `hive-local` (env `HIVE_
 ## Opening a chat
 
 1. Open the new-chat box with the new-chat key (see the "interface" topic). A tile "New chat" appears with "a chat with nothing in it yet".
-2. Under "Where it runs", pick "local · your machine", "cloud · server" or "anonymous".
+2. Under "Where it runs", pick "local · your machine", "remote · server" or "anonymous".
 3. Under "How it opens", pick "native chat" or "the TUI".
 4. Use the pills under the text box to pick the model, the effort and the account.
 5. Write the first message. Enter opens the chat ("The seat opens on the first send"). Shift+Enter breaks the line. Esc on an empty box discards the draft.

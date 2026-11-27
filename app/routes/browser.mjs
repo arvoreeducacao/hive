@@ -83,8 +83,8 @@ export function registerBrowserRoutes(on, ctx) {
     if (where !== "cloud") return ` · ${saved.files[0]}`;
     const at = `/workspace/hive/assets/${saved.files[0].split("/").pop()}`;
     await onTheServer('mkdir -p "$HIVE_STATE_DIR/assets"', [], { timeout: 10000 }).catch(() => {});
-    await cloudReach.putFile(at, await readFile(saved.files[0])).catch(() => ({}));
-    return ` · ${at}`;
+    const put = await cloudReach.putFile(at, await readFile(saved.files[0])).catch(() => ({}));
+    return ` · ${put?.path || at}`;
   };
 
   on("POST", "/api/browser/navigate", async (req, res, url, json) => {

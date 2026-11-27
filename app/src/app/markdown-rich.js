@@ -320,7 +320,7 @@ function runnableCommand(box) {
 function paintRun(box, seat) {
   const acts = box.querySelector(":scope > .md-codehead > .md-codeacts");
   if (!acts || acts.querySelector(":scope > .md-runterm") || box.closest(".sv-user")) return;
-  if (seat.where === "cloud" || seat.mirror || !runnableCommand(box)) return;
+  if ((seat.where === "cloud" && !seat.host) || seat.mirror || !runnableCommand(box)) return;
   const run = document.createElement("button");
   run.type = "button";
   run.className = "md-runterm";

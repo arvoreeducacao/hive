@@ -966,7 +966,9 @@ function run(action, digit) {
         return;
       }
       const s = focusedSeat();
-      if (s) closeSeat(s);
+      if (s) return closeSeat(s);
+      const item = activeItems()[st.focus];
+      if (item?.kind === "job" && item.error) closeSeat({ name: item.name, where: item.where });
       return;
     }
     case "alerts": return window.hiveAlertsToggle?.();

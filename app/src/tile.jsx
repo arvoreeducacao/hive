@@ -149,7 +149,7 @@ function Side(props) {
         </Show>
         <span class="t-tags">
           <span class="acct" hidden={!props.model.account} title={props.model.accountHint}>{props.model.account}</span>
-          <span class="where" data-where={props.model.where}><svg aria-hidden="true"><use href={props.model.whereIcon} /></svg><span class="where-txt">{props.model.where}</span></span>
+          <span class="where" data-where={props.model.where}><svg aria-hidden="true"><use href={props.model.whereIcon} /></svg><span class="where-txt">{props.model.whereSaid || props.model.where}</span></span>
           <button class="t-web" title={props.model.tags.web} aria-label={props.model.tags.web}
             onClick={(ev) => { ev.stopPropagation(); props.actions.browser(); }}><svg aria-hidden="true"><use href="#i-browser" /></svg></button>
           <button class="t-phone" title={props.model.tags.phone} aria-label={props.model.tags.phone}
@@ -215,7 +215,7 @@ function JobSide(props) {
           <Show when={!props.model.raycast}><StateGlyph glyph={props.model.glyph} label={props.model.label} /></Show>
           <div class="t-sub">{props.model.sub}</div>
         </div>
-        <span class="where" data-where={props.model.where}><svg aria-hidden="true"><use href={props.model.whereIcon} /></svg><span class="where-txt">{props.model.where}</span></span>
+        <span class="where" data-where={props.model.where}><svg aria-hidden="true"><use href={props.model.whereIcon} /></svg><span class="where-txt">{props.model.whereSaid || props.model.where}</span></span>
       </div>
       <Show when={!props.model.raycast}>
       <div class="t-state">

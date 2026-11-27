@@ -98,6 +98,24 @@ test("the seats are grouped by block, and the machine is a filter that keeps its
   assert.deepEqual(cloud.groups.map((g) => g.key), ["b2"], "a block left with nothing to show goes away");
 });
 
+test("everything that does not run on this machine sits under one Remote filter, the server and the ssh hosts alike", () => {
+  flag(true);
+  const blocks = [{ id: "b1", ws: "w0", keys: ["a", "c", "r"] }];
+  const sessions = [seat("a"), seat("c", { where: "cloud" }), seat("r", { where: "cloud", host: "ada@devbox", hostLabel: "devbox" })];
+  const all = world({ data: { pod: { up: true, name: "pod-1" }, sessions, archived: [] }, blocks });
+  assert.deepEqual(all.shows.map((one) => [one.key, one.label, one.count]), [["all", "All", 3], ["local", "Local", 1], ["cloud", "Remote", 2]]);
+  const remote = world({ data: { pod: { up: true, name: "pod-1" }, sessions, archived: [] }, blocks, shows: "cloud" });
+  assert.deepEqual(rows(remote), ["c", "r"], "the remote filter lost a chat that runs somewhere else");
+});
+
+test("the Remote filter waits for a chat that runs somewhere else", () => {
+  flag(true);
+  const none = world({ data: { pod: { up: false, name: "" }, sessions: [seat("a")], archived: [] }, blocks: [{ id: "b1", ws: "w0", keys: ["a"] }] });
+  assert.deepEqual(none.shows.map((one) => one.label), ["All", "Local"]);
+  const one = world({ data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("r", { where: "cloud", host: "ada@devbox" })], archived: [] }, blocks: [{ id: "b1", ws: "w0", keys: ["a", "r"] }] });
+  assert.deepEqual(one.shows.map((it) => it.label), ["All", "Local", "Remote"]);
+});
+
 test("a block of another workspace is named after it and has no key, and a seat in no block comes last", () => {
   flag(true);
   const spaces = st.spaces;
@@ -188,7 +206,7 @@ test("an empty rail is one line with the key that fills it, and a rail still loa
   flag(true);
   const model = world({ data: { pod: { up: true, name: "pod-1" }, sessions: [seat("a")], archived: [] }, shows: "cloud" });
   assert.deepEqual(model.groups, []);
-  assert.deepEqual([model.empty.icon, model.empty.said, model.empty.key], ["i-cloud", "no sessions in the cloud", keyLabel(st.keys.new)]);
+  assert.deepEqual([model.empty.icon, model.empty.said, model.empty.key], ["i-cloud", "no remote sessions", keyLabel(st.keys.new)]);
   st.seatsKnown = false;
   st.data = { pod: { up: false, name: "" }, sessions: [], archived: [], spawning: [] };
   const loading = mirror.railViewModel();
@@ -528,6 +546,33 @@ test("the rail headers read in sentence case sans, the rows breathe, and the blo
   assert.match(rule(".item .meta"), /font: 400 12px var\(--sans\); font-variant-numeric: tabular-nums;/);
 });
 
+test("the filter fills the head of the rail: the room for the fold button is kept only while that button sits in the rail", () => {
+  const place = readFileSync(join(HERE, "assets/draft-place.css"), "utf8");
+  const ruleIn = (text, selector) => {
+    const at = text.indexOf(`:where(body.experience-raycast) ${selector} {`);
+    assert.ok(at >= 0, `no rule for ${selector}`);
+    return text.slice(at, text.indexOf("}", at));
+  };
+  assert.match(ruleIn(sheet, ".rail-head"), /padding: 8px var\(--rail-toggle-room, 0px\) 8px 0;/);
+  assert.match(ruleIn(sheet, "#shell:has(> #rail-toggle)"), /--rail-toggle-room: 32px/);
+  assert.match(ruleIn(sheet, ".rail-seg"), /flex: 1;/);
+  assert.match(ruleIn(place, ".rail-new"), /margin-right: calc\(-1 \* var\(--rail-toggle-room, 0px\)\);/);
+});
+
+test("a row with a pull request and many subchats never scrolls the rail sideways: the dots give way, whole, and the caret stays", () => {
+  const rule = (selector) => {
+    const at = sheet.indexOf(`:where(body.experience-raycast) ${selector} {`);
+    assert.ok(at >= 0, `no rule for ${selector}`);
+    return sheet.slice(at, sheet.indexOf("}", at));
+  };
+  assert.match(rule("#rail-list"), /overflow-x: hidden;/);
+  const dots = rule(".item .rkids-sum");
+  assert.match(dots, /flex: 0 1 auto;/, "the dots shrink before the row spills");
+  assert.match(dots, /min-width: 6px;/, "one dot always shows");
+  assert.match(dots, /flex-wrap: wrap;[^}]*height: 6px;[^}]*overflow: hidden;/, "a dot that does not fit drops whole, never cut in half");
+  assert.match(rule(".item .rkids-toggle"), /flex: none;/);
+});
+
 const railDrag = (kind, on) => {
   const ev = new window.Event(kind, { bubbles: true, cancelable: true });
   ev.dataTransfer = { setData() {}, effectAllowed: "", dropEffect: "" };
@@ -641,4 +686,109 @@ test("the block name a chat is dragged over lights up without growing, and the c
   assert.match(rule("#rail-sessions .group-title.drop"), /box-shadow: inset 0 0 0 1px var\(--accent\)/);
   assert.doesNotMatch(rule("#rail-sessions .group-title.drop"), /padding|margin|height|border:/);
   assert.match(rule("#rail-sessions .item.lifting"), /opacity/);
+});
+
+test("a block dragged by its name on the rail moves above or below another, and the drag leaves nothing behind", async () => {
+  if (!mirror.railSolid) (await app("shared")).bootSolid();
+  flag(true);
+  st.dragSeat = null;
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b"), seat("c")], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a"], manual: true }, { id: "b2", ws: "w0", keys: ["b"], manual: true }, { id: "b3", ws: "w0", keys: ["c"], manual: true }]
+  });
+  mirror.paintRail();
+  const host = $("rail-sessions");
+  const box = (i) => host.querySelector(`.rail-blk[data-to='${i}']`);
+  const head = (i) => box(i).querySelector(":scope > .group-title");
+  const order = () => st.blocks.map((b) => b.id);
+  const over = (kind, on, below) => {
+    const ev = new window.Event(kind, { bubbles: true, cancelable: true });
+    ev.dataTransfer = { setData() {}, effectAllowed: "", dropEffect: "" };
+    ev.clientY = below ? 1 : 0;
+    on.dispatchEvent(ev);
+    return ev;
+  };
+
+  assert.equal(head(0).getAttribute("draggable"), "true");
+  const carried = head(2);
+  railDrag("dragstart", carried);
+  assert.equal(st.dragBlock, "b3");
+  assert.equal(st.dragSeat, null, "a block on the move carries no chat");
+  assert.ok(box(2).classList.contains("lifting"));
+  assert.equal(over("dragover", carried, false).defaultPrevented, false, "its own place is no place to drop");
+  assert.equal(over("dragover", head(1), true).defaultPrevented, false, "below the block above it is where it already is");
+  assert.equal(over("dragover", head(0), false).defaultPrevented, true);
+  assert.ok(box(0).classList.contains("drop-above"));
+  assert.equal(over("dragover", host.querySelector(".item[data-name='a']"), true).defaultPrevented, true);
+  assert.ok(box(0).classList.contains("drop-below"));
+  assert.equal(box(0).classList.contains("drop-above"), false);
+  over("drop", head(0), false);
+  railDrag("dragend", carried);
+  assert.deepEqual(order(), ["b3", "b1", "b2"]);
+  assert.equal(st.dragBlock, null);
+  assert.equal(host.querySelector(".lifting, .drop-above, .drop-below"), null);
+  assert.equal(document.body.classList.contains("block-dragging"), false);
+  assert.equal(host.querySelector(".rail-blk[data-to='0'] > .group-title + .item").dataset.name, "c");
+  flag(false);
+});
+
+test("a block from another workspace is shown on the rail but cannot be dragged", () => {
+  flag(true);
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b")], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a"] }, { id: "b2", ws: "w1", keys: ["b"] }]
+  });
+  mirror.paintRail();
+  const head = (i) => $("rail-sessions").querySelector(`.rail-blk[data-to='${i}'] > .group-title`);
+  assert.equal(head(0).getAttribute("draggable"), "true");
+  assert.equal(head(1).getAttribute("draggable"), null);
+  flag(false);
+});
+
+test("the block being dragged fades and the drop line sits on its edge without moving anything", () => {
+  const rule = (selector) => {
+    const at = sheet.indexOf(`:where(body.experience-raycast) ${selector} {`);
+    assert.ok(at >= 0, `no rule for ${selector}`);
+    return sheet.slice(at, sheet.indexOf("}", at));
+  };
+  assert.match(rule("#rail-sessions .rail-blk.lifting"), /opacity/);
+  for (const side of ["drop-above", "drop-below"]) {
+    assert.match(rule(`#rail-sessions .rail-blk.${side}`), /box-shadow: 0 -?2px 0 var\(--accent\)/);
+    assert.doesNotMatch(rule(`#rail-sessions .rail-blk.${side}`), /padding|margin|height|border:/);
+  }
+});
+
+test("a block dropped in the gap between blocks lands by the nearest one, and far from every block it stays put", async () => {
+  if (!mirror.railSolid) (await app("shared")).bootSolid();
+  flag(true);
+  st.dragSeat = null;
+  world({
+    data: { pod: { up: false, name: "" }, sessions: [seat("a"), seat("b"), seat("c")], archived: [] },
+    blocks: [{ id: "b1", ws: "w0", keys: ["a"], manual: true }, { id: "b2", ws: "w0", keys: ["b"], manual: true }, { id: "b3", ws: "w0", keys: ["c"], manual: true }]
+  });
+  mirror.paintRail();
+  const host = $("rail-sessions");
+  const box = (i) => host.querySelector(`.rail-blk[data-to='${i}']`);
+  [0, 1, 2].forEach((i) => { box(i).getBoundingClientRect = () => ({ top: 100 + i * 64, bottom: 152 + i * 64, height: 52 }); });
+  const order = () => st.blocks.map((b) => b.id);
+  const at = (kind, y) => {
+    const ev = new window.Event(kind, { bubbles: true, cancelable: true });
+    ev.dataTransfer = { setData() {}, effectAllowed: "", dropEffect: "" };
+    ev.clientY = y;
+    host.dispatchEvent(ev);
+    return ev;
+  };
+  const carried = box(2).querySelector(":scope > .group-title");
+  railDrag("dragstart", carried);
+  assert.equal(at("dragover", 158).defaultPrevented, true, "the gap under block 1 is below block 1");
+  assert.ok(box(0).classList.contains("drop-below"));
+  assert.equal(at("dragover", 600).defaultPrevented, false, "the empty rail far below is no place to drop");
+  assert.equal(host.querySelector(".drop-above, .drop-below"), null, "the line goes away with the pointer");
+  at("drop", 600);
+  assert.deepEqual(order(), ["b1", "b2", "b3"]);
+  at("dragover", 158);
+  at("drop", 158);
+  railDrag("dragend", carried);
+  assert.deepEqual(order(), ["b1", "b3", "b2"]);
+  flag(false);
 });

@@ -85,3 +85,29 @@ test("a terminal is a signed address or nothing — the cluster never carries on
   const onCluster = createReach({ cluster: clusterThatWorks(), serverFor: async () => null });
   assert.match((await onCluster.terminal({ seat: "a-seat", cols: 90, rows: 30 })).error, /no server to open a terminal on/);
 });
+
+test("a server whose folders are not the container's is asked for the path it really has", async () => {
+  const seen = [];
+  const reach = createReach({ serverFor: async () => serverThatAnswers(seen), pathFor: (path) => path.replace(/^\/workspace/, "/home/rita/.hive-host/workspace") });
+  const put = await reach.putFile("/workspace/hive/assets/a.png", Buffer.from("x"));
+  assert.equal(put.path, "/home/rita/.hive-host/workspace/hive/assets/a.png", "the caller was handed back a path that does not exist on that machine");
+  assert.equal(seen[0][2].path, "/home/rita/.hive-host/workspace/hive/assets/a.png");
+  const got = await reach.getFile("/workspace/hive/assets/a.png");
+  assert.equal(got.path, "/home/rita/.hive-host/workspace/hive/assets/a.png");
+  assert.match(seen[1][1], /path=%2Fhome%2Frita%2F\.hive-host%2Fworkspace%2Fhive%2Fassets%2Fa\.png$/);
+});
+
+test("a file the server will not hand over is read another way when there is one, and refused as before when there is not", async () => {
+  const refusing = { client: { get: async () => ({ ok: false, error: "that path is outside what this server holds" }) } };
+  const asked = [];
+  const withAnother = createReach({ serverFor: async () => refusing, readElsewhere: async (path) => { asked.push(path); return Buffer.from("read by a script"); } });
+  const got = await withAnother.getFile("/home/rita/.claude/projects/x/one.jsonl");
+  assert.equal(String(got.body), "read by a script");
+  assert.deepEqual(asked, ["/home/rita/.claude/projects/x/one.jsonl"]);
+  const empty = createReach({ serverFor: async () => refusing, readElsewhere: async () => null });
+  assert.match((await empty.getFile("/x")).error, /outside what this server holds/);
+  const throwing = createReach({ serverFor: async () => refusing, readElsewhere: async () => { throw new Error("no"); } });
+  assert.match((await throwing.getFile("/x")).error, /outside what this server holds/);
+  const plain = createReach({ serverFor: async () => refusing });
+  assert.match((await plain.getFile("/x")).error, /outside what this server holds/);
+});

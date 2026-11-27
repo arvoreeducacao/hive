@@ -427,7 +427,7 @@ function chatSubject(s, opens) {
     title: s.naming ? phrase("new chat") : s.title || s.name,
     branch: tree?.branch || "",
     project: tree?.repo || String(s.cwd || "").split("/").filter(Boolean).pop() || "",
-    where: s.where === "cloud" ? phrase("cloud") : "",
+    where: s.where === "cloud" ? phrase("remote") : "",
     prs: chatPrs(s),
     activityAt: chatActivity(s),
     opens: opens[s.name] || null
@@ -760,7 +760,8 @@ function palActions() {
   return [
     { action: "new", icon: "i-bolt", name: phrase("new chat"), ctx: phrase("an empty seat: pick the provider and the model, the first message opens it"), key: keyHint("new"), go: () => askNewChat() },
     { action: "term", icon: "i-term", name: phrase("new terminal"), ctx: phrase("a plain shell in a seat, on your machine"), key: keyHint("term"), go: () => openShell("local") },
-    { icon: "i-term", name: phrase("new terminal on the server"), ctx: phrase("a plain shell in the cloud"), go: () => openShell("cloud") },
+    { icon: "i-term", name: phrase("new terminal on the server"), ctx: phrase("a plain remote shell"), go: () => openShell("cloud") },
+    ...(Array.isArray(st.data?.hosts) ? st.data.hosts : []).map((one) => ({ icon: "i-term", name: phrase("new terminal on {host}", { host: one.label }), ctx: phrase("a plain shell on that host, in the folder its chats open in"), search: `terminal shell ssh host remote remoto ${one.id}`, go: () => openShell("cloud", one.id) })),
     { icon: "i-grid", name: phrase("workspace"), ctx: phrase("the repos, skills and MCPs the hive.json declares"), go: () => openWorkspace() },
     { icon: "i-plug", name: phrase("connect an agent from outside"), ctx: phrase("copies the command that gives a Claude Code outside the hive these tools — it can read the chats"), search: "mcp external agent agente externo conectar", go: () => copyExternalMcp("read") },
     { icon: "i-plug", name: phrase("connect an agent from outside that can talk"), ctx: phrase("the same, but it can also message and ask the chats"), search: "mcp external agent agente externo conectar operate", go: () => copyExternalMcp("operate") },

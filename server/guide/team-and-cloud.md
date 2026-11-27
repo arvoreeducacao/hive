@@ -10,11 +10,11 @@ Your own Hive server, trust and invites, the phone, encrypted sync, the team's s
 - **A team** is a set of servers that know each other, normally one per person. They meet through a one-time invite link.
 - **The shelf** is a private GitHub repository that every member clones. The `publish` tool writes pages there.
 
-Everything team-related goes through a server: the "Who gets in" screen, invites, the team panel, the phone and cloud seats all need `HIVE_SERVER_URL` (see "Point the app at a server").
+Everything team-related goes through a server: the "Who gets in" screen, invites, the team panel, the phone and cloud seats all need `HIVE_SERVER_URL` (see "Point the app at a server"). Cloud seats alone also work with a machine reached over SSH (see "Reach a machine over SSH").
 
 ## Local and cloud seats (the side)
 
-Every seat has a side. The new-chat form asks under **Where it runs**: "Local" (`local · your machine`) or "Cloud" (`cloud · server`).
+Every seat has a side. The new-chat form asks under **Where it runs**: "Local" (`local · your machine`) or "Remote" (`remote · server`).
 
 | | Local | Cloud |
 |---|---|---|
@@ -137,6 +137,46 @@ HIVE_BIND=0.0.0.0 HIVE_SERVER_URL=https://hive.example.com docker compose up
 - The server speaks plain HTTP. Put something that terminates TLS in front of it (a reverse proxy or a tunnel of your choice). The phone page needs `https`, because the browser gives its key storage only to a secure origin (or `localhost`).
 - Anyone who reaches the port reaches a machine that runs commands. Open it the way you would open SSH.
 - `HIVE_SSH_PUBKEY="<public key>"` starts sshd in the box for that key; mosh is installed too.
+
+## Reach a machine over SSH
+
+A machine you already reach with `ssh` can be the server, with no Docker, no open port and no TLS in front of it. The app installs the server there, starts it and talks to it through an SSH tunnel.
+
+1. Check that `ssh user@host` works from a terminal without asking for a password. The app runs ssh with `BatchMode=yes`, so a key or an agent has to answer, and the host's key has to be in `known_hosts` already.
+2. Open a new chat and pick **remote · server**.
+3. Click **ssh host**, type `user@host` and press **connect**. `user@host:2222` names another port. An alias from `~/.ssh/config` works alone.
+4. Wait for the line under the hosts to say the host is connected.
+5. Click the folder button under that line and pick the folder on the host where the chat opens: your hub there, another project, or the home folder.
+6. Send the first message.
+
+- Nothing is written in `~/.hive/config` and the app does not restart. The app keeps the hosts you added in `~/.hive/hosts.json`, and each one is a button in the next new chat.
+- Several hosts work at the same time, next to the local chats and next to the server at `HIVE_SERVER_URL`. A chat stays on the host it was opened on.
+- A chat on a host shows the host's name on its tile. The list of chats has a **Remote** filter next to **All** and **Local**, for every chat that does not run on this computer.
+- The folder button lists the folders of the host, starting at its home folder. Click a folder to go in, type to filter, or type a whole path and press enter. **open the chat here** takes the folder shown. A folder that holds a git repository is marked `git`.
+- The app keeps the folder with the host in `~/.hive/hosts.json`. The next chat on that host starts in the same folder, and so does a chat that another chat opens there.
+- A chat on a host runs in the folder itself, on the branch that folder is on. It makes no worktree.
+- A terminal opens on a host too: open the command palette and pick **new terminal on `<host>`**. It is a plain shell on that host, in the folder kept for the host, or in the home folder when none is kept.
+- A chat on a host has its own terminal, like a chat on this computer: the terminal button in the chat's bar, or its key, opens a drawer with a shell on the host, in the chat's folder. The shells of a chat close with the chat. A chat that another computer opened on the same host has no terminal drawer here.
+- A host you added connects when you pick it in a new chat, and at start when it still has chats. **forget this host** removes a host that has no chats.
+- `HIVE_SERVER_SSH=user@host` in `~/.hive/config` still works: that host is always in the list, connects at start, and is removed only by taking the line out. `setup.sh` keeps the line.
+
+- The host needs node 22 or newer, npm, tmux, git and tar. A chat on it also needs the agent CLI (for example Claude Code) installed and signed in there, under the same user.
+- The app reads the PATH from the user's login shell on the host, so a node installed with nvm, mise, fnm or volta is found.
+- On the first connection the app copies its `server` folder to `~/.hive-host/server`, runs `npm ci --omit=dev` there and starts `node server.mjs` on the unix socket `~/.hive-host/server.sock` (mode 600). Nothing listens on a network port of the host.
+- The tunnel ends on `127.0.0.1` of this computer, on a port picked when the app starts. Requests through it are signed as on any other server.
+- The app adds this computer's key to `~/.hive-host/workspace/hive/allowed_signers` as your own machine. A second computer of yours that adds the same host adds its own key the same way, and the server restarts once to read it.
+- The server keeps running when the app quits and when the tunnel drops. The app opens the tunnel again by itself.
+- A host that sleeps stops answering, and its chats stop with it. A laptop on battery sleeps after a few idle minutes. When you open or write to a chat there, the app tries the host three times before it says the machine did not answer.
+- After an app update, the next connection copies the new server and restarts the one on the host. The server writes its chats down when it stops and restores them when it starts.
+- Everything on the host is under `~/.hive-host`: `server/` (the code), `workspace/` (the same layout as `/workspace` in the container), `server.log`, `server.pid` and `install.log`.
+- The **repo** and **branch** fields belong to the server at `HIVE_SERVER_URL`. A host shows the folder button in their place. A chat that a tool opens on a host with a repo still needs it at `~/.hive-host/workspace/repos/<repo>`. A symlink to a clone you already have works.
+- The hub on the host is `~/.hive-host/workspace/repos/<name>`, where `<name>` is the name of your hub folder on this computer. With the hub cloned or symlinked there, a chat on a host with no folder picked opens in a worktree of the hub, under `~/.hive-host/workspace/worktrees/<name>/<chat>`. Without that folder and with no folder picked, the chat opens in the home folder of the host.
+- The app was written for the container, where everything is under `/workspace`. For a host reached over SSH it rewrites those paths before they leave: `/workspace/home` becomes the user's home there, and the rest of `/workspace` becomes `~/.hive-host/workspace`. A home folder with spaces or other unusual characters is refused.
+- The server links the tools it found (node, npm, the agent CLIs, gh) into `~/.hive-host/workspace/npm-global/bin`, which is where a `!` line of a cloud chat looks first.
+- The team panel, "Who gets in", the phone and the conversation history talk to one server only: the one at `HIVE_SERVER_URL`, or the first connected host when there is none.
+- The phone and team invites need an address other devices can reach. A server reached only over SSH has none, so they stay off until you also publish it (see "Reach the server from somewhere else").
+- The host runs chats as cloud chats: they register the Hive's tools in that user's Claude Code settings. Do not use a host where the same user also runs the Hive desktop app.
+- Stop the server on the host with `kill "$(cat ~/.hive-host/server.pid)"`. To remove it, stop it and delete `~/.hive-host`.
 
 ## The "Who gets in" screen
 
@@ -397,6 +437,7 @@ The welcome screen runs the same script when you press **Create my key**.
 - "that request is Ns off the clock": the clocks differ by more than 60 s. Fix the clock on the computer or the server.
 - "that key was revoked": revocation is permanent for that key. Use a new key, or remove the device's entry from `roster.json` with the server stopped.
 - "this hive has no server address — put one in HIVE_SERVER_URL": add the address to `~/.hive/config` and restart the app.
+- "no server answers on <host> over ssh — …": the words after the dash are the reason. "ssh does not trust … yet": run `ssh user@host` once in a terminal and accept the host's key. "refused this machine's key": install your key there (`ssh-copy-id user@host`). "the host has no node on the PATH": install node 22 or newer for that user. "npm ci failed on the host": read `~/.hive-host/install.log` there. "the server did not start": read `~/.hive-host/server.log` there.
 - "no server answers at <address> — <reason>": the address is wrong, the server is down, or TLS in front of it is broken. Check `<address>/health`.
 - "this server has no address to invite anyone to — set HIVE_SERVER_URL": restart the server with `HIVE_SERVER_URL`.
 - "that server answered with a key the link did not promise": the invite link does not match the server that answered. Ask for a new link.
@@ -419,6 +460,7 @@ The welcome screen runs the same script when you press **Create my key**.
 - `server/grants.mjs`
 - `server/inside.mjs`
 - `server/worktree.mjs`
+- `server/folders.mjs`
 - `server/engine/paths.mjs`
 - `server/sync/broker.mjs`
 - `server/sync/device.mjs`
@@ -435,6 +477,12 @@ The welcome screen runs the same script when you press **Create my key**.
 - `app/lib/config.mjs`
 - `app/lib/cloud-door.mjs`
 - `app/lib/cloud-reach.mjs`
+- `app/lib/ssh-host.mjs`
+- `app/lib/host-book.mjs`
+- `app/lib/host-folder.mjs`
+- `app/src/app/host-folders.js`
+- `app/lib/reach-context.mjs`
+- `app/routes/hosts.mjs`
 - `app/lib/hive-identity.mjs`
 - `app/lib/phone-bridge.mjs`
 - `app/lib/team.mjs`

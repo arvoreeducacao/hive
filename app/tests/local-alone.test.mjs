@@ -37,7 +37,7 @@ test("a seat on this machine is opened by tmux here, never through a cluster and
 });
 
 test("the terminal only looks for a server when the tile is a cloud one", () => {
-  const handler = cut("wss.on(\"connection\", async (ws, req) => {", "const SERVER_CANDIDATES");
+  const handler = cut("async function terminalOverSocket(ws, req) {", "const SERVER_CANDIDATES");
   const reaching = handler.indexOf("cloudReach.terminal");
   assert.ok(reaching > 0, "the terminal stopped reaching for a server at all");
   assert.match(handler.slice(0, reaching), /if \(where === "cloud" \|\| root\)/,

@@ -67,7 +67,7 @@ async function askToErase(list, at = null) {
   const keyCaps = (text) => (raycastOn() ? `<b>${esc(text)}</b>` : esc(text));
   const ok = await ask(
     one ? phrase("Delete “{title}” for good?", { title: list[0].title }) : phrase("Delete {n} conversations for good?", { n: list.length }),
-    `${esc(phrase("The transcript, the history and the marks are deleted from this computer, and from the server for a cloud chat. Nothing brings them back."))} ${keyCaps(phrase("The worktree and the files the chat changed stay where they are."))}`,
+    `${esc(phrase("The transcript, the history and the marks are deleted from this computer, and from the server for a remote chat. Nothing brings them back."))} ${keyCaps(phrase("The worktree and the files the chat changed stay where they are."))}`,
     one ? phrase("delete for good") : phrase("delete {n} for good", { n: list.length }),
     { who: one ? list[0].title : "", at }
   );

@@ -1,6 +1,6 @@
 import { wireLinks } from "./chat-and-panes.js";
 import { IS_MAC, esc, phrase } from "./core.js";
-import { askActive, askBanner, foldAsk, pickOption } from "./composer-ask.js";
+import { askActive, askBanner, confirmAsk, foldAsk, goToStep, pickOption, stepAsk } from "./composer-ask.js";
 import { composerIcon } from "./composer-icons.js";
 import { composerLive, onComposerMode, paintComposer } from "./composer-modes.js";
 import { planBanner } from "./composer-plan.js";
@@ -87,6 +87,9 @@ function drawerClick(e, ev) {
   const act = hit.dataset.act;
   if (act === "ask-fold") return foldAsk(e);
   if (act === "ask-pick") return pickOption(e, Number(hit.dataset.i));
+  if (act === "ask-to") return goToStep(e, Number(hit.dataset.at));
+  if (act === "ask-step") return stepAsk(e, Number(hit.dataset.d));
+  if (act === "ask-confirm") return confirmAsk(e);
   if (act === "edit-cancel") return cancelEdit(e, true);
   if (act === "stash-open") return toggleStash(e, true);
   if (act === "stash-close") return toggleStash(e, false);

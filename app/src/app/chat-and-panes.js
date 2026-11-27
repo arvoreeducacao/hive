@@ -20,6 +20,7 @@ import { accountSaid, providerAccounts, providerName, providerReady, providerWhy
 import { enrichMarkdown } from "./markdown-rich.js";
 import { memoryTurnEnded, memoryTurnSaw } from "./memory-turn.js";
 import { mcpAuthenticate, mcpSignInsAtInit } from "./mcp-sign-in.js";
+import { commandCardView } from "../views.js";
 import { wireMdShots, wireShelfLinks } from "./picture-preview.js";
 import { dropFieldPane, paneShownFor, takeFieldPane } from "./plane.js";
 import { pullThreads } from "./prs.js";
@@ -3009,7 +3010,7 @@ async function borrowEffortFromSettings(e) {
 
 function accountReach(e) {
   if (e.mirror) return { can: false, why: phrase("this is somebody else's chat — you watch it, you do not sign it in") };
-  if (e.where === "cloud") return { can: false, why: phrase("accounts live on your machine — a cloud chat uses the server's own login") };
+  if (e.where === "cloud") return { can: false, why: phrase("accounts live on your machine — a remote chat uses the server's own login") };
   if (e.account === undefined) return { can: false, why: phrase("this chat started before the login picker existed. Close it and open it again with the same name — the conversation comes back with it.") };
   if (e.account === null) return { can: false, why: phrase("this chat runs on a login the hive did not set up, so it will not move it") };
   return { can: true, why: "" };
@@ -3841,19 +3842,64 @@ const PILL_COMMANDS = new Set(["account"]);
 
 const NATIVE_COMMANDS = new RegExp(`^/(${NATIVE_COMMAND_NAMES.filter((one) => !PILL_COMMANDS.has(one)).join("|")})(?:\\s+(.+))?$`);
 
-function svCmdCard(e, title) {
-  const card = document.createElement("div");
-  card.className = "sv-cmd";
-  card.innerHTML = `<div class="ch"><span></span><button type="button" class="cx" title="${phrase("dismiss")}">×</button></div><div class="body"><span class="sv-meta">${phrase("asking the session…")}</span></div>`;
-  card.querySelector(".ch span").textContent = title;
-  card.querySelector(".cx").addEventListener("click", () => card.remove());
-  const grow = new ResizeObserver(() => {
-    if (e.atBottom && card.isConnected) e.scroll.scrollTop = e.scroll.scrollHeight;
+function cmdCardModel(card) {
+  const s = structuredClone(card.s);
+  return {
+    ...s,
+    dismiss: phrase("dismiss"),
+    config: s.config && { ...s.config, rows: s.config.rows.map((row) => ({ ...row, opts: row.opts && row.opts.map((value) => ({ key: value, value, sel: card.picked.get(row.name) === value })) })) }
+  };
+}
+
+const paintCmdCard = (card, patch) => {
+  Object.assign(card.s, patch);
+  card.view.show(cmdCardModel(card));
+};
+
+function setConfig(card, key, value) {
+  const turn = (card.turns.get(key)?.turn || 0) + 1;
+  card.turns.set(key, { turn, marked: 0 });
+  card.picked.delete(key);
+  paintCmdCard(card, {});
+  svCmd(card.e, { type: "say", text: `/config ${key}=${value}` }).then((r) => {
+    const sent = card.turns.get(key);
+    if (!r?.ok || turn <= sent.marked) return;
+    sent.marked = turn;
+    if (card.s.config?.rows.find((row) => row.name === key)?.opts?.includes(value)) card.picked.set(key, value);
+    paintCmdCard(card, {});
   });
-  grow.observe(card);
-  svAppend(e, card);
+}
+
+async function compactFromCard(card) {
+  const go = (label, busy) => paintCmdCard(card, { context: { ...card.s.context, go: { label, busy } } });
+  go(phrase("compacting…"), true);
+  const r = await svCmd(card.e, { type: "control", op: "compact", focus: "" });
+  if (r?.ok) return go(r.data?.queued ? phrase("queued — runs when this turn ends") : phrase("compact asked"), true);
+  go(phrase("compact now"), false);
+  const msg = r?.error || phrase("failed");
+  svLine(card.e, "sv-meta warn", OLD_DRIVER.test(msg) ? phrase("this seat's driver is older than the native commands — close the seat and reopen it with the same name; resume keeps the conversation") : msg);
+}
+
+function svCmdCard(e, title) {
+  const card = { e, picked: new Map(), turns: new Map(), s: { title, asking: phrase("asking the session…"), state: "asking", warn: "", mcp: [], agents: [], config: null, context: null } };
+  card.view = commandCardView(cmdCardModel(card), {
+    dismiss: () => card.view.close(),
+    authenticate: (name, row) => mcpAuthenticate(e, name, row, (cls, text) => {
+      svLine(e, cls, text);
+      card.view.close();
+    }),
+    configSet: (key, value) => setConfig(card, key, value),
+    configLine: (pair) => svCmd(e, { type: "say", text: `/config ${pair}` }).then((r) => !!r?.ok),
+    compact: () => compactFromCard(card)
+  });
+  const el = card.view.el;
+  const grow = new ResizeObserver(() => {
+    if (e.atBottom && el.isConnected) e.scroll.scrollTop = e.scroll.scrollHeight;
+  });
+  grow.observe(el);
+  svAppend(e, el);
   e.atBottom = true;
-  const pin = () => { if (e.atBottom && card.isConnected) e.scroll.scrollTop = e.scroll.scrollHeight; };
+  const pin = () => { if (e.atBottom && el.isConnected) e.scroll.scrollTop = e.scroll.scrollHeight; };
   pin();
   requestAnimationFrame(pin);
   setTimeout(pin, 120);
@@ -3861,32 +3907,19 @@ function svCmdCard(e, title) {
   return card;
 }
 
-async function loadMcpBody(e, body, fail) {
+async function loadMcpBody(e, card, fail) {
   const r = await svCmd(e, { type: "control", op: "mcp" });
   if (!r?.ok) return fail(r?.error);
-  body.innerHTML = "";
-  for (const s of r.data || []) {
-    const row = document.createElement("div");
-    row.className = "mcp-row";
-    row.innerHTML = `<span class="dot"></span><span class="nm"></span><span class="st"></span><span class="er"></span>`;
-    row.querySelector(".dot").style.background = (s.status === "failed" && raycastOn() ? "var(--red)" : MCP_DOT[s.status]) || "var(--txt-3)";
-    row.querySelector(".nm").textContent = s.name;
-    row.querySelector(".st").textContent = phrase(MCP_STATUS_WORDS[s.status] || s.status) + (s.tools?.length ? ` · ${s.tools.length} tools` : "");
-    row.querySelector(".er").textContent = s.error || "";
-    if (s.status === "needs-auth") {
-      const btn = document.createElement("button");
-      btn.className = "auth";
-      btn.type = "button";
-      btn.textContent = phrase("authenticate");
-      btn.addEventListener("click", () => mcpAuthenticate(e, s.name, row, (cls, text) => {
-        svLine(e, cls, text);
-        body.closest(".sv-cmd")?.remove();
-      }));
-      row.appendChild(btn);
-    }
-    body.appendChild(row);
-  }
-  if (!body.children.length) fail(phrase("this session has no MCP servers"));
+  const mcp = (r.data || []).map((s, at) => ({
+    key: String(at),
+    name: s.name,
+    dot: (s.status === "failed" && raycastOn() ? "var(--red)" : MCP_DOT[s.status]) || "var(--txt-3)",
+    status: phrase(MCP_STATUS_WORDS[s.status] || s.status) + (s.tools?.length ? ` · ${s.tools.length} tools` : ""),
+    error: s.error || "",
+    auth: s.status === "needs-auth" ? phrase("authenticate") : ""
+  }));
+  if (!mcp.length) return fail(phrase("this session has no MCP servers"));
+  paintCmdCard(card, { state: "mcp", mcp });
 }
 
 const MCP_STATUS_WORDS = { connected: "connected", "needs-auth": "needs authorization", failed: "failed", pending: "connecting", disabled: "turned off" };
@@ -3898,27 +3931,27 @@ const CLAUDE_ONLY_COMMANDS = new Set(["config", "agents", "plane-mode"]);
 
 const CONTEXT_TONES = ["var(--accent)", "var(--txt-2)", "var(--txt-3)", "var(--accent-d)"];
 
-function paintContextTones(u, bar, legend) {
+function contextTones(u) {
   const used = (u.categories || []).filter((c) => c.tokens && !/free/i.test(c.name) && (!c.kind || c.kind === "used"));
-  for (const [at, c] of used.entries()) {
-    const tone = CONTEXT_TONES[at % CONTEXT_TONES.length];
-    const seg = document.createElement("i");
-    seg.style.width = `${(c.tokens / Math.max(1, u.maxTokens)) * 100}%`;
-    seg.style.background = tone;
-    seg.title = `${c.name}: ${c.tokens.toLocaleString()} tokens`;
-    bar.appendChild(seg);
-    const item = document.createElement("span");
-    item.innerHTML = `<span class="dot"></span>`;
-    item.querySelector(".dot").style.background = tone;
-    item.append(`${c.name} ${Math.round(c.tokens / 1000)}k`);
-    legend.appendChild(item);
-  }
+  const parts = used.map((c, at) => ({ c, tone: CONTEXT_TONES[at % CONTEXT_TONES.length] }));
   const free = Math.max(0, (u.maxTokens ?? 0) - (u.totalTokens ?? 0));
-  if (!free) return;
-  const item = document.createElement("span");
-  item.className = "free";
-  item.textContent = phrase("free {n}k", { n: Math.round(free / 1000) });
-  legend.appendChild(item);
+  return { parts, free: free ? phrase("free {n}k", { n: Math.round(free / 1000) }) : "" };
+}
+
+function contextColors(u) {
+  const used = (u.categories || []).filter((c) => c.tokens && (!c.kind || c.kind === "used"));
+  return { parts: used.map((c) => ({ c, tone: c.color || "var(--blue)" })), free: "" };
+}
+
+function contextOf(u) {
+  const { parts, free } = raycastOn() ? contextTones(u) : contextColors(u);
+  return {
+    segments: parts.map(({ c, tone }, at) => ({ key: String(at), width: `${(c.tokens / Math.max(1, u.maxTokens)) * 100}%`, tone, title: `${c.name}: ${c.tokens.toLocaleString()} tokens` })),
+    legend: parts.map(({ c, tone }, at) => ({ key: String(at), tone, text: `${c.name} ${Math.round(c.tokens / 1000)}k` })),
+    free,
+    meta: `${(u.totalTokens ?? 0).toLocaleString()} of ${(u.maxTokens ?? 0).toLocaleString()} tokens · ${Math.round(u.percentage ?? 0)}% · ${u.model || ""}`,
+    go: { label: phrase("compact now"), busy: false }
+  };
 }
 
 async function setPlanMode(e, on) {
@@ -3982,44 +4015,28 @@ async function runNativeCommand(e, cmd, arg) {
   /* typing the command lands in the same picker the pill opens */
   if (cmd === "model" || cmd === "effort" || cmd === "account") return void openSeatPicker(e, cmd);
   const card = svCmdCard(e, "/" + cmd);
-  const body = card.querySelector(".body");
   const fail = (msg) => {
     const text = /unknown command control/.test(msg || "")
       ? phrase("this seat's driver is older than the native commands — close the seat and reopen it with the same name; resume keeps the conversation")
       : msg || phrase("the session did not answer");
-    body.innerHTML = `<span class="sv-meta warn"></span>`;
-    body.firstChild.textContent = text;
+    paintCmdCard(card, { state: "warn", warn: text });
   };
   if (cmd === "mcp") {
-    await loadMcpBody(e, body, fail);
+    await loadMcpBody(e, card, fail);
     return;
   }
   if (cmd === "agents") {
     const r = await svCmd(e, { type: "control", op: "agents" });
     if (!r?.ok) return fail(r?.error);
-    body.innerHTML = "";
-    for (const a of r.data || []) {
-      const row = document.createElement("div");
-      row.className = "mcp-row";
-      row.innerHTML = `<span class="nm"></span><span class="er" style="color: var(--txt-3)"></span>`;
-      row.querySelector(".nm").textContent = a.name || a.agentType || "?";
-      row.querySelector(".er").textContent = (a.whenToUse || a.description || "").slice(0, 160);
-      body.appendChild(row);
-    }
-    if (!body.children.length) fail(phrase("this session has no agents"));
+    const agents = (r.data || []).map((a, at) => ({ key: String(at), name: a.name || a.agentType || "?", about: (a.whenToUse || a.description || "").slice(0, 160) }));
+    if (!agents.length) return fail(phrase("this session has no agents"));
+    paintCmdCard(card, { state: "agents", agents });
     return;
   }
   if (cmd === "config") {
-    body.innerHTML = "";
+    paintCmdCard(card, { state: "" });
     const styles = await svCmd(e, { type: "control", op: "styles" });
     const seatStyles = styles?.ok ? styles.data : null;
-    const send = (key, value, row) => {
-      for (const b of row.querySelectorAll(".co")) b.classList.remove("sel");
-      svCmd(e, { type: "say", text: `/config ${key}=${value}` }).then((r) => {
-        if (!r?.ok) return;
-        row.querySelector(`[data-v="${CSS.escape(value)}"]`)?.classList.add("sel");
-      });
-    };
     const CONFIG_KEYS = [
       { key: "autoCompact", opts: ["true", "false"], about: "compact the conversation on its own when it grows" },
       { key: "thinking", opts: ["true", "false"], about: "stream the model's thinking" },
@@ -4030,98 +4047,22 @@ async function runNativeCommand(e, cmd, arg) {
       { key: "outputStyle", opts: seatStyles?.available?.length ? seatStyles.available : ["default", "Proactive", "Concise", "Explanatory", "Learning"], about: "how the answers are written", now: seatStyles?.current || "" },
       { key: "language", opts: null, about: "the language Claude answers in — pt-BR, en, …" },
     ];
-    for (const def of CONFIG_KEYS) {
-      const row = document.createElement("div");
-      row.className = "cfg-row";
-      row.innerHTML = `<div class="ck"><span class="nm"></span><span class="ds"></span></div><div class="cv"></div>`;
-      row.querySelector(".nm").textContent = def.key;
-      row.querySelector(".ds").textContent = phrase(def.about);
-      const cell = row.querySelector(".cv");
-      if (def.opts) {
-        for (const opt of def.opts) {
-          const b = document.createElement("button");
-          b.className = "co";
-          b.type = "button";
-          b.dataset.v = opt;
-          b.textContent = opt;
-          if (def.now === opt) b.classList.add("sel");
-          b.addEventListener("click", () => send(def.key, opt, row));
-          cell.appendChild(b);
-        }
-      } else {
-        const input = document.createElement("input");
-        input.className = "ci";
-        input.placeholder = "value";
-        input.addEventListener("keydown", (kev) => {
-          kev.stopPropagation();
-          if (kev.key === "Enter" && input.value.trim()) { kev.preventDefault(); send(def.key, input.value.trim(), row); }
-        });
-        cell.appendChild(input);
+    for (const def of CONFIG_KEYS) if (def.now && def.opts?.includes(def.now)) card.picked.set(def.key, def.now);
+    paintCmdCard(card, {
+      state: "config",
+      config: {
+        rows: CONFIG_KEYS.map((def) => ({ key: def.key, name: def.key, about: phrase(def.about), opts: def.opts })),
+        freeHint: phrase("anything else: key=value — the session confirms in the transcript"),
+        apply: phrase("apply"),
+        note: phrase("each change answers in the transcript · model, effort and mcp have their own cards · theme and the other terminal looks live in the TUI only")
       }
-      body.appendChild(row);
-    }
-    const free = document.createElement("div");
-    free.className = "qfree";
-    free.innerHTML = `<input placeholder="${phrase("anything else: key=value — the session confirms in the transcript")}" /><button type="button" class="qgo">${phrase("apply")}</button>`;
-    const input = free.querySelector("input");
-    const apply = () => {
-      const pair = input.value.trim();
-      if (!/^[\w.-]+=/.test(pair)) return;
-      svCmd(e, { type: "say", text: `/config ${pair}` }).then((r) => {
-        if (!r?.ok) return;
-        input.value = "";
-      });
-    };
-    free.querySelector(".qgo").addEventListener("click", apply);
-    input.addEventListener("keydown", (kev) => { kev.stopPropagation(); if (kev.key === "Enter") { kev.preventDefault(); apply(); } });
-    body.appendChild(free);
-    const note = document.createElement("span");
-    note.className = "sv-meta";
-    note.textContent = phrase("each change answers in the transcript · model, effort and mcp have their own cards · theme and the other terminal looks live in the TUI only");
-    body.appendChild(note);
+    });
     return;
   }
   if (cmd === "context") {
     const r = await svCmd(e, { type: "control", op: "context" });
     if (!r?.ok) return fail(r?.error);
-    const u = r.data || {};
-    body.innerHTML = `<div class="bar"></div><div class="legend"></div><span class="sv-meta"></span>`;
-    const bar = body.querySelector(".bar");
-    const legend = body.querySelector(".legend");
-    if (raycastOn()) paintContextTones(u, bar, legend);
-    else for (const c of u.categories || []) {
-      if (!c.tokens || (c.kind && c.kind !== "used")) continue;
-      const seg = document.createElement("i");
-      seg.style.width = `${(c.tokens / Math.max(1, u.maxTokens)) * 100}%`;
-      seg.style.background = c.color || "var(--blue)";
-      seg.title = `${c.name}: ${c.tokens.toLocaleString()} tokens`;
-      bar.appendChild(seg);
-      const item = document.createElement("span");
-      item.innerHTML = `<span class="dot"></span>`;
-      item.querySelector(".dot").style.background = c.color || "var(--blue)";
-      item.append(`${c.name} ${Math.round(c.tokens / 1000)}k`);
-      legend.appendChild(item);
-    }
-    body.querySelector(".sv-meta").textContent =
-      `${(u.totalTokens ?? 0).toLocaleString()} of ${(u.maxTokens ?? 0).toLocaleString()} tokens · ${Math.round(u.percentage ?? 0)}% · ${u.model || ""}`;
-    const go = document.createElement("button");
-    go.type = "button";
-    go.className = "ctx-go";
-    go.textContent = phrase("compact now");
-    go.addEventListener("click", async () => {
-      go.disabled = true;
-      go.textContent = phrase("compacting…");
-      const r = await svCmd(e, { type: "control", op: "compact", focus: "" });
-      if (r?.ok) {
-        go.textContent = r.data?.queued ? phrase("queued — runs when this turn ends") : phrase("compact asked");
-        return;
-      }
-      go.disabled = false;
-      go.textContent = phrase("compact now");
-      const msg = r?.error || phrase("failed");
-      svLine(e, "sv-meta warn", OLD_DRIVER.test(msg) ? phrase("this seat's driver is older than the native commands — close the seat and reopen it with the same name; resume keeps the conversation") : msg);
-    });
-    body.appendChild(go);
+    paintCmdCard(card, { state: "context", context: contextOf(r.data || {}) });
     return;
   }
 }
@@ -4144,4 +4085,4 @@ function svUserThumb(e, bubble, path) {
   return svConvThumb(e, bubble, path);
 }
 
-export { REVIEW_ASK, referenceLine, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, loadMcpBody, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserHover, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, setPlanMode, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };
+export { REVIEW_ASK, referenceLine, askOnTheElement, frameIsUpFront, frameKey, seatActsWhereThePersonLooks, frameOfTab, frameTheSeatDrives, letDrivenTabSleep, noPageOf, seatSeesItsOwnTab, shotReady, shutByThePerson, tabOfSeatDriving, wakeDrivenTab, wokeForAShot, paintPagePins, paintPageFaces, standOnThePage, tabOfFrame, threadLine, threadsOnThePage, watchPagePins, AGENT_NAMES, CATALOG_RETRY_CAP, CLAUDE_ONLY_COMMANDS, CATALOG_RETRY_STEP, CATALOG_TRIES, DEVICE_BEAT, DEVICE_RETRY, DRIVING_LINGER, FRAME_BEAT, FRAME_WAIT, HARNESS_NOTES, MCP_DOT, MODEL_WORDS, NATIVE_COMMANDS, NO_PAGE, OLD_DRIVER, PAGE_BEAT, PAGE_SLEEP_AFTER, PHONE_NAMES, PR_LINK, QUESTION_CLOSERS, SHELF_TAB, SKILL_BODY, STILL_COMING_UP, SYNTHETIC_TAGS, THREAD_LINK, VIDEO_STEP, VIDEO_WAIT, WEB_TAB_CAP, accountReach, accountRow, addWebTab, applePlatform, artifactTabOf, askAboutArtifactTab, askDeviceFrame, askWhichPhone, bootDevice, bornWebFrame, borrowEffortFromSettings, browserAnswer, browserApplied, browserShot, canWatchVideo, canopy, catalogRow, catchUpArtifact, clickLeavesPicker, closeBrowser, closeCockpit, closeDevice, closeEveryPicker, closeSeatPicker, closeWebTab, cockpitPaneOf, cockpitUrlOf, codecOfSps, deviceAct, deviceApplied, deviceCall, deviceCanvasOf, deviceClock, deviceFrameLanded, deviceFrameUrlOf, deviceKeyOf, deviceOfSeat, devicePaneOf, deviceSaid, deviceScreenOf, deviceVideoLanded, draftCarriesEffort, driveBrowsers, drivenTab, drivingNow, drivingPaint, frameOfSeat, frameUrlOf, giveUpVideo, goToThread, gotoWeb, h264Pictures, h264Units, homeOfLink, inThePage, joinBytes, landSeatOn, leavesForTheBrowser, markArtRows, markDriving, markOf, mcpAuthenticate, modelNamed, nalTypeOf, normalizeLooseModels, openArtifactTab, openArtifactUrl, openBrowser, openCockpit, openDevice, openKeptPage, openOutside, openPopupTab, openPrLink, openSeatPicker, openThreadLink, openWebPage, pageDozing, pageOfSeat, pagesMark, pagesOfChat, paintAccountPill, paintArtifactChrome, paintCanopyOfChat, paintCockpitOfChat, paintDeviceChipOfChat, paintDeviceOfChat, paintDrivingSoon, paintFrontsOfChat, paintMentions, paintPills, paintWebChipOfChat, paintWebOfChat, paintYards, pathOfPreview, phonesToBoot, pickerFit, pickerRow, pillLabel, placeYard, pointOnDevice, prKeyOf, pullPages, questionCard, reachInPage, refreshCanopy, refreshCatalog, registerPr, registerThread, runBrowserChoose, runBrowserClick, runBrowserConsole, runBrowserHover, runBrowserCookies, runBrowserEval, runBrowserKey, runBrowserMap, runBrowserNetwork, runBrowserProfile, runBrowserSetCookie, runBrowserShot, runBrowserStep, runBrowserTabs, runBrowserType, runBrowserUpload, runBrowserViewport, runBrowserWait, runNativeCommand, sayOnDevice, seatAgent, sendDevicePrint, sendPageQuote, setPlanMode, sendPickReference, sendScreenPrint, sendScreenReview, setWebPick, shelfLinkOf, shelfTabAddress, shelfTabOf, shelvePreviews, showingArtifact, someoneReadingAPage, startDevice, startDeviceVideo, stepWeb, stopDeviceFrames, stopDeviceVideo, stopFrameLoop, structuredCtrlC, svAlreadyPainted, svAssistant, svCmdCard, svShellBlock, svDraftPaint, svEvent, svFoldedNote, svPeerFrom, svQuestionCard, svStreamDelta, svSynthetic, svUser, svUserText, svUserThumb, tabsSaid, tabTheSeatDrives, tapDevice, threadKeyOf, titleCase, toggleWebPick, touchWeb, waitForRegistered, wantShelfIndex, videoNeverCame, watchDevice, weaveHandles, webAddress, webDriving, webOfSeat, webPaneOf, webPick, webSeq, webStateOf, webTabNow, webTabsIn, webTouch, webYards, wireLinks, withoutVariant, yardOf };

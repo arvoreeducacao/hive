@@ -261,35 +261,47 @@ test("a question takes the drawer over the box: markdown, options with their key
   assert.equal(box.value, "", "the box is the free answer now");
   const ban = drawer(e).querySelector(".cp-ask");
   assert.equal(ban.querySelector(".cp-ask-h").textContent, "Banco");
-  assert.equal(ban.querySelector(".cp-bcount").textContent, "1/2");
+  assert.equal(ban.querySelector(".cp-ask-page").textContent, "1/2");
   assert.ok(ban.querySelector(".cp-ask-q :is(b, strong)"), "the question is markdown");
   const options = [...ban.querySelectorAll(".cp-opt")];
   assert.deepEqual(options.map((o) => o.querySelector(".cp-opt-l").textContent), ["Postgres", "MySQL"]);
   assert.equal(options[0].querySelector(".cp-opt-d").textContent, "o de sempre");
   assert.deepEqual(options.map((o) => o.getAttribute("aria-keyshortcuts")), ["1", "2"]);
   assert.equal(options[0].querySelector("kbd"), null, "the number lives in the tooltip, not as a key cap beside every option");
-  assert.equal(form(e).querySelector(".cp-pill").textContent, "Next question");
+  assert.equal(ban.querySelector(".cp-ask-foot .cp-ask-go").textContent, "Next question", "the confirmation lives in the card");
+  assert.equal(form(e).querySelector(".sv-btns > .cp-acts:not([hidden])"), null, "the composer bar carries no question button");
   ban.querySelector(".cp-ask-head").click();
   assert.equal(drawer(e).querySelector(".cp-ask").dataset.fold, "collapsed");
   assert.equal(drawer(e).querySelector(".cp-ask-line").textContent, "Qual **banco** usar?");
 });
 
-test("typed words answer the question instead of dropping it, a pick moves on by itself, and the box comes back", async () => {
+test("typed words answer the question, a pick never moves on by itself, the review comes before the send, and the box comes back", async () => {
   const { e, sent, box } = seat({ busy: true });
   typed(box, "meu rascunho");
   svEvent(e, { type: "driver", subtype: "question", id: "q2", questions: QUESTIONS });
   typed(box, "SQLite, na verdade");
   press(box, "Enter");
-  assert.equal(drawer(e).querySelector(".cp-bcount").textContent, "2/2");
-  assert.equal(form(e).querySelector(".cp-pill").textContent, "Submit answers");
+  assert.equal(drawer(e).querySelector(".cp-ask-page").textContent, "2/2");
+  assert.equal(drawer(e).querySelector(".cp-ask-go").textContent, "Review answers");
   assert.equal(sent.some((one) => one.type === "say"), false, "nothing was said to the chat — the question stays");
   window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "2", bubbles: true, cancelable: true }));
   await rest(260);
+  assert.equal(drawer(e).querySelector(".cp-ask-page").textContent, "2/2", "the pick stays on its question");
+  assert.equal(sent.some((one) => one.type === "answer"), false, "the pick does not send");
+  press(box, "Enter");
+  const review = drawer(e).querySelector(".cp-ask-review");
+  assert.ok(review, "the review takes the drawer");
+  assert.deepEqual([...review.querySelectorAll(".cp-ask-sum")].map((row) => [row.querySelector(".cp-ask-sum-q").textContent, row.querySelector(".cp-ask-sum-a").textContent]), [["Banco", "SQLite, na verdade"], ["Deploy", "Amanhã"]]);
+  assert.equal(drawer(e).querySelector(".cp-ask-go").textContent, "Submit answers");
+  assert.equal(box.readOnly, true, "the box rests while the answers are reviewed");
+  press(box, "Enter");
+  await rest();
   const answer = sent.find((one) => one.type === "answer");
   assert.deepEqual(answer, { type: "answer", id: "q2", answers: { "Qual **banco** usar?": "SQLite, na verdade", "Quando subir?": "Amanhã" }, cid: answer.cid });
   await rest();
   assert.equal(e.ask, null);
   assert.equal(box.value, "meu rascunho");
+  assert.equal(box.readOnly, false, "the box takes words again once the answer is sent");
   svEvent(e, { type: "driver", subtype: "question_answered", id: "q2" });
   const sum = [...(svConvFlushAll(), e.scroll).querySelectorAll(".sv-q .qsum-row")].map((row) => row.textContent);
   assert.deepEqual(sum, ["Qual **banco** usar?→SQLite, na verdade", "Quando subir?→Amanhã"]);
@@ -301,12 +313,81 @@ test("previous walks back with its own answer, and a reloaded question shows wha
   typed(box, "o primeiro");
   press(box, "Enter");
   typed(box, "o segundo");
-  form(e).querySelector(".cp-prev").click();
+  drawer(e).querySelector('.cp-ask-arrow[data-d="-1"]').click();
   assert.equal(box.value, "o primeiro");
   svEvent(e, { type: "driver", subtype: "question_answered", id: "q3", answers: { "Qual **banco** usar?": "Postgres", "Quando subir?": ["Agora"] } });
   assert.equal(e.ask, null);
   assert.deepEqual([...(svConvFlushAll(), e.scroll).querySelectorAll(".sv-q .qsum-a")].map((a) => a.textContent), ["Postgres", "Agora"]);
   assert.ok(e.scroll.querySelector(".qsum").parentElement.classList.contains("summed"));
+});
+
+test("the arrows walk the questions, a change made from the review comes back to it, and nothing is sent before the confirmation", async () => {
+  const { e, sent } = seat({ busy: true });
+  svEvent(e, { type: "driver", subtype: "question", id: "q4", questions: QUESTIONS });
+  const page = () => drawer(e).querySelector(".cp-ask-page");
+  const back = () => drawer(e).querySelector('.cp-ask-arrow[data-d="-1"]');
+  const ahead = () => drawer(e).querySelector('.cp-ask-arrow[data-d="1"]');
+  const options = () => drawer(e).querySelectorAll(".cp-opt");
+  const go = () => drawer(e).querySelector(".cp-ask-foot .cp-ask-go");
+  const reviewOpen = () => !!drawer(e).querySelector(".cp-ask-review");
+  const answered = () => sent.some((one) => one.type === "answer");
+  assert.ok(drawer(e).querySelector(".cp-ask-top > .cp-ask-nav"), "the arrows sit at the top of the card");
+  assert.equal(page().textContent, "1/2");
+  assert.equal(back().disabled, true, "nothing comes before the first question");
+  options()[0].click();
+  await rest(260);
+  assert.equal(page().textContent, "1/2", "a pick never moves on by itself");
+  go().click();
+  assert.equal(page().textContent, "2/2");
+  options()[0].click();
+  go().click();
+  assert.ok(reviewOpen());
+  assert.equal(page().getAttribute("aria-label"), "Review");
+  assert.equal(ahead().disabled, true, "nothing comes after the review");
+  drawer(e).querySelectorAll(".cp-ask-sum")[0].click();
+  assert.equal(page().textContent, "1/2");
+  assert.equal(drawer(e).querySelector('.cp-opt[aria-pressed="true"] .cp-opt-l').textContent, "Postgres", "the answer already given is still picked");
+  options()[1].click();
+  go().click();
+  assert.ok(reviewOpen(), "with every question answered, the change goes back to the review");
+  assert.deepEqual([...drawer(e).querySelectorAll(".cp-ask-sum-a")].map((a) => a.textContent), ["MySQL", "Agora"]);
+  back().click();
+  assert.equal(page().textContent, "2/2");
+  back().click();
+  assert.equal(page().textContent, "1/2");
+  ahead().click();
+  ahead().click();
+  assert.ok(reviewOpen());
+  assert.equal(answered(), false, "walking the questions never sends");
+  go().click();
+  await rest();
+  assert.deepEqual(sent.find((one) => one.type === "answer").answers, { "Qual **banco** usar?": "MySQL", "Quando subir?": "Agora" });
+});
+
+test("the review marks a question left without an answer and holds the send until it has one", async () => {
+  const { e, sent } = seat({ busy: true });
+  svEvent(e, { type: "driver", subtype: "question", id: "q6", questions: QUESTIONS });
+  drawer(e).querySelector('.cp-ask-arrow[data-d="1"]').click();
+  drawer(e).querySelector('.cp-ask-arrow[data-d="1"]').click();
+  const missing = [...drawer(e).querySelectorAll(".cp-ask-sum-a.missing")].map((a) => a.textContent);
+  assert.deepEqual(missing, ["No answer yet", "No answer yet"]);
+  assert.equal(drawer(e).querySelector(".cp-ask-go").disabled, true);
+  assert.equal(sent.some((one) => one.type === "answer"), false);
+});
+
+test("a lone question waits for the confirmation instead of sending on the click", async () => {
+  const { e, sent, box } = seat({ busy: true });
+  svEvent(e, { type: "driver", subtype: "question", id: "q5", questions: [QUESTIONS[1]] });
+  assert.equal(drawer(e).querySelector(".cp-ask-nav"), null, "one question has nothing to walk");
+  drawer(e).querySelectorAll(".cp-opt")[1].click();
+  await rest(260);
+  assert.equal(sent.some((one) => one.type === "answer"), false, "the click only picks");
+  assert.equal(drawer(e).querySelector(".cp-ask-go").textContent, "Submit answer");
+  drawer(e).querySelectorAll(".cp-opt")[0].click();
+  await rest(260);
+  press(box, "Enter");
+  await rest();
+  assert.deepEqual(sent.find((one) => one.type === "answer").answers, { "Quando subir?": "Agora" });
 });
 
 const PLAN = `# Fila editável
@@ -520,6 +601,17 @@ test("a question that lands while you type waits until you stop, so your words d
   box.dispatchEvent(new window.Event("blur"));
   assert.equal(e.ask?.waiting, false, "leaving the box lets the question in");
   assert.equal(form(e).dataset.cpMode, "question");
+});
+
+test("stop and send take the same place at the right edge, after the mic", () => {
+  for (const busy of [false, true]) {
+    const { e } = seat({ busy });
+    const buttons = [...e.host.querySelector(".sv-composer .sv-btns").children];
+    const round = buttons.filter((el) => el.matches(".sv-stop, .sv-send") && !el.hidden);
+    assert.equal(round.length, 1, "only one round button shows at a time");
+    assert.ok(round[0].matches(busy ? ".sv-stop" : ".sv-send"));
+    assert.ok(buttons.indexOf(round[0]) > buttons.indexOf(e.host.querySelector(".sv-talk")), "the round button sits after the mic, so the mic never moves");
+  }
 });
 
 test("stop asks once, says it is stopping, and gives up the lock after the agent stops", async () => {
