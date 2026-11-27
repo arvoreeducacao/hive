@@ -40,7 +40,7 @@ test("a revive opens the seat on the agent that started the conversation", () =>
 
 test("a revive on the box is never handed a folder from this desk", () => {
   const revive = cut(server, "async function reviveSession(", "const PREVIEW_TAIL_BYTES");
-  assert.match(revive, /cwd: dir\.startsWith\(`\$\{CLOUD_ROOT\}\/`\) \? dir : ""/, "a synced session's local folder is sent to the box, where it does not exist, and the seat dies on the spot");
+  assert.match(revive, /cwd: dir\.startsWith\(`\$\{onTheHost\(CLOUD_ROOT\)\}\/`\) \? dir : ""/, "a synced session's local folder is sent to the box, where it does not exist, and the seat dies on the spot");
 });
 
 test("bring-local says plainly that another agent's conversation cannot be copied, instead of hunting a claude transcript", () => {

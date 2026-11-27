@@ -83,6 +83,14 @@ test("the terminal on the server takes the keyboard the same way", async () => {
   assert.equal(st.typing, "terminal-1");
 });
 
+test("a terminal on a host names the host in the ask, and takes the keyboard too", async () => {
+  hive();
+  await openShell("cloud", "rita@devbox");
+
+  assert.deepEqual(opened, [{ where: "cloud", host: "rita@devbox" }]);
+  assert.equal(st.typing, "terminal-1");
+});
+
 test("a shell the server refuses takes nobody's keyboard", async () => {
   hive();
   const shellFails = globalThis.fetch;

@@ -99,7 +99,18 @@ function seatDrag(el, name) {
   });
 }
 
+async function forgetFailedJob(job) {
+  await fetch("/api/spawning/forget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: job.id }) }).catch(() => null);
+  if (st.open === job.name) closeTile();
+  pull();
+}
+
+const failedJobOf = (name) => ((st.data?.sessions || []).some((one) => one.name === name) ? null
+  : (st.data?.spawning || []).find((job) => job.name === name && job.step === "failed") || null);
+
 async function closeSeat(s, at) {
+  const failed = failedJobOf(s.name);
+  if (failed) return forgetFailedJob(failed);
   const pending = leftoversOf(s);
   const asks = s.anon || confirmBefore(s.kind === "shell" ? "closeTerminal" : "closeChat");
   const settle = asks ? appendLeftovers(pending) : () => {};

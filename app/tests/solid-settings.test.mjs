@@ -558,7 +558,6 @@ test("a step already answered thanks you instead of asking again", () => {
 
 test("every painter in this region paints through its solid view", () => {
   const guards = [
-    ["seat-menu", "function paintMenu(cap, rows, x, y) {", /menuSolid\.show\(menuViewModel\(cap, rows\)\);/],
     ["team", "function renderMirror() {", /mirrorSolid\.show\(mirrorViewModel\(\)\);/],
     ["preferences", "function paintChoices() {", /choiceSolids\.lang\.show\(/],
     ["themes", "function paintThemes() {", /themesSolid\.show\(themesViewModel\(\)\);/],

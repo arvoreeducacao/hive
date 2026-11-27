@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { app, views } from "./dom.mjs";
 
 await views();
-const { svEvent, mcpAuthenticate: cardSignIn, loadMcpBody } = await app("chat-and-panes");
+const { svEvent, mcpAuthenticate: cardSignIn, runNativeCommand } = await app("chat-and-panes");
 const { getStructured } = await app("chat-stretches");
 const { svConvFlushAll } = await app("conversation-model");
 const signIn = await app("mcp-sign-in");
@@ -244,13 +244,11 @@ test("a sign-in that does not start puts the button back and says why", async ()
 test("the /mcp card offers the same sign-in on a server that needs one", async () => {
   const { e, status } = chat();
   status([{ name: "linear", status: "needs-auth" }]);
-  const card = document.createElement("div");
-  card.className = "sv-cmd";
-  const body = document.createElement("div");
-  card.appendChild(body);
-  e.host.appendChild(card);
-  await loadMcpBody(e, body, () => {});
-  const row = body.querySelector(".mcp-row");
+  await runNativeCommand(e, "mcp");
+  await settle();
+  const card = e.host.querySelector(".sv-cmd");
+  assert.equal(card.querySelector(".ch span").textContent, "/mcp");
+  const row = card.querySelector(".body .mcp-row");
   assert.ok(row.querySelector("button.auth"));
   const calls = [];
   const before = globalThis.fetch;

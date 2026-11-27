@@ -7,7 +7,7 @@ import { accessSync, chmodSync, closeSync, constants as fsConstants, createReadS
 import { CREDENTIAL_SAVED, loginConfirmed } from "./lib/server-login.mjs";
 import { hubGuideOf, meetingsGuideOf, serverGuideOf } from "./lib/server-guide.mjs";
 import { writeFile, mkdir, rename, rm, unlink, appendFile } from "node:fs/promises";
-import { parse as parseJsonc, printParseErrorCode, modify, applyEdits } from "jsonc-parser";
+import { parse as parseJsonc, printParseErrorCode } from "jsonc-parser";
 import { createHash, randomUUID } from "node:crypto";
 import { seatKey, fleetPlan, ownsFleet, localRestoreScript, localRestorePlan, seatIsRestorable, archiveEntry, seatFromArchive, archiveOrder, GAVE_UP_NOTHING_TO_RESUME, withoutTheLiving, HELD_STILL_ANSWERS, settleSpawnJobs, forgetSpawnJobsOf } from "./lib/fleet.mjs";
 import { isVaultRef, secretsForSeats, valueFor, vaultThroughGateway, withVaultValues } from "./lib/secrets.mjs";
@@ -43,6 +43,7 @@ import { TITLE_SCHEMA, buildTitlePrompt, formatTitleContext, githubLinksIn, titl
 import { projectOfChat, titleInstructionsFor } from "./assets/title-instructions.mjs";
 import { codexKnownServers, codexServerToAdd } from "./lib/codex-mcp.mjs";
 import { cleanAutocompact, cleanAvatar, cleanBlockSize, cleanBrandFace, cleanExperience, cleanExperienceOff, cleanExtensions, cleanFlag, cleanFont, cleanGaze, cleanInfoHeight, cleanInfoWidth, cleanKeys, cleanLanguage, cleanLayout, cleanLook, cleanMachine, cleanPatch, cleanPet, cleanProviders, cleanQuietDays, cleanQuitShortcut, cleanScreenReader, cleanShelf, cleanSound, cleanSounds, cleanSttLanguage, cleanSttModel, cleanTerminal, cleanTerminalShell, cleanThemeName, cleanThemes, cleanThreadWidth, cleanTimeFormat, cleanTitleInstructions, cleanToolCalls, cleanVisual, cleanVolume, cleanWear, CONTEXT_USAGE_ENV, contextUsageEnv, FONT_DEFAULTS, GITHUB_REPO_URL, isPlainObject, sameGithubRepo, cleanPrViews, cleanAppearance, cleanThemeLight, cleanContrast, cleanGlass, cleanPanelMotion, cleanChatWidth, seatTuningEnv, SEAT_TUNING_ENVS, cleanSendShortcut, cleanFollowUp } from "./lib/config.mjs";
+import { editLeaves } from "./lib/config-leaves.mjs";
 import { buildNextPromptAsk, nextPromptFromAnswer, nextPromptSkip } from "./lib/next-prompt.mjs";
 import { seatsGoneQuiet, quietReason, QUIET_SWEEP_EVERY_MS } from "./lib/quiet-seats.mjs";
 import { cleanDiaryDays, diariesToPrune, pruneDiary, readDiaries, readSeatMeta, syncedSessionIds } from "./lib/diary-prune.mjs";
@@ -128,7 +129,7 @@ import { registerMemoryRoutes } from "./routes/memories.mjs";
 import { createLocalMemories } from "./lib/local-memories.mjs";
 import { createScopeJudge, JUDGE_TIMEOUT_MS } from "./lib/memory-judge.mjs";
 import { createTeamMemoryHub, isRepo, repoOfRemote } from "./lib/team-memory.mjs";
-import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, SCREENBOOK_STORE, TEAM_MEMORY_REPO, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
+import { asTheSystemWritesIt, HOME, HIVE_HOME, SANDBOX, HIVE_ENV_CONFIG, NS, AWS_PROFILE, CLUSTER, RELEASE_REPO, HUB_FOLDER, REPO_FOLDER, POD_HUB, serverIsWanted, urlServerIsWanted, sshHostAsked, clusterIsWanted, HUB, DEV, POD, STS, ENV_FILE, POKERS, DEPLOYMENT_DIR, SCREENBOOK_STORE, TEAM_MEMORY_REPO, AVEIA_URL, EXTENSIONS_REPO, deploymentScriptIn, readHiveEnvConfig, loadConfig } from "./lib/env.mjs";
 import { measureShots, shotsDaysOf, sweepShots } from "./lib/shots-sweep.mjs";
 import { withinRoots } from "./lib/bounds.mjs";
 import { SLACK_LINK, threadKey, threadCache, storeSessionThreads, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut, facesOnSlack, nameFromEmail } from "./lib/slack.mjs";
@@ -137,6 +138,11 @@ import { directSignInUrl, signInBrowserEnv, signInUrlFile } from "./lib/sign-in-
 import { codexLimitsPerAccount, createPlanMemory, dryAccounts, kimiFileStore, kimiLimitsPerAccount, kiroLimitsPerAccount, limitsPerAccount, tightestAccount } from "./lib/limits.mjs";
 import { KEEP_AWAKE_TICK_MS, createKeepAwake, createKeepAwakeTick, inhibitorCommand, keepAwakeRunsHere } from "./lib/keep-awake.mjs";
 import { createServers } from "./lib/servers.mjs";
+import { createSshHost } from "./lib/ssh-host.mjs";
+import { createHostBook, hostIdOf } from "./lib/host-book.mjs";
+import { hostFolderOf, placeOnHost, shellOnHost } from "./lib/host-folder.mjs";
+import { createReachContext } from "./lib/reach-context.mjs";
+import { registerHostRoutes } from "./routes/hosts.mjs";
 import { createBrokerClient } from "../server/client.mjs";
 import { createDesk } from "./lib/seat-desk.mjs";
 import { SEAT_KINDS, createRelay } from "./lib/seat-relay.mjs";
@@ -277,7 +283,47 @@ async function nativeProgram(exe, args) {
   return [found.file, [...found.args, ...args]];
 }
 const OWNS_FLEET = ownsFleet({ owns: process.env.HIVE_OWNS_FLEET, sandbox: SANDBOX });
-const CLOUD = serverIsWanted(process.env, readHiveEnvConfig());
+const SERVER_ASKED = serverIsWanted(process.env, readHiveEnvConfig());
+let CLOUD = SERVER_ASKED;
+const SSH_ASKED = sshHostAsked(process.env, readHiveEnvConfig());
+const sshHosts = new Map();
+const activeHosts = new Set();
+const seatHosts = new Map();
+const hostBook = createHostBook({ file: join(HIVE_HOME, "hosts.json"), seeds: SSH_ASKED ? [SSH_ASKED] : [] });
+let urlAsked = { at: 0, asked: false };
+
+function urlServerAsked() {
+  if (Date.now() - urlAsked.at < 2000) return urlAsked.asked;
+  urlAsked = { at: Date.now(), asked: urlServerIsWanted(process.env, readHiveEnvConfig()) };
+  return urlAsked.asked;
+}
+
+function firstActiveHost() {
+  for (const id of activeHosts) if (sshHosts.has(id)) return id;
+  return "";
+}
+
+const defaultHost = () => (urlServerAsked() ? "" : firstActiveHost());
+const reachContext = createReachContext({
+  defaultHost,
+  knows: (id) => id === "" || sshHosts.has(id),
+  hostOfSeat: (name) => seatHosts.get(name) ?? fleet.get(seatKey("cloud", name))?.host ?? null
+});
+const currentHost = () => reachContext.current();
+const currentSsh = () => sshHosts.get(currentHost()) || null;
+const onHost = (host, work) => reachContext.run(host, work);
+
+function cloudHosts() {
+  const hosts = urlServerAsked() ? [""] : [];
+  for (const id of activeHosts) if (sshHosts.has(id)) hosts.push(id);
+  return hosts.length ? hosts : [""];
+}
+
+function hostOfRecord(seat) {
+  if (seat?.where !== "cloud") return "";
+  if (typeof seat.host === "string") return seat.host;
+  return seatHosts.get(seat.name) ?? "";
+}
 const PHONES = process.env.HIVE_PHONES === "1";
 const BIND = PHONES ? (process.env.HIVE_BIND || "127.0.0.1") : "127.0.0.1";
 const DEVICES_FILE = process.env.HIVE_DEVICES || join(HIVE_HOME, "devices.json");
@@ -312,7 +358,6 @@ const CONFIG_HEADER = `// hive — written by the app's panels, safe to edit by 
 // (\`null\` keeps the panels as they are), panelMotion (milliseconds) and chatWidth
 // (\`auto\`, \`full\` or pixels).`;
 
-const JSONC_FORMAT = { formattingOptions: { insertSpaces: true, tabSize: 2 } };
 const tilde = (file) => file.replace(homedir(), "~");
 
 function configStamp() {
@@ -440,23 +485,6 @@ const keepAwakeTick = keepAwake
 async function autocompactNow() {
   const { config } = await readConfig();
   return autocompactFromConfig(config);
-}
-
-function editLeaves(text, patch, current, path = []) {
-  let out = text;
-  for (const [key, value] of Object.entries(patch)) {
-    const here = [...path, key];
-    if (!isPlainObject(value)) {
-      out = applyEdits(out, modify(out, here, value, JSONC_FORMAT));
-      continue;
-    }
-    const before = isPlainObject(current?.[key]) ? current[key] : {};
-    out = editLeaves(out, value, before, here);
-    for (const gone of Object.keys(before)) {
-      if (!(gone in value)) out = applyEdits(out, modify(out, [...here, gone], undefined, JSONC_FORMAT));
-    }
-  }
-  return out;
 }
 
 async function ensureConfigFile() {
@@ -855,6 +883,7 @@ async function powerSwitch(...verb) {
 }
 
 const hasPowerSwitch = () => {
+  if (currentSsh()) return false;
   const script = deploymentScript("pod-power.sh");
   return !!script && existsSync(script);
 };
@@ -892,9 +921,24 @@ async function podUp({ fresh = false } = {}) {
 }
 
 const WAKE_TIMEOUT = 180000;
+const SSH_KNOCKS = 3;
 
 async function wakeAndWait(onStep = () => {}, timeout = WAKE_TIMEOUT) {
   if (!CLOUD) return { error: NO_ADDRESS };
+  const ssh = currentSsh();
+  if (ssh) {
+    if (ssh.url() && (await ssh.alive())) return { ok: true, woke: false };
+    onStep(`reaching ${ssh.label} over ssh`);
+    for (let knock = 0; knock < SSH_KNOCKS; knock += 1) {
+      ssh.again();
+      if (await ssh.reach(timeout)) {
+        invalidatePod();
+        return { ok: true, woke: true };
+      }
+      if (!ssh.status().away) break;
+    }
+    return { error: cloudDoorTrouble() };
+  }
   if (await podUp()) return { ok: true, woke: false };
   onStep("waking the pod");
   const started = await podAction("wake");
@@ -917,7 +961,7 @@ async function localScreen(name) {
 
 const KUBECTL_NOISE = /^(?:[EWIF]\d{4} \d{2}:\d{2}:\d{2}\.\d+\s+\d+ \S+:\d+\]|error: (?:error reading from error stream|unable to upgrade connection)).*\r?\n?/gm;
 
-async function cloudWall() {
+async function wallOfThisHost() {
   const painted = await onCloudSeats("GET", `/wall?lines=${LINES}`);
   if (!painted.ok) return { up: false, windows: {} };
   const held = painted.body.seats || {};
@@ -935,10 +979,29 @@ async function cloudWall() {
   return { up: true, windows };
 }
 
+async function cloudWall() {
+  const walls = await Promise.all(cloudHosts().map(async (host) => ({ host, ...(await onHost(host, wallOfThisHost)) })));
+  const windows = {};
+  const ups = {};
+  for (const wall of walls) {
+    ups[wall.host] = wall.up;
+    for (const [name, one] of Object.entries(wall.windows)) {
+      if (windows[name]) continue;
+      windows[name] = { ...one, host: wall.host };
+      seatHosts.set(name, wall.host);
+    }
+  }
+  return { up: urlServerAsked() ? !!ups[""] : walls.some((wall) => wall.up), ups, windows };
+}
+
 async function cloudSeatNames() {
-  const listed = await onCloudSeats("GET", "");
-  if (!listed.ok) return { ok: false, out: "", error: listed.error };
-  return { ok: true, out: (listed.body.seats || []).map((one) => one.name).join("\n"), error: "" };
+  const mine = currentHost();
+  const hosts = [...new Set([mine, ...cloudHosts()])];
+  const listed = await Promise.all(hosts.map(async (host) => ({ host, said: await onHost(host, () => onCloudSeats("GET", "")) })));
+  const own = listed.find((one) => one.host === mine).said;
+  if (!own.ok) return { ok: false, out: "", error: own.error };
+  const names = listed.flatMap((one) => (one.said.ok ? (one.said.body.seats || []).map((seat) => seat.name) : []));
+  return { ok: true, out: [...new Set(names)].join("\n"), error: "" };
 }
 
 async function localStatus(name) {
@@ -1476,7 +1539,7 @@ async function fromPod() {
   if (stale && !podCache.fetching) {
     podCache.fetching = (async () => {
       const painted = await cloudWall();
-      podCache = { at: Date.now(), up: painted.up, windows: painted.windows, fetching: null };
+      podCache = { at: Date.now(), up: painted.up, ups: painted.ups, windows: painted.windows, fetching: null };
       return podCache;
     })().catch(() => {
       podCache.fetching = null;
@@ -1578,7 +1641,8 @@ async function collect() {
     rememberStructuredLive(name, structuredInfo);
     rememberStructuredTalk(seatKey("cloud", name), structuredInfo);
     rememberStructuredSession(name, "cloud", structuredInfo);
-    sessions.push(build(name, "cloud", seen.lines, d.status, d.mission, seen.links, "", seen.running, structuredSeat("cloud", name) || !!structuredInfo, structuredInfo));
+    const built = build(name, "cloud", seen.lines, d.status, d.mission, seen.links, "", seen.running, structuredSeat("cloud", name) || !!structuredInfo, structuredInfo);
+    sessions.push(d.host ? { ...built, host: d.host, hostLabel: sshHosts.get(d.host)?.label || d.host } : built);
   }
 
   const alive = new Set(sessions.map((s) => s.name));
@@ -1605,13 +1669,15 @@ async function collect() {
 
   const data = {
     pod: { name: myHiveName() || POD || "", up: pod.up },
+    hosts: hostList(),
+    hasServer: urlServerAsked(),
     hub: HUB,
     sessions: withErrand,
     gone: goneKin(errands, withErrand),
     errands: grouped.errands.map((one) => ({ errand: one.errand, asked: one.asked, seats: one.seats.map((s) => s.name) })),
     closed: closedErrands(errands).sort((a, b) => b.endedAt - a.endedAt),
     day,
-    spawning: [...spawning.values()].map((j) => ({ id: j.id, name: j.name, where: j.where, step: j.step, mission: j.mission, error: j.error, model: j.model, repo: j.repo, by: j.by || "", at: j.at, naming: !!j.titleLater, settled: !!j.settled })),
+    spawning: [...spawning.values()].map((j) => ({ id: j.id, name: j.name, where: j.where, step: j.step, mission: j.mission, error: j.error, model: j.model, repo: j.repo, host: j.host || "", hostLabel: j.host ? sshHosts.get(j.host)?.label || j.host : "", by: j.by || "", at: j.at, naming: !!j.titleLater, settled: !!j.settled })),
     worktrees: worktreeBrief(),
     archived: archivedBrief(),
     shut: shutBrief(),
@@ -1985,7 +2051,7 @@ const WRITE_FILE = [
 
 const isRepoRel = (rel) => /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/.test(String(rel || "")) && !String(rel).split("/").includes("..");
 const isFileRel = (path) => !!path && !path.startsWith("/") && !path.includes("\\") && !path.split("/").includes("..") && path.length < 400;
-const rootOf = (where) => (where === "cloud" ? CLOUD_ROOT : HUB);
+const rootOf = (where) => (where === "cloud" ? onTheHost(CLOUD_ROOT) : HUB);
 const repoNameOf = (rel) => rel.split("/").pop();
 
 function shIn(cmd, args, input, timeout = 20000) {
@@ -2309,7 +2375,7 @@ const POD_ATTACHMENTS = "/workspace/hive/assets";
 function podAttachmentAllowed(asked, anchor) {
   if (asked.startsWith("~")) return false;
   const full = posix.normalize(asked.startsWith("/") ? asked : posix.join(anchor || "/nowhere", asked));
-  return [anchor, POD_ATTACHMENTS, "/tmp"].some((root) => root && (full === root || full.startsWith(`${posix.normalize(root).replace(/\/$/, "")}/`)));
+  return [anchor, onTheHost(POD_ATTACHMENTS), "/tmp"].some((root) => root && (full === root || full.startsWith(`${posix.normalize(root).replace(/\/$/, "")}/`)));
 }
 
 async function readAttachment({ path, where, session }) {
@@ -3278,12 +3344,17 @@ const AGENT_BINARY = { kiro: "kiro-cli", cursor: "cursor-agent", antigravity: "a
 
 const OVER_THE_WIRE = 10000;
 
+function onTheHost(text) {
+  const ssh = currentSsh();
+  return ssh ? ssh.paths(text) : text;
+}
+
 async function onTheServer(script, args = [], { timeout, input } = {}) {
   const server = await serverFor();
   if (!server) return { ok: false, out: "", error: cloudDoorTrouble() };
   const said = await server.client.post("/api/run", {
-    script,
-    args: args.map(String),
+    script: onTheHost(script),
+    args: args.map((one) => onTheHost(String(one))),
     ...(input === undefined ? {} : { stdin: Buffer.from(input).toString("base64") }),
     ...(timeout ? { timeoutMs: timeout } : {})
   }, timeout ? { timeoutMs: timeout + OVER_THE_WIRE } : undefined);
@@ -3299,7 +3370,7 @@ async function onTheServer(script, args = [], { timeout, input } = {}) {
 async function bytesFromServer(script, args = [], { timeout } = {}) {
   const server = await serverFor();
   if (!server) return { ok: false, data: Buffer.alloc(0), error: cloudDoorTrouble() };
-  const said = await server.client.post("/api/run", { script, args: args.map(String), ...(timeout ? { timeoutMs: timeout } : {}) },
+  const said = await server.client.post("/api/run", { script: onTheHost(script), args: args.map((one) => onTheHost(String(one))), ...(timeout ? { timeoutMs: timeout } : {}) },
     timeout ? { timeoutMs: timeout + OVER_THE_WIRE } : undefined);
   if (!said.ok) return { ok: false, data: Buffer.alloc(0), error: said.error || "the server would not run that" };
   const body = said.body || {};
@@ -3400,9 +3471,12 @@ async function seatInATmuxWindow({ name, model, effort, fast = false, prompt, im
 
 const gitIn = (dir, args, timeout = 8000) => shr("git", ["-C", dir, ...args], { timeout });
 
-async function newChat({ name, prompt, images = [], where = "local", model = "", repo = "", branch = "", account = "", structured = false, agent = "", effort = "", fast = false, anon = false, project = "", base = "", worktree = false, tree = "" }) {
+async function newChat({ name, prompt, images = [], where = "local", model = "", repo = "", branch = "", account = "", structured = false, agent = "", effort = "", fast = false, anon = false, project = "", base = "", worktree = false, tree = "", folder = "" }) {
   if (anon && (where === "cloud" || !structured || (agent && agent !== "claude"))) throw new Error("an anonymous chat is a native claude chat on this machine");
   assertSpawnArgs({ name, model, repo, branch, account, agent, effort, project, base });
+  const askedFolder = hostFolderOf(where === "cloud" ? folder : "");
+  if (!askedFolder.ok) throw new Error(askedFolder.error);
+  const hostSeen = where === "cloud" ? currentSsh()?.status() || null : null;
   const eng = OTHER_AGENTS.has(agent) ? agent : "claude";
   if (where !== "cloud") await providerReadyOrSay(eng);
   if (model) chosenModels.set(name, model);
@@ -3424,8 +3498,7 @@ async function newChat({ name, prompt, images = [], where = "local", model = "",
     if (where === "cloud") {
       const opened = await onCloudSeats("POST", "", {
         name,
-        repo: repo || cloudRepoOfTheHub(HUB, HUB_FOLDER),
-        branch,
+        ...placeOnHost({ ssh: !!hostSeen, folder: askedFolder.folder, repo, branch, kept: hostSeen ? hostBook.folderOf(currentHost()) : "", home: hostSeen?.home || "", hub: !!hostSeen?.hub, hubRepo: cloudRepoOfTheHub(HUB, HUB_FOLDER) }),
         model,
         effort,
         prompt: prompt || "",
@@ -3522,13 +3595,19 @@ function openJob(body) {
   const id = `n${++jobCount}`;
   const anon = body.anon === true && body.where !== "cloud";
   const where = body.where === "cloud" ? "cloud" : "local";
-  const sleeping = where === "cloud" && CLOUD && !!podCache.at && !podCache.up;
+  const host = where === "cloud" ? currentHost() : "";
+  if (host) {
+    activateHost(host);
+    hostBook.touch(host);
+  }
+  const sleeping = where === "cloud" && CLOUD && !!podCache.at && !(podCache.ups?.[host] ?? podCache.up);
   const named = anon ? `anon-${randomUUID().slice(0, 6)}` : slug(body.name);
   const job = {
     id,
     anon,
     name: named ? freeNameNow(named) : freshNameNow(nameFromMission(body.prompt)),
     where,
+    host,
     mission: anon ? "" : firstLine(body.prompt),
     model: String(body.model || ""),
     repo: String(body.repo || ""),
@@ -3552,7 +3631,7 @@ async function pushMissionAsset(local) {
   if (!existsSync(local)) return "";
   const remote = `/workspace/hive/assets/${local.split("/").pop()}`;
   const put = await cloudReach.putFile(remote, await readFile(local));
-  return put.error ? "" : remote;
+  return put.error ? "" : put.path || remote;
 }
 
 async function pushMissionAssets(prompt, images = []) {
@@ -3565,7 +3644,7 @@ async function pushMissionAssets(prompt, images = []) {
   }
   const carried = [];
   for (const one of images) {
-    const remote = one.startsWith("/workspace/") ? one : await pushMissionAsset(one);
+    const remote = one.startsWith(onTheHost("/workspace/")) ? one : await pushMissionAsset(one);
     carried.push(remote || one);
   }
   return { prompt: out, images: carried };
@@ -3803,6 +3882,7 @@ async function runJob(job, body) {
     if (!job.name) job.name = freshNameNow(nameFromMission(prompt) || `chat-${Date.now().toString().slice(-4)}`, job.id);
     job.name = await freeName(job.name, job.where, job.id);
     job.settled = true;
+    if (job.where === "cloud") seatHosts.set(job.name, job.host || "");
     cache.at = 0;
     if (job.titleLater && prompt) {
       namingNow.add(seatKey(job.where, job.name));
@@ -3822,7 +3902,7 @@ async function runJob(job, body) {
          check as the fast path, and let a box that opens its own door through —
          otherwise a machine with no kubeconfig is turned away from a server it
          is already talking to. */
-      const reach = await powerSwitch("reachable");
+      const reach = currentSsh() ? { ok: true } : await powerSwitch("reachable");
       if (!reach.ok && !(await doorSaysUp())) throw new Error("the cluster is not answering from this machine right now — the link to AWS is flapping; try again in a moment");
       await ensurePodServer((step) => { job.step = step; cache.at = 0; });
       job.step = "starting";
@@ -4221,6 +4301,32 @@ function shellHomeOf(of, cwd) {
   return { of: String(of), home: shellHome({ cwd, ownerCwd: owner.cwd, hub: HUB, isAbsolute, isDir }) };
 }
 
+function hostShellOf(of, cwd) {
+  if (!of) return { of: "", host: currentHost(), folders: {} };
+  const owner = isSeatName(String(of)) ? fleet.get(seatKey("cloud", String(of))) : null;
+  if (!owner && seatHosts.has(String(of))) throw new Error("this hive did not open that chat, so it keeps no terminal for it — open a terminal on the host from the command palette");
+  if (!owner || closingSeats.has(seatKey("cloud", String(of)))) throw new Error("that chat is closed, so its terminal cannot open");
+  const host = hostOfRecord(owner);
+  if (!sshHosts.has(host)) throw new Error("a chat has a terminal of its own on this machine or on an ssh host, and that chat is on neither");
+  return { of: String(of), host, folders: { cwd, ownerCwd: owner.cwd } };
+}
+
+function onHostOfSeat(name, work) {
+  const host = seatHosts.get(name) ?? fleet.get(seatKey("cloud", name))?.host;
+  return typeof host === "string" ? onHost(host, work) : work();
+}
+
+async function shellOnThePod(seat) {
+  const script = `export HOME=/workspace/home PATH=/workspace/npm-global/bin:$PATH
+HIVE_RC=/workspace/hive/shell
+[ -d /workspace/hive ] || HIVE_RC=$HOME/.hive/shell
+tmux has-session -t hive 2>/dev/null || tmux new-session -d -s hive -n hub "sleep 999999"
+tmux new-window -d -t hive -n ${quoted(seat)} "cd /workspace && if [ -f $HIVE_RC/rc.bash ]; then exec bash --rcfile $HIVE_RC/rc.bash -i; else exec bash -l; fi"`;
+  const r = await onTheServer(script, [], { timeout: 30000 });
+  if (!r.ok) throw new Error(r.error.slice(0, 200) || "tmux on the pod refused");
+  return "";
+}
+
 const openingShells = new Set();
 const cancelledShells = new Set();
 
@@ -4239,7 +4345,7 @@ function retireTiedShell(name, where) {
 
 async function openShell({ where, name, of, cwd }) {
   const w = where === "cloud" ? "cloud" : "local";
-  const tied = w === "local" ? shellHomeOf(of, cwd) : { of: "", home: HUB };
+  const tied = w === "local" ? shellHomeOf(of, cwd) : hostShellOf(of, cwd);
   const wanted = slug(name) || "terminal";
   if (!isSeatName(wanted)) throw new Error("that name has characters tmux cannot address");
   if (tied.of) {
@@ -4247,20 +4353,26 @@ async function openShell({ where, name, of, cwd }) {
     openingShells.add(wanted);
   }
   let seat = wanted;
+  let hostFolder = "";
   try {
-  seat = await freeName(wanted, w);
+  seat = await (w === "cloud" ? onHost(tied.host, () => freeName(wanted, w)) : freeName(wanted, w));
   if (tied.of && seat !== wanted) throw new Error("that terminal name is taken");
   if (w === "cloud") {
-    if (!CLOUD) throw new Error(NO_ADDRESS);
-    const woke = await wakeAndWait();
-    if (!woke.ok) throw new Error(woke.error);
-    const script = `export HOME=/workspace/home PATH=/workspace/npm-global/bin:$PATH
-HIVE_RC=/workspace/hive/shell
-[ -d /workspace/hive ] || HIVE_RC=$HOME/.hive/shell
-tmux has-session -t hive 2>/dev/null || tmux new-session -d -s hive -n hub "sleep 999999"
-tmux new-window -d -t hive -n ${quoted(seat)} "cd /workspace && if [ -f $HIVE_RC/rc.bash ]; then exec bash --rcfile $HIVE_RC/rc.bash -i; else exec bash -l; fi"`;
-    const r = await onTheServer(script, [], { timeout: 30000 });
-    if (!r.ok) throw new Error(r.error.slice(0, 200) || "tmux on the pod refused");
+    hostFolder = await onHost(tied.host, async () => {
+      const host = currentHost();
+      if (host) {
+        activateHost(host);
+        hostBook.touch(host);
+      }
+      if (!CLOUD) throw new Error(NO_ADDRESS);
+      const woke = await wakeAndWait();
+      if (!woke.ok) throw new Error(woke.error);
+      const ssh = currentSsh();
+      if (!ssh) return shellOnThePod(seat);
+      const opened = await onCloudSeats("POST", "", { name: seat, kind: "shell", ...shellOnHost({ ...tied.folders, kept: hostBook.folderOf(host), home: ssh.status().home || "" }) });
+      if (!opened.ok) throw new Error(opened.error.split("\n").slice(-2).join(" ").slice(0, 200) || "the host would not open the terminal");
+      return String(opened.body.cwd || "");
+    });
   } else {
     if (!(await hasTmux())) throw new Error("this machine has no tmux — open it on the pod instead");
     if (NATIVE) {
@@ -4296,7 +4408,8 @@ tmux set-window-option -t ${quoted(`${LOCAL_SESSION}:=${seat}`)} remain-on-exit 
     name: seat,
     where: w,
     kind: "shell",
-    cwd: w === "cloud" ? "/workspace" : tied.home,
+    cwd: w === "cloud" ? hostFolder || onTheHost("/workspace") : tied.home,
+    ...(w === "cloud" ? { host: tied.host } : {}),
     ...(tied.of ? { of: tied.of } : {}),
     at: Date.now()
   });
@@ -4319,7 +4432,7 @@ async function windowGone(name) {
 }
 
 const shellsToDrop = dropQueue({
-  kill: (seat) => killSeatWindow(seat.name, seat.where),
+  kill: (seat) => (seat.where === "cloud" ? onHostOfSeat(seat.name, () => killSeatWindow(seat.name, seat.where)) : killSeatWindow(seat.name, seat.where)),
   forget: (seat) => forgetSeat(seat.where, seat.name),
   setTimer: (run, wait) => setTimeout(run, wait).unref?.() ?? null
 });
@@ -4434,7 +4547,7 @@ async function reviveSession({ id, where, cwd, title, structured = false, agent 
   const w = where === "cloud" ? "cloud" : "local";
   const name = await freeName(slug(title).slice(0, 40) || `revive-${String(id).slice(0, 8)}`, w);
   if (cleanTitle(title)) renameSeat(name, w, title);
-  const fallback = w === "cloud" ? POD_HUB : HUB;
+  const fallback = w === "cloud" ? onTheHost(POD_HUB) : HUB;
   const goDir = `cd ${dir || fallback} 2>/dev/null || cd ${fallback}`;
   const compactAt = await autocompactNow();
   const compactFlag = compactAt ? ` --autocompact ${compactAt}` : "";
@@ -4447,7 +4560,7 @@ async function reviveSession({ id, where, cwd, title, structured = false, agent 
       const woke = await wakeAndWait();
       if (!woke.ok) throw new Error(woke.error);
     }
-    const opened = await onCloudSeats("POST", "", { name, cwd: dir.startsWith(`${CLOUD_ROOT}/`) ? dir : "", resumeId: id, structured, compactAt, agent: other || "claude", model: wanted });
+    const opened = await onCloudSeats("POST", "", { name, cwd: dir.startsWith(`${onTheHost(CLOUD_ROOT)}/`) ? dir : "", resumeId: id, structured, compactAt, agent: other || "claude", model: wanted });
     if (!opened.ok) throw new Error(opened.error.slice(0, 200));
   } else {
     if (!(await hasTmux())) throw new Error("this machine has no tmux — revive it on the pod instead");
@@ -5103,7 +5216,10 @@ function mirrorFleetToTheBox() {
   if (SANDBOX) return;
   clearTimeout(fleetMirrorTimer);
   fleetMirrorTimer = setTimeout(() => {
-    onCloudSeats("POST", "/checkpoint", { seats: fleetSeats("cloud") }).catch(() => {});
+    for (const host of cloudHosts()) {
+      const seats = fleetSeats("cloud").filter((seat) => hostOfRecord(seat) === host);
+      onHost(host, () => onCloudSeats("POST", "/checkpoint", { seats })).catch(() => {});
+    }
   }, 5000);
   fleetMirrorTimer.unref?.();
 }
@@ -5713,10 +5829,25 @@ function rememberSeat(seat) {
     newborn.delete(seatKey(seat.where, seat.name));
     return;
   }
-  fleet.set(seatKey(seat.where, seat.name), { openedAt: Date.now(), ...seat });
+  fleet.set(seatKey(seat.where, seat.name), { openedAt: Date.now(), ...withHost(seat) });
   newborn.delete(seatKey(seat.where, seat.name));
   shutSeats.delete(seatKey(seat.where, seat.name));
   saveFleet();
+}
+
+function withHost(seat) {
+  if (seat.where !== "cloud") return seat;
+  const known = fleet.get(seatKey("cloud", seat.name));
+  const host = typeof seat.host === "string" ? seat.host : typeof known?.host === "string" ? known.host : currentHost();
+  seatHosts.set(seat.name, host);
+  return { ...seat, host };
+}
+
+function wakeHostsOfTheFleet() {
+  for (const seat of fleetSeats("cloud")) {
+    const host = hostOfRecord(seat);
+    if (host && sshHosts.has(host)) activateHost(host);
+  }
 }
 
 function forgetSeat(where, name) {
@@ -5726,6 +5857,7 @@ function forgetSeat(where, name) {
     eraseAnonymousSeat(anon).catch(() => {});
   }
   if (fleet.delete(seatKey(where, name))) saveFleet();
+  if (where === "cloud") seatHosts.delete(name);
   noteShutSeat(where, name);
   closingSeats.delete(seatKey(where, name));
   if ([...fleet.values()].some((seat) => seat.of === name && seat.where === where)) setImmediate(() => { sweepOrphanShells().catch(() => {}); });
@@ -5989,7 +6121,15 @@ function tellSeatsNobodyLooksYet() {
 
 async function reconcileCloudFleet() {
   if (!OWNS_FLEET) return;
-  const seats = fleetSeats("cloud");
+  const hosts = new Set(fleetSeats("cloud").map(hostOfRecord));
+  for (const host of hosts) {
+    if (host && !sshHosts.has(host)) continue;
+    await onHost(host, () => reconcileCloudFleetOn(host)).catch(() => {});
+  }
+}
+
+async function reconcileCloudFleetOn(host) {
+  const seats = fleetSeats("cloud").filter((seat) => hostOfRecord(seat) === host);
   if (!seats.length) return;
   const listed = await onCloudSeats("GET", "");
   if (!listed.ok) return;
@@ -6027,6 +6167,7 @@ async function fleetTick() {
   fleetTicking = true;
   try {
     await fleetAsWritten();
+    wakeHostsOfTheFleet();
     await reconcileLocalFleet();
     await reconcileCloudFleet();
   } catch {} finally {
@@ -6747,6 +6888,16 @@ const PRE_ACCEPT = `node -e 'const fs=require("fs");const p=process.env.HOME+"/.
 node -e 'const fs=require("fs");const p=process.env.HOME+"/.claude/settings.json";let j={};try{j=JSON.parse(fs.readFileSync(p,"utf8"))}catch(e){}j.crossSessionInbound="accept";j.skipDangerousModePermissionPrompt=true;fs.writeFileSync(p,JSON.stringify(j,null,2))'`;
 
 async function podAction(action, data) {
+  const ssh = currentSsh();
+  if (ssh && action === "env") {
+    return { error: `the server is ${ssh.label}, reached over ssh — its .env is a file on that machine, and nothing here writes it` };
+  }
+  if (ssh && (action === "wake" || action === "restart")) {
+    ssh.again();
+    invalidatePod();
+    return { ok: true, message: `dialling ${ssh.label} again` };
+  }
+
   if (action === "wake") {
     const r = await powerSwitch("up");
     invalidatePod();
@@ -6861,7 +7012,15 @@ ${CREDENTIAL_SAVED_PROBE}`;
   return { error: "unknown action" };
 }
 
-const cloudReach = createReach({ serverFor: () => serverFor() });
+const cloudReach = createReach({
+  serverFor: () => serverFor(),
+  pathFor: (path) => onTheHost(path),
+  readElsewhere: async (path) => {
+    if (!currentSsh()) return null;
+    const got = await bytesFromServer('cat "$1"', [path], { timeout: 60000 });
+    return got.ok ? got.data : null;
+  }
+});
 
 const deploymentScript = (name) => deploymentScriptIn({ repo: REPO, hub: HUB, dir: DEPLOYMENT_DIR, name });
 const askYourHost = (name, what) => {
@@ -7025,6 +7184,8 @@ async function machineLook() {
 }
 
 function serverAddressOf(dev) {
+  const ssh = currentSsh();
+  if (ssh) return ssh.url();
   const asked = process.env.HIVE_SERVER_URL || readHiveEnvConfig().HIVE_SERVER_URL || "";
   return asked;
 }
@@ -7052,7 +7213,8 @@ async function onboardingState(query) {
   setup.ok = setup.config && setup.key;
 
   const wanted = machine.wantsServer;
-  let server = { wanted, url: serverAddressOf(dev), answers: false, key: "", error: "" };
+  let server = { wanted, url: serverAddressOf(dev), answers: false, key: "", error: "", ssh: currentSsh()?.status() || null };
+  if (server.ssh && !server.url) server.error = server.ssh.error || server.ssh.phase;
   let signature = { ok: false, why: wanted ? "waiting for the server" : "every seat runs on this machine" };
   let claudeOnServer = { loggedIn: false, remoteControl: false, plan: "" };
   if (wanted && server.url) {
@@ -7152,7 +7314,13 @@ async function body(req) {
     s += p;
     if (s.length > BODY_CEILING) { req.destroy(); return { oversized: true }; }
   }
-  try { return JSON.parse(s || "{}"); } catch { return {}; }
+  try {
+    const read = JSON.parse(s || "{}");
+    reachContext.learn(read);
+    return read;
+  } catch {
+    return {};
+  }
 }
 
 const LAZY_PREFIX = "/assets/dist/lazy/";
@@ -7293,7 +7461,7 @@ const answer = async (req, res) => {
   if (url.pathname.startsWith("/api/ext/") && await extensions.serve(req, res, url, json)) return;
 
   const hit = routes.find((r) => r.path === url.pathname && (r.method === null || r.method === req.method));
-  if (hit) return hit.fn(req, res, url, json);
+  if (hit) return reachContext.runForAsk(url.searchParams, () => hit.fn(req, res, url, json));
 
   try {
     const html = await readFile(join(HERE, "app.html"), "utf8");
@@ -7311,6 +7479,7 @@ registerDeviceRoutes(on, { isSeatName, bodyOf: body, switches: async () => { con
 const prDomain = registerPrRoutes(on, { bodyOf: body, sh, shr, extractJson, languageOf, paintLines, liveSessions: () => cache.data?.sessions || [], ceilingOfChat: (name) => readCeiling(HIVE_HOME, name), transcriptOf: seatTranscript });
 const workspaceDomain = registerWorkspaceRoutes(on, { sh, shr, inBash, podUp, onTheServer, hub: HUB, workspaceOf, readManifest, bodyOf: body, gitSaid });
 registerHiveRoutes(on, { collect });
+registerHostRoutes(on, { bodyOf: body, listHosts: () => hostList(), addHost: (target) => addHost(target), forgetHost: (id) => forgetHost(id), foldersOnHost: (id, path, more) => foldersOnHost(id, path, more), setHostFolder: (id, folder) => setHostFolder(id, folder) });
 registerDraftRoutes(on, { bodyOf: body, HIVE_HOME, isSeatName, publish: async (name, text, at) => { await phoneBridge.sendDraft(name, text, at); } });
 registerInboxRoutes(on, { bodyOf: body, HIVE_HOME, settled: (keys) => { cleanUpSettled(keys).catch(() => {}); }, localSeats: () => (cache.data?.sessions || []).filter((one) => one.where === "local" && !one.anon).map((one) => one.name) });
 registerMcpRoutes(on, { bodyOf: body, isSeatName, mcpLogins, onTheServer, startMcpLogin });
@@ -7433,7 +7602,7 @@ extensions = await createExtensionRegistry({
   log: console.log
 }).load();
 registerExtensionRoutes(on, { bodyOf: body, registry: extensions, readConfig, writeConfig, invalidateFleetCache: () => { cache.at = 0; }, store: createExtensionStore({ repo: EXTENSIONS_REPO, personalDir: join(HIVE_HOME, "extensions") }) });
-registerSeatRoutes(on, { bodyOf: body, phoneBridgeFor: () => phoneBridge, openJob, runJob, readErrands, isSeatName, deliverSay, wakeAndWait, fleetTick, structuredSeat, typeText, deliverAnswer, saveFiles, guessNextPrompt, bridgeFor: () => bridge, hiveHome: HIVE_HOME, serverFor, openShell, cancelOpeningShell, retireTiedShell, spawning, invalidateFleetCache: () => { cache.at = 0; }, renameSeat, regenerateSeatTitle, cloudReach, killSeatWindow, historyClosedSeat, forgetSeat, seatLeftovers, removeWorktree, forgetShots, archiveSeat, reviveArchivedSeat, archivedSeats, saveArchivedSeats, eraseConversation });
+registerSeatRoutes(on, { knowsHost: (id) => sshHosts.has(id), bodyOf: body, phoneBridgeFor: () => phoneBridge, openJob, runJob, readErrands, isSeatName, deliverSay, wakeAndWait, fleetTick, structuredSeat, typeText, deliverAnswer, saveFiles, guessNextPrompt, bridgeFor: () => bridge, hiveHome: HIVE_HOME, serverFor, openShell, cancelOpeningShell, retireTiedShell, spawning, invalidateFleetCache: () => { cache.at = 0; }, renameSeat, regenerateSeatTitle, cloudReach, killSeatWindow, historyClosedSeat, forgetSeat, seatLeftovers, removeWorktree, forgetShots, archiveSeat, reviveArchivedSeat, archivedSeats, saveArchivedSeats, eraseConversation });
 registerSlackRoutes(on, { bodyOf: body, isSeatName, bridgeFor: () => slackBridge, linkerFor: () => slackLinker });
 registerThreadRoutes(on, { bodyOf: body, liveSessions: () => cache.data?.sessions || [], threadKey, threadCache, collectThreads, readThreadRegistry, writeThreadRegistry, replyOnSlack, reactOnSlack, markOnSlack, slackFileOut });
 registerAccountRoutes(on, { bodyOf: body, settingsEffort, agentCatalog, readAccounts, readLedger, noteBack, hiveHome: HIVE_HOME, invalidateAccountCache: () => { accountCache = { at: 0, list: [] }; invalidateProviders(); }, runAccount });
@@ -7499,7 +7668,9 @@ const pickProtocol = (offered) => (offered.has("hive") ? "hive" : false);
 
 const wss = new WebSocketServer({ noServer: true, handleProtocols: pickProtocol });
 
-wss.on("connection", async (ws, req) => {
+wss.on("connection", (ws, req) => reachContext.runForAsk(new URL(req.url, "http://localhost").searchParams, () => terminalOverSocket(ws, req)));
+
+async function terminalOverSocket(ws, req) {
   const url = new URL(req.url, "http://localhost");
   const name = url.searchParams.get("name");
   const where = url.searchParams.get("where") === "cloud" ? "cloud" : "local";
@@ -7548,7 +7719,7 @@ wss.on("connection", async (ws, req) => {
   const session = nextView(name);
   await openMirror(session, name);
   return pipeTmux(ws, session, cols, rows, name);
-});
+}
 
 const SERVER_CANDIDATES = [
   process.env.HIVE_SERVER_DIR,
@@ -7573,6 +7744,115 @@ const servers = createServers({
   home: HIVE_HOME,
   log: (line) => console.log(line)
 });
+
+function hostHandle(id) {
+  if (sshHosts.has(id)) return sshHosts.get(id);
+  const handle = createSshHost({
+    asked: id,
+    publicKey: servers.identity.publicSsh,
+    serverDir: SERVER_DIR,
+    name: DEV || userInfo().username,
+    hubFolder: HUB_FOLDER,
+    log: (line) => console.log(`hive: ${line}`),
+    onUp: () => {
+      doorCaches.delete(id);
+      invalidatePod();
+      invalidateOnboarding();
+      if (!SANDBOX) onHost(id, () => ensurePodServer()).catch(() => {});
+    },
+    onDown: () => {
+      doorCaches.delete(id);
+      invalidatePod();
+      invalidateOnboarding();
+    }
+  });
+  sshHosts.set(id, handle);
+  return handle;
+}
+
+function activateHost(id) {
+  const handle = sshHosts.get(id);
+  if (!handle) return null;
+  if (!activeHosts.has(id)) {
+    activeHosts.add(id);
+    CLOUD = true;
+    invalidatePod();
+  }
+  handle.url();
+  return handle;
+}
+
+function seatsOnHost(id) {
+  const names = new Set(fleetSeats("cloud").filter((seat) => hostOfRecord(seat) === id).map((seat) => seat.name));
+  for (const [name, one] of Object.entries(podCache.windows || {})) if (one.host === id) names.add(name);
+  return names.size;
+}
+
+function hostList() {
+  return hostBook.list().map((one) => {
+    const seen = sshHosts.get(one.id)?.status();
+    return { id: one.id, label: one.label, seed: one.seed, active: activeHosts.has(one.id), phase: seen?.phase || "idle", error: seen?.error || "", seats: seatsOnHost(one.id), usedAt: one.usedAt, folder: one.folder || "", home: seen?.home || "", hub: !!seen?.hub };
+  });
+}
+
+function addHost(target) {
+  const added = hostBook.add(target);
+  if (added.error) return added;
+  const id = added.host.id;
+  hostHandle(id);
+  activateHost(id).again();
+  hostBook.touch(id);
+  cache.at = 0;
+  return { ok: true, id, hosts: hostList() };
+}
+
+async function foldersOnHost(asked, path, { hidden = false } = {}) {
+  const id = String(asked || "");
+  if (!sshHosts.has(id)) return { error: "this hive keeps no host by that name — pick the host again" };
+  activateHost(id);
+  return onHost(id, async () => {
+    const server = await serverFor();
+    if (!server) return { error: cloudDoorTrouble() };
+    const said = await server.client.get(`/api/folders?path=${encodeURIComponent(String(path || ""))}${hidden ? "&hidden=1" : ""}`, { timeoutMs: 15000 });
+    if (said.ok && said.body) return said.body;
+    return { error: said.error === "no such route" ? "the server on that host is older than this hive — connect to the host again" : said.error || "the host would not list that folder" };
+  });
+}
+
+function setHostFolder(asked, folder) {
+  const id = String(asked || "");
+  const kept = hostBook.setFolder(id, folder);
+  if (kept.error) return kept;
+  cache.at = 0;
+  return { ok: true, folder: kept.folder, hosts: hostList() };
+}
+
+function forgetHost(asked) {
+  const id = String(asked || "");
+  if (seatsOnHost(id)) return { error: "that host still has chats in this hive — close them first" };
+  const gone = hostBook.forget(id);
+  if (gone.error) return gone;
+  sshHosts.get(id)?.stop();
+  sshHosts.delete(id);
+  activeHosts.delete(id);
+  doorCaches.delete(id);
+  doorComplaints.delete(id);
+  servers.forget(`cloud:${id}`);
+  streams.get(`cloud:${id}`)?.stop();
+  streams.delete(`cloud:${id}`);
+  streamAddresses.delete(`cloud:${id}`);
+  CLOUD = SERVER_ASKED || activeHosts.size > 0;
+  invalidatePod();
+  return { ok: true, hosts: hostList() };
+}
+
+for (const one of hostBook.list()) hostHandle(one.id);
+if (SSH_ASKED) {
+  const seeded = hostBook.list().find((one) => one.seed);
+  if (seeded) activateHost(seeded.id);
+  else console.log(`hive: HIVE_SERVER_SSH names no host this hive can dial — ${hostIdOf(SSH_ASKED).error}`);
+}
+process.once("exit", () => { for (const handle of sshHosts.values()) handle.stop(); });
 
 const seats = createSessions({
   base: HIVE_HOME,
@@ -7710,38 +7990,48 @@ on("GET", "/api/seat/tool-output", async (req, res, url, json) => {
   return json(held.body || {});
 });
 const streams = new Map();
+const streamAddresses = new Map();
 
 function streamFor(one) {
-  if (streams.has(one.where)) return streams.get(one.where);
+  const address = one.url || one.socket || "";
+  const key = one.key || one.where;
+  if (streams.has(key) && streamAddresses.get(key) === address) return streams.get(key);
+  streams.get(key)?.stop();
   const stream = attachServerStream({
     identity: servers.identity,
     audience: one.audience,
     url: one.url || "",
     socket: one.socket || "",
-    warn: (why) => console.log(`hive: ${one.where} — ${why}`)
+    warn: (why) => console.log(`hive: ${key} — ${why}`)
   });
-  streams.set(one.where, stream);
+  streams.set(key, stream);
+  streamAddresses.set(key, address);
   return stream;
 }
 
-let doorComplaint = "";
-const cloudDoorSaid = (why) => {
-  if (doorComplaint === why) return;
-  doorComplaint = why;
+const doorComplaints = new Map();
+const cloudDoorSaid = (why, host = "") => {
+  if (doorComplaints.get(host) === why) return;
+  doorComplaints.set(host, why);
   console.log(`hive: the cloud door did not answer — ${why}`);
 };
 
 /* the reason the door gave is the whole diagnosis, and it used to end in this
    process's log, where nobody looks. A seat that cannot be reached says it. */
 function cloudDoorTrouble() {
+  const ssh = currentSsh();
+  if (ssh) {
+    const seen = ssh.status();
+    return `no server answers on ${seen.label} over ssh — ${seen.error || seen.phase}`;
+  }
   const where = readHiveEnvConfig().HIVE_SERVER_URL || process.env.HIVE_SERVER_URL || "";
   if (!where) return NO_ADDRESS;
-  const why = doorComplaint || "it answered nothing, and said nothing about why";
+  const why = doorComplaints.get("") || "it answered nothing, and said nothing about why";
   return `no server answers at ${where} — ${why}`;
 }
 
 const DOOR_FRESH = 30000;
-let doorCache = { at: 0, server: null };
+const doorCaches = new Map();
 let hiveName = "";
 
 function myHiveName() {
@@ -7755,20 +8045,30 @@ async function whoAmI() {
 }
 
 async function serverFor() {
-  if (doorCache.server && Date.now() - doorCache.at < DOOR_FRESH) {
-    return { ...doorCache.server, stream: streamFor(doorCache.server) };
+  const host = currentHost();
+  const ssh = sshHosts.get(host) || null;
+  const tunnel = ssh ? ssh.url() : "";
+  if (ssh && !tunnel) {
+    doorCaches.delete(host);
+    return null;
   }
-  const found = await findCloudServer({
+  const kept = doorCaches.get(host);
+  if (kept?.server && Date.now() - kept.at < DOOR_FRESH && (!ssh || kept.server.url === tunnel)) {
+    return { ...kept.server, stream: streamFor(kept.server) };
+  }
+  const found = ssh ? await findCloudServer({ env: { HIVE_SERVER_URL: tunnel, HIVE_SERVER_NAME: ssh.label } }) : await findCloudServer({
     env: { ...readHiveEnvConfig(), ...(process.env.HIVE_SERVER_URL ? { HIVE_SERVER_URL: process.env.HIVE_SERVER_URL } : {}) },
     read: () => (existsSync(HIVE_ENV_CONFIG) ? readFileSync(HIVE_ENV_CONFIG, "utf8") : ""),
     write: (text) => writeFileSync(HIVE_ENV_CONFIG, text)
   });
-  if (found.error) { doorCache = { at: 0, server: null }; cloudDoorSaid(found.error); return null; }
-  const one = await servers.remote("cloud", { url: found.url, audience: found.key });
-  if (!one) { doorCache = { at: 0, server: null }; cloudDoorSaid(`${found.url || "the door"} named no key I can sign for`); return null; }
-  doorComplaint = "";
-  if (found.name) hiveName = found.name;
-  doorCache = { at: Date.now(), server: one };
+  if (found.error) { doorCaches.delete(host); cloudDoorSaid(found.error, host); return null; }
+  const key = host ? `cloud:${host}` : "cloud";
+  const reached = await servers.remote(key, { url: found.url, audience: found.key });
+  if (!reached) { doorCaches.delete(host); cloudDoorSaid(`${found.url || "the door"} named no key I can sign for`, host); return null; }
+  const one = { ...reached, where: "cloud", key };
+  doorComplaints.delete(host);
+  if (found.name && host === defaultHost()) hiveName = found.name;
+  doorCaches.set(host, { at: Date.now(), server: one });
   return { ...one, stream: streamFor(one) };
 }
 
@@ -7839,7 +8139,9 @@ const climb = (req, socket, head) => {
 
 server.on("upgrade", climb);
 
-eventsWss.on("connection", (ws, req) => {
+eventsWss.on("connection", (ws, req) => reachContext.runForAsk(new URL(req.url, "http://localhost").searchParams, () => seatOverSocket(ws, req)));
+
+function seatOverSocket(ws, req) {
   const url = new URL(req.url, "http://localhost");
   const name = url.searchParams.get("name");
   const where = url.searchParams.get("where") === "cloud" ? "cloud" : "local";
@@ -7855,7 +8157,7 @@ eventsWss.on("connection", (ws, req) => {
   if (!bridge) return refuse(`bridge.mjs not found — looked in ${SERVER_DIR}`);
 
   seatThroughServer(ws, { where, name, from, window, turns, refuse });
-});
+}
 
 async function seatThroughServer(ws, { where, name, from, window = "all", turns = 0, refuse }) {
   const door = where === "local" ? desk : await serverFor();
@@ -7911,7 +8213,7 @@ async function claimDoor() {
     if (!mine) leaveTheDoorToTheOtherHive();
   }
   console.log(`hive at ${SOCK} — no port, nothing on the network`);
-  console.log(`hub ${HUB} · server ${readHiveEnvConfig().HIVE_SERVER_URL || "(none)"} · pty over websocket, no ttyd`);
+  console.log(`hub ${HUB} · server ${readHiveEnvConfig().HIVE_SERVER_URL || "(none)"} · ssh hosts ${[...sshHosts.keys()].join(", ") || "(none)"} · pty over websocket, no ttyd`);
   canopyPoll();
 }
 
@@ -7928,6 +8230,7 @@ if (!process.env.HIVE_NO_SWEEP) sweepOldShots().catch(() => {});
 await loadTitles();
 await readPrLinks();
 await loadFleet();
+wakeHostsOfTheFleet();
 await loadArchivedSeats();
 if (!process.env.HIVE_NO_SWEEP && OWNS_FLEET && !NATIVE) await sweepAnonymousLeftovers().catch(() => {});
 mirrorFleetToTheBox();

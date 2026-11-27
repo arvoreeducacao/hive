@@ -77,8 +77,9 @@ body:where(.experience-raycast).look-dimension #shell.rail-min .group-title { pa
 :where(body.experience-raycast) #shell { --rail-w: 244px; }
 @media (max-width: 1120px) { :where(body.experience-raycast) #shell { --rail-w: 216px; } }
 :where(body.experience-raycast) #rail { --rail-hover: color-mix(in srgb, var(--txt) 6%, transparent); --rail-pick: color-mix(in srgb, var(--txt) 9%, transparent); --rail-well: color-mix(in srgb, var(--txt) 5%, transparent); display: grid; grid-template-rows: minmax(0, 1fr) auto auto; min-height: 0; background: var(--bg); }
-:where(body.experience-raycast) #rail-list { overflow-y: auto; padding: 0 8px 12px; }
-:where(body.experience-raycast) .rail-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 8px 32px 8px 0; background: var(--bg); }
+:where(body.experience-raycast) #rail-list { overflow-x: hidden; overflow-y: auto; padding: 0 8px 12px; }
+:where(body.experience-raycast) #shell:has(> #rail-toggle) { --rail-toggle-room: 32px; }
+:where(body.experience-raycast) .rail-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 4px; padding: 8px var(--rail-toggle-room, 0px) 8px 0; background: var(--bg); }
 :where(body.experience-raycast) .rail-seg { display: flex; flex: 1; min-width: 0; gap: 2px; height: 32px; padding: 2px; border-radius: var(--r2); background: var(--rail-well); }
 :where(body.experience-raycast) .rail-seg button { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 4px; border: 0; border-radius: var(--r1); background: none; font-size: 12px; font-weight: 500; color: var(--txt-3); white-space: nowrap; cursor: pointer; }
 :where(body.experience-raycast) .rail-seg button:hover { color: var(--txt-2); }
@@ -222,7 +223,10 @@ body:where(.experience-raycast) #rail .item.off > .rc-dot { margin-top: 6px; }
 }
 :where(body.experience-raycast) #rail-sessions .group-title.drop { border-radius: var(--r1); color: var(--txt); background: var(--rail-well); box-shadow: inset 0 0 0 1px var(--accent); }
 :where(body.experience-raycast) #rail-sessions .item.lifting { opacity: .45; }
-:where(body.experience-raycast) .item .rkids-sum { flex: none; display: flex; align-items: center; gap: 3px; }
+:where(body.experience-raycast) #rail-sessions .rail-blk.lifting { opacity: .45; }
+:where(body.experience-raycast) #rail-sessions .rail-blk.drop-above { box-shadow: 0 -2px 0 var(--accent); }
+:where(body.experience-raycast) #rail-sessions .rail-blk.drop-below { box-shadow: 0 2px 0 var(--accent); }
+:where(body.experience-raycast) .item .rkids-sum { flex: 0 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; min-width: 6px; height: 6px; overflow: hidden; }
 :where(body.experience-raycast) .item .rkids-sum .rc-dot { width: 6px; height: 6px; box-shadow: none; }
 :where(body.experience-raycast) .item .rkids-sum .rc-dot.ready { box-shadow: inset 0 0 0 1.2px var(--txt-2); }
 :where(body.experience-raycast) .item .rkids-sum .rc-dot.stalled { box-shadow: inset 0 0 0 1.2px var(--yellow); }

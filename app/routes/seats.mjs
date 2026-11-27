@@ -18,6 +18,7 @@ export const SELF_CLOSE_DELAY_MS = 1500;
 export function registerSeatRoutes(on, context) {
   const {
     bodyOf,
+    knowsHost = () => true,
     phoneBridgeFor,
     openJob,
     runJob,
@@ -62,6 +63,7 @@ export function registerSeatRoutes(on, context) {
     const prompt = String(b.prompt || "").trim();
     if (!slug(b.name) && !prompt) return json({ error: "write the mission or give it a name" }, 400);
     if (raceCount(b.count) > 1 && !prompt) return json({ error: "a race needs a mission — the chats have to be given the same thing to do" }, 400);
+    if (b.where === "cloud" && typeof b.host === "string" && b.host && !knowsHost(b.host)) return json({ error: "this hive keeps no host by that name — pick the host again" }, 400);
     const jobs = raceMissions(b).map((one) => {
       const job = openJob(one);
       runJob(job, one);
@@ -149,6 +151,7 @@ export function registerSeatRoutes(on, context) {
 
   on("POST", "/api/shell", async (req, res, url, json) => {
     const b = await bodyOf(req);
+    if (b.where === "cloud" && typeof b.host === "string" && b.host && !knowsHost(b.host)) return json({ error: "this hive keeps no host by that name — pick the host again" }, 400);
     try { return json(await openShell(b)); }
     catch (e) { return json({ error: String(e.message || e) }, 400); }
   });
@@ -210,7 +213,7 @@ export function registerSeatRoutes(on, context) {
         const at = `/workspace/hive/assets/${file.split("/").pop()}`;
         const put = await cloudReach.putFile(at, await readFileImpl(file));
         if (put.error) return json({ error: put.error }, 502);
-        remote.push(at);
+        remote.push(put.path || at);
       }
       if (!attach) await typeText(name, "cloud", remote.join(" "));
       return json({ ok: true, paths: remote, path: remote[0] });

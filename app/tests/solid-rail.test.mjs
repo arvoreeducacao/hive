@@ -39,7 +39,7 @@ test("the model groups seats by where they run, local always, cloud only when th
   const withPod = world({ data: { pod: { up: true, name: "pod-1" }, sessions: [seat("a")], archived: [] } });
   assert.deepEqual(withPod.groups.map((g) => g.key), ["cloud", "local"]);
   assert.equal(withPod.groups[0].count, 0);
-  assert.equal(withPod.groups[0].label, "cloud · pod-1");
+  assert.equal(withPod.groups[0].label, "remote · pod-1");
 });
 
 test("a seat row carries what the manual row carried: name, state, glyph, colour, block tag, live count and whether it is here", () => {

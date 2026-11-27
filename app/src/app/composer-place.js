@@ -7,7 +7,7 @@ const folderName = (path) => String(path || "").split("/").filter(Boolean).pop()
 function placeOfSeat(seat) {
   const tree = Array.isArray(seat?.trees) ? seat.trees.find((one) => one?.repo) : null;
   if (!tree) return null;
-  if (seat.where === "cloud") return { icon: "cloud", label: phrase("Cloud"), branch: tree.branch || "" };
+  if (seat.where === "cloud") return { icon: "cloud", label: seat.hostLabel || phrase("Remote"), title: seat.host || "", branch: tree.branch || "" };
   if (tree.main) return { icon: "folder", label: phrase("Local checkout"), branch: tree.branch || "" };
   return { icon: "worktree", label: folderName(tree.path) || phrase("Worktree"), title: tree.path || "", branch: tree.branch || "" };
 }

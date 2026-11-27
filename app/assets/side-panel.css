@@ -164,7 +164,7 @@ body:has(.art.sp.sp-sheet:not([hidden])) #webyard .yard.onstage { z-index: 47; }
 .sp-diff .dl-hunk { color: var(--tx-muted-fg); background: color-mix(in srgb, var(--tx-info) 8%, transparent); }
 .sp-diff .dempty { margin: 0; padding: 16px; font-size: 12px; color: var(--tx-muted-fg); }
 
-.sp-pane[data-surface="pr"] > .tp { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sp-pane[data-surface="pr"] > .tp { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
 .cd-card { position: fixed; z-index: 58; width: 280px; max-height: min(560px, calc(100vh - 80px)); overflow-y: auto; box-sizing: border-box; border: 1px solid var(--tx-border); border-radius: 14px; background: var(--tx-pop); box-shadow: var(--tx-shadow); color: var(--tx-fg); font: 500 13px/1.25 var(--tx-font); outline: none; }
 .cd-sec { display: flex; flex-direction: column; padding: 8px 8px 10px; }
@@ -338,7 +338,7 @@ body.experience-raycast .tp-ck { margin-left: auto; display: inline-flex; align-
 body.experience-raycast .tp-ck.ok .tx-i { color: var(--tx-success); }
 body.experience-raycast .tp-ck.bad { color: var(--tx-error); }
 body.experience-raycast .tp-ck.run .tx-i { color: var(--tx-warning); }
-body.experience-raycast .tp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 72px; font-size: 13px; }
+body.experience-raycast .tp-body { flex: 1; min-height: 0; overflow-y: auto; padding: 4px 16px 16px; font-size: 13px; }
 body.experience-raycast .tp-pad { padding: 16px; }
 body.experience-raycast .tp-none { color: var(--tx-muted-fg); font-size: 12px; }
 body.experience-raycast .tp-fields { display: grid; gap: 2px; padding: 8px 0 6px; }
@@ -407,9 +407,35 @@ body.experience-raycast .tp-ln > span { white-space: pre; padding: 0 10px 0 4px;
 body.experience-raycast .tp-ln.added { background: color-mix(in oklab, var(--tx-add) 12%, transparent); }
 body.experience-raycast .tp-ln.removed { background: color-mix(in oklab, var(--tx-del) 12%, transparent); }
 body.experience-raycast .tp-gap { padding: 2px 10px; color: var(--tx-muted-fg); background: var(--tx-hover); font-size: 11px; }
-body.experience-raycast .tp-fab { all: unset; cursor: pointer; position: absolute; right: 14px; bottom: 14px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--tx-input); background: var(--tx-pop); color: var(--tx-fg); box-shadow: var(--tx-shadow); }
-body.experience-raycast .tp-fab:hover { background: var(--tx-active); }
-body.experience-raycast .tp-compose { position: absolute; left: 12px; right: 12px; bottom: 12px; padding: 10px; border: 1px solid var(--tx-input); border-radius: 12px; background: var(--tx-pop); box-shadow: var(--tx-shadow); display: grid; gap: 8px; }
+body.experience-raycast .tp-barhost { flex: none; }
+body.experience-raycast .tp-bar { display: flex; align-items: center; gap: 10px; min-height: 52px; box-sizing: border-box; padding: 10px 12px 10px 16px; border-top: 1px solid var(--tx-border); font-family: var(--tx-font); }
+body.experience-raycast .tp-bar-end { margin-left: auto; display: flex; align-items: center; gap: 6px; min-width: 0; }
+body.experience-raycast .tp-mb { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--tx-input); background: var(--tx-card); color: var(--tx-fg); font: 500 13px/1 var(--tx-font); white-space: nowrap; }
+body.experience-raycast .tp-mb .lu { width: 14px; height: 14px; }
+body.experience-raycast .tp-mb:hover:not([disabled]) { background: var(--tx-active); }
+body.experience-raycast .tp-mb:focus-visible { box-shadow: 0 0 0 2px var(--tx-primary); }
+body.experience-raycast .tp-mb.quiet { color: var(--tx-muted-fg); }
+body.experience-raycast .tp-mb.quiet:hover, body.experience-raycast .tp-mb.quiet[aria-pressed="true"] { color: var(--tx-fg); }
+body.experience-raycast .tp-mb.go { background: var(--tx-fg); border-color: var(--tx-fg); color: var(--tx-bg); font-weight: 600; }
+body.experience-raycast .tp-mb.go:hover:not([disabled]) { background: color-mix(in oklab, var(--tx-fg) 86%, var(--tx-bg)); }
+body.experience-raycast .tp-mb.bad { color: var(--tx-error); border-color: color-mix(in oklab, var(--tx-error) 45%, transparent); background: color-mix(in oklab, var(--tx-error) 8%, transparent); }
+body.experience-raycast .tp-mb.warn { color: var(--tx-warning, var(--yellow, #e3b341)); border-color: color-mix(in oklab, var(--tx-warning, var(--yellow, #e3b341)) 40%, transparent); background: none; }
+body.experience-raycast .tp-mb[disabled] { cursor: default; opacity: .75; }
+body.experience-raycast .tp-mb .tp-spin { animation: cp-spin 1s linear infinite; }
+body.no-motion .tp-mb .tp-spin { animation: none; }
+body.experience-raycast .tp-split { position: relative; display: inline-flex; }
+body.experience-raycast .tp-split > .tp-mb:first-child { border-radius: 8px 0 0 8px; }
+body.experience-raycast .tp-split > .tp-mb.more { border-radius: 0 8px 8px 0; border-left: 0; padding: 0 8px; }
+body.experience-raycast .tp-menu.up { top: auto; bottom: 36px; }
+body.experience-raycast .tp-say { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-size: 13px; color: var(--tx-muted-fg); }
+body.experience-raycast .tp-say > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.experience-raycast .tp-say .lu { width: 14px; height: 14px; }
+body.experience-raycast .tp-say code { font: 12px var(--tx-mono); color: var(--tx-fg); }
+body.experience-raycast .tp-say.armed .lu { color: var(--tx-success); }
+body.experience-raycast .tp-say.merged .lu { color: var(--tx-violet); }
+body.experience-raycast .tp-say.warn { color: var(--tx-warning, var(--yellow, #e3b341)); }
+body.experience-raycast .tp-say.bad { color: var(--tx-error); }
+body.experience-raycast .tp-compose { position: absolute; left: 12px; right: 12px; bottom: 60px; padding: 10px; border: 1px solid var(--tx-input); border-radius: 12px; background: var(--tx-pop); box-shadow: var(--tx-shadow); display: grid; gap: 8px; }
 body.experience-raycast .tp-text { resize: vertical; min-height: 60px; box-sizing: border-box; width: 100%; padding: 6px 8px; border: 0; outline: none; background: transparent; color: var(--tx-fg); font: 13px/1.5 var(--tx-font); }
 body.experience-raycast .tp-crow { display: flex; justify-content: flex-end; gap: 6px; }
 body.experience-raycast .tp-btn { all: unset; cursor: pointer; height: 28px; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: 500; color: var(--tx-fg); border: 1px solid var(--tx-input); display: inline-flex; align-items: center; }

@@ -177,11 +177,11 @@ function RaycastSeatTree(props) {
 
 function RaycastGroup(props) {
   return (
-    <div class="rail-blk" classList={{ cur: props.group.here }} data-to={props.group.to >= 0 ? props.group.to : undefined}>
+    <div class="rail-blk" classList={{ cur: props.group.here, lifting: !!props.group.lifting }} data-to={props.group.to >= 0 ? props.group.to : undefined}>
       <Show
         when={props.group.fold}
         fallback={
-          <div class="group-title" data-i={props.group.i >= 0 ? props.group.i : undefined}>
+          <div class="group-title" data-i={props.group.i >= 0 ? props.group.i : undefined} draggable={props.group.i >= 0 ? "true" : undefined}>
             <span>{props.group.label}</span>
             <Show when={props.group.keys} fallback={<b>{props.group.items.length}</b>}><span class="rc-key">{props.group.keys}</span></Show>
           </div>

@@ -24,7 +24,7 @@ test("a row says when it runs, what runs first, and how the last round went", ()
   const row = routineRowModel(NIGHTLY, at(10));
   assert.equal(row.schedule, "every day at 18:00");
   assert.equal(row.next, "next in 8h 00");
-  assert.equal(row.where, "cloud");
+  assert.equal(row.where, "remote");
   assert.equal(row.precheck, "gh pr list -q .[0]");
   assert.match(row.last.say, /skipped — no PRs open/);
   assert.equal(row.last.cls, "skipped");

@@ -138,7 +138,7 @@ function tipHtml(row, ctx) {
   const { esc, phrase } = ctx;
   const line = (lead, text) => `<div class="tx-tip-row">${lead}${text}</div>`;
   const words = (text) => `<span class="tx-tip-text">${esc(text)}</span>`;
-  const place = row.where === "cloud" ? phrase("cloud") : st.team?.machine || st.team?.machineHere || phrase("this machine");
+  const place = row.where === "cloud" ? phrase("remote") : st.team?.machine || st.team?.machineHere || phrase("this machine");
   const model = [row.model, row.account && row.account !== "default" ? row.account : ""].filter(Boolean).join(" · ");
   const prs = row.prs.map((p) => `<div class="tx-tip-pr pr-${esc(p.state)}">${icon(PR_ICONS[p.state] || PR_ICONS.open)}<span class="tx-tip-num">#${esc(p.tag.split("#").pop())}</span><span class="tx-tip-text">${esc(p.title || p.tag)}</span></div>`).join("");
   return `<div class="tx-tip-title">${esc(row.title)}</div>

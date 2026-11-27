@@ -58,6 +58,27 @@ test("a path with a space reaches tmux as one word", () => {
   assert.match(hiveShellExec("/Applications/My Shell/bin/fish", "/home/dev/.hive"), /^exec '\/Applications\/My Shell\/bin\/fish' -l$/);
 });
 
+test("a terminal on an ssh host opens through the host's own seats, as a shell, and the pod's script stays with the pod", () => {
+  const open = server.slice(server.indexOf("async function openShell("), server.indexOf("const inFleet ="));
+  assert.match(open, /onCloudSeats\("POST", "", \{ name: seat, kind: "shell", \.\.\.shellOnHost\(\{ \.\.\.tied\.folders, kept: hostBook\.folderOf\(host\), home: ssh\.status\(\)\.home \|\| "" \}\) \}\)/);
+  assert.match(open, /if \(!ssh\) return shellOnThePod\(seat\);/);
+  assert.doesNotMatch(open, /\/workspace\/home/, "the container's script stays out of the way a host opens a shell");
+  assert.ok(open.indexOf("activateHost(host)") < open.indexOf("await wakeAndWait()"), "the host is connected before the wait for it");
+  assert.match(open, /cwd: w === "cloud" \? hostFolder \|\| onTheHost\("\/workspace"\) : tied\.home/, "the seat remembers the folder the host opened");
+});
+
+test("the terminal of a chat on a host opens on that chat's host, whatever host the ask came through", () => {
+  const owner = server.slice(server.indexOf("function hostShellOf("), server.indexOf("function onHostOfSeat("));
+  assert.match(owner, /fleet\.get\(seatKey\("cloud", String\(of\)\)\)/);
+  assert.match(owner, /const host = hostOfRecord\(owner\);/);
+  assert.match(owner, /if \(!sshHosts\.has\(host\)\) throw new Error\(/, "a chat on the team's server has no terminal of its own");
+  assert.match(owner, /if \(!owner && seatHosts\.has\(String\(of\)\)\) throw new Error\("this hive did not open that chat/, "a chat another machine opened on the host says why it has no terminal here");
+  const open = server.slice(server.indexOf("async function openShell("), server.indexOf("const inFleet ="));
+  assert.match(open, /hostFolder = await onHost\(tied\.host, async \(\) => \{/);
+  assert.match(open, /\.\.\.\(w === "cloud" \? \{ host: tied\.host \} : \{\}\),/, "the seat is remembered on the host it opened on");
+  assert.match(server, /kill: \(seat\) => \(seat\.where === "cloud" \? onHostOfSeat\(seat\.name, \(\) => killSeatWindow\(seat\.name, seat\.where\)\) : killSeatWindow\(seat\.name, seat\.where\)\),/, "a shell left behind is closed on its own host");
+});
+
 test("the server reads the choice, says the login shell, and opens and brings back terminals with it", () => {
   assert.ok(server.includes("terminalShell: cleanTerminalShell(raw.terminalShell"), "the config read keeps the choice");
   assert.match(server, /defaults: \{ font: FONT_DEFAULTS, terminalShell: loginShell\(\) \}/, "the settings can show the login shell");

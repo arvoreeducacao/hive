@@ -52,9 +52,11 @@ function seatHarness() {
     revive: { ok: true, name: "seat-2" },
     errands: {},
     opening: new Set(),
-    tied: new Set()
+    tied: new Set(),
+    strangers: new Set()
   };
   registerSeatRoutes((method, path, handler) => routes.set(path, { method, handler }), {
+    knowsHost: (id) => !state.strangers.has(id),
     bodyOf: async (req) => req.body || {},
     openJob: (body) => {
       calls.jobs.push(["open", body]);
@@ -249,6 +251,17 @@ test("buzz goes to the phone through the sync door, and shell turns thrown error
   assert.deepEqual(await hive.call("/api/shell", { cwd: "/repo" }), [{ value: { ok: true, name: "terminal" }, status: 200 }]);
   hive.state.shellError = "cannot open";
   assert.deepEqual(await hive.call("/api/shell", { cwd: "/repo" }), [{ value: { error: "cannot open" }, status: 400 }]);
+});
+
+test("a terminal asked on a host the hive does not keep is refused before any shell opens", async () => {
+  const hive = seatHarness();
+  hive.state.strangers.add("ada@nowhere");
+  const [said] = await hive.call("/api/shell", { where: "cloud", host: "ada@nowhere" });
+  assert.equal(said.status, 400);
+  assert.match(said.value.error, /keeps no host by that name/);
+  assert.deepEqual(hive.calls.shells, []);
+  assert.deepEqual(await hive.call("/api/shell", { where: "cloud", host: "ada@devbox" }), [{ value: { ok: true, name: "terminal" }, status: 200 }]);
+  assert.deepEqual(hive.calls.shells, [{ where: "cloud", host: "ada@devbox" }]);
 });
 
 test("spawning forget, rename and attach retain cache and file contracts", async () => {

@@ -5,6 +5,7 @@ import { SV_FLOOR, drawInk, listInkMarks, loadingChips, shapeComposer, svRoom, s
 import { COMPOSER_MIN, IS_MAC, esc, isImageName, phrase, st, svgIcon, composerShaped } from "./core.js";
 import { BEHIND_KEY, NO_PROJECT, baseItems, baseOf, branchPlaceOf, closePlaceMenu, isBehindKey, openPlaceMenu, paintPlace, placeMarkup, projectItems, projectNamed, projectOfSeat, projectsKnown, pullBranches, pullProjects, repaintPlaceMenu } from "./draft-place.js";
 import { closeTile, focusSeat, goTo, pull, releaseKeyboard } from "./focus-navigation.js";
+import { closeFolderMenuIn, folderSaid, openFolderMenu } from "./host-folders.js";
 import { hud } from "./hud.js";
 import { sendIntent } from "./composer-modes.js";
 import { jobName, justCreated } from "./leader-key.js";
@@ -50,7 +51,8 @@ function keepChoices(d) {
     const kept = keptChoices();
     const where = draftIsAnonymous(d) ? kept.where || "local" : d.where;
     const project = draftIsAnonymous(d) || d.where === "cloud" ? kept.project || "" : d.project || "";
-    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ ...kept, where, kind: d.kind, project }));
+    const host = d.where === "cloud" ? d.host || "" : kept.host || "";
+    localStorage.setItem(DRAFT_KEPT, JSON.stringify({ ...kept, where, kind: d.kind, project, host }));
   } catch {}
 }
 
@@ -74,6 +76,203 @@ function draftChoices(kept) {
   };
 }
 
+const cloudHostsKnown = () => (Array.isArray(st.data?.hosts) ? st.data.hosts : []);
+
+const cloudHasServer = () => st.data?.hasServer === true;
+
+const HOST_PHASES_DONE = ["up", "down", "idle"];
+
+const hostStepSaid = (step) => ({
+  "looking at the host": phrase("looking at the host"),
+  "copying the server to the host": phrase("copying the server to the host"),
+  "installing the server on the host": phrase("installing the server on the host"),
+  "opening the tunnel": phrase("opening the tunnel")
+}[step] || step);
+
+function settleDraftHost(d) {
+  if (!st.data) return;
+  const hosts = cloudHostsKnown();
+  if (d.host && hosts.some((one) => one.id === d.host)) return;
+  d.host = cloudHasServer() || !hosts.length ? "" : hosts[0].id;
+}
+
+function folderOfDraft(d) {
+  if (d.where !== "cloud" || !d.host) return "";
+  const picked = d.folders?.[d.host];
+  return typeof picked === "string" ? picked : cloudHostsKnown().find((one) => one.id === d.host)?.folder || "";
+}
+
+function paintHostFolder(d, picked) {
+  const host = d.e.host;
+  const row = host.querySelector(".sv-folder");
+  row.hidden = !picked;
+  host.querySelector(".sv-cloud-repo").hidden = !!picked || draftAddsHost(d);
+  if (!picked || d.sending) closeFolderMenuIn(host);
+  if (!picked) return;
+  const pick = row.querySelector(".sv-folder-pick");
+  const at = folderOfDraft(d);
+  pick.querySelector(".v").textContent = at ? folderSaid(at, d.homes?.[picked.id] || picked.home || "") : picked.hub ? phrase("the hub on this host") : phrase("home folder");
+  pick.classList.toggle("none", !at);
+  pick.disabled = picked.phase !== "up" || !!d.sending;
+  pick.title = picked.phase === "up" ? phrase("the folder on the host where the chat opens — click to change") : phrase("the folder can be picked once the host is connected");
+}
+
+async function pickDraftFolder(d, id, path, home) {
+  d.folders = { ...(d.folders || {}), [id]: path };
+  if (home) d.homes = { ...(d.homes || {}), [id]: home };
+  paintDraftHost(d);
+  const said = await askTheHosts("/api/hosts/folder", { id, folder: path });
+  if (said?.ok && st.data) st.data.hosts = said.hosts;
+  paintDraftHost(d);
+}
+
+const draftAddsHost = (d) => !!d.addingHost || (!!st.data && !cloudHasServer() && !cloudHostsKnown().length);
+
+const draftLacksHost = (d) => d.where === "cloud" && !d.host && !!st.data && !cloudHasServer();
+
+function hostChipsHtml(d) {
+  const adding = draftAddsHost(d);
+  const chip = (id, label, more = "", title = "") => {
+    const on = !adding && d.host === id;
+    return `<button type="button" data-host="${esc(id)}" role="radio" aria-checked="${on}" class="${on ? "on" : ""} ${more}" title="${esc(title)}">${label}</button>`;
+  };
+  const server = cloudHasServer() ? [chip("", `${svgIcon("i-cloud")}<span>${esc(st.data?.pod?.name || phrase("server"))}</span>`)] : [];
+  const hosts = cloudHostsKnown().map((one) => chip(one.id, `<i class="sv-host-dot"></i><span>${esc(one.label)}</span>`, `phase-${HOST_PHASES_DONE.includes(one.phase) ? one.phase : "busy"}`, one.id));
+  const add = `<button type="button" data-host-add role="radio" aria-checked="${adding}" class="${adding ? "on" : ""}" title="${phrase("add a machine you reach over ssh")}">${svgIcon("i-plus")}<span>${phrase("ssh host")}</span></button>`;
+  return [...server, ...hosts, add].join("");
+}
+
+function hostSaidHtml(d) {
+  if (draftAddsHost(d)) {
+    if (d.hostError) return `<span class="bad">${esc(d.hostError)}</span>`;
+    return esc(phrase("an address your ssh already opens without a password — user@host or user@host:port"));
+  }
+  const one = cloudHostsKnown().find((host) => host.id === d.host);
+  if (!one) return "";
+  const forget = !one.seed && !one.seats ? ` <button type="button" data-host-forget>${phrase("forget this host")}</button>` : "";
+  if (d.hostError) return `<span class="bad">${esc(d.hostError)}</span>${forget}`;
+  if (one.phase === "up") return `${esc(phrase("{host} is connected", { host: one.label }))}${forget}`;
+  if (one.phase === "down") return `<span class="bad">${esc(one.error || phrase("{host} is not connected yet", { host: one.label }))}</span> <button type="button" data-host-retry>${phrase("try again")}</button>${forget}`;
+  if (one.phase === "idle") return `${esc(phrase("{host} is not connected yet", { host: one.label }))} <button type="button" data-host-retry>${phrase("connect")}</button>${forget}`;
+  return `${esc(one.label)} · ${esc(hostStepSaid(one.phase))}…`;
+}
+
+function paintCloudHosts(d) {
+  const host = d.e.host;
+  if (d.where !== "cloud") return void closeFolderMenuIn(host);
+  settleDraftHost(d);
+  const adding = draftAddsHost(d);
+  const paint = (el, markup) => {
+    if (el.dataset.h === markup) return;
+    el.dataset.h = markup;
+    el.innerHTML = markup;
+  };
+  paint(host.querySelector(".sv-hosts"), hostChipsHtml(d));
+  const picked = adding ? null : cloudHostsKnown().find((one) => one.id === d.host);
+  if (picked?.phase === "idle" && d.hostDialled !== picked.id) {
+    d.hostDialled = picked.id;
+    connectDraftHost(d, picked.id);
+  }
+  host.querySelector(".sv-host-new").hidden = !adding;
+  host.querySelector(".sv-host-connect").disabled = !!d.hostBusy || !String(d.hostTarget || "").trim();
+  host.querySelector(".sv-host-connect").textContent = d.hostBusy ? phrase("connecting") : phrase("connect");
+  const said = hostSaidHtml(d);
+  const line = host.querySelector(".sv-host-said");
+  line.hidden = !said;
+  paint(line, said);
+  paintHostFolder(d, picked || null);
+}
+
+async function askTheHosts(path, payload) {
+  return fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) })
+    .then((x) => x.json()).catch((wrong) => ({ error: wrong.message }));
+}
+
+async function connectDraftHost(d, target) {
+  if (d.hostBusy) return;
+  d.hostBusy = true;
+  d.hostError = "";
+  paintDraftHost(d);
+  const said = await askTheHosts("/api/hosts", { target });
+  d.hostBusy = false;
+  if (!said?.ok) {
+    d.hostError = said?.error || phrase("the host was not added");
+    paintDraftHost(d);
+    return;
+  }
+  if (st.data) st.data.hosts = said.hosts;
+  d.host = said.id;
+  d.addingHost = false;
+  d.hostTarget = "";
+  const typed = d.e.host.querySelector(".sv-host-target");
+  if (typed) typed.value = "";
+  paintDraftHost(d);
+}
+
+async function forgetDraftHost(d) {
+  const said = await askTheHosts("/api/hosts/forget", { id: d.host });
+  if (!said?.ok) {
+    d.hostError = said?.error || "";
+    paintDraftHost(d);
+    return;
+  }
+  if (st.data) st.data.hosts = said.hosts;
+  d.host = "";
+  d.hostError = "";
+  paintDraftHost(d);
+}
+
+function wireCloudHosts(host, d) {
+  const typed = host.querySelector(".sv-host-target");
+  host.querySelector(".sv-hosts").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    ev.stopPropagation();
+    d.hostError = "";
+    if (btn.hasAttribute("data-host-add")) {
+      d.addingHost = true;
+      paintDraftHost(d);
+      typed.focus();
+      return;
+    }
+    d.addingHost = false;
+    d.host = btn.dataset.host || "";
+    const picked = cloudHostsKnown().find((one) => one.id === d.host);
+    paintDraftHost(d);
+    if (picked && picked.phase !== "up") connectDraftHost(d, picked.id);
+  });
+  host.querySelector(".sv-host-said").addEventListener("click", (ev) => {
+    const btn = ev.target.closest("button");
+    if (!btn) return;
+    ev.stopPropagation();
+    if (btn.hasAttribute("data-host-forget")) forgetDraftHost(d);
+    else if (d.host) connectDraftHost(d, d.host);
+  });
+  const folderPick = host.querySelector(".sv-folder-pick");
+  folderPick.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (folderPick.classList.contains("open")) return closeFolderMenuIn(host, { refocus: true });
+    const id = d.host;
+    if (!id || folderPick.disabled) return;
+    openFolderMenu(folderPick, {
+      host: id,
+      start: folderOfDraft(d),
+      refocus: () => focusDraftComposer(d),
+      onPick: (path, home) => { pickDraftFolder(d, id, path, home); focusDraftComposer(d); }
+    });
+  });
+  typed.addEventListener("input", () => { d.hostTarget = typed.value; d.hostError = ""; paintDraftHost(d); });
+  typed.addEventListener("keydown", (ev) => {
+    if (ev.key !== "Enter") return;
+    ev.preventDefault();
+    if (typed.value.trim()) connectDraftHost(d, typed.value.trim());
+  });
+  host.querySelector(".sv-host-connect").addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    if (typed.value.trim()) connectDraftHost(d, typed.value.trim());
+  });
+}
+
 function spawnPayloadOf(d, prompt, images = []) {
   const cloud = d.where === "cloud";
   const anon = draftIsAnonymous(d);
@@ -89,8 +288,10 @@ function spawnPayloadOf(d, prompt, images = []) {
     agent: anon ? "claude" : d.e.agent,
     structured: anon || d.kind === "structured",
     account: cloud ? "" : (d.e.account || ""),
-    repo: cloud ? String(d.repo || "").trim() : "",
-    branch: cloud ? String(d.branch || "").trim() : "",
+    repo: cloud && !d.host ? String(d.repo || "").trim() : "",
+    branch: cloud && !d.host ? String(d.branch || "").trim() : "",
+    ...(cloud ? { host: d.host || "" } : {}),
+    ...(folderOfDraft(d) ? { folder: folderOfDraft(d) } : {}),
     ...placeOfDraft(d)
   };
 }
@@ -136,7 +337,7 @@ function draftHost(d) {
         <div class="sv-choices" data-tag="${phrase("Setup")}">
           <div class="sv-seg" data-pick="where" data-caption="${phrase("Where it runs")}" role="radiogroup" aria-label="${phrase("where the chat runs")}">
             <button type="button" data-v="local" data-short="${phrase("Local")}" role="radio">${svgIcon("i-local")}<span>${phrase("local · your machine")}</span></button>
-            <button type="button" data-v="cloud" data-short="${phrase("Cloud")}" role="radio">${svgIcon("i-cloud")}<span>${phrase("cloud · server")}</span></button>
+            <button type="button" data-v="cloud" data-short="${phrase("Remote")}" role="radio">${svgIcon("i-cloud")}<span>${phrase("remote · server")}</span></button>
             <button type="button" data-v="anonymous" data-short="${phrase("Anonymous")}" role="radio" class="anon" title="${phrase("a chat that leaves nothing behind")}">${svgIcon("i-anon")}<span>${phrase("anonymous")}</span></button>
           </div>
           <div class="sv-seg" data-pick="kind" data-caption="${phrase("How it opens")}" role="radiogroup" aria-label="${phrase("what kind of seat it opens")}">
@@ -145,8 +346,19 @@ function draftHost(d) {
           </div>
         </div>
         <div class="sv-cloud" hidden>
-          <input class="sv-repo" autocomplete="off" spellcheck="false" placeholder="${phrase("repo")}" aria-label="${phrase("repo")}" title="${phrase("the repo the cloud seat clones")}" />
+          <div class="sv-seg sv-hosts" data-caption="${phrase("which machine")}" role="radiogroup" aria-label="${phrase("which machine runs the chat")}"></div>
+          <div class="sv-cloud-row sv-host-new" hidden>
+            <input class="sv-host-target" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="user@host" aria-label="${phrase("ssh address of the host")}" />
+            <button type="button" class="sv-host-connect">${phrase("connect")}</button>
+          </div>
+          <p class="sv-host-said" hidden></p>
+          <div class="sv-cloud-row sv-folder" hidden>
+            <button type="button" class="sv-folder-pick" disabled aria-haspopup="listbox" aria-expanded="false" aria-label="${phrase("folder on the host")}">${svgIcon("i-folder")}<span class="v"></span>${svgIcon("i-chev")}</button>
+          </div>
+          <div class="sv-cloud-row sv-cloud-repo">
+          <input class="sv-repo" autocomplete="off" spellcheck="false" placeholder="${phrase("repo")}" aria-label="${phrase("repo")}" title="${phrase("the repo the remote seat clones")}" />
           <input class="sv-branch" autocomplete="off" spellcheck="false" placeholder="${phrase("branch")}" aria-label="${phrase("branch")}" title="${phrase("the branch it starts from")}" />
+          </div>
         </div>
         <p class="sv-anon-said" hidden><b>${phrase("Runs on this computer and leaves nothing behind.")}</b> ${phrase("No hub rules, skills or memories. The other chats, the phone and the summaries never see it, and closing it erases it.")}</p>
         <p class="sv-empty-said" hidden></p>
@@ -234,7 +446,8 @@ function draftHost(d) {
   textarea.addEventListener("input", () => { autosize(); d.e.tray.sync(); d.e.files.sync(); menu.compute(); paintReady(); paintInk(); followTooLong(host, () => textarea.value); });
   textarea.addEventListener("scroll", () => { ink.scrollTop = textarea.scrollTop; });
   textarea.addEventListener("blur", () => setTimeout(menu.close, 150));
-  for (const seg of host.querySelectorAll(".sv-seg")) {
+  wireCloudHosts(host, d);
+  for (const seg of host.querySelectorAll(".sv-seg[data-pick]")) {
     seg.addEventListener("click", (ev) => {
       const btn = ev.target.closest("button[data-v]");
       if (!btn) return;
@@ -436,7 +649,8 @@ function arriveOnADraft(tries = 0) {
 
 function newDraft() {
   const id = `d${++draftSeq}`;
-  const chosen = draftChoices(keptChoices());
+  const kept = keptChoices();
+  const chosen = draftChoices(kept);
   const project = carriedProject();
   const pick = startingPick(project);
   const d = {
@@ -444,6 +658,12 @@ function newDraft() {
     key: draftKey(id),
     kind: chosen.kind,
     where: chosen.where,
+    host: typeof kept.host === "string" ? kept.host : "",
+    addingHost: false,
+    hostTarget: "",
+    hostError: "",
+    hostBusy: false,
+    hostDialled: "",
     repo: "",
     branch: "",
     project: NO_PROJECT,
@@ -549,6 +769,12 @@ async function sendDraft(d, text, behind = false) {
   }
   const prompt = woven.text.trim();
   if ((!prompt && !marked.images.length) || d.sending) return;
+  if (draftLacksHost(d)) {
+    d.error = phrase("add a host first — this hive has no server for the chat to run on");
+    paintDraftHost(d);
+    render();
+    return;
+  }
   closePlaceMenu();
   if (refuseTooLong(d.e.host, text)) return;
   d.sending = true;
@@ -648,7 +874,7 @@ function draftRefused(d, said) {
 
 function paintDraftHost(d) {
   const host = d.e.host;
-  for (const seg of host.querySelectorAll(".sv-seg")) {
+  for (const seg of host.querySelectorAll(".sv-seg[data-pick]")) {
     for (const btn of seg.querySelectorAll("button[data-v]")) {
       const on = btn.dataset.v === d[seg.dataset.pick];
       btn.classList.toggle("on", on);
@@ -656,6 +882,7 @@ function paintDraftHost(d) {
     }
   }
   host.querySelector(".sv-cloud").hidden = d.where !== "cloud";
+  paintCloudHosts(d);
   host.querySelector(".sv-place").hidden = !draftPlaced(d);
   paintPlace(host, d);
   host.querySelector(".sv-anon-said").hidden = !draftIsAnonymous(d);

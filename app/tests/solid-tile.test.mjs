@@ -102,7 +102,7 @@ test("the live badge is hidden with nothing running and titled with what runs", 
 test("a local seat carries no where chip, a cloud one does", () => {
   assert.equal(tile().whereChip, null);
   assert.deepEqual(tile({ seat: { where: "cloud" } }).whereChip,
-    { key: "cloud", cls: "cloud", title: "cloud", icon: "#i-cloud", text: "cloud" });
+    { key: "cloud", cls: "cloud", title: "remote", icon: "#i-cloud", text: "remote" });
 });
 
 test("the summary falls back to the description, and stays blank when the chat wrote neither", () => {
@@ -356,7 +356,7 @@ test("the tile builds into the same bundle and hands the card every mount it nee
 
 test("the place is an icon before the name: a cloud seat is told apart from a local one", () => {
   assert.deepEqual({ ...tile().place }, { cls: "local", icon: "#i-local", title: "local" });
-  assert.deepEqual({ ...tile({ seat: { where: "cloud" } }).place }, { cls: "cloud", icon: "#i-cloud", title: "cloud" });
+  assert.deepEqual({ ...tile({ seat: { where: "cloud" } }).place }, { cls: "cloud", icon: "#i-cloud", title: "remote" });
 });
 
 test("the browser or phone sign shows only while the seat is using it, and the browser wins when it uses both", () => {

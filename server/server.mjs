@@ -18,6 +18,7 @@ import { keepPushing, rootsOf } from "./autopush.mjs";
 import { createFiles } from "./files.mjs";
 import { createTerminals, readFrame } from "./terminal.mjs";
 import { prepareWorktree } from "./worktree.mjs";
+import { createFolders } from "./folders.mjs";
 import { hubDir, workspaceRoot } from "./engine/paths.mjs";
 import { warmClaudeBinary } from "./engine/claude-binary.mjs";
 import { createPeers } from "./peers.mjs";
@@ -227,6 +228,7 @@ export function createBroker({ home, stateDir, now = () => Date.now(), log = () 
   const seatSession = seatWindowSession(stateHome);
   const seats = createSeats({ session: seatSession, base: stateHome, owner: myName(), log });
   const runner = createRun();
+  const folders = createFolders();
 
   const askedBirths = createAsked({ what: "new chat", waitMs: BIRTH_WAIT_MS });
 
@@ -410,6 +412,12 @@ export function createBroker({ home, stateDir, now = () => Date.now(), log = () 
       try { asked = JSON.parse(body.toString("utf8") || "{}"); } catch { return asJson({ error: "unreadable body" }, 400); }
       const said = await runner.run(asked);
       return said.error ? asJson(said, 400) : asJson(said);
+    }
+
+    if (path === "/api/folders" && method === "GET") {
+      if (device.kind === "peer") return asJson({ error: "a server that came in by invite does not look through the folders here" }, 403);
+      const said = folders.list(query?.get("path"), { hidden: query?.get("hidden") === "1" });
+      return said.error ? asJson(said, 404) : asJson(said);
     }
 
     if (path.startsWith("/api/seats")) {

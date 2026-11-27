@@ -14,14 +14,14 @@ function cut(from, to, what) {
   return server.slice(a, b);
 }
 
-const DOOR = cut('let doorComplaint = "";', "/* the new-chat box asks", "the cloud door");
+const DOOR = cut("const doorComplaints = new Map();", "/* the new-chat box asks", "the cloud door");
 const SEAT = cut("async function seatThroughServer(ws, {", '\nprocess.on("exit"', "the seat wiring");
 
-function hive({ found, remote = { where: "cloud", client: {} }, url = "https://hive-ada.hive.example" }) {
+function hive({ found, remote = { where: "cloud", client: {} }, url = "https://hive-ada.hive.example", sshHost = null }) {
   const said = [];
   return new Function(
     "findCloudServer", "NO_ADDRESS", "readHiveEnvConfig", "existsSync", "readFileSync", "writeFileSync",
-    "HIVE_ENV_CONFIG", "servers", "streamFor", "attachSeat", "desk", "console", "deploymentScript",
+    "HIVE_ENV_CONFIG", "servers", "streamFor", "attachSeat", "desk", "console", "deploymentScript", "sshHosts", "currentHost", "currentSsh", "defaultHost",
     `${DOOR}${SEAT}return { serverFor, seatThroughServer };`
   )(
     async () => found,
@@ -36,7 +36,11 @@ function hive({ found, remote = { where: "cloud", client: {} }, url = "https://h
     () => ({ command() {}, stop() {} }),
     null,
     { log: (line) => said.push(line) },
-    (name) => `deploy/scripts/${name}`
+    (name) => `deploy/scripts/${name}`,
+    new Map(sshHost ? [["ada@devbox", sshHost]] : []),
+    () => (sshHost ? "ada@devbox" : ""),
+    () => sshHost,
+    () => (sshHost ? "ada@devbox" : "")
   );
 }
 

@@ -15,7 +15,7 @@ test("the rail's view model comes from the store — local always, cloud only wi
   st.data = { pod: { up: true, name: "pod-1" }, sessions: [seat("a")], archived: [] };
   const groups = railViewModel().groups;
   assert.deepEqual(groups.map((g) => g.key), ["cloud", "local"]);
-  assert.equal(groups[0].label, "cloud · pod-1");
+  assert.equal(groups[0].label, "remote · pod-1");
   const [a] = groups[1].items;
   assert.equal(a.tag, "b1");
   assert.equal(a.here, true);

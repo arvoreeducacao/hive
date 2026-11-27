@@ -3,16 +3,17 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, state } from "./dom.mjs";
+import { app, state, views } from "./dom.mjs";
 
 const HERE = fileURLToPath(new URL("..", import.meta.url));
 const page = readFileSync(join(HERE, "app.html"), "utf8");
 const tileView = readFileSync(join(HERE, "src/tile.jsx"), "utf8");
 
 const st = await state();
-const { phrase, solidMounts } = await app("core");
+await views();
+const { phrase } = await app("core");
 const { ask, closeConfirm, placeConfirm } = await app("pod");
-const { blockMenuRows, closeSeatMenu, seatMenuRows, tileActions } = await app("seat-menu");
+const { blockMenuRows, closeSeatMenu, openMenuRows, seatMenuRows, tileActions } = await app("seat-menu");
 
 const modal = document.getElementById("confirm");
 const card = modal.querySelector(".box");
@@ -138,23 +139,16 @@ test("the name of what is being closed stands on its own, not inside the sentenc
 });
 
 test("the menu measures the row before it hides itself — a hidden row has no place", () => {
-  const [, options] = mountArgs("mountMenu")[0] || [];
-  assert.ok(options && typeof options.pick === "function", "the menu view has nobody to tell when a row is picked");
   const rect = rectAt(816, 126);
   let told = null;
   let onScreenWhenTold = null;
-  document.getElementById("seatmenu").classList.add("on");
-  st.menuShown = [{ label: "close the seat", go: (at) => { told = at; onScreenWhenTold = document.getElementById("seatmenu").classList.contains("on"); } }];
-  options.pick(0, rect);
+  const menu = document.getElementById("seatmenu");
+  openMenuRows("a seat", [{ label: "close the seat", go: (at) => { told = at; onScreenWhenTold = menu.classList.contains("on"); } }], 40, 40);
+  assert.ok(menu.classList.contains("on"), "the menu opened");
+  const row = menu.querySelector('[data-i="0"]');
+  row.getBoundingClientRect = () => rect;
+  row.click();
   assert.equal(told, rect, "the row was never told where it stood");
   assert.equal(onScreenWhenTold, false, "the menu was still on screen when the row ran");
   closeSeatMenu();
 });
-
-function mountArgs(which) {
-  const grabbed = [];
-  const handle = { show() {}, stop() {}, clear() {}, destroy() {} };
-  const hive = new Proxy({}, { get: (_, key) => (...args) => { if (key === which) grabbed.push(args); return handle; } });
-  for (const mount of solidMounts) { try { mount(hive); } catch {} }
-  return grabbed;
-}

@@ -39,11 +39,22 @@ export let NS, CONTAINER, AWS_PROFILE, CLUSTER, RELEASE_REPO, DOOR_DOMAIN, HUB_F
 export let DEPLOYMENT_DIR, EXPECTED_REPOS, REPOS_OWNER, POKERS, EXTENSIONS_REPO;
 export let HUB, DEV, POD, STS, SECRET_NAME, ENV_FILE, POD_HUB;
 
-export function serverIsWanted(env = process.env, config = {}) {
+export function sshHostAsked(env = process.env, config = {}) {
+  return String(env.HIVE_SERVER_SSH ?? config.HIVE_SERVER_SSH ?? "").trim();
+}
+
+export function urlServerIsWanted(env = process.env, config = {}) {
   const asked = env.HIVE_WANTS_SERVER ?? config.HIVE_WANTS_SERVER;
   if (asked === "0" || asked === "false") return false;
   if (asked === "1" || asked === "true") return true;
   return !!(env.HIVE_SERVER_URL || config.HIVE_SERVER_URL);
+}
+
+export function serverIsWanted(env = process.env, config = {}) {
+  const asked = env.HIVE_WANTS_SERVER ?? config.HIVE_WANTS_SERVER;
+  if (asked === "0" || asked === "false") return false;
+  if (asked === "1" || asked === "true") return true;
+  return !!(env.HIVE_SERVER_URL || config.HIVE_SERVER_URL || sshHostAsked(env, config));
 }
 
 export function clusterIsWanted(env = process.env, config = {}) {

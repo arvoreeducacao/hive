@@ -447,3 +447,28 @@ HIVE_WORKSPACE=$HOME/hive node server.mjs
 ```
 
 Same server, same layout on disk, no container.
+
+## Over SSH
+
+When the machine is one you already reach with `ssh`, the desktop app does the
+two lines above for you. Open a new chat, pick **remote · server**, click
+**ssh host**, type `user@host` and press **connect**. The app remembers the host,
+and several hosts work next to the local chats and next to a server with an address.
+
+To have a host connected at every start, put it in `~/.hive/config`:
+
+```
+HIVE_SERVER_SSH=user@host
+```
+
+The app copies the server to `~/.hive-host` on that machine, installs its
+dependencies, starts it on a unix socket and reaches it through an SSH tunnel that
+ends on `127.0.0.1` of your computer. No port opens on the host and nothing needs
+TLS: SSH is the door.
+
+The host needs node 22 or newer, npm, tmux, git and tar, plus the agent CLI the
+chats will run. SSH has to work without a prompt (a key or an agent, and the host
+already in `known_hosts`), because nobody is there to type a password.
+
+The phone and team invites still need an address other devices can reach, so they
+stay off for a server that only SSH reaches.

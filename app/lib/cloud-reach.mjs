@@ -10,7 +10,9 @@ export function reachAsked(env = process.env, config = {}) {
 export function createReach({
   cluster = null,
   serverFor = async () => null,
-  asked = reachAsked()
+  asked = reachAsked(),
+  pathFor = (path) => path,
+  readElsewhere = null
 } = {}) {
   async function chosen() {
     if (asked === CLUSTER) return cluster ? { how: CLUSTER, cluster } : { how: NOWHERE };
@@ -31,8 +33,9 @@ export function createReach({
       const via = await chosen();
       if (via.how === CLUSTER) return via.cluster.putFile(path, body);
       if (via.how === OVER_HTTP) {
-        const said = await via.server.client.post("/api/file", { path, data: Buffer.from(body).toString("base64") });
-        return said.ok ? { ok: true, path: said.body?.path || path } : { error: said.error || "the server would not take that file" };
+        const there = pathFor(path);
+        const said = await via.server.client.post("/api/file", { path: there, data: Buffer.from(body).toString("base64") });
+        return said.ok ? { ok: true, path: said.body?.path || there } : { error: said.error || "the server would not take that file" };
       }
       return { error: "there is no server to put that on" };
     },
@@ -41,9 +44,12 @@ export function createReach({
       const via = await chosen();
       if (via.how === CLUSTER) return via.cluster.getFile(path);
       if (via.how === OVER_HTTP) {
-        const said = await via.server.client.get(`/api/file?path=${encodeURIComponent(path)}`);
-        if (!said.ok) return { error: said.error || "the server would not hand that file over" };
-        return { ok: true, path, body: Buffer.from(String(said.body?.data || ""), "base64") };
+        const there = pathFor(path);
+        const said = await via.server.client.get(`/api/file?path=${encodeURIComponent(there)}`);
+        if (said.ok) return { ok: true, path: there, body: Buffer.from(String(said.body?.data || ""), "base64") };
+        const other = readElsewhere ? await readElsewhere(there).catch(() => null) : null;
+        if (other) return { ok: true, path: there, body: other };
+        return { error: said.error || "the server would not hand that file over" };
       }
       return { error: "there is no server to read that from" };
     },

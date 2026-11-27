@@ -4,7 +4,7 @@ import { app, state, views } from "./dom.mjs";
 
 const st = await state();
 await views();
-const { forgetSeat, hidden, moveSeatToBlock, moveToNewBlock, tidy } = await app("blocks");
+const { forgetSeat, hidden, moveBlock, moveSeatToBlock, moveToNewBlock, tidy } = await app("blocks");
 
 st.LIMIT = 4;
 
@@ -291,4 +291,40 @@ test("a hidden chat missing for a moment stays hidden", () => {
   assert.ok(hidden.has("b"), "a hidden chat came back into the grid after a hiccup");
   assert.deepEqual(keysOf(), [["a"]]);
   hidden.delete("b");
+});
+
+test("a block dragged above another lands there, and the block on screen stays on screen", () => {
+  lay([{ keys: ["a", "b", "c"] }, { keys: ["d", "e"] }, { keys: ["f", "g", "h"] }]);
+  live(["a", "b", "c", "d", "e", "f", "g", "h"]);
+  goTo(0);
+  assert.equal(moveBlock(2, 0, false), true);
+  assert.deepEqual(keysOf(), [["f", "g", "h"], ["a", "b", "c"], ["d", "e"]]);
+  assert.deepEqual([...st.blocks[st.block].keys], ["a", "b", "c"]);
+});
+
+test("a block dragged below another lands right after it", () => {
+  lay([{ keys: ["a", "b", "c"] }, { keys: ["d", "e"] }, { keys: ["f", "g", "h"] }]);
+  live(["a", "b", "c", "d", "e", "f", "g", "h"]);
+  assert.equal(moveBlock(0, 1, true), true);
+  assert.deepEqual(keysOf(), [["d", "e"], ["a", "b", "c"], ["f", "g", "h"]]);
+});
+
+test("a drag never joins blocks: neither the moved block nor the ones it left side by side", () => {
+  lay([{ keys: ["a"] }, { keys: ["b", "c", "d", "e"] }, { keys: ["f"] }]);
+  live(["a", "b", "c", "d", "e", "f"]);
+  assert.equal(moveBlock(1, 2, true), true);
+  tidy();
+  assert.deepEqual(keysOf(), [["a"], ["f"], ["b", "c", "d", "e"]]);
+});
+
+test("a block dropped where it already is, or in another workspace, stays put", () => {
+  lay([{ keys: ["a", "b", "c"] }, { keys: ["d", "e"] }]);
+  assert.equal(moveBlock(0, 1, false), false, "above the next block is where it already is");
+  assert.equal(moveBlock(1, 0, true), false, "below the block before it is where it already is");
+  assert.equal(moveBlock(0, 0, true), false);
+  st.blocks[1].ws = "elsewhere";
+  assert.equal(moveBlock(1, 0, false), false);
+  st.blocks[1].ws = st.space;
+  assert.deepEqual(keysOf(), [["a", "b", "c"], ["d", "e"]]);
+  assert.equal(st.blocks.some((b) => b.manual), false);
 });

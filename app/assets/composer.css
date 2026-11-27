@@ -105,11 +105,9 @@ body.experience-raycast .sv-composer .sv-btns .sv-talk { width: 32px; height: 32
 .sv-composer .cp-acts { display: inline-flex; flex: none; align-items: center; gap: 8px; }
 .sv-composer .cp-acts[hidden] { display: none; }
 .sv-composer .cp-acts button { flex: none; white-space: nowrap; }
-.sv-composer .cp-prev { box-sizing: border-box; display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid var(--cp-input); border-radius: 8px; background: none; color: var(--cp-fg); font: 500 13px/1 var(--cp-font); cursor: pointer; }
-.sv-composer .cp-prev:hover { background: var(--cp-hover); }
 .sv-composer :is(.cp-pill, .cp-impl-go, .cp-impl-more) { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 30px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--cp-primary); color: var(--cp-primary-fg); font: 500 13px/1 var(--cp-font); cursor: pointer; }
 .sv-composer :is(.cp-pill, .cp-impl-go, .cp-impl-more):hover { background: color-mix(in srgb, var(--cp-primary) 88%, var(--cp-bg)); }
-.sv-composer :is(.cp-pill, .cp-impl-go, .cp-impl-more, .cp-prev):disabled { opacity: .64; pointer-events: none; }
+.sv-composer :is(.cp-pill, .cp-impl-go, .cp-impl-more):disabled { opacity: .64; pointer-events: none; }
 .sv-composer .cp-impl { position: relative; display: inline-flex; align-items: stretch; }
 .sv-composer .cp-impl[hidden], .sv-composer .cp-acts > [hidden] { display: none; }
 .sv-composer .cp-impl-go { border-radius: 999px 0 0 999px; }
@@ -148,7 +146,7 @@ body.experience-raycast .sv-composer .sv-btns .sv-talk { width: 32px; height: 32
 .sv .cp-bx { width: 24px; padding: 0; color: var(--cp-muted); }
 .sv .cp-bx .cp-i { width: 14px; height: 14px; }
 .sv :is(.cp-bbtn, .cp-bx):hover { background: var(--cp-hover); color: var(--cp-fg); }
-.sv .cp-ask-head { grid-template-columns: minmax(0, 1fr) auto; padding: 2px 12px 0 22px; }
+.sv .cp-ask-head { grid-template-columns: minmax(0, 1fr); padding: 2px 8px 0 22px; }
 .sv .cp-ask-h { flex: none; color: var(--cp-muted); }
 .sv :is(.cp-ask, .cp-stash) { display: flex; flex-direction: column; min-height: 0; }
 .sv .cp-ask-body { max-height: min(24rem, 40vh); overflow-y: auto; padding: 0 16px 4px 22px; overflow-wrap: anywhere; }
@@ -170,6 +168,29 @@ body.experience-raycast .sv-composer .sv-btns .sv-talk { width: 32px; height: 32
 .sv .cp-opt-l { font-size: 14px; line-height: 20px; font-weight: 500; }
 .sv .cp-opt-d { font-size: 11px; line-height: 15px; color: var(--cp-muted); }
 .sv .cp-ask-err { padding: 4px 0 2px; color: var(--cp-error); }
+.sv .cp-ask-top { display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.sv .cp-ask-top > .cp-ask-head { flex: 1; min-width: 0; }
+.sv .cp-ask-head .cp-bfold { width: 20px; height: 20px; }
+.sv .cp-ask-nav { flex: none; display: inline-flex; align-items: center; gap: 2px; padding-top: 2px; }
+.sv .cp-ask-arrow { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px; color: var(--cp-muted); cursor: pointer; transition: background-color .15s, color .15s; }
+.sv .cp-ask-arrow .cp-i { width: 14px; height: 14px; transform: rotate(90deg); }
+.sv .cp-ask-arrow.next .cp-i { transform: rotate(-90deg); }
+.sv .cp-ask-arrow:hover { background: var(--cp-hover); color: var(--cp-fg); }
+.sv .cp-ask-arrow:disabled { opacity: .35; pointer-events: none; }
+.sv .cp-ask-page { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; font: 500 12px/1 var(--cp-font); font-variant-numeric: tabular-nums; color: var(--cp-muted); }
+.sv .cp-ask-page .cp-i { width: 14px; height: 14px; color: var(--cp-primary); }
+.sv .cp-ask-foot { display: flex; justify-content: flex-end; padding: 8px 12px 2px; }
+.sv .cp-ask-go { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: 30px; padding: 0 16px; border-radius: 999px; background: var(--cp-primary); color: var(--cp-primary-fg); font: 500 13px/1 var(--cp-font); cursor: pointer; transition: background-color .15s; }
+.sv .cp-ask-go:hover { background: color-mix(in srgb, var(--cp-primary) 88%, var(--cp-bg)); }
+.sv .cp-ask-go:disabled { opacity: .64; pointer-events: none; }
+.sv .cp-ask-sums { display: grid; gap: 2px; margin: 8px 0 0 -6px; }
+.sv .cp-ask-sum { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 14rem) minmax(0, 1fr); column-gap: 16px; align-items: baseline; width: 100%; padding: 6px; border-radius: 8px; font-size: 14px; line-height: 20px; cursor: pointer; transition: background-color .15s; }
+.sv .cp-ask-sum:hover { background: color-mix(in srgb, var(--cp-fg) 4%, transparent); }
+.sv .cp-ask-sum:disabled { cursor: not-allowed; opacity: .5; }
+.sv .cp-ask-sum-q { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cp-muted); }
+.sv .cp-ask-sum-a { min-width: 0; font-weight: 500; color: var(--cp-fg); overflow-wrap: anywhere; }
+.sv .cp-ask-sum-a.missing { font-weight: 400; color: var(--cp-error); }
+.sv :is(.cp-ask-arrow, .cp-ask-go, .cp-ask-sum):focus-visible { outline: 2px solid color-mix(in srgb, var(--cp-primary) 70%, transparent); outline-offset: -2px; }
 .sv .cp-stash-tab { all: unset; box-sizing: border-box; flex: none; display: grid; grid-template-columns: 24px auto auto; align-items: center; column-gap: 4px; padding: 5px 4px 22px; border: 1px solid var(--cp-border); border-bottom: 0; border-radius: 18px 18px 0 0; background: var(--cp-card); color: var(--cp-muted); cursor: pointer; transition: color .2s; }
 .sv .cp-stash-tab:hover { color: var(--cp-fg); }
 .sv .cp-stash-tab.pulse { animation: cp-stash-pulse .5s ease-out; }
@@ -285,7 +306,6 @@ body.experience-raycast .sv-composer .sv-menu.cp-pick .sv-row .key { margin-left
 body.experience-raycast .sv-composer .sv-bar > .sv-ctx .pct .full { display: none; }
 body.experience-raycast .sv-composer .sv-bar > .sv-ctx .pct .short { display: inline; }
 body.experience-raycast .sv-composer .sv-btns .cp-acts button { width: auto; min-width: 0; border-radius: 999px; background-clip: padding-box; }
-body.experience-raycast .sv-composer .sv-btns .cp-acts .cp-prev { height: 28px; border-radius: 8px; }
 body.experience-raycast .sv-composer .sv-btns .cp-acts .cp-impl-go { border-radius: 999px 0 0 999px; }
 body.experience-raycast .sv-composer .sv-btns .cp-acts .cp-impl-more { width: 32px; border-radius: 0 999px 999px 0; }
 body.experience-raycast .sv-composer .sv-btns .cp-acts .cp-impl-new { width: auto; height: 32px; border-radius: 8px; }
